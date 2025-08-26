@@ -9,6 +9,9 @@ from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Get the port from environment (Render requirement)
+PORT = config('PORT', default=8000, cast=int)
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-cuw8b95y$==pjsl#1pt9jgg#+ot$%)a-9ra2zay3+1=hov81g9')
 
@@ -99,20 +102,29 @@ DATABASES = {
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {
-            'connect_timeout': 10,
+            'connect_timeout': 30,  # Increased timeout for better stability
         },
     }
 }
 
 # Force SSL for PostgreSQL connections (Render requirement)
 if not DEBUG:
-    # Django PostgreSQL SSL configuration
+    # Production SSL configuration for Render
     DATABASES['default']['OPTIONS'].update({
         'sslmode': 'require',
         'sslcert': None,
         'sslkey': None,
         'sslrootcert': None,
+        'application_name': 'jewellery_crm_backend',  # Help with connection tracking
+        'keepalives': 1,        # Enable keepalive
+        'keepalives_idle': 30,  # Send keepalive after 30 seconds of inactivity
+        'keepalives_interval': 10,  # Send keepalive every 10 seconds
+        'keepalives_count': 5,  # Allow 5 failed keepalives before closing
     })
+    
+    # Production connection pooling
+    DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True  # Enable connection health checks
     
     # Alternative: Use connection string approach for Render
     # This sometimes works better with Render's PostgreSQL
