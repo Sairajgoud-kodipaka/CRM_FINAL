@@ -35,7 +35,7 @@ services:
       - key: DB_PORT
         value: 5432
       - key: DB_SSL_MODE
-        value: prefer
+        value: allow
       - key: DB_SSL_VERIFY
         value: false
       - key: DB_SSL_CA

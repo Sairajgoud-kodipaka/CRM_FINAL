@@ -112,7 +112,7 @@ DATABASES = {
 if not DEBUG:
     # Production configuration - Use environment variable for SSL mode
     DATABASES['default']['OPTIONS'].update({
-        'sslmode': config('DB_SSL_MODE', default='prefer'),  # Force SSL from environment
+        'sslmode': config('DB_SSL_MODE', default='allow'),  # Force SSL from environment
         'application_name': 'jewellery_crm_backend',
         'keepalives': 1,
         'keepalives_idle': 30,
