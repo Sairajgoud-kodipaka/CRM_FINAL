@@ -31,7 +31,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
-    'drf_spectacular',
+    # 'drf_spectacular',  # Temporarily disabled for deployment
     
     # Local apps
     'apps.tenants',
@@ -126,7 +126,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = config('STATIC_URL', default='/static/')
 STATIC_ROOT = BASE_DIR / config('STATIC_ROOT', default='staticfiles')
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = []  # Empty for production - static files will be collected to STATIC_ROOT
 
 # Media files
 MEDIA_URL = config('MEDIA_URL', default='/media/')
@@ -153,7 +153,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # 'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  # Temporarily disabled for deployment
 }
 
 # JWT Settings
@@ -174,9 +174,9 @@ SIMPLE_JWT = {
 }
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001').split(',')
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://crm-final-five.vercel.app,https://crm-final-mfe4.onrender.com').split(',')
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True  # For development only
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)  # Secure by default
 
 # WhatsApp Integration (WAHA)
 WAHA_BASE_URL = config('WAHA_BASE_URL', default='http://localhost:3001')
@@ -214,7 +214,7 @@ CORS_EXPOSE_HEADERS = [
 ]
 
 # CSRF Settings
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001').split(',')
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://crm-final-five.vercel.app,https://crm-final-mfe4.onrender.com').split(',')
 
 # Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
@@ -232,15 +232,41 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
-# API Documentation
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'Jewelry CRM API',
-    'DESCRIPTION': 'A comprehensive CRM system for jewelry businesses',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
-    'COMPONENT_SPLIT_REQUEST': True,
-    'SCHEMA_PATH_PREFIX': '/api/',
-}
+# API Documentation - Temporarily disabled for deployment
+# SPECTACULAR_SETTINGS = {
+#     'TITLE': 'Jewelry CRM API',
+#     'DESCRIPTION': 'A comprehensive CRM system for jewelry businesses',
+#     'VERSION': '1.0.0',
+#     'SERVE_INCLUDE_SCHEMA': False,  # Disabled for deployment
+#     'COMPONENT_SPLIT_REQUEST': True,
+#     'SCHEMA_PATH_PREFIX': '/api/',
+#     'SWAGGER_UI_SETTINGS': {
+#         'deepLinking': True,
+#     },
+#     # Disable schema generation to avoid field name conflicts
+#     'GENERATE_SCHEMA': False,
+#     'SCHEMA_GENERATOR_CLASS': None,
+# }
+
+# Production Security Settings
+if not DEBUG:
+    # Security Headers
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # HTTPS Settings
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Cookie Security
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # Additional Security
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # Internal IPs for development (if needed)
 INTERNAL_IPS = [

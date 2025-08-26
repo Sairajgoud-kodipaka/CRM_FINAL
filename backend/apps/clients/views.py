@@ -1,11 +1,10 @@
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, mixins
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
 from django.utils import timezone
 from django.db.models import Q, Count
-from .models import Client, ClientInteraction, Appointment, FollowUp, Task, Announcement, Purchase, AuditLog, CustomerTag, serialize_field
+from .models import Client, ClientInteraction, Appointment, FollowUp, Task, Announcement, Purchase, AuditLog, CustomerTag
 from .serializers import (
     ClientSerializer, ClientInteractionSerializer, AppointmentSerializer, FollowUpSerializer, 
     TaskSerializer, AnnouncementSerializer, PurchaseSerializer, AuditLogSerializer,
@@ -13,8 +12,6 @@ from .serializers import (
 )
 from apps.users.permissions import IsRoleAllowed, CanDeleteCustomer
 from apps.users.middleware import ScopedVisibilityMixin
-from rest_framework import mixins
-from rest_framework import permissions
 import csv
 import io
 import json
@@ -308,7 +305,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     store=client.store,
                     is_active=True
                 )
-                print(f"Found {store_managers.count()} store managers: {[f'{manager.username} (store: {manager.store.name if manager.store else 'None'})' for manager in store_managers]}")
+                # print(f"Found {store_managers.count()} store managers")
                 users_to_notify.extend(store_managers)
             
                 # In-house sales users
@@ -318,7 +315,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     store=client.store,
                     is_active=True
                 )
-                print(f"Found {inhouse_sales_users.count()} inhouse sales users: {[f'{user.username} (store: {user.store.name if user.store else 'None'})' for user in inhouse_sales_users]}")
+                print(f"Found {inhouse_sales_users.count()} inhouse sales users: {[f'{user.username} (store: {user.store.name if user.store else \"None\"})' for user in inhouse_sales_users]}")
                 users_to_notify.extend(inhouse_sales_users)
                 
                 # Tele-calling users
@@ -328,7 +325,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     store=client.store,
                     is_active=True
                 )
-                print(f"Found {telecalling_users.count()} telecalling users: {[f'{user.username} (store: {user.store.name if user.store else 'None'})' for user in telecalling_users]}")
+                print(f"Found {telecalling_users.count()} telecalling users: {[f'{user.username} (store: {user.store.name if user.store else \"None\"})' for user in telecalling_users]}")
                 users_to_notify.extend(telecalling_users)
                 
                 # Marketing users (they might need to know about new customers for campaigns)
@@ -338,7 +335,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     store=client.store,
                     is_active=True
                 )
-                print(f"Found {marketing_users.count()} marketing users: {[f'{user.username} (store: {user.store.name if user.store else 'None'})' for user in marketing_users]}")
+                print(f"Found {marketing_users.count()} marketing users: {[f'{user.username} (store: {user.store.name if user.store else \"None\"})' for user in marketing_users]}")
                 users_to_notify.extend(marketing_users)
             else:
                 print(f"Client has NO store assigned - store users won't be notified")
@@ -349,7 +346,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     role='manager',
                     is_active=True
                 )
-                print(f"Found {all_managers.count()} managers in tenant (no store): {[f'{manager.username} (store: {manager.store.name if manager.store else 'None'})' for manager in all_managers]}")
+                print(f"Found {all_managers.count()} managers in tenant (no store): {[f'{manager.username} (store: {manager.store.name if manager.store else \"None\"})' for manager in all_managers]}")
                 users_to_notify.extend(all_managers)
             
             # Remove duplicates (in case created_by_user has multiple roles or is in multiple categories)
@@ -467,7 +464,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                 action='restore',
                 user=request.user,
                 before=None,
-                after={field.name: serialize_field(getattr(client, field.name)) for field in client._meta.fields}
+                after={field.name: str(getattr(client, field.name)) for field in client._meta.fields}
             )
             return Response({'status': 'client restored'})
         return Response({'error': 'client is not deleted'}, status=status.HTTP_400_BAD_REQUEST)
@@ -478,7 +475,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         if client.is_deleted:
             client._auditlog_user = request.user
             from .models import AuditLog
-            before = {field.name: serialize_field(getattr(client, field.name)) for field in client._meta.fields}
+                            before = {field.name: str(getattr(client, field.name)) for field in client._meta.fields}
             AuditLog.objects.create(
                 client=client,
                 action='delete',
@@ -1366,7 +1363,7 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     store=appointment.client.store,
                     is_active=True
                 )
-                print(f"Found {store_managers.count()} store managers: {[f'{manager.username} (store: {manager.store.name if manager.store else 'None'})' for manager in store_managers]}")
+                print(f"Found {store_managers.count()} store managers: {[f'{manager.username} (store: {manager.store.name if manager.store else \"None\"})' for manager in store_managers]}")
                 users_to_notify.extend(store_managers)
                 
                 # In-house sales users
@@ -1376,7 +1373,7 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     store=appointment.client.store,
                     is_active=True
                 )
-                print(f"Found {inhouse_sales_users.count()} inhouse sales users: {[f'{user.username} (store: {user.store.name if user.store else 'None'})' for user in inhouse_sales_users]}")
+                print(f"Found {inhouse_sales_users.count()} inhouse sales users: {[f'{user.username} (store: {user.store.name if user.store else \"None\"})' for user in inhouse_sales_users]}")
                 users_to_notify.extend(inhouse_sales_users)
                 
                 # Tele-calling users
@@ -1386,7 +1383,7 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     store=appointment.client.store,
                     is_active=True
                 )
-                print(f"Found {telecalling_users.count()} telecalling users: {[f'{user.username} (store: {user.store.name if user.store else 'None'})' for user in telecalling_users]}")
+                print(f"Found {telecalling_users.count()} telecalling users: {[f'{user.username} (store: {user.store.name if user.store else \"None\"})' for user in telecalling_users]}")
                 users_to_notify.extend(telecalling_users)
             else:
                 print(f"Appointment has NO client or store - store users won't be notified")
@@ -1397,7 +1394,7 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     role='manager',
                     is_active=True
                 )
-                print(f"Found {all_managers.count()} managers in tenant (no store): {[f'{manager.username} (store: {manager.store.name if manager.store else 'None'})' for manager in all_managers]}")
+                print(f"Found {all_managers.count()} managers in tenant (no store): {[f'{manager.username} (store: {manager.store.name if manager.store else \"None\"})' for manager in all_managers]}")
                 users_to_notify.extend(all_managers)
             
             # Remove duplicates
