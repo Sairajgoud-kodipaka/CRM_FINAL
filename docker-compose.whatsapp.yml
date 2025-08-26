@@ -1,0 +1,52 @@
+# Docker Compose for WAHA WhatsApp Integration
+# Run with: docker-compose -f docker-compose.whatsapp.yml up -d
+
+version: '3.8'
+
+services:
+  waha:
+    image: devlikeapro/waha
+    container_name: jewelry_crm_whatsapp
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      # WAHA Configuration
+      - WAHA_LOG_LEVEL=info
+      - WAHA_PRINT_QR=true
+      
+      # Security (uncomment and set in production)
+      # - WAHA_API_KEY=your_secure_api_key_here
+      
+      # Webhook configuration (pointing to your CRM)
+      - WAHA_DEFAULT_ENGINE=WEBJS
+      
+    volumes:
+      # Persist session data
+      - waha_sessions:/app/.sessions
+      
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/sessions"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  waha_sessions:
+    driver: local
+
+# Usage Instructions:
+# 1. Run: docker-compose -f docker-compose.whatsapp.yml up -d
+# 2. Access WAHA dashboard at: http://localhost:3001
+# 3. Create a session and scan QR code
+# 4. Your CRM can now send WhatsApp messages!
+# 
+# API Endpoints available at:
+# - http://localhost:3001/api/sessions (manage sessions)
+# - http://localhost:3001/api/sendText (send messages)
+# - http://localhost:3001/api/{session}/chats (get chats)
+#
+# Dashboard: http://localhost:3001/dashboard
+# API Documentation: http://localhost:3001/swagger
