@@ -1,12 +1,26 @@
+#!/usr/bin/env python3
 """
-Django settings for Jewelry CRM project.
+Emergency Deployment Script for Render
+This script creates a working configuration when SSL issues persist
 """
+
+import os
+import sys
+from pathlib import Path
+
+def create_emergency_settings():
+    """Create emergency settings that should work with Render"""
+    print("🚨 Creating Emergency Deployment Configuration...")
+    
+    emergency_settings = '''
+# Emergency Django Settings for Render Deployment
+# This configuration prioritizes connection over SSL security
 
 import os
 from pathlib import Path
 from decouple import config
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Get the port from environment (Render requirement)
@@ -34,7 +48,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
-    # 'drf_spectacular',  # Temporarily disabled for deployment
     
     # Local apps
     'apps.tenants',
@@ -70,8 +83,6 @@ MIDDLEWARE = [
     'apps.users.middleware.ScopedVisibilityMiddleware',
 ]
 
-# Debug toolbar removed for production
-
 ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
@@ -92,7 +103,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database
+# EMERGENCY DATABASE CONFIGURATION - Multiple SSL modes to try
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -102,32 +113,39 @@ DATABASES = {
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {
-            'connect_timeout': 30,
-            'sslmode': 'disable',  # Disable SSL completely to get connection working
+            'connect_timeout': 60,  # Extended timeout
+            'sslmode': 'prefer',    # Try SSL, fallback to non-SSL
+            'keepalives': 1,        # Enable keepalive
+            'keepalives_idle': 30,  # Send keepalive after 30 seconds
+            'keepalives_interval': 10,  # Send keepalive every 10 seconds
+            'keepalives_count': 5,  # Allow 5 failed keepalives
         },
+        'CONN_MAX_AGE': 300,  # Keep connections alive for 5 minutes
     }
 }
 
-# Force SSL for PostgreSQL connections (Render requirement)
+# EMERGENCY: If SSL fails, try without SSL
 if not DEBUG:
-    # Production configuration - SSL disabled for now due to Render issues
-    DATABASES['default']['OPTIONS'].update({
-        'sslmode': 'disable',  # Disable SSL to get connection working
-        'application_name': 'jewellery_crm_backend',
-        'keepalives': 1,
-        'keepalives_idle': 30,
-        'keepalives_interval': 10,
-        'keepalives_count': 5,
-        'connect_timeout': 60,
-    })
-    
-    # Production connection pooling
-    DATABASES['default']['CONN_MAX_AGE'] = 600
-    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
-    
-    # Alternative: Use connection string approach for Render
-    # This sometimes works better with Render's PostgreSQL
-    # DATABASES['default']['OPTIONS']['sslmode'] = 'prefer'
+    try:
+        # Test connection with current settings
+        from django.db import connection
+        connection.ensure_connection()
+        print("✅ SSL connection successful")
+    except Exception as e:
+        if 'SSL' in str(e):
+            print(f"⚠️  SSL connection failed: {e}")
+            print("🔄 Trying without SSL...")
+            
+            # Fallback to no SSL
+            DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
+            DATABASES['default']['OPTIONS']['connect_timeout'] = 30
+            
+            try:
+                connection.ensure_connection()
+                print("✅ Non-SSL connection successful")
+            except Exception as e2:
+                print(f"❌ Non-SSL connection also failed: {e2}")
+                print("🚨 Database connection failed completely")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -151,10 +169,10 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# Static files
 STATIC_URL = config('STATIC_URL', default='/static/')
 STATIC_ROOT = BASE_DIR / config('STATIC_ROOT', default='staticfiles')
-STATICFILES_DIRS = []  # Empty for production - static files will be collected to STATIC_ROOT
+STATICFILES_DIRS = []
 
 # Media files
 MEDIA_URL = config('MEDIA_URL', default='/media/')
@@ -181,7 +199,6 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
-    # 'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  # Temporarily disabled for deployment
 }
 
 # JWT Settings
@@ -204,45 +221,11 @@ SIMPLE_JWT = {
 # CORS Settings
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://crm-final-five.vercel.app,https://crm-final-mfe4.onrender.com').split(',')
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)  # Secure by default
+CORS_ALLOW_ALL_ORIGIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)
 
-# WhatsApp Integration (WAHA)
+# WhatsApp Integration
 WAHA_BASE_URL = config('WAHA_BASE_URL', default='http://localhost:3001')
 WAHA_SESSION = config('WAHA_SESSION', default='jewelry_crm')
-WAHA_API_KEY = config('WAHA_API_KEY', default=None)
-SITE_URL = config('SITE_URL', default='http://localhost:8000')
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'content-length',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'cache-control',
-    'pragma',
-]
-
-# Additional CORS settings for file uploads
-CORS_EXPOSE_HEADERS = [
-    'content-type',
-    'content-length',
-    'content-disposition',
-]
-
-# CSRF Settings
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://crm-final-five.vercel.app,https://crm-final-mfe4.onrender.com').split(',')
 
 # Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
@@ -260,46 +243,21 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
-# API Documentation - Temporarily disabled for deployment
-# SPECTACULAR_SETTINGS = {
-#     'TITLE': 'Jewelry CRM API',
-#     'DESCRIPTION': 'A comprehensive CRM system for jewelry businesses',
-#     'VERSION': '1.0.0',
-#     'SERVE_INCLUDE_SCHEMA': False,  # Disabled for deployment
-#     'COMPONENT_SPLIT_REQUEST': True,
-#     'SCHEMA_PATH_PREFIX': '/api/',
-#     'SWAGGER_UI_SETTINGS': {
-#         'deepLinking': True,
-#     },
-#     # Disable schema generation to avoid field name conflicts
-#     'GENERATE_SCHEMA': False,
-#     'SCHEMA_GENERATOR_CLASS': None,
-# }
-
-# Production Security Settings
+# Production Security Settings (minimal for emergency deployment)
 if not DEBUG:
-    # Security Headers
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
     
-    # HTTPS Settings
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000  # 1 year
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    # Disable HTTPS redirect for emergency deployment
+    # SECURE_SSL_REDIRECT = False
     
-    # Cookie Security
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    
-    # Additional Security
-    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+    # Basic cookie security
+    SESSION_COOKIE_SECURE = False  # Allow HTTP for emergency
+    CSRF_COOKIE_SECURE = False     # Allow HTTP for emergency
 
-# Internal IPs for development (if needed)
-INTERNAL_IPS = [
-    '127.0.0.1',
-]
+# Internal IPs
+INTERNAL_IPS = ['127.0.0.1']
 
 # Logging Configuration
 LOGGING = {
@@ -343,3 +301,131 @@ LOGGING = {
 
 # Create logs directory if it doesn't exist
 os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+'''
+    
+    # Write emergency settings
+    emergency_file = BASE_DIR / 'core' / 'emergency_settings.py'
+    with open(emergency_file, 'w') as f:
+        f.write(emergency_settings)
+    
+    print(f"✅ Emergency settings created: {emergency_file}")
+    return emergency_file
+
+def update_render_yaml():
+    """Update render.yaml with emergency configuration"""
+    print("\n🔧 Updating render.yaml for emergency deployment...")
+    
+    emergency_render = '''
+services:
+  - type: web
+    name: jewellery-crm-backend
+    env: python
+    plan: starter
+    buildCommand: ./build.sh
+    startCommand: gunicorn core.emergency_settings:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        value: 8000
+      - key: DEBUG
+        value: false
+      - key: SECRET_KEY
+        value: f3Csh9SZNGRp84-xLGvEEYPhWqTt2_q6-5lXuXjiR5Y
+      - key: ALLOWED_HOSTS
+        value: crm-final-mfe4.onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        value: http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://crm-final-five.vercel.app,https://crm-final-mfe4.onrender.com
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: false
+      - key: CSRF_TRUSTED_ORIGINS
+        value: http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://crm-final-five.vercel.app,https://crm-final-mfe4.onrender.com
+      - key: DB_ENGINE
+        value: django.db.backends.postgresql
+      - key: DB_NAME
+        value: jewellery_crm_db_6lhq
+      - key: DB_USER
+        value: jewellery_crm_db_6lhq_user
+      - key: DB_PASSWORD
+        value: 00tT3WerKiPOn89oEfpzytXdcqRHnCJa
+      - key: DB_HOST
+        value: dpg-d27ekt0gjchc7384-a.oregon-postgres.render.com
+      - key: DB_PORT
+        value: 5432
+      - key: JWT_SECRET_KEY
+        value: 25CBSetI1cCv7Zfy0Wfl9bd6YB/Ws7l/dZnRVFWBVzg=
+      - key: JWT_ACCESS_TOKEN_LIFETIME
+        value: 60
+      - key: JWT_REFRESH_TOKEN_LIFETIME
+        value: 1440
+      - key: STATIC_URL
+        value: /static/
+      - key: MEDIA_URL
+        value: /media/
+      - key: STATIC_ROOT
+        value: staticfiles
+      - key: MEDIA_ROOT
+        value: media
+    healthCheckPath: /api/health/
+    autoDeploy: true
+
+databases:
+  - name: jewellery-crm-db
+    databaseName: jewellery_crm_db_6lhq
+    user: jewellery_crm_db_6lhq_user
+    plan: starter
+'''
+    
+    # Write emergency render.yaml
+    emergency_render_file = BASE_DIR / 'emergency_render.yaml'
+    with open(emergency_render_file, 'w') as f:
+        f.write(emergency_render)
+    
+    print(f"✅ Emergency render.yaml created: {emergency_render_file}")
+    return emergency_render_file
+
+def main():
+    """Main emergency deployment function"""
+    print("🚨 Emergency Deployment Configuration Generator")
+    print("=" * 60)
+    
+    # Get base directory
+    BASE_DIR = Path(__file__).resolve().parent
+    
+    print("This script creates emergency configurations when SSL issues persist.")
+    print("These configurations prioritize connection over security for deployment.")
+    
+    # Create emergency settings
+    emergency_settings = create_emergency_settings()
+    
+    # Create emergency render.yaml
+    emergency_render = update_render_yaml()
+    
+    print("\n🎯 Emergency Configuration Created!")
+    print("=" * 50)
+    print("Files created:")
+    print(f"1. {emergency_settings}")
+    print(f"2. {emergency_render}")
+    
+    print("\n📋 Next Steps:")
+    print("1. Commit these emergency files:")
+    print("   git add .")
+    print("   git commit -m 'Emergency deployment configuration'")
+    print("   git push origin main")
+    
+    print("\n2. Use emergency_render.yaml for deployment:")
+    print("   - Rename it to render.yaml")
+    print("   - Or update your existing render.yaml")
+    
+    print("\n3. Deploy to Render:")
+    print("   - Manual deploy with latest commit")
+    
+    print("\n⚠️  IMPORTANT:")
+    print("- These settings disable some security features")
+    print("- Use only for emergency deployment")
+    print("- Revert to secure settings once connection is stable")
+    
+    print("\n🚀 Ready for emergency deployment!")
+
+if __name__ == "__main__":
+    main()
