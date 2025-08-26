@@ -103,16 +103,16 @@ DATABASES = {
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {
             'connect_timeout': 30,
-            'sslmode': 'disable',  # Disable SSL completely to get connection working
+            'sslmode': config('DB_SSL_MODE', default='disable'),  # Use environment variable
         },
     }
 }
 
 # Force SSL for PostgreSQL connections (Render requirement)
 if not DEBUG:
-    # Production configuration - SSL disabled for now due to Render issues
+    # Production configuration - Use environment variable for SSL mode
     DATABASES['default']['OPTIONS'].update({
-        'sslmode': 'disable',  # Disable SSL to get connection working
+        'sslmode': config('DB_SSL_MODE', default='require'),  # Force SSL from environment
         'application_name': 'jewellery_crm_backend',
         'keepalives': 1,
         'keepalives_idle': 30,
