@@ -99,11 +99,24 @@ DATABASES = {
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {
-            'sslmode': 'require',  # Force SSL for Render PostgreSQL
-            'connect_timeout': 10,  # Connection timeout
+            'connect_timeout': 10,
         },
     }
 }
+
+# Force SSL for PostgreSQL connections (Render requirement)
+if not DEBUG:
+    # Django PostgreSQL SSL configuration
+    DATABASES['default']['OPTIONS'].update({
+        'sslmode': 'require',
+        'sslcert': None,
+        'sslkey': None,
+        'sslrootcert': None,
+    })
+    
+    # Alternative: Use connection string approach for Render
+    # This sometimes works better with Render's PostgreSQL
+    # DATABASES['default']['OPTIONS']['sslmode'] = 'prefer'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
