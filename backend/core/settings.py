@@ -98,6 +98,10 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD', default='crm_password123'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
+        'OPTIONS': {
+            'sslmode': 'require',  # Force SSL for Render PostgreSQL
+            'connect_timeout': 10,  # Connection timeout
+        },
     }
 }
 
