@@ -103,16 +103,15 @@ DATABASES = {
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {
             'connect_timeout': 30,
-            'sslmode': config('DB_SSL_MODE', default='prefer'),  # Use environment variable
         },
     }
 }
 
-# Force SSL for PostgreSQL connections (Render requirement)
+# Production configuration for Render managed database
 if not DEBUG:
-    # Production configuration - Use environment variable for SSL mode
+    # Render automatically provides these environment variables for managed databases
+    # No need to configure SSL manually - Render handles it
     DATABASES['default']['OPTIONS'].update({
-        'sslmode': config('DB_SSL_MODE', default='allow'),  # Force SSL from environment
         'application_name': 'jewellery_crm_backend',
         'keepalives': 1,
         'keepalives_idle': 30,
@@ -124,10 +123,6 @@ if not DEBUG:
     # Production connection pooling
     DATABASES['default']['CONN_MAX_AGE'] = 600
     DATABASES['default']['CONN_HEALTH_CHECKS'] = True
-    
-    # Alternative: Use connection string approach for Render
-    # This sometimes works better with Render's PostgreSQL
-    # DATABASES['default']['OPTIONS']['sslmode'] = 'prefer'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
