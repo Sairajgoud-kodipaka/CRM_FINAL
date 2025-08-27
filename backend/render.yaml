@@ -22,8 +22,6 @@ services:
         value: false
       - key: CSRF_TRUSTED_ORIGINS
         value: http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://crm-final-five.vercel.app,https://crm-final-mfe4.onrender.com
-      - key: DB_ENGINE
-        value: django.db.backends.postgresql
       - key: JWT_SECRET_KEY
         value: 25CBSetI1cCv7Zfy0Wfl9bd6YB/Ws7l/dZnRVFWBVzg=
       - key: JWT_ACCESS_TOKEN_LIFETIME
