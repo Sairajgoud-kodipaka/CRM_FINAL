@@ -1,5 +1,5 @@
 // API Service for connecting to Django backend
-const API_BASE_URL = 'http://localhost:8000/api';
+import { config, getApiUrl } from './config';
 
 interface ApiResponse<T> {
   data: T;
@@ -354,7 +354,7 @@ class ApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = getApiUrl(endpoint);
     
     const token = this.getAuthToken();
     

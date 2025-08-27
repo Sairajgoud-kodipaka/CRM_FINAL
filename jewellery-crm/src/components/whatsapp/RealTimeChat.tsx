@@ -30,6 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getWsUrl } from '@/lib/config';
 
 interface Message {
   id: string;
@@ -138,7 +139,7 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
   // WebSocket connection for real-time updates
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const ws = new WebSocket('ws://localhost:8000/ws/whatsapp/');
+      const ws = new WebSocket(getWsUrl('/ws/whatsapp/'));
       
       ws.onopen = () => {
         console.log('WebSocket connected');

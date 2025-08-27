@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { apiService, Client } from "@/lib/api-service";
 import { useToast } from "@/hooks/use-toast";
+import { PhoneInputComponent } from "@/components/ui/phone-input";
 
 interface EditCustomerModalProps {
   open: boolean;
@@ -635,11 +636,11 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Phone *</label>
-                <Input 
+                <PhoneInputComponent 
                   placeholder="+91 98XXXXXX00" 
                   required 
                   value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onChange={(value) => handleInputChange('phone', value)}
                 />
               </div>
               <div>

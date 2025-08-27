@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { apiService, User } from '@/lib/api-service';
 import { useRouter } from 'next/navigation';
 
@@ -569,9 +570,9 @@ export default function ManagerTeamPage() {
                
                <div>
                  <label className="block text-sm font-medium mb-1">Phone</label>
-                 <Input
-                   value={editData.phone}
-                   onChange={(e) => setEditData({...editData, phone: e.target.value})}
+                 <PhoneInputComponent
+                   value={editData.phone || ''}
+                   onChange={(value) => setEditData({...editData, phone: value})}
                  />
                </div>
                

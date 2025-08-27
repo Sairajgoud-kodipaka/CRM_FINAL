@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiService, SalesPipeline, Client } from "@/lib/api-service";
 import { Edit, Calendar, DollarSign, User, Building, ArrowRight, CheckCircle, XCircle } from "lucide-react";
 import { useScopedVisibility } from '@/lib/scoped-visibility';
+import { config } from '@/lib/config';
 
 interface DealDetailModalProps {
   open: boolean;
@@ -64,8 +65,8 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
       console.log('Deal ID:', dealId);
       console.log('Deal ID type:', typeof dealId);
       console.log('User scope:', userScope);
-      console.log('API Base URL:', 'http://localhost:8000/api');
-      console.log('Full URL being called:', `http://localhost:8000/api/sales/pipeline/${dealId}/`);
+      console.log('API Base URL:', config.API_BASE_URL);
+      console.log('Full URL being called:', `${config.API_BASE_URL}/sales/pipeline/${dealId}/`);
       
       // Validate the dealId
       if (!dealId || dealId === '[object Object]' || dealId === 'undefined' || dealId === 'null') {

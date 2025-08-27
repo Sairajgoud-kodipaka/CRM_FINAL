@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ApiService } from '@/lib/api-service';
 import { Product } from '@/lib/api-service';
+import { config } from '@/lib/config';
 import CustomerLayout from '@/components/customer/CustomerLayout';
 import CustomerHeader from '@/components/customer/CustomerHeader';
 import CustomerFooter from '@/components/customer/CustomerFooter';
@@ -159,7 +160,7 @@ export default function ProductDetailPage() {
                     >
                       {image ? (
                         <img
-                          src={`http://localhost:8000${image}`}
+                          src={`${config.API_BASE_URL.replace('/api', '')}${image}`}
                           alt={`${product.name} - Image ${index + 1}`}
                           className="w-full h-full object-cover"
                           onError={(e) => {
