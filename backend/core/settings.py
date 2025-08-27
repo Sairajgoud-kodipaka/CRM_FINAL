@@ -292,7 +292,7 @@ if not DEBUG:
     X_FRAME_OPTIONS = 'DENY'
     
     # HTTPS Settings
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = False  # Disabled for Render to prevent redirect loop
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
