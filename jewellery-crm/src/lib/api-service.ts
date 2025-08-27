@@ -642,43 +642,43 @@ class ApiService {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.assigned_to) queryParams.append('assigned_to', params.assigned_to);
 
-    return this.request(`/clients/clients/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/clients/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async getClient(id: string): Promise<ApiResponse<Client>> {
-    return this.request(`/clients/clients/${id}/`);
+    return this.request(`/clients/${id}/`);
   }
 
   async getUser(id: string): Promise<ApiResponse<User>> {
-    return this.request(`/team-members/${id}/`);
+    return this.request(`/users/team-members/${id}/`);
   }
 
   async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    return this.request('/clients/clients/', {
+    return this.request('/clients/', {
       method: 'POST',
       body: JSON.stringify(clientData),
     });
   }
 
   async updateClient(id: string, clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    return this.request(`/clients/clients/${id}/`, {
+    return this.request(`/clients/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(clientData),
     });
   }
 
   async deleteClient(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/clients/clients/${id}/`, {
+    return this.request(`/clients/${id}/`, {
       method: 'DELETE',
     });
   }
 
   async getTrashedClients(): Promise<ApiResponse<Client[]>> {
-    return this.request('/clients/clients/trash/');
+    return this.request('/clients/trash/');
   }
 
   async restoreClient(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/clients/clients/${id}/restore/`, {
+    return this.request(`/clients/${id}/restore/`, {
       method: 'POST',
     });
   }
@@ -688,7 +688,7 @@ class ApiService {
   }
 
   async getCustomerDropdownOptions(): Promise<ApiResponse<any>> {
-    return this.request('/clients/clients/dropdown_options/');
+    return this.request('/clients/dropdown_options/');
   }
 
   // Customer Tags and Segmentation
@@ -737,7 +737,7 @@ class ApiService {
     notes?: string;
     customer_type?: string;
   }): Promise<ApiResponse<Client>> {
-    return this.request('/clients/clients/', {
+    return this.request('/clients/', {
       method: 'POST',
       body: JSON.stringify({
         ...leadData,
@@ -1457,7 +1457,7 @@ class ApiService {
 
   // Customer Import/Export
   async importCustomers(formData: FormData): Promise<ApiResponse<any>> {
-    return this.request('/clients/clients/import/', {
+    return this.request('/clients/import/', {
       method: 'POST',
       body: formData,
       headers: {
@@ -1474,14 +1474,14 @@ class ApiService {
     let endpoint: string;
     switch (params.format) {
       case 'csv':
-        endpoint = '/clients/clients/export/csv/';
+        endpoint = '/clients/export/csv/';
         break;
       case 'xlsx':
         // Temporarily redirect XLSX to CSV since XLSX is not implemented yet
-        endpoint = '/clients/clients/export/csv/';
+        endpoint = '/clients/export/csv/';
         break;
       default:
-        endpoint = '/clients/clients/export/json/';
+        endpoint = '/clients/export/json/';
     }
 
     // Add fields as query parameter if provided
