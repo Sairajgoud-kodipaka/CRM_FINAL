@@ -47,6 +47,11 @@ class CustomerTag(models.Model):
         verbose_name = "Customer Tag"
         verbose_name_plural = "Customer Tags"
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=['is_active']),
+            models.Index(fields=['category']),
+            models.Index(fields=['category', 'is_active']),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.category})"
@@ -149,6 +154,15 @@ class Client(models.Model):
         verbose_name_plural = _('Clients')
         ordering = ['-created_at']
         unique_together = ['email', 'tenant']
+        indexes = [
+            models.Index(fields=['tenant', 'is_deleted']),
+            models.Index(fields=['email', 'tenant', 'is_deleted']),
+            models.Index(fields=['phone', 'tenant', 'is_deleted']),
+            models.Index(fields=['status']),
+            models.Index(fields=['assigned_to']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['next_follow_up']),
+        ]
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -312,6 +326,13 @@ class ClientInteraction(models.Model):
         verbose_name = _('Client Interaction')
         verbose_name_plural = _('Client Interactions')
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client']),
+            models.Index(fields=['interaction_type']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['follow_up_date']),
+            models.Index(fields=['user']),
+        ]
 
     def __str__(self):
         return f"{self.client.full_name} - {self.interaction_type} - {self.subject}"
@@ -381,6 +402,14 @@ class Appointment(models.Model):
         verbose_name = _('Appointment')
         verbose_name_plural = _('Appointments')
         ordering = ['-date', '-time']
+        indexes = [
+            models.Index(fields=['tenant', 'is_deleted']),
+            models.Index(fields=['client', 'tenant']),
+            models.Index(fields=['date']),
+            models.Index(fields=['date', 'status']),
+            models.Index(fields=['assigned_to']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self):
         return f"{self.client.full_name} - {self.date} {self.time} ({self.get_status_display()})"
@@ -544,6 +573,15 @@ class FollowUp(models.Model):
         verbose_name = _('Follow-up')
         verbose_name_plural = _('Follow-ups')
         ordering = ['-due_date', '-due_time']
+        indexes = [
+            models.Index(fields=['tenant', 'is_deleted']),
+            models.Index(fields=['client', 'tenant']),
+            models.Index(fields=['due_date']),
+            models.Index(fields=['due_date', 'status']),
+            models.Index(fields=['status']),
+            models.Index(fields=['assigned_to']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self):
         return f"{self.title} - {self.client.full_name} ({self.get_status_display()})"

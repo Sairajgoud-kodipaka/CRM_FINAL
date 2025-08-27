@@ -126,11 +126,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                 client_data = response.data
                 next_follow_up = request.data.get('next_follow_up')
                 
-                print(f"=== APPOINTMENT CREATION DEBUG ===")
-                print(f"Client data: {client_data}")
-                print(f"Next follow up: {next_follow_up}")
-                print(f"User tenant: {request.user.tenant}")
-                print(f"User: {request.user}")
+                # Debug statements removed for production
                 
                 if next_follow_up:
                     try:
@@ -144,8 +140,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                         next_follow_up_time = request.data.get('next_follow_up_time', '10:00')
                         follow_up_time = datetime.strptime(next_follow_up_time, '%H:%M').time()
                         
-                        print(f"Parsed date: {follow_up_date}")
-                        print(f"Parsed time: {follow_up_time}")
+                        # Debug statements removed for production
                         
                         # Create appointment for the follow-up
                         appointment_data = {
@@ -162,37 +157,21 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                             'requires_follow_up': False,  # This is the follow-up itself
                         }
                         
-                        print(f"=== APPOINTMENT DATA ===")
-                        print(f"Appointment data: {appointment_data}")
+                        # Debug statements removed for production
                         
                         appointment = Appointment.objects.create(**appointment_data)
                         
-                        print(f"=== APPOINTMENT CREATED SUCCESSFULLY ===")
-                        print(f"Appointment ID: {appointment.id}")
-                        print(f"Date: {appointment.date}")
-                        print(f"Time: {appointment.time}")
-                        print(f"Client: {appointment.client}")
-                        print(f"Tenant: {appointment.tenant}")
-                        print(f"Status: {appointment.status}")
+                        # Debug statements removed for production
                         
                     except Exception as appointment_error:
-                        print(f"=== APPOINTMENT CREATION ERROR ===")
-                        print(f"Error creating appointment: {appointment_error}")
-                        print(f"Error type: {type(appointment_error)}")
-                        import traceback
-                        print(f"Traceback: {traceback.format_exc()}")
+                        # Debug statements removed for production
                         # Don't fail the customer creation if appointment creation fails
                         pass
-                else:
-                    print("No follow-up date provided, skipping appointment creation")
+                # Debug statements removed for production
             
             return response
         except Exception as e:
-            print("=== DJANGO VIEW - CREATE ERROR ===")
-            print(f"Error in view: {e}")
-            print(f"Error type: {type(e)}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
+            # Debug statements removed for production
             return Response(
                 {"error": str(e), "detail": "Internal server error"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -201,25 +180,16 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
     @action(detail=False, methods=['post'])
     def test(self, request):
         """Test endpoint to check if the API is working"""
-        print("=== TEST ENDPOINT CALLED ===")
-        print(f"Request data: {request.data}")
+        # Debug statements removed for production
         return Response({"message": "Test endpoint working", "data": request.data})
     
     def list(self, request, *args, **kwargs):
-        """List clients with debugging"""
-        print("=== DJANGO VIEW - LIST METHOD START ===")
-        print(f"Request user: {request.user}")
-        print(f"Request authenticated: {request.user.is_authenticated}")
-        if request.user.is_authenticated:
-            print(f"User tenant: {request.user.tenant}")
+        """List clients"""
+        # Debug statements removed for production
         
         queryset = self.get_queryset()
-        print(f"Queryset count: {queryset.count()}")
-        print(f"Queryset SQL: {queryset.query}")
-        
         serializer = self.get_serializer(queryset, many=True)
         response_data = serializer.data
-        print(f"Response data count: {len(response_data)}")
         
         response = Response(response_data)
         print("=== DJANGO VIEW - LIST METHOD END ===")
@@ -832,12 +802,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                             if value is not None and value != '':
                                 cleaned_data[key] = value
                             elif value == '':
-                                print(f"Row {row_num}: Removing empty string for field '{key}'")
-                        
-                        print(f"=== IMPORT DEBUG - Row {row_num} ===")
-                        print(f"Original client data: {client_data}")
-                        print(f"Cleaned client data: {cleaned_data}")
-                        print(f"Date fields - date_of_birth: {cleaned_data.get('date_of_birth')}, anniversary_date: {cleaned_data.get('anniversary_date')}")
+                                # Skip empty strings
+                                pass
                         
                         # Use cleaned data for serializer
                         client_data = cleaned_data
@@ -845,20 +811,19 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                         # Final check - ensure no empty strings are passed to serializer
                         for key, value in client_data.items():
                             if value == '':
-                                print(f"Row {row_num}: WARNING - Empty string found for field '{key}', removing it")
+                                # Debug statements removed for production
                                 del client_data[key]
                         
-                        print(f"Final data for serializer: {client_data}")
+                        # Debug statements removed for production
                         
                         # Add request context to serializer for validation
                         serializer = self.get_serializer(data=client_data, context={'request': request})
-                        print(f"Serializer context: {serializer.context}")
+                        # Debug statements removed for production
                         
                         if serializer.is_valid():
                             try:
                                 # Save the client
                                 client = serializer.save()
-                                print(f"Client created successfully: {client.id}")
                                 
                                 # Ensure tenant and store are set (in case they weren't set by serializer)
                                 if not client.tenant and request.user.tenant:
@@ -868,7 +833,6 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                                 
                                 if client.tenant or client.store:
                                     client.save()
-                                    print(f"Client updated with tenant: {client.tenant}, store: {client.store}")
                                 
                                 # Handle tags if present
                                 tags_str = row.get('tags', '').strip()
@@ -881,12 +845,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                                 
                                 imported_count += 1
                             except Exception as save_error:
-                                print(f"=== SAVE ERROR - Row {row_num} ===")
-                                print(f"Error saving client: {save_error}")
-                                print(f"Error type: {type(save_error)}")
-                                print(f"Error args: {getattr(save_error, 'args', 'No args')}")
-                                import traceback
-                                print(f"Traceback: {traceback.format_exc()}")
+                                # Debug statements removed for production
                                 
                                 # Get more detailed error information
                                 if hasattr(save_error, 'detail'):
@@ -900,8 +859,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                                 continue
                         else:
                             # Format serializer errors in a more user-friendly way
-                            print(f"=== VALIDATION FAILED - Row {row_num} ===")
-                            print(f"Serializer errors: {serializer.errors}")
+                            # Debug statements removed for production
                             
                             error_messages = []
                             for field, field_errors in serializer.errors.items():
@@ -1517,31 +1475,7 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         
         return Response(appointments)
 
-    @action(detail=False, methods=['get'])
-    def debug(self, request):
-        """Debug endpoint to check appointments"""
-        print(f"=== APPOINTMENT DEBUG ENDPOINT ===")
-        print(f"User: {request.user}")
-        print(f"User tenant: {request.user.tenant}")
-        
-        # Get all appointments without filtering
-        all_appointments = Appointment.objects.filter(is_deleted=False)
-        print(f"Total appointments in database: {all_appointments.count()}")
-        
-        for apt in all_appointments:
-            print(f"Appointment: {apt.id} - {apt.client.full_name} - {apt.date} {apt.time} - Tenant: {apt.tenant}")
-        
-        # Get filtered appointments
-        filtered_appointments = self.get_queryset()
-        print(f"Filtered appointments: {filtered_appointments.count()}")
-        
-        return Response({
-            'total_appointments': all_appointments.count(),
-            'filtered_appointments': filtered_appointments.count(),
-            'user_tenant': str(request.user.tenant) if request.user.tenant else None,
-            'all_appointments': list(all_appointments.values('id', 'client__first_name', 'date', 'time', 'tenant')),
-            'filtered_appointments_data': list(filtered_appointments.values('id', 'client__first_name', 'date', 'time', 'tenant'))
-        })
+    # Debug endpoint removed for production security
 
     @action(detail=False, methods=['get'])
     def today(self, request):
@@ -1676,10 +1610,7 @@ class TaskViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
 
     def perform_create(self, serializer):
         user = self.request.user
-        print('=== TASK CREATE DEBUG ===')
-        print('User:', user)
-        print('User is authenticated:', user.is_authenticated)
-        print('User tenant:', getattr(user, 'tenant', None))
+        # Debug statements removed for production
         tenant = user.tenant
         serializer.save(tenant=tenant, created_by=user, assigned_to=user)
 

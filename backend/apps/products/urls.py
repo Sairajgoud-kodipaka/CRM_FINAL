@@ -24,8 +24,7 @@ urlpatterns = [
     path('categories/<int:pk>/', views.CategoryDetailView.as_view(), name='category-detail'),
     path('categories/<int:pk>/update/', views.CategoryUpdateView.as_view(), name='category-update'),
     path('categories/<int:pk>/delete/', views.CategoryDeleteView.as_view(), name='category-delete'),
-    path('categories/debug/', views.CategoryDebugView.as_view(), name='category-debug'),
-    path('debug/', views.ProductsDebugView.as_view(), name='products-debug'),
+    # Debug endpoints removed for production security
     
     # Product Variant URLs
     path('<int:product_id>/variants/', views.ProductVariantListView.as_view(), name='product-variant-list'),

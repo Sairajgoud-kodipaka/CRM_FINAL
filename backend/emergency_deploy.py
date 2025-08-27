@@ -27,10 +27,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PORT = config('PORT', default=8000, cast=int)
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-cuw8b95y$==pjsl#1pt9jgg#+ot$%)a-9ra2zay3+1=hov81g9')
+SECRET_KEY = config('SECRET_KEY', default='jewelry-crm-secure-key-2024-8f7e6d5c4b3a2918-7f6e5d4c3b2a1909-6e5d4c3b2a1908f7-5d4c3b2a1908f6e5')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
