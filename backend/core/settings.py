@@ -98,11 +98,11 @@ if 'collectstatic' not in sys.argv:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='build_time_db'),
-            'USER': config('DB_USER', default='build_user'),
-            'PASSWORD': config('DB_PASSWORD', default='build_password'),
-            'HOST': config('DB_HOST', default='localhost'),
-            'PORT': config('DB_PORT', default='5432'),
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST'),
+            'PORT': config('DB_PORT'),
             'OPTIONS': {
                 'connect_timeout': 30,
             },
