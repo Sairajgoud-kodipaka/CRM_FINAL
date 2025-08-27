@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-# from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView  # Temporarily disabled
+
 
 def health_check(request):
     from django.http import JsonResponse
@@ -14,16 +14,13 @@ def health_check(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     
-    # API Documentation - Temporarily disabled for deployment
-    # path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    # path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    # path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
     
     # API Routes
     path('api/', include('apps.users.urls')),  # Combined users and auth endpoints
     path('api/tenants/', include('apps.tenants.urls')),
     path('api/clients/', include('apps.clients.urls')),  # Enable clients module
-    path('api/stores/', include('apps.stores.urls')),
+    path('api/', include('apps.stores.urls')),  # Fixed: removed duplicate 'stores/'
     path('api/telecalling/', include('telecalling.urls')),
     path('api/tasks/', include('apps.tasks.urls')),
     path('api/escalation/', include('apps.escalation.urls')),

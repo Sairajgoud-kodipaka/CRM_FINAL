@@ -445,9 +445,7 @@ class SalesDashboardView(generics.GenericAPIView, ScopedVisibilityMixin):
             # Calculate conversion rate (deals / customers)
             conversion_rate = (total_deals / total_customers * 100) if total_customers > 0 else 0
             
-            print(f"DEBUG: Sales revenue: {sales_revenue}, Closed won revenue: {closed_won_revenue}")
-            print(f"DEBUG: Total monthly revenue: {total_monthly_revenue}")
-            print(f"DEBUG: Total deals: {total_deals}, Total customers: {total_customers}")
+            # Debug statements removed for production
             
             dashboard_data = {
                 'monthly_revenue': float(total_monthly_revenue),
@@ -479,13 +477,10 @@ class PipelineDashboardView(generics.GenericAPIView, ScopedVisibilityMixin):
     
     def get(self, request):
         try:
-            print(f"=== PipelineDashboardView.get called ===")
-            print(f"User: {request.user.username}, Role: {getattr(request.user, 'role', 'No role')}")
-            print(f"Store: {getattr(request.user, 'store', 'No store')}")
+            # Debug statements removed for production
             
             # Get scoped queryset for pipelines
             pipelines_queryset = self.get_scoped_queryset(SalesPipeline)
-            print(f"Scoped pipelines count: {pipelines_queryset.count()}")
             
             # Pipeline summary by stage
             stage_summary = {}

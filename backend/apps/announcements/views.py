@@ -33,16 +33,12 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         """Filter announcements based on user's access level and targeting."""
         user = self.request.user
         
-        print(f"🔍 DEBUG: get_queryset called for user {user.username} (role: {user.role}, store: {user.store})")
-        
         # Base queryset - show all active announcements for the user's tenant
         queryset = Announcement.objects.filter(is_active=True)
-        print(f"🔍 DEBUG: Base queryset count: {queryset.count()}")
         
         # Filter by tenant
         if user.tenant:
             queryset = queryset.filter(tenant=user.tenant)
-            print(f"🔍 DEBUG: After tenant filter count: {queryset.count()}")
         
         # Filter by store - show announcements for user's store or store-specific announcements
         if user.store:
@@ -55,10 +51,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
                 Q(target_stores=user.store) |    # Store-specific
                 Q(author__store=user.store)      # Created by same store members
             ).distinct()
-            print(f"🔍 DEBUG: After store filter count: {queryset.count()}")
         else:
             # If user has no store, show all announcements for the tenant
-            print(f"🔍 DEBUG: User has no store, showing all tenant announcements")
             pass
         
         # Filter by publish date and expiration
@@ -67,11 +61,6 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             Q(publish_at__lte=now) &
             (Q(expires_at__isnull=True) | Q(expires_at__gt=now))
         )
-        print(f"🔍 DEBUG: After date filter count: {queryset.count()}")
-        
-        # Debug: Show what announcements are being returned
-        for ann in queryset[:3]:  # Show first 3
-            print(f"🔍 DEBUG: Announcement: {ann.title} (type: {ann.announcement_type}, store: {ann.author.store if ann.author.store else 'None'})")
         
         return queryset.distinct()
 
@@ -83,46 +72,37 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         return AnnouncementSerializer
 
     def perform_create(self, serializer):
-        print(f"🔍 DEBUG: perform_create called")
+        # Debug statements removed for production
         # Automatically set the user's store as target for team-specific announcements
         announcement = serializer.save(author=self.request.user, tenant=self.request.user.tenant)
-        print(f"🔍 DEBUG: Announcement created with ID: {announcement.id}")
         
         # If it's a team-specific announcement and user has a store, add the store as target
         if (announcement.announcement_type == 'team_specific' and 
             self.request.user.store and 
             not announcement.target_stores.exists()):
             announcement.target_stores.add(self.request.user.store)
-            print(f"🔍 DEBUG: Added store {self.request.user.store} to target_stores")
         
         return announcement
 
     def list(self, request, *args, **kwargs):
-        """Custom list method with debugging."""
-        print(f"🔍 DEBUG: list method called")
+        """Custom list method."""
+        # Debug statements removed for production
         queryset = self.filter_queryset(self.get_queryset())
-        print(f"🔍 DEBUG: Filtered queryset count: {queryset.count()}")
         
         serializer = self.get_serializer(queryset, many=True)
         data = serializer.data
-        print(f"🔍 DEBUG: Serialized data count: {len(data)}")
-        print(f"🔍 DEBUG: First announcement data: {data[0] if data else 'No data'}")
         
         return Response(data)
 
     def create(self, request, *args, **kwargs):
-        """Custom create method with debugging."""
-        print(f"🔍 DEBUG: create method called")
-        print(f"🔍 DEBUG: Request data: {request.data}")
+        """Custom create method."""
+        # Debug statements removed for production
         
         serializer = self.get_serializer(data=request.data)
-        print(f"🔍 DEBUG: Serializer valid: {serializer.is_valid()}")
         if not serializer.is_valid():
-            print(f"🔍 DEBUG: Serializer errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         announcement = self.perform_create(serializer)
-        print(f"🔍 DEBUG: Announcement created: {announcement.id}")
         
         # Return the created announcement using the full serializer
         full_serializer = AnnouncementSerializer(announcement, context={'request': request})
