@@ -1,5 +1,5 @@
 // API Service for connecting to Django backend
-import { config, getApiUrl } from './config';
+import { config, getApiUrl } from './config'
 
 interface ApiResponse<T> {
   data: T;
