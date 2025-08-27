@@ -10,6 +10,7 @@ import { Calendar } from "lucide-react";
 import { apiService } from "@/lib/api-service";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { PhoneInputComponent } from "@/components/ui/phone-input";
 
 interface AddCustomerModalProps {
   open: boolean;
@@ -556,12 +557,12 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Phone Number (India) *</label>
-              <Input 
+              <label className="block text-sm font-medium mb-1">Phone Number *</label>
+              <PhoneInputComponent 
                 placeholder="+91 98XXXXXX00" 
                 required 
                 value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
+                onChange={(value) => handleInputChange('phone', value)}
               />
             </div>
             <div>

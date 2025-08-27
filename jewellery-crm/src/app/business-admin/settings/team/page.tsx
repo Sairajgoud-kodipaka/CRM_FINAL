@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Loader2, Search, X } from 'lucide-react';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -408,10 +409,9 @@ export default function TeamSettingsPage() {
               
               <div>
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
+                <PhoneInputComponent
                   value={createFormData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onChange={(value) => handleInputChange('phone', value)}
                   placeholder="Enter phone number"
                 />
               </div>
@@ -541,10 +541,9 @@ export default function TeamSettingsPage() {
               
               <div>
                 <Label htmlFor="edit_phone">Phone Number</Label>
-                <Input
-                  id="edit_phone"
+                <PhoneInputComponent
                   value={editingMember?.phone || ''}
-                  onChange={(e) => setEditingMember(prev => prev ? {...prev, phone: e.target.value} : null)}
+                  onChange={(value) => setEditingMember(prev => prev ? {...prev, phone: value} : null)}
                   placeholder="Enter phone number"
                 />
               </div>

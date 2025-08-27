@@ -20,6 +20,7 @@ import AddProductModal from '@/components/products/AddProductModal';
 import CategoriesModal from '@/components/products/CategoriesModal';
 import ProductActionsModal from '@/components/products/ProductActionsModal';
 import ImportProductsModal from '@/components/products/ImportProductsModal';
+import { config } from '@/lib/config';
 
 interface Category {
   id: number;
@@ -216,7 +217,7 @@ export default function ManagerProductsPage() {
       
       // First, test if the backend is accessible
       try {
-        const testResponse = await fetch('http://localhost:8000/api/products/transfers/', {
+        const testResponse = await fetch(`${config.API_BASE_URL}/products/transfers/`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
