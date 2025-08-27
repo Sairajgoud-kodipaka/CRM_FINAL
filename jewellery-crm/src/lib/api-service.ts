@@ -650,7 +650,7 @@ class ApiService {
   }
 
   async getUser(id: string): Promise<ApiResponse<User>> {
-    return this.request(`/users/team-members/${id}/`);
+    return this.request(`/users/${id}/`);
   }
 
   async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
@@ -1201,7 +1201,7 @@ class ApiService {
 
   // Users/Team
   async getTeamMembers(): Promise<ApiResponse<User[]>> {
-    return this.request('/users/team-members/');
+    return this.request('/team-members/');
   }
 
   async createTeamMember(memberData: {
@@ -1215,21 +1215,21 @@ class ApiService {
     address?: string;
     store?: number;
   }): Promise<ApiResponse<User>> {
-    return this.request('/users/team-members/', {
+    return this.request('/team-members/', {
       method: 'POST',
       body: JSON.stringify(memberData),
     });
   }
 
   async updateTeamMember(id: string, memberData: Partial<User>): Promise<ApiResponse<User>> {
-    return this.request(`/users/team-members/${id}/update/`, {
+    return this.request(`/team-members/${id}/update/`, {
       method: 'PUT',
       body: JSON.stringify(memberData),
     });
   }
 
   async deleteTeamMember(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/users/team-members/${id}/delete/`, {
+    return this.request(`/team-members/${id}/delete/`, {
       method: 'DELETE',
     });
   }
