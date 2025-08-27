@@ -113,8 +113,53 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
     setLoading(true);
     setError(null);
 
+    // Client-side validation
+    if (!formData.name.trim()) {
+      setError('Store name is required');
+      setLoading(false);
+      return;
+    }
+    
+    if (!formData.code.trim()) {
+      setError('Store code is required');
+      setLoading(false);
+      return;
+    }
+    
+    if (!formData.address.trim()) {
+      setError('Store address is required');
+      setLoading(false);
+      return;
+    }
+    
+    if (!formData.city.trim()) {
+      setError('Store city is required');
+      setLoading(false);
+      return;
+    }
+    
+    if (!formData.state.trim()) {
+      setError('Store state is required');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await apiService.createStore(formData);
+      // Clean the data before sending
+      const cleanFormData = {
+        name: formData.name.trim(),
+        code: formData.code.trim(),
+        address: formData.address.trim(),
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        manager: formData.manager || undefined,
+        is_active: formData.is_active,
+        timezone: 'Asia/Kolkata', // Default timezone for India
+      };
+
+      console.log('Submitting store data:', cleanFormData);
+      
+      const response = await apiService.createStore(cleanFormData);
       if (response.success) {
         onSuccess();
         onClose();
@@ -131,9 +176,21 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
       } else {
         setError(response.message || 'Failed to create store');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create store:', error);
-      setError('Failed to create store. Please try again.');
+      
+      // Enhanced error handling
+      if (error.status === 405) {
+        setError('Store creation method not allowed. Please contact support.');
+      } else if (error.status === 400) {
+        setError('Invalid store data. Please check all required fields.');
+      } else if (error.status === 403) {
+        setError('You do not have permission to create stores.');
+      } else if (error.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError(`Failed to create store: ${error.message || 'Unknown error'}`);
+      }
     } finally {
       setLoading(false);
     }

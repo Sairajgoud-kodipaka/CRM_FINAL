@@ -22,7 +22,7 @@ urlpatterns = [
     # API Routes
     path('api/', include('apps.users.urls')),  # Combined users and auth endpoints
     path('api/tenants/', include('apps.tenants.urls')),
-    # path('api/clients/', include('apps.clients.urls')),  # Temporarily disabled due to syntax errors
+    path('api/clients/', include('apps.clients.urls')),  # Enable clients module
     path('api/stores/', include('apps.stores.urls')),
     path('api/telecalling/', include('telecalling.urls')),
     path('api/tasks/', include('apps.tasks.urls')),
