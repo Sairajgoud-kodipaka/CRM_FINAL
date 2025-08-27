@@ -365,7 +365,7 @@ class ApiService {
       // Only set Content-Type for JSON requests, let browser set it for FormData
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       // Only include Authorization header for non-login requests
-      ...(token && !endpoint.includes('/auth/login/') && { 'Authorization': `Bearer ${token}` }),
+      ...(token && !endpoint.includes('/login/') && { 'Authorization': `Bearer ${token}` }),
     };
 
     const config: RequestInit = {
@@ -416,7 +416,7 @@ class ApiService {
         }
         
         // Only redirect for 401 errors that are NOT login attempts
-        if (response.status === 401 && !url.includes('/auth/login/')) {
+        if (response.status === 401 && !url.includes('/login/')) {
           // Token expired or invalid, redirect to login
           if (typeof window !== 'undefined') {
             localStorage.removeItem('auth-storage');
@@ -514,21 +514,21 @@ class ApiService {
 
   // Authentication
   async login(username: string, password: string): Promise<ApiResponse<LoginResponse>> {
-    return this.request('/auth/login/', {
+    return this.request('/login/', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
   }
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
-    return this.request('/auth/profile/');
+    return this.request('/profile/');
   }
 
   async changePassword(data: {
     old_password: string;
     new_password: string;
   }): Promise<ApiResponse<any>> {
-    return this.request('/auth/change-password/', {
+    return this.request('/change-password/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -541,7 +541,7 @@ class ApiService {
     phone?: string;
     address?: string;
   }): Promise<ApiResponse<User>> {
-    return this.request('/auth/profile/update/', {
+    return this.request('/profile/update/', {
       method: 'PUT',
       body: JSON.stringify(profileData),
     });
@@ -581,7 +581,7 @@ class ApiService {
     const token = this.getAuthToken();
     if (token) {
       try {
-        await this.request('/auth/logout/', {
+        await this.request('/logout/', {
           method: 'POST',
           body: JSON.stringify({ refresh_token: token }),
         });
@@ -650,7 +650,7 @@ class ApiService {
   }
 
   async getUser(id: string): Promise<ApiResponse<User>> {
-    return this.request(`/auth/team-members/${id}/`);
+    return this.request(`/team-members/${id}/`);
   }
 
   async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
@@ -1201,7 +1201,7 @@ class ApiService {
 
   // Users/Team
   async getTeamMembers(): Promise<ApiResponse<User[]>> {
-    return this.request('/auth/team-members/');
+    return this.request('/team-members/');
   }
 
   async createTeamMember(memberData: {
@@ -1215,21 +1215,21 @@ class ApiService {
     address?: string;
     store?: number;
   }): Promise<ApiResponse<User>> {
-    return this.request('/auth/team-members/', {
+    return this.request('/team-members/', {
       method: 'POST',
       body: JSON.stringify(memberData),
     });
   }
 
   async updateTeamMember(id: string, memberData: Partial<User>): Promise<ApiResponse<User>> {
-    return this.request(`/auth/team-members/${id}/update/`, {
+    return this.request(`/team-members/${id}/update/`, {
       method: 'PUT',
       body: JSON.stringify(memberData),
     });
   }
 
   async deleteTeamMember(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/auth/team-members/${id}/delete/`, {
+    return this.request(`/team-members/${id}/delete/`, {
       method: 'DELETE',
     });
   }

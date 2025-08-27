@@ -361,11 +361,11 @@ export const VALIDATION = {
 
 export const API_ENDPOINTS = {
   // Authentication
-  LOGIN: '/api/auth/login',
-  LOGOUT: '/api/auth/logout',
-  REGISTER: '/api/auth/register',
-  FORGOT_PASSWORD: '/api/auth/forgot-password',
-  RESET_PASSWORD: '/api/auth/reset-password',
+  LOGIN: '/api/login',
+  LOGOUT: '/api/logout',
+  REGISTER: '/api/register',
+  FORGOT_PASSWORD: '/api/forgot-password',
+  RESET_PASSWORD: '/api/reset-password',
   
   // Users
   USERS: '/api/users',
