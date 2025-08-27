@@ -72,41 +72,65 @@ export interface TenantSettings {
 
 /**
  * Customer information with jewellery-specific preferences
+ * Updated to match backend Client model exactly
  */
 export interface Customer {
-  id: string;
-  tenantId: string;
-  firstName: string;
-  lastName: string;
-  email?: string;
-  phone: string;
-  avatar?: string;
-  
-  // Address information
-  addresses: Address[];
-  
-  // Jewellery preferences
-  preferences: CustomerPreferences;
-  
-  // Customer classification
-  type: 'vip' | 'regular' | 'new_lead';
-  tags: string[];
-  
-  // Tracking
-  source: 'walk_in' | 'online' | 'referral' | 'social_media' | 'advertisement';
-  assignedTo?: string; // Sales team member ID
-  
-  // Financial
-  creditLimit?: number;
-  totalPurchases: number;
-  averageOrderValue: number;
-  
-  // Metadata
+  id: number;
+  first_name: string;
+  last_name: string;
+  full_name?: string;
+  email: string;
+  phone?: string;
+  customer_type: string;
+  status?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  date_of_birth?: string;
+  anniversary_date?: string;
+  preferred_metal?: string;
+  preferred_stone?: string;
+  ring_size?: string;
+  budget_range?: string;
+  lead_source?: string;
+  assigned_to?: number;
+  created_by?: {
+    id: number;
+    username: string;
+    first_name: string;
+    last_name: string;
+  };
   notes?: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string;
+  community?: string;
+  mother_tongue?: string;
+  reason_for_visit?: string;
+  age_of_end_user?: string;
+  saving_scheme?: string;
+  catchment_area?: string;
+  next_follow_up?: string;
+  summary_notes?: string;
+  customer_interests: Array<{
+    id: number;
+    category: {
+      id: number;
+      name: string;
+    } | null;
+    product: {
+      id: number;
+      name: string;
+    } | null;
+    revenue: number;
+    notes?: string;
+  }>;
+  tenant?: number;
+  store?: number;
+  tags: number[];
+  created_at: string;
+  updated_at: string;
+  is_deleted: boolean;
+  deleted_at?: string;
 }
 
 /**
@@ -143,6 +167,62 @@ export interface Address {
   country: string;
   landmark?: string;
   isDefault: boolean;
+}
+
+// ================================
+// APPOINTMENT TYPES
+// ================================
+
+/**
+ * Appointment status options
+ */
+export type AppointmentStatus = 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'rescheduled' | 'no_show';
+
+/**
+ * Appointment interface matching backend model
+ */
+export interface Appointment {
+  id: number;
+  client: number;
+  tenant: number;
+  date: string;
+  time: string;
+  purpose: string;
+  notes?: string;
+  
+  // Status and lifecycle
+  status: AppointmentStatus;
+  
+  // Reminder settings
+  reminder_sent: boolean;
+  reminder_date?: string;
+  
+  // Follow-up settings
+  requires_follow_up: boolean;
+  follow_up_date?: string;
+  follow_up_notes?: string;
+  
+  // Duration (in minutes)
+  duration: number;
+  
+  // Location/venue
+  location?: string;
+  
+  // Outcome tracking
+  outcome_notes?: string;
+  next_action?: string;
+  
+  // User tracking
+  created_by?: number;
+  assigned_to?: number;
+  
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+  
+  // Soft delete
+  is_deleted: boolean;
+  deleted_at?: string;
 }
 
 // ================================
@@ -195,6 +275,114 @@ export interface Deal {
 }
 
 /**
+ * FollowUp status options
+ */
+export type FollowUpStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+/**
+ * FollowUp type options
+ */
+export type FollowUpType = 'appointment' | 'interaction' | 'general';
+
+/**
+ * FollowUp interface matching backend model
+ */
+export interface FollowUp {
+  id: number;
+  client: number;
+  tenant: number;
+  appointment?: number;
+  interaction?: number;
+  
+  // Follow-up details
+  type: FollowUpType;
+  title: string;
+  description: string;
+  due_date: string;
+  due_time?: string;
+  
+  // Status and tracking
+  status: FollowUpStatus;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  
+  // Reminder settings
+  reminder_sent: boolean;
+  reminder_date?: string;
+  
+  // Outcome
+  outcome_notes?: string;
+  next_action?: string;
+  
+  // Assignment
+  assigned_to?: number;
+  created_by?: number;
+  
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+  
+  // Soft delete
+  is_deleted: boolean;
+  deleted_at?: string;
+}
+
+/**
+ * ClientInteraction type options
+ */
+export type InteractionType = 'call' | 'email' | 'meeting' | 'whatsapp' | 'visit' | 'other';
+
+/**
+ * Interaction outcome options
+ */
+export type InteractionOutcome = 'positive' | 'neutral' | 'negative';
+
+/**
+ * ClientInteraction interface matching backend model
+ */
+export interface ClientInteraction {
+  id: number;
+  client: number;
+  interaction_type: InteractionType;
+  subject: string;
+  description: string;
+  
+  // Outcome
+  outcome: InteractionOutcome;
+  
+  // Follow-up
+  requires_follow_up: boolean;
+  follow_up_date?: string;
+  follow_up_notes?: string;
+  
+  // User who made the interaction
+  user: number;
+  
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * CustomerTag category options
+ */
+export type TagCategory = 'intent' | 'product' | 'revenue' | 'demographic' | 'source' | 'status' | 'community' | 'event' | 'custom';
+
+/**
+ * CustomerTag interface matching backend model
+ */
+export interface CustomerTag {
+  id: number;
+  name: string;
+  slug: string;
+  category: TagCategory;
+  description?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Product details within a deal
  */
 export interface DealProduct {
@@ -227,46 +415,47 @@ export interface ProductCategory {
 
 /**
  * Product information for jewellery items
+ * Updated to match backend API response
  */
 export interface Product {
-  id: string;
-  tenantId: string;
-  sku: string;
+  id: number;
   name: string;
-  description: string;
-  categoryId: string;
-  
-  // Pricing
-  basePrice: number;
-  salePrice?: number;
-  costPrice: number;
-  
-  // Jewellery specifications
-  specifications: ProductSpecifications;
-  
-  // Media
-  images: ProductImage[];
-  has360View: boolean;
-  
-  // Variants (size, metal, stone)
-  variants: ProductVariant[];
-  
-  // Inventory
-  inventory: ProductInventory[];
-  
-  // Metadata
+  sku: string;
+  description?: string;
+  category?: number;
+  category_name?: string;
+  brand?: string;
+  cost_price: number;
+  selling_price: number;
+  discount_price?: number;
+  quantity: number;
+  min_quantity: number;
+  max_quantity: number;
+  weight?: number;
+  dimensions?: string;
+  material?: string;
+  color?: string;
+  size?: string;
+  status: string;
+  is_featured: boolean;
+  is_bestseller: boolean;
+  main_image?: string;
+  main_image_url?: string;
+  additional_images: string[];
+  meta_title?: string;
+  meta_description?: string;
   tags: string[];
-  isActive: boolean;
-  isFeatured: boolean;
-  weight?: number; // in grams
-  
-  // SEO for e-commerce
-  seoTitle?: string;
-  seoDescription?: string;
-  
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string;
+  tenant: number;
+  store?: number;
+  store_name?: string;
+  scope: 'global' | 'store';
+  created_at: string;
+  updated_at: string;
+  is_in_stock?: boolean;
+  is_low_stock?: boolean;
+  current_price?: number;
+  profit_margin?: number;
+  variant_count?: number;
 }
 
 /**
