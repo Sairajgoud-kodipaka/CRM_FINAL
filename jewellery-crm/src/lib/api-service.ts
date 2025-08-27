@@ -812,7 +812,7 @@ class ApiService {
     // Request more products per page to get all products
     queryParams.append('page_size', '200');
 
-    return this.request(`/products/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/products/list/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async getProduct(id: string): Promise<ApiResponse<Product>> {
@@ -1201,7 +1201,7 @@ class ApiService {
 
   // Users/Team
   async getTeamMembers(): Promise<ApiResponse<User[]>> {
-    return this.request('/team-members/');
+    return this.request('/users/team-members/');
   }
 
   async createTeamMember(memberData: {
@@ -1215,21 +1215,21 @@ class ApiService {
     address?: string;
     store?: number;
   }): Promise<ApiResponse<User>> {
-    return this.request('/team-members/', {
+    return this.request('/users/team-members/', {
       method: 'POST',
       body: JSON.stringify(memberData),
     });
   }
 
   async updateTeamMember(id: string, memberData: Partial<User>): Promise<ApiResponse<User>> {
-    return this.request(`/team-members/${id}/update/`, {
+    return this.request(`/users/team-members/${id}/update/`, {
       method: 'PUT',
       body: JSON.stringify(memberData),
     });
   }
 
   async deleteTeamMember(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/team-members/${id}/delete/`, {
+    return this.request(`/users/team-members/${id}/delete/`, {
       method: 'DELETE',
     });
   }
@@ -1273,54 +1273,54 @@ class ApiService {
     if (params?.category) queryParams.append('category', params.category);
     if (params?.search) queryParams.append('search', params.search);
 
-    return this.request(`/support/tickets/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/support/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async getSupportTicket(id: string): Promise<ApiResponse<SupportTicket>> {
-    return this.request(`/support/tickets/${id}/`);
+    return this.request(`/support/${id}/`);
   }
 
   async createSupportTicket(ticketData: Partial<SupportTicket>): Promise<ApiResponse<SupportTicket>> {
-    return this.request('/support/tickets/', {
+    return this.request('/support/', {
       method: 'POST',
       body: JSON.stringify(ticketData),
     });
   }
 
   async updateSupportTicket(id: string, ticketData: Partial<SupportTicket>): Promise<ApiResponse<SupportTicket>> {
-    return this.request(`/support/tickets/${id}/`, {
+    return this.request(`/support/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(ticketData),
     });
   }
 
   async deleteSupportTicket(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/support/tickets/${id}/`, {
+    return this.request(`/support/${id}/`, {
       method: 'DELETE',
     });
   }
 
   // Ticket Actions
   async assignTicketToMe(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/support/tickets/${id}/assign_to_me/`, {
+    return this.request(`/support/${id}/assign_to_me/`, {
       method: 'POST',
     });
   }
 
   async resolveTicket(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/support/tickets/${id}/resolve/`, {
+    return this.request(`/support/${id}/resolve/`, {
       method: 'POST',
     });
   }
 
   async closeTicket(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/support/tickets/${id}/close/`, {
+    return this.request(`/support/${id}/close/`, {
       method: 'POST',
     });
   }
 
   async reopenTicket(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/support/tickets/${id}/reopen/`, {
+    return this.request(`/support/${id}/reopen/`, {
       method: 'POST',
     });
   }
@@ -1424,11 +1424,11 @@ class ApiService {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.assigned_to) queryParams.append('assigned_to', params.assigned_to);
 
-    return this.request(`/tasks/tasks/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/tasks/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async createTask(taskData: any): Promise<ApiResponse<any>> {
-    return this.request('/tasks/tasks/', {
+    return this.request('/tasks/', {
       method: 'POST',
       body: JSON.stringify(taskData),
     });
@@ -1507,17 +1507,17 @@ class ApiService {
     if (params?.priority) queryParams.append('priority', params.priority);
     if (params?.type) queryParams.append('type', params.type);
 
-    return this.request(`/announcements/announcements/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/announcements/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async markAnnouncementAsRead(announcementId: number): Promise<ApiResponse<any>> {
-    return this.request(`/announcements/announcements/${announcementId}/mark_as_read/`, {
+    return this.request(`/announcements/${announcementId}/mark_as_read/`, {
       method: 'POST',
     });
   }
 
   async acknowledgeAnnouncement(announcementId: number): Promise<ApiResponse<any>> {
-    return this.request(`/announcements/announcements/${announcementId}/acknowledge/`, {
+    return this.request(`/announcements/${announcementId}/acknowledge/`, {
       method: 'POST',
     });
   }
@@ -1541,7 +1541,7 @@ class ApiService {
   }
 
   async createAnnouncement(announcementData: any): Promise<ApiResponse<any>> {
-    return this.request('/announcements/announcements/', {
+    return this.request('/announcements/', {
       method: 'POST',
       body: JSON.stringify(announcementData),
     });
@@ -1580,69 +1580,69 @@ class ApiService {
     if (params?.category) queryParams.append('category', params.category);
     if (params?.search) queryParams.append('search', params.search);
 
-    return this.request(`/escalation/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/escalations/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async getEscalation(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/escalation/${id}/`);
+    return this.request(`/escalations/${id}/`);
   }
 
   async createEscalation(escalationData: any): Promise<ApiResponse<any>> {
-    return this.request('/escalation/', {
+    return this.request('/escalations/', {
       method: 'POST',
       body: JSON.stringify(escalationData),
     });
   }
 
   async updateEscalation(id: string, escalationData: any): Promise<ApiResponse<any>> {
-    return this.request(`/escalation/${id}/`, {
+    return this.request(`/escalations/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(escalationData),
     });
   }
 
   async assignEscalation(id: string, userId: number): Promise<ApiResponse<any>> {
-    return this.request(`/escalation/${id}/assign/`, {
+    return this.request(`/escalations/${id}/assign/`, {
       method: 'POST',
       body: JSON.stringify({ assigned_to: userId }),
     });
   }
 
   async changeEscalationStatus(id: string, status: string): Promise<ApiResponse<any>> {
-    return this.request(`/escalation/${id}/change_status/`, {
+    return this.request(`/escalations/${id}/change_status/`, {
       method: 'POST',
       body: JSON.stringify({ status }),
     });
   }
 
   async resolveEscalation(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/escalation/${id}/resolve/`, {
+    return this.request(`/escalations/${id}/resolve/`, {
       method: 'POST',
     });
   }
 
   async closeEscalation(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/escalation/${id}/close/`, {
+    return this.request(`/escalations/${id}/close/`, {
       method: 'POST',
     });
   }
 
   async getEscalationNotes(escalationId: string): Promise<ApiResponse<any[]>> {
-    return this.request(`/escalation/${escalationId}/notes/`);
+    return this.request(`/escalations/${escalationId}/notes/`);
   }
 
   async createEscalationNote(escalationId: string, noteData: {
     content: string;
     is_internal?: boolean;
   }): Promise<ApiResponse<any>> {
-    return this.request(`/escalation/${escalationId}/notes/`, {
+    return this.request(`/escalations/${escalationId}/notes/`, {
       method: 'POST',
       body: JSON.stringify(noteData),
     });
   }
 
   async getEscalationStats(): Promise<ApiResponse<any>> {
-    return this.request('/escalation/stats/');
+    return this.request('/escalations/stats/');
   }
 
   async getMyEscalations(params?: {
@@ -1657,7 +1657,7 @@ class ApiService {
     if (params?.priority) queryParams.append('priority', params.priority);
     if (params?.category) queryParams.append('category', params.category);
 
-    return this.request(`/escalation/my-escalations/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/escalations/my-escalations/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   // ================================
@@ -1682,28 +1682,28 @@ class ApiService {
 
   // Mark notification as read
   async markNotificationAsRead(notificationId: string): Promise<ApiResponse<any>> {
-    return this.request(`/notifications/notifications/${notificationId}/mark_as_read/`, {
+    return this.request(`/notifications/${notificationId}/mark_as_read/`, {
       method: 'POST',
     });
   }
 
   // Mark all notifications as read
   async markAllNotificationsAsRead(): Promise<ApiResponse<any>> {
-    return this.request('/notifications/notifications/mark_all_as_read/', {
+    return this.request('/notifications/mark_all_as_read/', {
       method: 'POST',
     });
   }
 
   // Delete notification
   async deleteNotification(notificationId: string): Promise<ApiResponse<void>> {
-    return this.request(`/notifications/notifications/${notificationId}/`, {
+    return this.request(`/notifications/${notificationId}/`, {
       method: 'DELETE',
     });
   }
 
   // Create notification
   async createNotification(notificationData: any): Promise<ApiResponse<any>> {
-    return this.request('/notifications/notifications/', {
+    return this.request('/notifications/', {
       method: 'POST',
       body: JSON.stringify(notificationData),
     });
@@ -1776,12 +1776,12 @@ class ApiService {
 
   // Get WhatsApp connection status
   async getWhatsAppStatus(): Promise<ApiResponse<any>> {
-    return this.request('/integrations/whatsapp/status/');
+    return this.request('/integrations/whatsapp/');
   }
 
   // Start WhatsApp session
   async startWhatsAppSession(): Promise<ApiResponse<any>> {
-    return this.request('/integrations/whatsapp/session/start/', {
+    return this.request('/integrations/whatsapp/session/', {
       method: 'POST',
     });
   }
