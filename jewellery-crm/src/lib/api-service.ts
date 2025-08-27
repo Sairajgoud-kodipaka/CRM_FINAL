@@ -684,7 +684,7 @@ class ApiService {
   }
 
   async getClientAuditLogs(clientId: string): Promise<ApiResponse<AuditLog[]>> {
-    return this.request(`/clients/audit-logs/?client=${clientId}`);
+    return this.request(`/audit-logs/?client=${clientId}`);
   }
 
   async getCustomerDropdownOptions(): Promise<ApiResponse<any>> {
@@ -693,17 +693,17 @@ class ApiService {
 
   // Customer Tags and Segmentation
   async getCustomerTags(): Promise<ApiResponse<any[]>> {
-    return this.request('/clients/tags/');
+    return this.request('/tags/');
   }
 
   async getCustomerTagCategories(): Promise<ApiResponse<any[]>> {
-    return this.request('/clients/tags/categories/');
+    return this.request('/tags/categories/');
   }
 
   async getCustomerTagsByCategory(category?: string): Promise<ApiResponse<any>> {
     const queryParams = new URLSearchParams();
     if (category) queryParams.append('category', category);
-    return this.request(`/clients/tags/by_category/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/tags/by_category/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   // Exhibition Lead Management
@@ -1144,45 +1144,45 @@ class ApiService {
     if (params?.date) queryParams.append('date', params.date);
     if (params?.client) queryParams.append('client', params.client);
 
-    return this.request(`/clients/appointments/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/appointments/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async createAppointment(appointmentData: Partial<Appointment>): Promise<ApiResponse<Appointment>> {
-    return this.request('/clients/appointments/', {
+    return this.request('/appointments/', {
       method: 'POST',
       body: JSON.stringify(appointmentData),
     });
   }
 
   async updateAppointment(id: string, appointmentData: Partial<Appointment>): Promise<ApiResponse<Appointment>> {
-    return this.request(`/clients/appointments/${id}/`, {
+    return this.request(`/appointments/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(appointmentData),
     });
   }
 
   async confirmAppointment(id: string): Promise<ApiResponse<Appointment>> {
-    return this.request(`/clients/appointments/${id}/confirm/`, {
+    return this.request(`/appointments/${id}/confirm/`, {
       method: 'POST',
     });
   }
 
   async completeAppointment(id: string, outcomeNotes?: string): Promise<ApiResponse<Appointment>> {
-    return this.request(`/clients/appointments/${id}/complete/`, {
+    return this.request(`/appointments/${id}/complete/`, {
       method: 'POST',
       body: JSON.stringify({ outcome_notes: outcomeNotes }),
     });
   }
 
   async cancelAppointment(id: string, reason?: string): Promise<ApiResponse<Appointment>> {
-    return this.request(`/clients/appointments/${id}/cancel/`, {
+    return this.request(`/appointments/${id}/cancel/`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
   }
 
   async rescheduleAppointment(id: string, newDate: string, newTime: string, reason?: string): Promise<ApiResponse<Appointment>> {
-    return this.request(`/clients/appointments/${id}/reschedule/`, {
+    return this.request(`/appointments/${id}/reschedule/`, {
       method: 'POST',
       body: JSON.stringify({ 
         new_date: newDate, 
@@ -1193,7 +1193,7 @@ class ApiService {
   }
 
   async editAppointment(id: string, appointmentData: Partial<Appointment>): Promise<ApiResponse<Appointment>> {
-    return this.request(`/clients/appointments/${id}/`, {
+    return this.request(`/appointments/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(appointmentData),
     });
@@ -1445,11 +1445,11 @@ class ApiService {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.client) queryParams.append('client', params.client);
 
-    return this.request(`/clients/follow-ups/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/follow-ups/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async createFollowUp(followUpData: any): Promise<ApiResponse<any>> {
-    return this.request('/clients/follow-ups/', {
+    return this.request('/follow-ups/', {
       method: 'POST',
       body: JSON.stringify(followUpData),
     });
@@ -1822,12 +1822,12 @@ class ApiService {
 
   // Get all purchases
   async getPurchases(): Promise<ApiResponse<any[]>> {
-    return this.request('/clients/purchases/');
+    return this.request('/purchases/');
   }
 
   // Create a new purchase
   async createPurchase(purchaseData: any): Promise<ApiResponse<any>> {
-    return this.request('/clients/purchases/', {
+    return this.request('/purchases/', {
       method: 'POST',
       body: JSON.stringify(purchaseData),
     });
@@ -1835,7 +1835,7 @@ class ApiService {
 
   // Update a purchase
   async updatePurchase(purchaseId: string, purchaseData: any): Promise<ApiResponse<any>> {
-    return this.request(`/clients/purchases/${purchaseId}/`, {
+    return this.request(`/purchases/${purchaseId}/`, {
       method: 'PUT',
       body: JSON.stringify(purchaseData),
     });
@@ -1843,7 +1843,7 @@ class ApiService {
 
   // Delete a purchase
   async deletePurchase(purchaseId: string): Promise<ApiResponse<void>> {
-    return this.request(`/clients/purchases/${purchaseId}/`, {
+    return this.request(`/purchases/${purchaseId}/`, {
       method: 'DELETE',
     });
   }
