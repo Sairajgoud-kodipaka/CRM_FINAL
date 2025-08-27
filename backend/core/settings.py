@@ -92,37 +92,47 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT'),
-        'OPTIONS': {
-            'connect_timeout': 30,
-        },
+# Database - Only configure when not running collectstatic
+import sys
+if 'collectstatic' not in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='build_time_db'),
+            'USER': config('DB_USER', default='build_user'),
+            'PASSWORD': config('DB_PASSWORD', default='build_password'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+            'OPTIONS': {
+                'connect_timeout': 30,
+            },
+        }
     }
-}
 
-# Production configuration for Render managed database
-if not DEBUG:
-    # Render automatically provides these environment variables for managed databases
-    # No need to configure SSL manually - Render handles it
-    DATABASES['default']['OPTIONS'].update({
-        'application_name': 'jewellery_crm_backend',
-        'keepalives': 1,
-        'keepalives_idle': 30,
-        'keepalives_interval': 10,
-        'keepalives_count': 5,
-        'connect_timeout': 60,
-    })
-    
-    # Production connection pooling
-    DATABASES['default']['CONN_MAX_AGE'] = 600
-    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+    # Production configuration for Render managed database
+    if not DEBUG:
+        # Render automatically provides these environment variables for managed databases
+        # No need to configure SSL manually - Render handles it
+        DATABASES['default']['OPTIONS'].update({
+            'application_name': 'jewellery_crm_backend',
+            'keepalives': 1,
+            'keepalives_idle': 30,
+            'keepalives_interval': 10,
+            'keepalives_count': 5,
+            'connect_timeout': 60,
+        })
+        
+        # Production connection pooling
+        DATABASES['default']['CONN_MAX_AGE'] = 600
+        DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+else:
+    # During collectstatic, use a dummy database config
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
