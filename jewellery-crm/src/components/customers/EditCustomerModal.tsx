@@ -519,7 +519,13 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         date_of_birth: formData.date_of_birth?.trim() || undefined,
         anniversary_date: formData.anniversary_date?.trim() || undefined,
         next_follow_up: formData.next_follow_up?.trim() || undefined,
-        customer_interests_input: customerInterestsInput
+        customer_interests_input: customerInterestsInput,
+        customer_interests_simple: Array.isArray(customerInterestsInput) ? customerInterestsInput : [],
+        product_type: customer.product_type || "",
+        style: customer.style || "",
+        weight_range: customer.weight_range || "",
+        customer_preference: customer.customer_preference || "",
+        design_number: customer.design_number || "",
       };
 
       console.log('📤 Final customer data to send:', customerData);

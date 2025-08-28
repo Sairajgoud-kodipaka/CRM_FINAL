@@ -175,6 +175,11 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'VVIP',
     'VIP',
     'GENERAL',
+    'exhibition',
+    'lead',
+    'prospect',
+    'customer',
+    'inactive',
   ] as const;
   
   export const LEAD_SOURCES = [
@@ -251,6 +256,45 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     '10–20g',
     '20–50g',
     '>50g',
+  ] as const;
+  
+  // High Priority Constants - Pipeline & Purchase Management
+  export const PIPELINE_STAGES = [
+    'exhibition',
+    'social_media', 
+    'interested',
+    'store_walkin',
+    'negotiation',
+    'closed_won',
+    'closed_lost',
+    'future_prospect',
+    'not_qualified',
+  ] as const;
+  
+  export const BUDGET_RANGES = [
+    '0-50000',
+    '50000-100000',
+    '100000-250000',
+    '250000-500000',
+    '500000-1000000',
+    '1000000+',
+  ] as const;
+  
+  export const APPOINTMENT_TYPES = [
+    'In-Person',
+    'Virtual Consultation',
+    'Phone Call',
+    'WhatsApp',
+    'Store Visit',
+    'Home Visit',
+    'Exhibition Meeting',
+  ] as const;
+  
+  // Customer Classification
+  export const CUSTOMER_TYPES = [
+    'individual',
+    'corporate',
+    'wholesale',
   ] as const;
   
   export const DEFAULT_SALES_PERSONS = [

@@ -276,7 +276,7 @@ export function StoreManagerDashboard() {
       // Fetch team members
       console.log('👥 Fetching team members...');
       try {
-        teamResponse = await apiService.getTeamMembers();
+        teamResponse = await apiService.listTeamMembers();
         console.log('Team response:', teamResponse);
         if (teamResponse.success && teamResponse.data) {
           const teamMembers = Array.isArray(teamResponse.data) ? teamResponse.data : [];

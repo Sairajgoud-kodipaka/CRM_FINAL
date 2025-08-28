@@ -332,7 +332,8 @@ export default function CustomersPage() {
                         {client.lead_source || 'N/A'}
                       </td>
                       <td className="py-3 px-4 text-text-secondary">
-                        System
+                        {client.created_by ? `${client.created_by.first_name} ${client.created_by.last_name}` : 
+                         client.assigned_to ? `User ID: ${client.assigned_to}` : 'System'}
                       </td>
                       <td className="py-3 px-4 text-text-secondary">
                         {formatDate(client.created_at)}

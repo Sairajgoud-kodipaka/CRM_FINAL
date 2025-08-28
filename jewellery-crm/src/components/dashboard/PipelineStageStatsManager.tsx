@@ -11,6 +11,16 @@ import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  CUSTOMER_INTERESTS,
+  PRODUCT_TYPES,
+  STYLES,
+  WEIGHT_RANGES,
+  CUSTOMER_STATUSES,
+  LEAD_SOURCES,
+  SAVING_SCHEMES,
+  REASONS_FOR_VISIT
+} from "@/constants/indian-data";
 
 interface PipelineStage {
   name: string;
@@ -46,6 +56,17 @@ interface CustomerInStage {
     last_name: string;
     full_name: string;
   };
+  // Add product preferences fields to match AddCustomerModal
+  customer_interests?: string[];
+  product_type?: string;
+  style?: string;
+  weight_range?: string;
+  customer_preference?: string;
+  design_number?: string;
+  reason_for_visit?: string;
+  customer_status?: string;
+  saving_scheme?: string;
+  summary_notes?: string;
 }
 
 interface PipelineStageStatsProps {
@@ -554,86 +575,310 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
 
       {/* Edit Customer Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer: {editingCustomer?.full_name}</DialogTitle>
           </DialogHeader>
           {editingCustomer && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">First Name</label>
-                  <input
-                    type="text"
-                    value={editingCustomer.first_name}
-                    onChange={(e) => setEditingCustomer({
-                      ...editingCustomer,
-                      first_name: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    value={editingCustomer.last_name}
-                    onChange={(e) => setEditingCustomer({
-                      ...editingCustomer,
-                      last_name: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={editingCustomer.email}
-                    onChange={(e) => setEditingCustomer({
-                      ...editingCustomer,
-                      email: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Phone</label>
-                  <input
-                    type="text"
-                    value={editingCustomer.phone || ''}
-                    onChange={(e) => setEditingCustomer({
-                      ...editingCustomer,
-                      phone: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">City</label>
-                  <input
-                    type="text"
-                    value={editingCustomer.city || ''}
-                    onChange={(e) => setEditingCustomer({
-                      ...editingCustomer,
-                      city: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">State</label>
-                  <input
-                    type="text"
-                    value={editingCustomer.state || ''}
-                    onChange={(e) => setEditingCustomer({
-                      ...editingCustomer,
-                      state: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="border rounded-lg p-4">
+                <div className="font-semibold mb-4">Basic Information</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">First Name</label>
+                    <input
+                      type="text"
+                      value={editingCustomer.first_name}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        first_name: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Last Name</label>
+                    <input
+                      type="text"
+                      value={editingCustomer.last_name}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        last_name: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={editingCustomer.email}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        email: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Phone</label>
+                    <input
+                      type="text"
+                      value={editingCustomer.phone || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        phone: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">City</label>
+                    <input
+                      type="text"
+                      value={editingCustomer.city || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        city: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">State</label>
+                    <input
+                      type="text"
+                      value={editingCustomer.state || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        state: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
                 </div>
               </div>
+
+              {/* Sales & Lead Information */}
+              <div className="border rounded-lg p-4">
+                <div className="font-semibold mb-4">Sales & Lead Information</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Reason for Visit</label>
+                    <select
+                      value={editingCustomer.reason_for_visit || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        reason_for_visit: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Reason</option>
+                      {REASONS_FOR_VISIT.map((reason) => (
+                        <option key={reason} value={reason}>
+                          {reason}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Customer Status</label>
+                    <select
+                      value={editingCustomer.customer_status || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        customer_status: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Status</option>
+                      {CUSTOMER_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Lead Source</label>
+                    <select
+                      value={editingCustomer.lead_source || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        lead_source: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Source</option>
+                      {LEAD_SOURCES.map((source) => (
+                        <option key={source} value={source}>
+                          {source}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Saving Scheme</label>
+                    <select
+                      value={editingCustomer.saving_scheme || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        saving_scheme: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Scheme</option>
+                      {SAVING_SCHEMES.map((scheme) => (
+                        <option key={scheme} value={scheme}>
+                          {scheme}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Preferences */}
+              <div className="border rounded-lg p-4">
+                <div className="font-semibold mb-4">Product Preferences</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Customer Interest (Multi-select)</label>
+                    <div className="border rounded p-3 max-h-32 overflow-y-auto">
+                      {CUSTOMER_INTERESTS.map((interest) => (
+                        <label key={interest} className="flex items-center gap-2 mb-2">
+                          <input
+                            type="checkbox"
+                            checked={editingCustomer.customer_interests?.includes(interest) || false}
+                            onChange={(e) => {
+                              const currentInterests = editingCustomer.customer_interests || [];
+                              const newInterests = e.target.checked
+                                ? [...currentInterests, interest]
+                                : currentInterests.filter(i => i !== interest);
+                              setEditingCustomer({
+                                ...editingCustomer,
+                                customer_interests: newInterests
+                              });
+                            }}
+                            className="rounded"
+                          />
+                          {interest}
+                        </label>
+                      ))}
+                    </div>
+                    {editingCustomer.customer_interests && editingCustomer.customer_interests.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {editingCustomer.customer_interests.map((interest) => (
+                          <span key={interest} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                            {interest}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Product Type</label>
+                    <select
+                      value={editingCustomer.product_type || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        product_type: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Product Type</option>
+                      {PRODUCT_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Style</label>
+                    <select
+                      value={editingCustomer.style || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        style: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Style</option>
+                      {STYLES.map((style) => (
+                        <option key={style} value={style}>
+                          {style}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Weight Range</label>
+                    <select
+                      value={editingCustomer.weight_range || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        weight_range: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select Weight Range</option>
+                      {WEIGHT_RANGES.map((range) => (
+                        <option key={range} value={range}>
+                          {range}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="border rounded-lg p-4">
+                <div className="font-semibold mb-4">Additional Information</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Customer Preference</label>
+                    <textarea
+                      placeholder="Optional notes about customer preferences..."
+                      rows={3}
+                      value={editingCustomer.customer_preference || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        customer_preference: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Design Number</label>
+                    <input
+                      placeholder="e.g., DES-2024-001"
+                      value={editingCustomer.design_number || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        design_number: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-1">Summary Notes</label>
+                    <textarea
+                      placeholder="Key discussion points, items shown, next steps..."
+                      rows={3}
+                      value={editingCustomer.summary_notes || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        summary_notes: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"

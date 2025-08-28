@@ -3,8 +3,8 @@ services:
     name: jewellery-crm-backend
     env: python
     plan: starter
-    buildCommand: ./build.sh
-    startCommand: gunicorn core.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    buildCommand: chmod +x ./build.sh && ./build.sh
+    startCommand: gunicorn core.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --max-requests 1000 --max-requests-jitter 100
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -48,11 +48,44 @@ services:
         value: staticfiles
       - key: MEDIA_ROOT
         value: media
+      - key: SECURE_SSL_REDIRECT
+        value: true
+      - key: SECURE_HSTS_SECONDS
+        value: 31536000
+      - key: SECURE_HSTS_INCLUDE_SUBDOMAINS
+        value: true
+      - key: SECURE_HSTS_PRELOAD
+        value: true
+      - key: SESSION_COOKIE_SECURE
+        value: true
+      - key: CSRF_COOKIE_SECURE
+        value: true
+      - key: SECURE_BROWSER_XSS_FILTER
+        value: true
+      - key: SECURE_CONTENT_TYPE_NOSNIFF
+        value: true
+      - key: X_FRAME_OPTIONS
+        value: DENY
+      - key: SECURE_REFERRER_POLICY
+        value: strict-origin-when-cross-origin
     healthCheckPath: /api/health/
     autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+    routes:
+      - type: rewrite
+        source: /api/(.*)
+        destination: /api/$1
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+      targetConcurrency: 100
+      targetCpuUtilizationPercentage: 70
 
 databases:
   - name: jewellery-crm-db-managed
     databaseName: jewellery_crm_db_6lhq
     user: jewellery_crm_db_6lhq_user
     plan: starter
+    ipAllowList: []

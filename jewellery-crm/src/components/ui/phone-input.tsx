@@ -81,11 +81,11 @@ export function PhoneInputComponent({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 w-full">
       {/* Phone input field with integrated +91 prefix */}
-      <div className="relative flex">
+      <div className="relative flex w-full max-w-full overflow-hidden">
         {/* +91 prefix badge */}
-        <div className="inline-flex items-center justify-center px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-100 border border-gray-300 border-r-0 rounded-l-md min-w-[48px]">
+        <div className="inline-flex items-center justify-center px-2 py-2 text-sm font-semibold text-gray-700 bg-gray-100 border border-gray-300 border-r-0 rounded-l-md min-w-[36px] flex-shrink-0">
           +91
         </div>
         
@@ -100,7 +100,7 @@ export function PhoneInputComponent({
           disabled={disabled}
           required={required}
           className={cn(
-            "flex-1 h-10 rounded-r-md border border-gray-300 bg-white px-3 py-2 text-sm",
+            "flex-1 h-10 rounded-r-md border border-gray-300 bg-white px-2 py-2 text-sm min-w-0 w-full",
             "placeholder:text-gray-400 placeholder:font-medium",
             "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
             "disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed",
@@ -110,11 +110,6 @@ export function PhoneInputComponent({
         />
       </div>
       
-      {/* Help text */}
-      <p className="text-xs text-gray-500 font-medium">
-        Format: 10-digit mobile number starting with 6, 7, 8, or 9
-      </p>
-      
       {/* Validation error */}
       {!isValid && validationError && (
         <p className="text-sm text-red-600 font-medium flex items-center gap-2">
@@ -123,20 +118,7 @@ export function PhoneInputComponent({
         </p>
       )}
       
-      {/* Success indicator */}
-      {isValid && mobileNumber && mobileNumber.replace(/\D/g, '').length === 10 && (
-        <p className="text-sm text-green-600 font-medium flex items-center gap-2">
-          <span className="text-green-500 text-lg">✓</span>
-          Valid Indian mobile number
-        </p>
-      )}
-      
-      {/* Debug info - only in development */}
-      {process.env.NODE_ENV === 'development' && value && (
-        <div className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
-          <span className="font-medium">Debug:</span> Stored value: {value}
-        </div>
-      )}
+
     </div>
   );
 }

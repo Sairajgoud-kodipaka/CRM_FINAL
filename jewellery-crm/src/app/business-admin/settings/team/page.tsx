@@ -87,7 +87,7 @@ export default function TeamSettingsPage() {
   const fetchTeamMembers = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getTeamMembers();
+      const response = await apiService.listTeamMembers();
       console.log('Team members response:', response);
       if (response.success) {
         const data = response.data as any;

@@ -21,7 +21,10 @@ import {
   CUSTOMER_INTERESTS,
   PRODUCT_TYPES,
   STYLES,
-  WEIGHT_RANGES,
+  PIPELINE_STAGES,
+  BUDGET_RANGES,
+  APPOINTMENT_TYPES,
+  CUSTOMER_TYPES,
   getStateFromCity,
   getPincodeFromCatchment,
   getCatchmentAreasForCity,
@@ -29,6 +32,7 @@ import {
   unlockField,
   isFieldLocked
 } from "@/constants/indian-data";
+import { Slider } from "@/components/ui/slider";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from 'lucide-react';
 
@@ -56,14 +60,42 @@ interface FormData {
   leadSource: string;
   savingScheme: string;
   customerInterests: string[];
+
+  customerPreferences: string;
+  designSelected: string;
+  wantsMoreDiscount: string;
+  checkingOtherJewellers: string;
+  letHimVisit: string;
   productType: string;
   style: string;
-  weightRange: string;
+
+  weightLowerLimit: number;
+  weightUpperLimit: number;
+  weightUnit: string;
   customerPreference: string;
   designNumber: string;
   nextFollowUpDate: string;
   nextFollowUpTime: string;
   summaryNotes: string;
+  
+  // High Priority Fields - Pipeline & Purchase Management
+  pipelineStage: string;
+  budgetRange: string;
+  appointmentType: string;
+  
+  // Customer Classification & Assignment
+  customerType: string;
+}
+
+interface ProductInterest {
+  products: { product: string; revenue: string }[];
+  preferences: {
+    designSelected: boolean;
+    wantsDiscount: boolean;
+    checkingOthers: boolean;
+    lessVariety: boolean;
+    other: string;
+  };
 }
 
 interface AutofillLog {
@@ -98,14 +130,30 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     leadSource: "",
     savingScheme: "Inactive",
     customerInterests: [],
+
+    customerPreferences: "",
+    designSelected: "Modern",
+    wantsMoreDiscount: "No",
+    checkingOtherJewellers: "No",
+    letHimVisit: "No",
     productType: "",
     style: "",
-    weightRange: "",
+    weightLowerLimit: 0,
+    weightUpperLimit: 0,
+    weightUnit: "g",
     customerPreference: "",
     designNumber: "",
     nextFollowUpDate: "",
     nextFollowUpTime: "10:00",
     summaryNotes: "",
+    
+    // High Priority Fields - Pipeline & Purchase Management
+    pipelineStage: "interested",
+    budgetRange: "0-50000",
+    appointmentType: "In-Person",
+    
+    // Customer Classification & Assignment
+    customerType: "individual",
   });
 
   // State for field locking (autofill enforcement)
@@ -115,6 +163,53 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const [salesPersons, setSalesPersons] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State for products data
+  const [products, setProducts] = useState<any[]>([
+    // Initial sample products to ensure field is always populated
+    { id: 1, name: "Gold Chain Necklace", category: "Necklaces", price: 45000, weight: 3.5 },
+    { id: 2, name: "Diamond Ring", category: "Rings", price: 75000, weight: 2.8 },
+    { id: 3, name: "Pearl Earrings", category: "Earrings", price: 25000, weight: 1.2 },
+    { id: 4, name: "Silver Bracelet", category: "Bracelets", price: 18000, weight: 4.0 },
+    { id: 5, name: "Platinum Pendant", category: "Pendants", price: 95000, weight: 1.8 },
+    { id: 6, name: "Ruby Necklace", category: "Necklaces", price: 65000, weight: 2.5 },
+    { id: 7, name: "Emerald Ring", category: "Rings", price: 55000, weight: 3.2 },
+    { id: 8, name: "Sapphire Earrings", category: "Earrings", price: 35000, weight: 1.5 }
+  ]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  
+  // Debug: Log products state changes
+  useEffect(() => {
+    console.log('📊 Products state updated:', products.length, 'products');
+    if (products.length > 0) {
+      console.log('📋 Available products:', products.map(p => ({ id: p.id, name: p.name, category: p.category })));
+    }
+  }, [products]);
+  
+  // Debug: Log when component renders
+  useEffect(() => {
+    console.log('🔄 AddCustomerModal rendered. Products:', products.length, 'Loading:', loading);
+  });
+  
+  // State for categories data
+  const [categories, setCategories] = useState<any[]>([]);
+  
+  // State for selected product
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  
+  // State for interests
+      const [interests, setInterests] = useState<ProductInterest[]>([
+      {
+        products: [{ product: "", revenue: "" }],
+        preferences: {
+          designSelected: false,
+          wantsDiscount: false,
+          checkingOthers: false,
+          lessVariety: false,
+          other: "",
+        },
+      },
+    ]);
   
   // State for existing customer check
   const [existingCustomerInfo, setExistingCustomerInfo] = useState<{
@@ -332,8 +427,9 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       errors.push("Pincode is required");
     }
     
-    if (!formData.salesPerson) {
-      errors.push("Sales Person is required");
+    // Sales person validation - hybrid approach
+    if (user?.role !== 'inhouse_sales' && user?.role !== 'tele_calling' && !formData.salesPerson) {
+      errors.push("Sales Person is required for managers and admins");
     }
     
     if (!formData.reasonForVisit) {
@@ -352,9 +448,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       errors.push("Monthly Saving Scheme is required");
     }
     
-    if (formData.customerInterests.length === 0) {
-      errors.push("At least one Customer Interest is required");
-    }
+    // Customer Interests validation removed - now handled by Product Interests structure
     
     if (!formData.productType) {
       errors.push("Product Type is required");
@@ -364,9 +458,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       errors.push("Style is required");
     }
     
-    if (!formData.weightRange) {
-      errors.push("Weight Range is required");
-    }
+
     
     return {
       isValid: errors.length === 0,
@@ -417,7 +509,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         assignedToName: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? user?.name || 'Auto-assigned' : formData.salesPerson,
         assignmentType: (user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? 'self' : 
                        user?.role === 'manager' ? 'manager' : 'admin') as 'self' | 'manager' | 'admin',
-                assignmentScope: (user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? 'self' : 
+        assignmentScope: (user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? 'self' : 
                          user?.role === 'manager' ? 'team' : 
                          user?.role === 'business_admin' ? 'tenant' : 'global') as 'self' | 'team' | 'tenant' | 'global',
         timestamp: new Date().toISOString(),
@@ -439,15 +531,22 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         anniversary_date: formatDateForAPI(formData.anniversaryDate),
         catchment_area: formData.catchmentArea,
         pincode: formData.pincode,
-        sales_person: formData.salesPerson,
+        sales_person: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? user?.name : formData.salesPerson,
         reason_for_visit: formData.reasonForVisit,
         customer_status: formData.customerStatus,
         lead_source: formData.leadSource,
         saving_scheme: formData.savingScheme,
         customer_interests: formData.customerInterests,
+        customer_interests_input: interests.map(interest => JSON.stringify(interest)),
+
+        customer_preferences: cleanStringField(formData.customerPreferences),
+        design_selected: formData.designSelected,
+        wants_more_discount: formData.wantsMoreDiscount,
+        checking_other_jewellers: formData.checkingOtherJewellers,
+        let_him_visit: formData.letHimVisit,
         product_type: formData.productType,
         style: formData.style,
-        weight_range: formData.weightRange,
+
         customer_preference: cleanStringField(formData.customerPreference),
         design_number: cleanStringField(formData.designNumber),
         next_follow_up: formatDateForAPI(formData.nextFollowUpDate),
@@ -510,15 +609,41 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           leadSource: "",
           savingScheme: "Inactive",
           customerInterests: [],
+    
+          customerPreferences: "",
+          designSelected: "",
+          wantsMoreDiscount: "",
+          checkingOtherJewellers: "",
+          letHimVisit: "",
           productType: "",
           style: "",
-          weightRange: "",
+          weightLowerLimit: 0,
+          weightUpperLimit: 0,
+          weightUnit: "g",
           customerPreference: "",
           designNumber: "",
           nextFollowUpDate: "",
           nextFollowUpTime: "10:00",
           summaryNotes: "",
+          
+          // High Priority Fields - Pipeline & Purchase Management
+          pipelineStage: "interested",
+          budgetRange: "0-50000",
+          appointmentType: "In-Person",
+          
+          // Customer Classification & Assignment
+          customerType: "individual",
         });
+        setInterests([{
+          products: [{ product: "", revenue: "" }],
+          preferences: {
+            designSelected: false,
+            wantsDiscount: false,
+            checkingOthers: false,
+            lessVariety: false,
+            other: "",
+          },
+        }]);
         setLockedFields(new Set());
         setAutofillLogs([]);
       } else {
@@ -600,17 +725,30 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         const fetchData = async () => {
           try {
             setLoading(true);
-            console.log('Fetching data for AddCustomerModal...');
+          console.log('🔄 Fetching data for AddCustomerModal...');
             
             // Load salesperson options based on role
+          console.log('👥 Loading salesperson options...');
             await loadSalesPersonOptions();
+          console.log('✅ Salesperson options loaded');
+            
+            // Load products
+          console.log('📦 Loading products...');
+            await loadProducts();
+          console.log('✅ Products loading completed');
+          
+          // Load categories
+          console.log('📂 Loading categories...');
+          await loadCategories();
+          console.log('✅ Categories loading completed');
             
           } catch (error) {
-            console.error('Error fetching data:', error);
+          console.error('💥 Error fetching data:', error);
             // Fallback to default options
             setSalesPersons(['Sales Person 1', 'Sales Person 2', 'Sales Person 3']);
           } finally {
             setLoading(false);
+          console.log('🏁 fetchData completed');
           }
         };
         
@@ -674,16 +812,146 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     }
   };
 
+  const loadProducts = async () => {
+    console.log('🚀 loadProducts function called');
+    try {
+      setProductsLoading(true);
+      console.log('📡 Calling API for products...');
+      // Use public API with tenant slug 'zinzuwadia' (ZINZUWADIA JEWELLERS) for now
+      // This can be made dynamic later based on user's tenant
+      const response = await apiService.getProducts({ tenantId: 'zinzuwadia' });
+      console.log('📦 Products API Response:', response);
+      if (response.success && response.data) {
+        // Handle paginated response from Django REST Framework
+        const products = (response.data as any).results || response.data;
+        setProducts(products);
+        console.log('✅ Products loaded successfully:', products.length, 'products');
+        console.log('📋 First product:', products[0]);
+      } else {
+        console.error('❌ Failed to load products:', response);
+        // Fallback to sample products if API fails
+        const fallbackProducts = [
+          { id: 1, name: "Gold Chain Necklace", category: "Necklaces", price: 45000, weight: 3.5 },
+          { id: 2, name: "Diamond Ring", category: "Rings", price: 75000, weight: 2.8 },
+          { id: 3, name: "Pearl Earrings", category: "Earrings", price: 25000, weight: 1.2 },
+          { id: 4, name: "Silver Bracelet", category: "Bracelets", price: 18000, weight: 4.0 },
+          { id: 5, name: "Platinum Pendant", category: "Pendants", price: 95000, weight: 1.8 },
+          { id: 6, name: "Ruby Necklace", category: "Necklaces", price: 65000, weight: 2.5 },
+          { id: 7, name: "Emerald Ring", category: "Rings", price: 55000, weight: 3.2 },
+          { id: 8, name: "Sapphire Earrings", category: "Earrings", price: 35000, weight: 1.5 }
+        ];
+        setProducts(fallbackProducts);
+        console.log('🔄 Using fallback products:', fallbackProducts.length, 'products');
+      }
+    } catch (error) {
+      console.error('💥 Error loading products:', error);
+      // Fallback to sample products if API fails
+      const fallbackProducts = [
+        { id: 1, name: "Gold Chain Necklace", category: "Necklaces", price: 45000, weight: 3.5 },
+        { id: 2, name: "Diamond Ring", category: "Rings", price: 75000, weight: 2.8 },
+        { id: 3, name: "Pearl Earrings", category: "Earrings", price: 25000, weight: 1.2 },
+        { id: 4, name: "Silver Bracelet", category: "Bracelets", price: 18000, weight: 4.0 },
+        { id: 5, name: "Platinum Pendant", category: "Pendants", price: 95000, weight: 1.8 },
+        { id: 6, name: "Ruby Necklace", category: "Necklaces", price: 65000, weight: 2.5 },
+        { id: 7, name: "Emerald Ring", category: "Rings", price: 55000, weight: 3.2 },
+        { id: 8, name: "Sapphire Earrings", category: "Earrings", price: 35000, weight: 1.5 }
+      ];
+      setProducts(fallbackProducts);
+      console.log('🔄 Using fallback products due to error:', fallbackProducts.length, 'products');
+    } finally {
+      setProductsLoading(false);
+      console.log('🏁 loadProducts completed');
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const response = await apiService.getCategories({ tenantId: 'zinzuwadia' });
+      if (response.success && response.data) {
+        const categoriesData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data as any).results || (response.data as any).data || [];
+        setCategories(categoriesData);
+        console.log('✅ Categories loaded successfully:', categoriesData.length, 'categories');
+      } else {
+        console.error('❌ Failed to load categories:', response);
+        // Fallback to sample categories if API fails
+        const fallbackCategories = [
+          { id: 1, name: "Necklaces" },
+          { id: 2, name: "Rings" },
+          { id: 3, name: "Earrings" },
+          { id: 4, name: "Bracelets" },
+          { id: 5, name: "Pendants" },
+          { id: 6, name: "Chains" },
+          { id: 7, name: "Bangles" },
+          { id: 8, name: "Anklets" }
+        ];
+        setCategories(fallbackCategories);
+        console.log('🔄 Using fallback categories:', fallbackCategories.length, 'categories');
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      // Fallback to sample categories if API fails
+      const fallbackCategories = [
+        { id: 1, name: "Necklaces" },
+        { id: 2, name: "Rings" },
+        { id: 3, name: "Earrings" },
+        { id: 4, name: "Bracelets" },
+        { id: 5, name: "Pendants" },
+        { id: 6, name: "Chains" },
+        { id: 7, name: "Bangles" },
+        { id: 8, name: "Anklets" }
+      ];
+      setCategories(fallbackCategories);
+      console.log('🔄 Using fallback categories due to error:', fallbackCategories.length, 'categories');
+    }
+  };
+
+  const addInterest = () => {
+    console.log('➕ Adding new interest...');
+    const newInterest = {
+        products: [{ product: "", revenue: "" }],
+        preferences: {
+          designSelected: false,
+          wantsDiscount: false,
+          checkingOthers: false,
+          lessVariety: false,
+          other: "",
+        },
+    };
+    console.log('🆕 New interest structure:', newInterest);
+    setInterests(prev => {
+      const newInterests = [...prev, newInterest];
+      console.log('📊 Updated interests array:', newInterests);
+      return newInterests;
+    });
+  };
+
+  const addProductToInterest = (idx: number) => {
+    console.log(`➕ Adding product to interest ${idx}`);
+    setInterests((prev) => {
+      const copy = [...prev];
+      const newProduct = { product: "", revenue: "" };
+      copy[idx].products.push(newProduct);
+      console.log(`   Interest ${idx} now has ${copy[idx].products.length} products:`, copy[idx].products);
+      return copy;
+    });
+  };
+
+  const removeProductFromInterest = (interestIdx: number, productIdx: number) => {
+    setInterests((prev) => {
+      const copy = [...prev];
+      copy[interestIdx].products.splice(productIdx, 1);
+      return copy;
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Add New Customer - Strict Dropdown Form</DialogTitle>
-          <DialogDescription>
-            Customer onboarding form with deterministic autofill and strict dropdown enforcement. 
-            All fields except Street Address, Customer Preference, and Design Number must be selected from dropdowns.
-          </DialogDescription>
-          {loading && <div className="text-sm text-blue-600 mt-2">Loading data...</div>}
+                      <DialogTitle>Add New Customer</DialogTitle>
+
         </DialogHeader>
 
         {/* Customer Details */}
@@ -699,7 +967,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
               />
             </div>
-            <div>
+            <div className="w-full overflow-hidden">
               <label className="block text-sm font-medium mb-1">Phone Number *</label>
               <PhoneInputComponent 
                 placeholder="+91 98XXXXXX00" 
@@ -1005,89 +1273,418 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           </div>
         </div>
 
-        {/* Product Preferences */}
+
+
+        {/* Customer Interests */}
         <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-2">Product Preferences</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Customer Interest * (Multi-select)</label>
-              <div className="border rounded p-3 max-h-32 overflow-y-auto">
-                {CUSTOMER_INTERESTS.map((interest) => (
-                  <label key={interest} className="flex items-center gap-2 mb-2">
-                    <Checkbox 
-                      checked={formData.customerInterests.includes(interest)}
-                      onCheckedChange={() => handleInterestToggle(interest)}
-                    /> 
-                    {interest}
-                  </label>
-                ))}
-              </div>
-              {formData.customerInterests.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {formData.customerInterests.map((interest) => (
-                    <Badge key={interest} variant="secondary">
-                      {interest}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Product Type *</label>
-              <Select 
-                value={formData.productType} 
-                onValueChange={(value) => handleInputChange('productType', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Product Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRODUCT_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Style *</label>
-              <Select 
-                value={formData.style} 
-                onValueChange={(value) => handleInputChange('style', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Style" />
-                </SelectTrigger>
-                <SelectContent>
-                  {STYLES.map((style) => (
-                    <SelectItem key={style} value={style}>
-                      {style}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Weight Range *</label>
-              <Select 
-                value={formData.weightRange} 
-                onValueChange={(value) => handleInputChange('weightRange', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Weight Range" />
-                </SelectTrigger>
-                <SelectContent>
-                  {WEIGHT_RANGES.map((range) => (
-                    <SelectItem key={range} value={range}>
-                      {range}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="font-semibold">Product Interests</div>
+            <Button variant="outline" size="sm" onClick={addInterest}>+ Add Interest</Button>
           </div>
+          {interests.map((interest, idx) => {
+            // Safety check to ensure interest has the required structure
+            if (!interest || !interest.preferences) {
+              return null;
+            }
+            
+            return (
+            <div key={idx} className="border rounded p-3 mb-4">
+              <div className="mb-2 font-medium">Interest Item #{idx + 1}</div>
+              
+              {/* Product Chosen Field */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Product Chosen</label>
+                <Select 
+                  onValueChange={(productId) => {
+                    const selectedProduct = products.find(p => p.id.toString() === productId);
+                    if (selectedProduct) {
+                      console.log('Selected product:', selectedProduct);
+                      
+                      // Store the selected product for weight display
+                      setSelectedProduct(selectedProduct);
+                      
+                      // Auto-populate Product Type based on category
+                      let productType = '';
+                      if (selectedProduct.category_name) {
+                        productType = selectedProduct.category_name;
+                      } else if (selectedProduct.category) {
+                        productType = selectedProduct.category;
+                      } else if (selectedProduct.product_type) {
+                        productType = selectedProduct.product_type;
+                      }
+                      
+                      if (productType) {
+                        setFormData(prev => ({ ...prev, productType }));
+                        console.log('Auto-populated Product Type:', productType);
+                      }
+                      
+                      // Auto-populate the Product field and Revenue in the CURRENT interest item
+                      setInterests(prev => {
+                        const copy = [...prev];
+                        // Update the current interest item (idx) instead of always the first one
+                        if (copy[idx] && copy[idx].products.length > 0) {
+                          // Update the first product in the current interest item
+                          copy[idx].products[0].product = selectedProduct.id.toString();
+                          // Auto-populate revenue with product price
+                          const productPrice = selectedProduct.selling_price || selectedProduct.price || 0;
+                          copy[idx].products[0].revenue = productPrice.toString();
+                          console.log(`Auto-populated Product field in Interest Item #${idx + 1}:`, selectedProduct.name);
+                          console.log(`Auto-populated Revenue field with price:`, productPrice);
+                        } else if (copy[idx]) {
+                          // If no products exist in this interest item, create one
+                          copy[idx].products = [{
+                            product: selectedProduct.id.toString(),
+                            revenue: (selectedProduct.selling_price || selectedProduct.price || 0).toString()
+                          }];
+                          console.log(`Created new product in Interest Item #${idx + 1}:`, selectedProduct.name);
+                        }
+                        return copy;
+                      });
+                      
+                      toast({
+                        title: "Product Selected",
+                        description: `${selectedProduct.name} - ₹${selectedProduct.selling_price?.toLocaleString('en-IN') || 'Price not available'}`,
+                        variant: "default",
+                      });
+                    }
+                  }}
+                  disabled={productsLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={productsLoading ? "Loading products..." : "Select Product with Price"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {productsLoading ? (
+                      <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                    ) : products.length > 0 ? (
+                      products.map((product) => (
+                        <SelectItem key={product.id} value={product.id.toString()}>
+                          {product.name} - ₹{product.selling_price?.toLocaleString('en-IN') || 'Price N/A'}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-products" disabled>No products available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <div className="text-xs text-gray-500 mt-1">
+                  Select a product to auto-populate Product Type
+                </div>
+              </div>
+
+              {/* Product Type Field */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Product Type *</label>
+                <Select 
+                  value={formData.productType} 
+                  onValueChange={(value) => handleInputChange('productType', value)}
+                  disabled={!formData.productType}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.productType ? formData.productType : "Auto-populated from Product Chosen"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.productType ? (
+                      <SelectItem value={formData.productType}>
+                        {formData.productType}
+                      </SelectItem>
+                    ) : (
+                      <SelectItem value="no-product-selected" disabled>
+                        Select a product first to see Product Type
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <div className="text-xs text-gray-500 mt-1">
+                  {formData.productType 
+                    ? `Product Type: ${formData.productType}` 
+                    : "Product Type will be auto-populated when you select a product above"
+                  }
+                </div>
+              </div>
+
+              {/* Style Field */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Style *</label>
+                <Select 
+                  value={formData.style} 
+                  onValueChange={(value) => handleInputChange('style', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STYLES.map((style) => (
+                      <SelectItem key={style} value={style}>
+                        {style}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Product Weight Display */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Product Weight</label>
+                <div className="space-y-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-amber-600">⚖️</span>
+                      <span className="text-sm font-medium text-amber-800">Selected Product Weight</span>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-amber-900">
+                        {selectedProduct && selectedProduct.weight 
+                          ? (() => {
+                              const weight = selectedProduct.weight;
+                              const unit = formData.weightUnit;
+                              const displayWeight = unit === 'kg' ? (weight / 1000).toFixed(3) : weight;
+                              return `${displayWeight}${unit}`;
+                            })()
+                          : 'No product selected'
+                        }
+                      </div>
+                      <div className="text-xs text-amber-700 mt-1">
+                        This is the actual weight of the product you selected above
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Unit Selector */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-700">Display Unit:</label>
+                    <Select 
+                      value={formData.weightUnit} 
+                      onValueChange={(value) => {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          weightUnit: value
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="g">Grams (g)</SelectItem>
+                        <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+
+              <>
+                {interest.products.map((prod, pidx) => (
+                    <div key={pidx} className="border rounded p-2 mb-2 flex flex-col md:flex-row gap-2 items-center">
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium mb-1">Product</label>
+                        <Select
+                          value={prod.product}
+                          onValueChange={(value) => {
+                            console.log(`🎯 Product selected for interest ${idx}, product ${pidx}:`, value);
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              copy[idx].products[pidx].product = value;
+                              console.log(`   Updated product ${pidx} in interest ${idx}:`, copy[idx].products[pidx]);
+                              return copy;
+                            });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={loading ? "Loading products..." : `Select Product (${products.length} available)`} />
+                          </SelectTrigger>
+
+                          <SelectContent>
+                            {loading ? (
+                              <SelectItem value="loading-products" disabled>Loading products...</SelectItem>
+                            ) : (
+                              <>
+                                {console.log(`DEBUG: SelectContent rendering. products.length: ${products.length}`)}
+                                {products.length > 0 ? (
+                                  products.map((product) => {
+                                    const productValue = product.id?.toString() || product.name || `product-${product.id}`;
+                                    const productName = product.name || `Product ${product.id}`;
+                                    return (
+                                      <SelectItem key={product.id} value={productValue}>
+                                        {productName}
+                                      </SelectItem>
+                                    );
+                                  })
+                                ) : (
+                                  <SelectItem value="no-products" disabled>No products available</SelectItem>
+                                )}
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium mb-1">Revenue Opportunity (₹)</label>
+                        <Input
+                          placeholder="e.g., 50000" 
+                          value={prod.revenue}
+                          onChange={(e) => {
+                            console.log(`💰 Revenue entered for interest ${idx}, product ${pidx}:`, e.target.value);
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              copy[idx].products[pidx].revenue = e.target.value;
+                              console.log(`   Updated revenue for product ${pidx} in interest ${idx}:`, copy[idx].products[pidx]);
+                              return copy;
+                            });
+                          }}
+                        />
+
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="self-end text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => removeProductFromInterest(idx, pidx)}
+                        type="button"
+                      >
+                        🗑️
+                      </Button>
+                    </div>
+                  ))}
+                  <Button variant="link" size="sm" className="text-orange-600" onClick={() => addProductToInterest(idx)}>
+                    + Add Product to this Interest
+                  </Button>
+                </>
+              
+              {/* Customer Preferences */}
+              <div className="border rounded p-3 mt-3">
+                <div className="font-semibold mb-2">Customer Preferences</div>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2">
+                    <Checkbox 
+                      checked={interest.preferences?.designSelected || false}
+                      onCheckedChange={(checked) => {
+                        setInterests(prev => {
+                          const copy = [...prev];
+                          if (!copy[idx].preferences) {
+                            copy[idx].preferences = {
+                              designSelected: false,
+                              wantsDiscount: false,
+                              checkingOthers: false,
+                              lessVariety: false,
+                              other: "",
+                            };
+                          }
+                          copy[idx].preferences.designSelected = checked as boolean;
+                          return copy;
+                        });
+                        
+                        // If design is selected, show notification
+                        if (checked) {
+                          toast({
+                            title: "Design Selected! 🎉",
+                            description: "Customer has selected a design. This will be reflected in the preferences.",
+                            variant: "default",
+                          });
+                        }
+                      }}
+                    /> 
+                    Design Selected?
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <Checkbox 
+                      checked={interest.preferences?.wantsDiscount || false}
+                      onCheckedChange={(checked) => {
+                        setInterests(prev => {
+                          const copy = [...prev];
+                          if (!copy[idx].preferences) {
+                            copy[idx].preferences = {
+                              designSelected: false,
+                              wantsDiscount: false,
+                              checkingOthers: false,
+                              lessVariety: false,
+                              other: "",
+                            };
+                          }
+                          copy[idx].preferences.wantsDiscount = checked as boolean;
+                          return copy;
+                        });
+                      }}
+                    /> 
+                    Wants More Discount
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <Checkbox 
+                      checked={interest.preferences?.checkingOthers || false}
+                      onCheckedChange={(checked) => {
+                        setInterests(prev => {
+                          const copy = [...prev];
+                          if (!copy[idx].preferences) {
+                            copy[idx].preferences = {
+                              designSelected: false,
+                              wantsDiscount: false,
+                              checkingOthers: false,
+                              lessVariety: false,
+                              other: "",
+                            };
+                          }
+                          copy[idx].preferences.checkingOthers = checked as boolean;
+                          return copy;
+                        });
+                      }}
+                    /> 
+                    Checking Other Jewellers
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <Checkbox 
+                      checked={interest.preferences?.lessVariety || false}
+                      onCheckedChange={(checked) => {
+                        setInterests(prev => {
+                          const copy = [...prev];
+                          if (!copy[idx].preferences) {
+                            copy[idx].preferences = {
+                              designSelected: false,
+                              wantsDiscount: false,
+                              checkingOthers: false,
+                              lessVariety: false,
+                              other: "",
+                            };
+                          }
+                          copy[idx].preferences.lessVariety = checked as boolean;
+                          return copy;
+                        });
+                      }}
+                    /> 
+                    Felt Less Variety
+                  </label>
+                  <Input 
+                    placeholder="Other Preferences (if any)" 
+                    className="mt-2"
+                    value={interest.preferences?.other || ""}
+                    onChange={(e) => {
+                      setInterests(prev => {
+                        const copy = [...prev];
+                        if (!copy[idx].preferences) {
+                          copy[idx].preferences = {
+                            designSelected: false,
+                            wantsDiscount: false,
+                            checkingOthers: false,
+                            lessVariety: false,
+                            other: "",
+                          };
+                        }
+                        copy[idx].preferences.other = e.target.value;
+                        return copy;
+                      });
+                    }}
+                  />
+              </div>
+                </div>
+            </div>
+          );
+          })}
         </div>
+
+
+
+
 
         {/* Additional Information */}
         <div className="border rounded-lg p-4 mb-4">

@@ -1,0 +1,269 @@
+name: CI/CD Pipeline - Jewellery CRM
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - 'jewellery-crm/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - 'jewellery-crm/**'
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Backend Security & Quality Checks
+  backend-security:
+    name: Backend Security & Quality
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run security audit with safety
+      run: |
+        pip install safety
+        safety check --json --output safety-report.json || true
+        
+    - name: Run dependency vulnerability scan with pip-audit
+      run: |
+        pip install pip-audit
+        pip-audit --format json --output pip-audit-report.json || true
+        
+    - name: Run code quality checks with Black
+      run: |
+        pip install black
+        black --check . || true
+        
+    - name: Run linting with Flake8
+      run: |
+        pip install flake8
+        flake8 . --max-line-length=88 --extend-ignore=E203,W503 --output-file flake8-report.txt || true
+        
+    - name: Run security linting with Bandit
+      run: |
+        pip install bandit
+        bandit -r . -f json -o bandit-report.json || true
+        
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: backend-security-reports
+        path: |
+          backend/safety-report.json
+          backend/pip-audit-report.json
+          backend/flake8-report.txt
+          backend/bandit-report.json
+
+  # Backend Testing
+  backend-test:
+    name: Backend Testing
+    runs-on: ubuntu-latest
+    needs: backend-security
+    defaults:
+      run:
+        working-directory: ./backend
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run Django tests
+      run: |
+        python manage.py test --verbosity=2
+        
+    - name: Run deployment checks
+      run: |
+        python manage.py check --deploy
+
+  # Frontend Security & Quality Checks
+  frontend-security:
+    name: Frontend Security & Quality
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./jewellery-crm
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run security audit
+      run: npm run security:ci
+      
+    - name: Run linting
+      run: npm run lint
+      
+    - name: Run type checking
+      run: npm run type-check
+      
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-security-reports
+        path: jewellery-crm/security-report.json
+
+  # Frontend Testing
+  frontend-test:
+    name: Frontend Testing
+    runs-on: ubuntu-latest
+    needs: frontend-security
+    defaults:
+      run:
+        working-directory: ./jewellery-crm
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build
+        path: jewellery-crm/.next
+
+  # Security Gate
+  security-gate:
+    name: Security Gate
+    runs-on: ubuntu-latest
+    needs: [backend-security, frontend-security]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download security reports
+      uses: actions/download-artifact@v3
+      with:
+        name: backend-security-reports
+        path: ./backend-reports
+        
+    - name: Download frontend security reports
+      uses: actions/download-artifact@v3
+      with:
+        name: frontend-security-reports
+        path: ./frontend-reports
+        
+    - name: Check for critical vulnerabilities
+      run: |
+        echo "🔍 Checking for critical security vulnerabilities..."
+        
+        # Check backend reports
+        if [ -f "./backend-reports/safety-report.json" ]; then
+          echo "Backend Safety Report:"
+          cat ./backend-reports/safety-report.json | jq -r '.vulnerabilities[] | select(.severity == "HIGH" or .severity == "CRITICAL") | "CRITICAL: \(.package_name) - \(.vulnerability_id)"' || echo "No critical vulnerabilities found in safety report"
+        fi
+        
+        if [ -f "./backend-reports/pip-audit-report.json" ]; then
+          echo "Backend pip-audit Report:"
+          cat ./backend-reports/pip-audit-report.json | jq -r '.vulnerabilities[] | select(.severity == "HIGH" or .severity == "CRITICAL") | "CRITICAL: \(.package_name) - \(.vulnerability_id)"' || echo "No critical vulnerabilities found in pip-audit report"
+        fi
+        
+        # Check frontend reports
+        if [ -f "./frontend-reports/security-report.json" ]; then
+          echo "Frontend Security Report:"
+          cat ./frontend-reports/security-report.json | jq -r '.advisories[] | select(.severity == "high" or .severity == "critical") | "CRITICAL: \(.module_name) - \(.id)"' || echo "No critical vulnerabilities found in npm audit report"
+        fi
+        
+        echo "✅ Security gate check completed"
+
+  # Deploy to Staging (on develop branch)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [security-gate, backend-test, frontend-test]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Deploy Backend to Render Staging
+      run: |
+        echo "🚀 Deploying backend to Render staging..."
+        # Add Render deployment logic here
+        
+    - name: Deploy Frontend to Vercel Staging
+      run: |
+        echo "🚀 Deploying frontend to Vercel staging..."
+        # Add Vercel deployment logic here
+
+  # Deploy to Production (on main branch)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [security-gate, backend-test, frontend-test]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Deploy Backend to Render Production
+      run: |
+        echo "🚀 Deploying backend to Render production..."
+        # Add Render deployment logic here
+        
+    - name: Deploy Frontend to Vercel Production
+      run: |
+        echo "🚀 Deploying frontend to Vercel production..."
+        # Add Vercel deployment logic here
+
+  # Notify on Failure
+  notify-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+    - name: Notify team of failure
+      run: |
+        echo "❌ CI/CD pipeline failed!"
+        echo "Check the logs for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

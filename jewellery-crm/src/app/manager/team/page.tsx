@@ -124,7 +124,7 @@ export default function ManagerTeamPage() {
       setLoading(true);
       console.log('Fetching team members...');
       
-      const response = await apiService.getTeamMembers();
+      const response = await apiService.listTeamMembers();
       console.log('Team members response:', response);
       
       if (response.success && response.data) {
