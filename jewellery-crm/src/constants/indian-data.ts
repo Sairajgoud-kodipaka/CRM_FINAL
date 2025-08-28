@@ -175,11 +175,6 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'VVIP',
     'VIP',
     'GENERAL',
-    'exhibition',
-    'lead',
-    'prospect',
-    'customer',
-    'inactive',
   ] as const;
   
   export const LEAD_SOURCES = [

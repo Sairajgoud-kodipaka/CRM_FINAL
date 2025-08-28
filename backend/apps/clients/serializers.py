@@ -27,7 +27,7 @@ class ClientSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     customer_type = serializers.CharField(required=False, default='individual')
-    status = serializers.CharField(required=False, default='lead')
+    status = serializers.CharField(required=False, default='general')
     address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     city = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     state = serializers.CharField(required=False, allow_blank=True, allow_null=True)

@@ -62,11 +62,9 @@ class Client(models.Model):
     Client/Customer model for CRM.
     """
     class Status(models.TextChoices):
-        LEAD = 'lead', _('Lead')
-        PROSPECT = 'prospect', _('Prospect')
-        CUSTOMER = 'customer', _('Customer')
-        INACTIVE = 'inactive', _('Inactive')
-        EXHIBITION = 'exhibition', _('Exhibition')
+        VVIP = 'vvip', _('VVIP')
+        VIP = 'vip', _('VIP')
+        GENERAL = 'general', _('General')
 
     class Source(models.TextChoices):
         WEBSITE = 'website', _('Website')
@@ -114,7 +112,7 @@ class Client(models.Model):
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
-        default=Status.LEAD
+        default=Status.GENERAL
     )
 
     # Notes
@@ -173,11 +171,11 @@ class Client(models.Model):
 
     @property
     def is_lead(self):
-        return self.status == self.Status.LEAD
+        return self.status == self.Status.GENERAL
 
     @property
     def is_customer(self):
-        return self.status == self.Status.CUSTOMER
+        return self.status == self.Status.VVIP or self.status == self.Status.VIP
 
     def update_lead_score(self, points):
         """Update the lead score by adding points."""
@@ -211,18 +209,18 @@ class Client(models.Model):
         # Update status based on behavior
         if total_sales > 0:
             if total_spent >= 50000:  # ₹50,000+ spent
-                new_status = self.Status.CUSTOMER
+                new_status = self.Status.VVIP
             elif total_sales >= 2 or total_spent >= 10000:  # 2+ purchases or ₹10,000+ spent
-                new_status = self.Status.CUSTOMER
+                new_status = self.Status.VIP
             else:
-                new_status = self.Status.PROSPECT
+                new_status = self.Status.GENERAL
         else:
             # Check if they have any pipeline activity
             pipeline_count = self.pipelines.filter(stage__in=['interested', 'store_walkin', 'negotiation']).count()
             if pipeline_count > 0:
-                new_status = self.Status.PROSPECT
+                new_status = self.Status.GENERAL
             else:
-                new_status = self.Status.LEAD
+                new_status = self.Status.GENERAL
         
         # Only update if status changed
         if self.status != new_status:
@@ -234,19 +232,19 @@ class Client(models.Model):
 
     def mark_as_customer(self):
         """Manually mark client as a customer."""
-        self.status = self.Status.CUSTOMER
+        self.status = self.Status.VIP
         self.save()
         return "Client marked as customer"
 
     def mark_as_prospect(self):
         """Manually mark client as a prospect."""
-        self.status = self.Status.PROSPECT
+        self.status = self.Status.GENERAL
         self.save()
         return "Client marked as prospect"
 
     def mark_as_inactive(self):
         """Mark client as inactive."""
-        self.status = self.Status.INACTIVE
+        self.status = self.Status.GENERAL
         self.save()
         return "Client marked as inactive"
 
