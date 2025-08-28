@@ -163,7 +163,12 @@ export default function SalesPipelineStagePage() {
             pipeline_stage: pipeline.stage || '',
             expected_value: expectedValue,
             probability: parseInt(pipeline.probability) || 0,
-            assigned_to: pipeline.sales_representative || null,
+            assigned_to: pipeline.sales_representative ? {
+              id: pipeline.sales_representative.id || 0,
+              first_name: pipeline.sales_representative.username || '',
+              last_name: '',
+              full_name: pipeline.sales_representative.full_name || '',
+            } : undefined,
             sales_representative: pipeline.sales_representative ? {
               id: pipeline.sales_representative.id || 0,
               username: pipeline.sales_representative.username || '',

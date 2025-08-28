@@ -1,9 +1,5 @@
 'use client';
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Filter, Target } from 'lucide-react';
 import { PipelineStageStatsSales } from '@/components/dashboard/PipelineStageStatsSales';
 
 export default function SalesPipelinePage() {

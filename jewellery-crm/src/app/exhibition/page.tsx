@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Search, Users, TrendingUp, Calendar, Phone, Mail, MapPin, ArrowUpRight, Filter, Plus } from "lucide-react";
 import { ExhibitionLeadModal } from "@/components/exhibition/ExhibitionLeadModal";
 
+
 export default function ExhibitionPage() {
   const { toast } = useToast();
   const [exhibitionLeads, setExhibitionLeads] = useState<Client[]>([]);
@@ -31,7 +32,7 @@ export default function ExhibitionPage() {
       if (response.success && response.data) {
         const clients = Array.isArray(response.data) 
           ? response.data 
-          : (response.data as any)?.results || (response.data as any)?.data || [];
+          : (response.data as { results?: Client[]; data?: Client[] })?.results || (response.data as { results?: Client[]; data?: Client[] })?.data || [];
         
         setExhibitionLeads(clients);
       }

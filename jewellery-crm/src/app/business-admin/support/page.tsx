@@ -18,7 +18,7 @@ import {
   Trash2,
   User,
   Calendar,
-  Priority,
+  AlertTriangle,
   Tag
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';

@@ -61,17 +61,18 @@ export default function SalesProductsPage() {
       if (Array.isArray(response.data)) {
         // Direct array response
         productsData = response.data;
-      } else if (response.data && typeof response.data === 'object' && 'results' in response.data && Array.isArray((response.data as any).results)) {
+      } else if (response.data && typeof response.data === 'object' && 'results' in response.data && Array.isArray((response.data as { results: Product[]; count?: number; next?: string; previous?: string }).results)) {
         // Paginated response
-        productsData = (response.data as any).results;
-        console.log('📄 Paginated response - total count:', (response.data as any).count);
-        console.log('📄 Paginated response - next page:', (response.data as any).next);
-        console.log('📄 Paginated response - previous page:', (response.data as any).previous);
+        const paginatedData = response.data as { results: Product[]; count?: number; next?: string; previous?: string };
+        productsData = paginatedData.results;
+        console.log('📄 Paginated response - total count:', paginatedData.count);
+        console.log('📄 Paginated response - next page:', paginatedData.next);
+        console.log('📄 Paginated response - previous page:', paginatedData.previous);
       } else if (response.data && typeof response.data === 'object') {
         // Check if it's a different structure
         console.log('📦 Response data structure:', Object.keys(response.data));
-        if ('data' in response.data && Array.isArray((response.data as any).data)) {
-          productsData = (response.data as any).data;
+        if ('data' in response.data && Array.isArray((response.data as { data: Product[] }).data)) {
+          productsData = (response.data as { data: Product[] }).data;
         }
       }
       
@@ -197,7 +198,7 @@ export default function SalesProductsPage() {
       formData.append('file', file);
       
       console.log('📦 FormData created, entries:');
-      for (let [key, value] of formData.entries()) {
+      for (const [key, value] of formData.entries()) {
         console.log(`  ${key}:`, value);
       }
 

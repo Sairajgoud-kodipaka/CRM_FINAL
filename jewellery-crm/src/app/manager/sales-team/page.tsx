@@ -86,7 +86,7 @@ export default function ManagerSalesTeamPage() {
       
       if (response.success) {
         console.log('✅ Success! Setting team performance data:', response.data);
-        setTeamPerformance(response.data);
+        setTeamPerformance(response.data as TeamPerformance);
       } else {
         console.log('❌ API returned error:', response.message);
         setError(response.message || 'Failed to fetch team performance');

@@ -61,7 +61,7 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
       
       if (response.success) {
         // Handle different possible response formats
-        let teamMembersData = response.data;
+        const teamMembersData = response.data;
         
         // Check if data is directly an array
         if (Array.isArray(teamMembersData)) {
@@ -196,7 +196,7 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
     }
   };
 
-  const handleInputChange = (field: keyof StoreFormData, value: string | boolean | number) => {
+  const handleInputChange = (field: keyof StoreFormData, value: string | boolean | number | undefined) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

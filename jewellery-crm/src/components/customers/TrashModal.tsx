@@ -32,7 +32,7 @@ export function TrashModal({ open, onClose, onCustomerRestored }: TrashModalProp
       if (response.success && response.data) {
         const customersData = Array.isArray(response.data) 
           ? response.data 
-          : response.data.results || response.data.data || [];
+          : (response.data && typeof response.data === 'object' && 'results' in response.data ? (response.data as any).results : []) || (response.data && typeof response.data === 'object' && 'data' in response.data ? (response.data as any).data : []) || [];
         setTrashedCustomers(customersData);
       }
     } catch (error) {

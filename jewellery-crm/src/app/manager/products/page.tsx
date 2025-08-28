@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Package, Plus, Eye, Edit, Trash2, IndianRupee, AlertTriangle, Store, Tag, TrendingUp, Upload, Download } from 'lucide-react';
-import { apiService, Product } from '@/lib/api-service';
+import { apiService, Product, StockTransfer } from '@/lib/api-service';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { 
   DropdownMenu,
@@ -239,13 +239,16 @@ export default function ManagerProductsPage() {
       console.log('Export response:', response);
       
       if (response.success && response.data) {
-        let transfers: any[] = [];
+        let transfers: StockTransfer[] = [];
         
         // Handle different response formats
         if (Array.isArray(response.data)) {
           transfers = response.data;
         } else if (typeof response.data === 'object' && response.data !== null) {
-          const data = response.data as any;
+          const data = response.data as {
+            results?: StockTransfer[];
+            data?: StockTransfer[];
+          };
           if (data.results && Array.isArray(data.results)) {
             transfers = data.results;
           } else if (data.data && Array.isArray(data.data)) {
@@ -297,7 +300,7 @@ export default function ManagerProductsPage() {
     }
   };
 
-  const convertTransfersToCSV = (transfers: any[]) => {
+  const convertTransfersToCSV = (transfers: StockTransfer[]) => {
     if (transfers.length === 0) return 'No transfers found';
     
     const headers = [

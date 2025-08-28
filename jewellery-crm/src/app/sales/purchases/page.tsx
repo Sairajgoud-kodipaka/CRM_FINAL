@@ -188,10 +188,10 @@ export default function SalesPurchasesPage() {
         );
         
         const closedWon = uniqueSalesData.filter(
-          (deal: SalesPipeline) => deal.stage === "closed_won"
+          (deal: any) => deal.stage === "closed_won"
         );
         console.log("Closed won deals:", closedWon);
-        setClosedWonDeals(closedWon);
+        setClosedWonDeals(closedWon as SalesPipeline[]);
       } else {
         console.error("Invalid sales pipelines response format:", response);
         setClosedWonDeals([]);

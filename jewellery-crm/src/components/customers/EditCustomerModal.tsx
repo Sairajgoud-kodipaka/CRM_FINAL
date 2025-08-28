@@ -7,7 +7,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { apiService, Client } from "@/lib/api-service";
+import { apiService, Client, Product } from "@/lib/api-service";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInputComponent } from "@/components/ui/phone-input";
 
@@ -36,12 +36,7 @@ interface Category {
   description?: string;
 }
 
-interface Product {
-  id: number;
-  name: string;
-  category?: string;
-  price?: number;
-}
+
 
 interface PipelineOpportunity {
   title: string;

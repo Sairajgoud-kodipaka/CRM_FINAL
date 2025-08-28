@@ -245,7 +245,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
       notes: appointment.notes || '',
       location: appointment.location || '',
       duration: appointment.duration || 60,
-      client: appointment.client
+      client: appointment.client.toString()
     });
     setShowEditModal(true);
   };
@@ -253,7 +253,10 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
   const handleEditSubmit = async () => {
     try {
       setLoading(true);
-      const response = await apiService.editAppointment(appointment.id.toString(), editData);
+      const response = await apiService.editAppointment(appointment.id.toString(), {
+        ...editData,
+        client: parseInt(editData.client) || appointment.client
+      });
       if (response.success) {
         alert('Appointment updated successfully!');
         setShowEditModal(false);

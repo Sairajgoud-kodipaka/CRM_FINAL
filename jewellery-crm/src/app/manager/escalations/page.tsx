@@ -48,7 +48,14 @@ export default function ManagerEscalationsPage() {
   const { user } = useAuth();
   const [escalations, setEscalations] = useState<Escalation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<{
+    total_escalations: number;
+    open_escalations: number;
+    resolved_escalations: number;
+    overdue_escalations: number;
+    avg_resolution_time: number;
+    resolved_today: number;
+  } | null>(null);
   const [filters, setFilters] = useState({
     status: 'all',
     priority: 'all',
@@ -520,16 +527,8 @@ export default function ManagerEscalationsPage() {
       {/* Add Note Modal */}
       {showAddNoteModal && selectedEscalation && (
         <AddNoteModal
-          escalation={selectedEscalation}
-          onClose={() => {
-            setShowAddNoteModal(false);
-            setSelectedEscalation(null);
-          }}
-          onSuccess={() => {
-            setShowAddNoteModal(false);
-            setSelectedEscalation(null);
-            fetchEscalations();
-          }}
+          escalationId={selectedEscalation.id.toString()}
+          onSuccess={handleRefresh}
         />
       )}
     </div>

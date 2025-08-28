@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ApiService } from '@/lib/api-service';
 import { Product, Category } from '@/lib/api-service';
-import { getMockProducts, getMockCategories } from '@/lib/mock-data';
 // @ts-ignore
 import CustomerHeader from '@/components/customer/CustomerHeader';
 // @ts-ignore
@@ -56,12 +55,12 @@ export default function CustomerStorePage() {
             }
             setCategories(categoriesData);
           } else {
-            console.warn('Categories API failed, using mock data');
-            setCategories(getMockCategories(tenant));
+            console.warn('Categories API failed, using empty array');
+            setCategories([]);
           }
         } catch (error) {
-          console.warn('Categories API error, using mock data:', error);
-          setCategories(getMockCategories(tenant));
+          console.warn('Categories API error, using empty array:', error);
+          setCategories([]);
         }
 
         // Load all products for this tenant
@@ -87,18 +86,14 @@ export default function CustomerStorePage() {
             const featured = productsData.filter((product: Product) => product.is_featured);
             setFeaturedProducts(featured);
           } else {
-            console.warn('Products API failed, using mock data');
-            const mockProducts = getMockProducts(tenant);
-            setProducts(mockProducts);
-            const featured = mockProducts.filter((product: Product) => product.is_featured);
-            setFeaturedProducts(featured);
+            console.warn('Products API failed, using empty array');
+            setProducts([]);
+            setFeaturedProducts([]);
           }
         } catch (error) {
-          console.warn('Products API error, using mock data:', error);
-          const mockProducts = getMockProducts(tenant);
-          setProducts(mockProducts);
-          const featured = mockProducts.filter((product: Product) => product.is_featured);
-          setFeaturedProducts(featured);
+          console.warn('Products API error, using empty array:', error);
+          setProducts([]);
+          setFeaturedProducts([]);
         }
       } catch (error) {
         console.error('Error loading store data:', error);

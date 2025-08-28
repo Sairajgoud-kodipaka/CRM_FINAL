@@ -101,7 +101,7 @@ export default function CustomerSegmentationPage() {
       const [categoriesRes, tagsRes, customersRes] = await Promise.all([
         apiService.getCustomerTagCategories(),
         apiService.getCustomerTagsByCategory(),
-        apiService.getClients({ page: 1, limit: 1000 })
+        apiService.getClients({ page: 1 })
       ]);
 
       if (categoriesRes.success) {
@@ -113,7 +113,7 @@ export default function CustomerSegmentationPage() {
       }
 
       if (customersRes.success) {
-        const customerData = Array.isArray(customersRes.data) ? customersRes.data : customersRes.data?.results || [];
+        const customerData = Array.isArray(customersRes.data) ? customersRes.data : (customersRes.data && typeof customersRes.data === 'object' && 'results' in customersRes.data ? (customersRes.data as any).results : []);
         setCustomers(customerData);
         generateAnalytics(customerData, tagsRes.data || {});
       }

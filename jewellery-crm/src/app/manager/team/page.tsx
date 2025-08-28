@@ -132,8 +132,8 @@ export default function ManagerTeamPage() {
         let teamMembers: User[] = [];
         if (Array.isArray(response.data)) {
           teamMembers = response.data;
-        } else if (typeof response.data === 'object' && response.data !== null && 'results' in response.data && Array.isArray((response.data as any).results)) {
-          teamMembers = (response.data as any).results;
+        } else if (typeof response.data === 'object' && response.data !== null && 'results' in response.data && Array.isArray((response.data as { results: User[] }).results)) {
+          teamMembers = (response.data as { results: User[] }).results;
         }
         
         console.log('Setting team members:', teamMembers);

@@ -80,9 +80,9 @@ export default function ManagerPurchasesPage() {
         if (Array.isArray(response.data)) {
           // Standard ApiResponse format with direct array
           purchasesData = response.data;
-        } else if (response.data.results && Array.isArray(response.data.results)) {
+        } else if (response.data && typeof response.data === 'object' && 'results' in response.data && Array.isArray((response.data as any).results)) {
           // Paginated response format
-          purchasesData = response.data.results;
+          purchasesData = (response.data as any).results;
         }
       } else if (Array.isArray(response)) {
         // Direct array response
@@ -90,9 +90,9 @@ export default function ManagerPurchasesPage() {
       } else if (response.data && Array.isArray(response.data)) {
         // Response with data property but no success
         purchasesData = response.data;
-      } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      } else if (response.data && typeof response.data === 'object' && 'results' in response.data && Array.isArray((response.data as any).results)) {
         // Paginated response without success property
-        purchasesData = response.data.results;
+        purchasesData = (response.data as any).results;
       }
       
       if (purchasesData && Array.isArray(purchasesData)) {
@@ -132,9 +132,9 @@ export default function ManagerPurchasesPage() {
         if (Array.isArray(response.data)) {
           // Standard ApiResponse format with direct array
           salesData = response.data;
-        } else if (response.data.results && Array.isArray(response.data.results)) {
+        } else if (response.data && typeof response.data === 'object' && 'results' in response.data && Array.isArray((response.data as any).results)) {
           // Paginated response format
-          salesData = response.data.results;
+          salesData = (response.data as any).results;
         }
       } else if (Array.isArray(response)) {
         // Direct array response
@@ -142,9 +142,9 @@ export default function ManagerPurchasesPage() {
       } else if (response.data && Array.isArray(response.data)) {
         // Response with data property but no success
         salesData = response.data;
-      } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      } else if (response.data && typeof response.data === 'object' && 'results' in response.data && Array.isArray((response.data as any).results)) {
         // Paginated response without success property
-        salesData = response.data.results;
+        salesData = (response.data as any).results;
       }
       
       if (salesData && Array.isArray(salesData)) {

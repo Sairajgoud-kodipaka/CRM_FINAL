@@ -87,9 +87,12 @@ export default function CustomerDetailPage() {
       setError(null);
 
       // Fetch customer details
-      const customerResponse = await apiService.getClient(parseInt(customerId));
+      const customerResponse = await apiService.getClient(customerId);
+
+
+      
       if (customerResponse.success && customerResponse.data) {
-        setCustomer(customerResponse.data);
+        setCustomer(customerResponse.data as CustomerDetail);
       } else {
         setError('Customer not found');
         return;
