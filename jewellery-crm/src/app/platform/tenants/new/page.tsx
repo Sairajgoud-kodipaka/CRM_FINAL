@@ -47,7 +47,7 @@ export default function NewTenantPage() {
   const [error, setError] = useState<string | null>(null);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    let value = e.target.value;
+    const value = e.target.value;
     
     // Auto-format website URL if it doesn't have a scheme
     if (e.target.name === 'website' && value && !value.startsWith('http://') && !value.startsWith('https://')) {

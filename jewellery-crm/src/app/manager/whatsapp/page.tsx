@@ -29,7 +29,13 @@ import {
 import { apiService } from '@/lib/api-service';
 
 export default function ManagerWhatsAppPage() {
-  const [whatsappStatus, setWhatsappStatus] = useState<any>(null);
+  const [whatsappStatus, setWhatsappStatus] = useState<{
+    status: string;
+    phone_number?: string;
+    qr_code?: string;
+    session_id?: string;
+    last_activity?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sendLoading, setSendLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

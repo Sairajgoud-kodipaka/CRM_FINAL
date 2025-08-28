@@ -97,12 +97,13 @@ export default function ManagerAnalyticsPage() {
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch analytics data';
       console.error('Error fetching analytics data:', error);
       console.error('Error details:', {
-        name: error?.name,
-        message: error?.message,
-        stack: error?.stack
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : 'No stack trace'
       });
       setError('Failed to fetch analytics data. Please try again.');
       toast({

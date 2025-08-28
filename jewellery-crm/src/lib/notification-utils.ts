@@ -273,6 +273,11 @@ export function getNotificationIcon(type: NotificationType): string {
     payment_received: 'credit-card',
     low_stock: 'package',
     high_demand: 'trending-up',
+    stock_transfer_request: 'package',
+    stock_transfer_approved: 'check-circle',
+    stock_transfer_completed: 'check-circle',
+    stock_transfer_cancelled: 'x-circle',
+    stock_transfer_rejected: 'x-circle',
     custom: 'bell',
   };
 

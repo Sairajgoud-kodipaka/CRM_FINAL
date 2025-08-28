@@ -40,7 +40,7 @@ export default function CustomersPage() {
       setLoading(true);
       const response = await apiService.getClients({
         page: currentPage,
-        search: searchTerm || undefined,
+       
         status: statusFilter === 'all' ? undefined : statusFilter,
       });
       
@@ -376,6 +376,10 @@ export default function CustomersPage() {
         <AddCustomerModal
           open={showAddModal}
           onClose={() => setShowAddModal(false)}
+          onCustomerCreated={() => {
+            setShowAddModal(false);
+            fetchClients(); // Refresh the list after customer creation
+          }}
         />
       )}
 

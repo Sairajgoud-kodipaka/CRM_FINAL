@@ -51,7 +51,12 @@ export default function SalesDashboardPage() {
         const appointmentsResponse = await apiService.getAppointments();
         console.log('Appointments response:', appointmentsResponse);
         
-        let recentActivities = [];
+        let recentActivities: Array<{
+          type: string;
+          title: string;
+          date: string;
+          time: string;
+        }> = [];
         if (appointmentsResponse.success && appointmentsResponse.data) {
           const appointments = Array.isArray(appointmentsResponse.data) 
             ? appointmentsResponse.data 
@@ -69,7 +74,13 @@ export default function SalesDashboardPage() {
         const salesResponse = await apiService.getSales();
         console.log('Sales response:', salesResponse);
         
-        let salesActivities = [];
+        let salesActivities: Array<{
+          type: string;
+          title: string;
+          date: string;
+          time: string;
+          amount: number;
+        }> = [];
         if (salesResponse.success && salesResponse.data) {
           const sales = Array.isArray(salesResponse.data) 
             ? salesResponse.data 

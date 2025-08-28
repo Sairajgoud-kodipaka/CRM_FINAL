@@ -77,7 +77,7 @@ export default function ManagerExhibitionPage() {
             setLeads(response.data);
           } else if (response.data && typeof response.data === 'object' && 'results' in response.data) {
             // Handle paginated response format with type assertion
-            const resultsData = (response.data as any).results;
+            const resultsData = (response.data as { results: ExhibitionLead[] }).results;
             if (Array.isArray(resultsData)) {
               console.log('✅ Using response.data.results (array):', resultsData);
               setLeads(resultsData);

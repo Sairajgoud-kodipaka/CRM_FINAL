@@ -410,7 +410,7 @@ export default function TeamSettingsPage() {
               <div>
                 <Label htmlFor="phone">Phone Number</Label>
                 <PhoneInputComponent
-                  value={createFormData.phone}
+                  value={createFormData.phone || ''}
                   onChange={(value) => handleInputChange('phone', value)}
                   placeholder="Enter phone number"
                 />

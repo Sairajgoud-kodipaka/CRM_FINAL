@@ -55,7 +55,7 @@ export default function PipelineStageStats({ className }: PipelineStageStatsProp
         console.log('Pipeline stages data received:', stagesData);
         // Map the backend data to our frontend format
         const stageStats = pipelineStages.map(stage => {
-          const backendStage = stagesData.find((s: any) => s.label === stage.name);
+          const backendStage = stagesData.find((s: { label: string; count: number; value: number }) => s.label === stage.name);
           console.log(`Mapping stage ${stage.name}:`, backendStage);
           return {
             ...stage,

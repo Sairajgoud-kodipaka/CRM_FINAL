@@ -96,8 +96,8 @@ export function DataTable<T extends Record<string, unknown>>({
     if (!sortConfig) return filteredData;
 
     return [...filteredData].sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
+      const aValue = a[sortConfig.key] as any;
+      const bValue = b[sortConfig.key] as any;
 
       if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1;
@@ -180,7 +180,7 @@ export function DataTable<T extends Record<string, unknown>>({
     if (column.render) {
       return column.render(row[column.key], row);
     }
-    return row[column.key];
+    return row[column.key] as React.ReactNode;
   };
 
   if (loading) {

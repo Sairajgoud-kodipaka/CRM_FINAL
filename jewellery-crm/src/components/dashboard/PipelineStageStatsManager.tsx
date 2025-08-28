@@ -118,7 +118,7 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
         console.log('Pipeline stages data received:', stagesData);
         // Map the backend data to our frontend format
         const stageStats = pipelineStages.map(stage => {
-          const backendStage = stagesData.find((s: any) => s.label === stage.name);
+          const backendStage = stagesData.find((s: { label: string; count: number; value: number }) => s.label === stage.name);
           console.log(`Mapping stage ${stage.name}:`, backendStage);
           return {
             ...stage,
@@ -200,10 +200,10 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
       if (response.success) {
         const pipelineData = response.data;
         const dataArray = Array.isArray(pipelineData) ? pipelineData : 
-                         (pipelineData as any)?.results ? (pipelineData as any).results : 
-                         (pipelineData as any)?.data ? (pipelineData as any).data : [];
+                         (pipelineData as { results?: Array<{ id: number; client?: { id: number } | null }> })?.results ? (pipelineData as { results?: Array<{ id: number; client?: { id: number } | null }> }).results : 
+                         (pipelineData as { data?: Array<{ id: number; client?: { id: number } | null }> })?.data ? (pipelineData as { data?: Array<{ id: number; client?: { id: number } | null }> }).data : [];
         
-        const pipeline = dataArray.find((p: any) => p.client?.id === selectedCustomerForTransition.id);
+        const pipeline = dataArray?.find((p: { id: number; client?: { id: number } | null }) => p.client?.id === selectedCustomerForTransition.id);
         
         if (pipeline) {
           // Update the pipeline stage

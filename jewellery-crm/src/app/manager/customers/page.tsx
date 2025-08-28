@@ -182,6 +182,9 @@ export default function ManagerCustomersPage() {
           setModalOpen(false);
           fetchCustomers(); // Refresh the list when modal closes
         }}
+        onCustomerCreated={() => {
+          fetchCustomers(); // Refresh the list after customer creation
+        }}
       />
       <ImportModal
         isOpen={importModalOpen}

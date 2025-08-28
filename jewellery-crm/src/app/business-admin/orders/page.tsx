@@ -55,14 +55,13 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [currentPage, searchTerm, statusFilter]);
+  }, [currentPage, statusFilter]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
       const response = await apiService.getSales({
         page: currentPage,
-        search: searchTerm || undefined,
         status: statusFilter === 'all' ? undefined : statusFilter,
       });
       
@@ -71,11 +70,11 @@ export default function OrdersPage() {
         const ordersData = Array.isArray(data) ? data : data.results || [];
         setOrders(ordersData);
         
-        // Calculate stats
+        // Calculate stats with proper typing
         const totalOrders = ordersData.length;
-        const pendingOrders = ordersData.filter(order => order.status === 'pending').length;
-        const completedOrders = ordersData.filter(order => order.status === 'completed').length;
-        const cancelledOrders = ordersData.filter(order => order.status === 'cancelled').length;
+        const pendingOrders = ordersData.filter((order: { status?: string }) => order.status === 'pending').length;
+        const completedOrders = ordersData.filter((order: { status?: string }) => order.status === 'completed').length;
+        const cancelledOrders = ordersData.filter((order: { status?: string }) => order.status === 'cancelled').length;
         
         setStats({
           total_orders: totalOrders,

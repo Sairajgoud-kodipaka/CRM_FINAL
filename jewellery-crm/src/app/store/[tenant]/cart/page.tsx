@@ -61,7 +61,9 @@ export default function CartPage() {
             is_low_stock: false,
             current_price: 65000,
             profit_margin: 30,
-            variant_count: 1
+            variant_count: 1,
+            status: "active",
+            scope: "store"
           },
           quantity: 1
         },
@@ -99,7 +101,9 @@ export default function CartPage() {
             is_low_stock: true,
             current_price: 40000,
             profit_margin: 25,
-            variant_count: 1
+            variant_count: 1,
+            status: "active",
+            scope: "store"
           },
           quantity: 2
         }

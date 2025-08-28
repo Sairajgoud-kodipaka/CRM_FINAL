@@ -265,11 +265,11 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
       }
     } catch (error) {
       console.error('Failed to update pipeline stage:', error);
-              toast({
-          title: "Error",
-          description: "An error occurred while updating the pipeline stage. Please try again.",
-          variant: "destructive",
-        });
+      toast({
+        title: "Error",
+        description: "An error occurred while updating the pipeline stage. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setTransitionLoading(false);
     }
@@ -287,18 +287,18 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
       setEditingCustomer(null);
       
       // Show success message
-              toast({
-          title: "Success!",
-          description: `Successfully updated ${updatedCustomer.full_name}`,
-          variant: "success",
-        });
+      toast({
+        title: "Success!",
+        description: `Successfully updated ${updatedCustomer.full_name}`,
+        variant: "success",
+      });
     } catch (error) {
       console.error('Failed to save customer:', error);
-              toast({
-          title: "Error",
-          description: "Failed to save customer. Please try again.",
-          variant: "destructive",
-        });
+      toast({
+        title: "Error",
+        description: "Failed to save customer. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

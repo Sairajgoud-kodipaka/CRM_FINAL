@@ -429,7 +429,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Stores</SelectItem>
-                      {Array.from(new Set(transfers.map(t => t.from_store_name).concat(transfers.map(t => t.to_store_name)))).filter(Boolean).map((storeName) => (
+                      {Array.from(new Set(transfers.map(t => t.from_store_name).concat(transfers.map(t => t.to_store_name)))).filter((storeName): storeName is string => Boolean(storeName)).map((storeName) => (
                         <SelectItem key={storeName} value={storeName}>
                           {storeName}
                         </SelectItem>

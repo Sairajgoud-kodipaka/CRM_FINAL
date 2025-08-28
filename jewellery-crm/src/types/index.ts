@@ -176,54 +176,9 @@ export interface Address {
 /**
  * Appointment status options
  */
-export type AppointmentStatus = 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'rescheduled' | 'no_show';
+export type AppointmentStatus = 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'rescheduled' | 'no_show';
 
-/**
- * Appointment interface matching backend model
- */
-export interface Appointment {
-  id: number;
-  client: number;
-  tenant: number;
-  date: string;
-  time: string;
-  purpose: string;
-  notes?: string;
-  
-  // Status and lifecycle
-  status: AppointmentStatus;
-  
-  // Reminder settings
-  reminder_sent: boolean;
-  reminder_date?: string;
-  
-  // Follow-up settings
-  requires_follow_up: boolean;
-  follow_up_date?: string;
-  follow_up_notes?: string;
-  
-  // Duration (in minutes)
-  duration: number;
-  
-  // Location/venue
-  location?: string;
-  
-  // Outcome tracking
-  outcome_notes?: string;
-  next_action?: string;
-  
-  // User tracking
-  created_by?: number;
-  assigned_to?: number;
-  
-  // Timestamps
-  created_at: string;
-  updated_at: string;
-  
-  // Soft delete
-  is_deleted: boolean;
-  deleted_at?: string;
-}
+
 
 // ================================
 // SALES PIPELINE TYPES
@@ -536,10 +491,7 @@ export interface ProductInventory {
  */
 export type AppointmentType = 'consultation' | 'delivery' | 'fitting' | 'repair' | 'valuation' | 'custom_design';
 
-/**
- * Appointment status
- */
-export type AppointmentStatus = 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+
 
 /**
  * Appointment booking information

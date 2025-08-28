@@ -352,10 +352,11 @@ Create memories that last forever! 💕
         template_data: bulkMessage.template_data
       });
       
-      setSuccess(`Bulk campaign completed! Sent: ${(response.data as any)?.sent_count || 0}, Failed: ${(response.data as any)?.failed_count || 0}`);
+      setSuccess(`Bulk campaign completed! Sent: ${(response.data as { sent_count?: number; failed_count?: number })?.sent_count || 0}, Failed: ${(response.data as { sent_count?: number; failed_count?: number })?.failed_count || 0}`);
       setBulkMessage({ phones: '', message: '', template_type: '', template_data: {} });
-    } catch (err: any) {
-      setError(err.message || 'Error sending bulk WhatsApp messages');
+    } catch (err: Error | unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error sending bulk WhatsApp messages';
+      setError(errorMessage);
     } finally {
       setBulkLoading(false);
     }

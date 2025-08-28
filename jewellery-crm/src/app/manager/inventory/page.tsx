@@ -10,7 +10,15 @@ import AuthGuard from '@/components/auth/AuthGuard';
 
 export default function ManagerInventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [stats, setStats] = useState<any>({
+  const [stats, setStats] = useState<{
+    total_products: number;
+    active_products: number;
+    out_of_stock: number;
+    low_stock: number;
+    total_value: number;
+    category_count: number;
+    recent_products: number;
+  }>({
     total_products: 0,
     active_products: 0,
     out_of_stock: 0,
@@ -39,7 +47,7 @@ export default function ManagerInventoryPage() {
         if (Array.isArray(productsResponse.data)) {
           productsData = productsResponse.data;
         } else if (typeof productsResponse.data === 'object' && productsResponse.data !== null) {
-          const data = productsResponse.data as any;
+          const data = productsResponse.data as { results?: Product[]; data?: Product[] };
           if (data.results && Array.isArray(data.results)) {
             productsData = data.results;
           } else if (data.data && Array.isArray(data.data)) {
@@ -99,7 +107,7 @@ export default function ManagerInventoryPage() {
           <p className="text-text-secondary mt-1">Track and manage your store's inventory</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statsCards.map((s: any) => (
+          {statsCards.map((s: { label: string; value: string | number }) => (
             <Card key={s.label} className="flex flex-col gap-1 p-5">
               <div className="text-xl font-bold text-text-primary">{s.value}</div>
               <div className="text-sm text-text-secondary font-medium">{s.label}</div>
