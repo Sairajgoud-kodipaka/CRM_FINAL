@@ -1,28 +1,58 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run prebuild && npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "regions": ["iad1"],
   "functions": {
-    "app/api/**/*.ts": {
+    "app/**/*.tsx": {
       "maxDuration": 30
     }
   },
-  "env": {
-    "NEXT_PUBLIC_API_URL": "https://crm-final-mfe4.onrender.com",
-    "NEXT_PUBLIC_SITE_URL": "https://crm-final-five.vercel.app"
-  },
   "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        }
+      ]
+    },
     {
       "source": "/api/(.*)",
       "headers": [
         {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
         }
       ]
     }
-  ]
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://crm-final-mfe4.onrender.com/api/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://crm-final-mfe4.onrender.com"
+  }
 }

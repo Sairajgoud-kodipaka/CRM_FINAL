@@ -82,14 +82,27 @@ export const useAuth = create<AuthState & AuthActions>()(
           if (response.success) {
             // The response from login API has the data directly, not wrapped in a data property
             const loginData = response as any;
-            set({
+            
+            // Store the token and user data
+            const authData = {
               user: loginData.user,
               token: loginData.token,
               refreshTokenString: loginData.refresh,
               isAuthenticated: true,
               isLoading: false,
               error: null,
-            });
+            };
+            
+            set(authData);
+            
+            // Also store in localStorage as backup
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('auth-storage', JSON.stringify({
+                state: authData
+              }));
+            }
+            
+            console.log('✅ Login successful, token stored:', loginData.token ? 'Present' : 'Missing');
             return true;
           } else {
             set({

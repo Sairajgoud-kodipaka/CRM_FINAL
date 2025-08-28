@@ -279,6 +279,7 @@ export default function ManagerCustomersPage() {
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Customer</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Email</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Phone</th>
+                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Salesperson</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Status</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Created</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Actions</th>
@@ -293,6 +294,10 @@ export default function ManagerCustomersPage() {
                     </td>
                     <td className="px-4 py-3 text-text-primary">{customer.email}</td>
                     <td className="px-4 py-3 text-text-primary">{customer.phone || '-'}</td>
+                    <td className="px-4 py-3 text-text-primary">
+                      {customer.created_by ? `${customer.created_by.first_name} ${customer.created_by.last_name}` : 
+                       customer.assigned_to ? `User ID: ${customer.assigned_to}` : '-'}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant={getStatusBadgeVariant(customer.status || '')} className="capitalize text-xs">
                         {customer.status || 'unknown'}
@@ -342,7 +347,7 @@ export default function ManagerCustomersPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-text-secondary">
+                  <td colSpan={7} className="px-4 py-8 text-center text-text-secondary">
                     {customers.length === 0 ? 'No customers found' : 'No customers match your search criteria'}
                   </td>
                 </tr>

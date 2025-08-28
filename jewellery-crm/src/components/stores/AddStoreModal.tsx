@@ -56,7 +56,7 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
   const fetchTeamMembers = async () => {
     try {
       setLoadingMembers(true);
-      const response = await apiService.getTeamMembers();
+      const response = await apiService.listTeamMembers();
       console.log('Team members API response:', response);
       
       if (response.success) {

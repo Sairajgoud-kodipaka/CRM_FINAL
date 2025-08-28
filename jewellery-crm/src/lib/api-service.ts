@@ -79,6 +79,13 @@ interface Client {
     revenue: number;
     notes?: string;
   }>;
+  // Add simple product preferences fields to match AddCustomerModal
+  customer_interests_simple?: string[]; // Simple array of interest strings
+  product_type?: string;
+  style?: string;
+  weight_range?: string;
+  customer_preference?: string;
+  design_number?: string;
   tenant?: number;
   store?: number;
   tags: number[];
@@ -334,18 +341,25 @@ class ApiService {
   private getAuthToken(): string | null {
     // Get token from localStorage or sessionStorage
     if (typeof window !== 'undefined') {
-      const authStorage = localStorage.getItem('auth-storage');
-      if (authStorage) {
-        try {
+      try {
+        // Get from auth-storage (Zustand persist)
+        const authStorage = localStorage.getItem('auth-storage');
+        if (authStorage) {
           const parsed = JSON.parse(authStorage);
           
           // Try different possible structures
           const token = parsed.state?.token || parsed.token || null;
-          return token;
-        } catch (error) {
-          console.error('Error parsing auth storage:', error);
-          return null;
+          if (token) {
+            console.log('🔑 Token found in auth-storage:', token.substring(0, 20) + '...');
+            return token;
+          }
         }
+        
+        console.log('❌ No token found in storage');
+        return null;
+      } catch (error) {
+        console.error('Error parsing auth storage:', error);
+        return null;
       }
     }
     return null;
@@ -769,6 +783,7 @@ class ApiService {
     search?: string;
     status?: string;
     scope?: string;
+    tenantId?: string; // Add tenantId parameter for public access
   }): Promise<ApiResponse<Product[]>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
@@ -779,17 +794,52 @@ class ApiService {
     // Request more products per page to get all products
     queryParams.append('page_size', '200');
 
+    // If tenantId is provided, use public API (no auth required)
+    if (params?.tenantId) {
+      return this.request(`/products/public/${params.tenantId}/products/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    }
+
+    // Otherwise use authenticated API
     return this.request(`/products/list/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   // Categories
   async getCategories(params?: {
     scope?: string;
+    tenantId?: string; // Add tenantId parameter for public access
   }): Promise<ApiResponse<Category[]>> {
     const queryParams = new URLSearchParams();
     if (params?.scope) queryParams.append('scope', params.scope);
 
+    // If tenantId is provided, use public API (no auth required)
+    if (params?.tenantId) {
+      return this.request(`/products/public/${params.tenantId}/categories/`);
+    }
+
+    // Otherwise use authenticated API
     return this.request(`/products/categories/${queryParams.toString() ? `?${queryParams}` : ''}`);
+  }
+
+  // Public Categories (no authentication required)
+  async getPublicCategories(tenantId: string): Promise<ApiResponse<Category[]>> {
+    return this.request(`/products/public/${tenantId}/categories/`);
+  }
+
+  // Public Products (no authentication required)
+  async getPublicProducts(tenantId: string, params?: {
+    page?: number;
+    category?: string;
+    search?: string;
+    status?: string;
+  }): Promise<ApiResponse<Product[]>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.category) queryParams.append('category', params.category);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    queryParams.append('page_size', '200');
+
+    return this.request(`/products/public/${tenantId}/products/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async createCategory(categoryData: Partial<Category>): Promise<ApiResponse<Category>> {
@@ -1884,6 +1934,11 @@ class ApiService {
   // ================================
   // ROLE-BASED SALESPERSON ASSIGNMENT
   // ================================
+
+  // List team members (filtered by current user's context)
+  async listTeamMembers(): Promise<ApiResponse<User[]>> {
+    return this.request('/team-members/list/');
+  }
 
   // Get team members for a manager
   async getTeamMembers(managerId: number): Promise<ApiResponse<User[]>> {

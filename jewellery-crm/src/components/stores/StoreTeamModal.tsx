@@ -99,7 +99,7 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
     
     try {
       // Fetch all team members from the tenant
-      const response = await apiService.getTeamMembers();
+      const response = await apiService.listTeamMembers();
       if (response.success) {
         const data = response.data as any;
         const allMembers = Array.isArray(data) ? data : data.results || [];
