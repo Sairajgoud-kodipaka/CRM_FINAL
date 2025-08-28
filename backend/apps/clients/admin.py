@@ -6,28 +6,21 @@ from .models import (
 )
 
 
-class ExhibitionLeadFilter(admin.SimpleListFilter):
-    """Filter to show only exhibition leads"""
-    title = 'Exhibition Leads'
-    parameter_name = 'exhibition_only'
+class CustomerStatusFilter(admin.SimpleListFilter):
+    """Filter to show customers by status"""
+    title = 'Customer Status'
+    parameter_name = 'customer_status'
     
     def lookups(self, request, model_admin):
         return (
-            ('yes', 'Show Exhibition Leads Only'),
-            ('no', 'Hide Exhibition Leads'),
+            ('vvip', 'VVIP Customers'),
+            ('vip', 'VIP Customers'),
+            ('general', 'General Customers'),
         )
     
     def queryset(self, request, queryset):
-        if self.value() == 'yes':
-            return queryset.filter(
-                models.Q(status='exhibition') | 
-                models.Q(lead_source='exhibition')
-            )
-        elif self.value() == 'no':
-            return queryset.exclude(
-                models.Q(status='exhibition') | 
-                models.Q(lead_source='exhibition')
-            )
+        if self.value():
+            return queryset.filter(status=self.value())
         return queryset
 
 class CustomerInterestInline(admin.TabularInline):
@@ -83,12 +76,12 @@ class CustomerInterestInline(admin.TabularInline):
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
     list_display = [
-        'full_name', 'email', 'phone', 'status', 'lead_source', 'catchment_area', 
-        'assigned_to', 'store', 'tenant', 'created_at', 'customer_interests_summary', 'exhibition_status'
+        'full_name', 'email', 'phone', 'customer_status_display', 'lead_source', 'catchment_area', 
+        'assigned_to', 'store', 'tenant', 'created_at', 'customer_interests_summary'
     ]
     list_filter = [
-        ExhibitionLeadFilter,
-        'status', 'lead_source', 'customer_type', 'saving_scheme', 'store', 'tenant', 
+        CustomerStatusFilter,
+        'lead_source', 'customer_type', 'saving_scheme', 'store', 'tenant', 
         'created_at', 'is_deleted'
     ]
     search_fields = ['first_name', 'last_name', 'email', 'phone']
@@ -127,29 +120,24 @@ class ClientAdmin(admin.ModelAdmin):
     )
     
     actions = [
-        'mark_as_lead', 'mark_as_prospect', 'mark_as_customer', 'mark_as_inactive',
-        'update_status_automatically', 'mark_as_exhibition_lead'
+        'mark_as_vvip', 'mark_as_vip', 'mark_as_general',
+        'update_status_automatically'
     ]
     
-    def mark_as_lead(self, request, queryset):
-        updated = queryset.update(status='lead')
-        self.message_user(request, f'{updated} customers marked as Lead')
-    mark_as_lead.short_description = "Mark selected customers as Lead"
+    def mark_as_vvip(self, request, queryset):
+        updated = queryset.update(status='vvip')
+        self.message_user(request, f'{updated} customers marked as VVIP')
+    mark_as_vvip.short_description = "Mark selected customers as VVIP"
     
-    def mark_as_prospect(self, request, queryset):
-        updated = queryset.update(status='prospect')
-        self.message_user(request, f'{updated} customers marked as Prospect')
-    mark_as_prospect.short_description = "Mark selected customers as Prospect"
+    def mark_as_vip(self, request, queryset):
+        updated = queryset.update(status='vip')
+        self.message_user(request, f'{updated} customers marked as VIP')
+    mark_as_vip.short_description = "Mark selected customers as VIP"
     
-    def mark_as_customer(self, request, queryset):
-        updated = queryset.update(status='customer')
-        self.message_user(request, f'{updated} customers marked as Customer')
-    mark_as_customer.short_description = "Mark selected customers as Customer"
-    
-    def mark_as_inactive(self, request, queryset):
-        updated = queryset.update(status='inactive')
-        self.message_user(request, f'{updated} customers marked as Inactive')
-    mark_as_inactive.short_description = "Mark selected customers as Inactive"
+    def mark_as_general(self, request, queryset):
+        updated = queryset.update(status='general')
+        self.message_user(request, f'{updated} customers marked as General')
+    mark_as_general.short_description = "Mark selected customers as General"
     
     def update_status_automatically(self, request, queryset):
         updated_count = 0
@@ -165,10 +153,7 @@ class ClientAdmin(admin.ModelAdmin):
         )
     update_status_automatically.short_description = "Update status automatically based on behavior"
     
-    def mark_as_exhibition_lead(self, request, queryset):
-        updated = queryset.update(status='exhibition', lead_source='exhibition')
-        self.message_user(request, f'{updated} customers marked as Exhibition Lead')
-    mark_as_exhibition_lead.short_description = "Mark selected customers as Exhibition Lead"
+
     
     def save_model(self, request, obj, form, change):
         """Override to ensure tenant is set and propagate to interests"""
@@ -225,19 +210,18 @@ class ClientAdmin(admin.ModelAdmin):
         return result
     customer_interests_summary.short_description = "Interests"
 
-    def exhibition_status(self, obj):
-        """Display exhibition status with color coding"""
-        if obj.lead_source == 'exhibition' or obj.status == 'exhibition':
-            if obj.status == 'exhibition':
-                return format_html('<span style="color: orange; font-weight: bold;">🎯 Exhibition Lead</span>')
-            elif obj.status == 'lead':
-                return format_html('<span style="color: green; font-weight: bold;">✅ Promoted to Lead</span>')
-            else:
-                return format_html('<span style="color: blue; font-weight: bold;">🔄 {}</span>', obj.status.title())
-        return "—"
+    def customer_status_display(self, obj):
+        """Display customer status with color coding"""
+        status_colors = {
+            'vvip': 'purple',
+            'vip': 'gold',
+            'general': 'blue'
+        }
+        color = status_colors.get(obj.status, 'gray')
+        return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_status_display())
     
-    exhibition_status.short_description = "Exhibition Status"
-    exhibition_status.allow_tags = True
+    customer_status_display.short_description = "Customer Status"
+    customer_status_display.allow_tags = True
 
 @admin.register(Purchase)
 class PurchaseAdmin(admin.ModelAdmin):

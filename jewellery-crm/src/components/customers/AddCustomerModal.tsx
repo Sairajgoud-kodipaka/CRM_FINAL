@@ -33,6 +33,7 @@ import {
   isFieldLocked
 } from "@/constants/indian-data";
 import { Slider } from "@/components/ui/slider";
+import { WeightRangeSlider } from "@/components/ui/weight-range-slider";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from 'lucide-react';
 
@@ -69,8 +70,7 @@ interface FormData {
   productType: string;
   style: string;
 
-  weightLowerLimit: number;
-  weightUpperLimit: number;
+  selectedWeight: number;
   weightUnit: string;
   customerPreference: string;
   designNumber: string;
@@ -138,8 +138,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     letHimVisit: "No",
     productType: "",
     style: "",
-    weightLowerLimit: 0,
-    weightUpperLimit: 0,
+    selectedWeight: 3.5,
     weightUnit: "g",
     customerPreference: "",
     designNumber: "",
@@ -624,8 +623,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           letHimVisit: "",
           productType: "",
           style: "",
-          weightLowerLimit: 0,
-          weightUpperLimit: 0,
+          selectedWeight: 3.5,
           weightUnit: "g",
           customerPreference: "",
           designNumber: "",
@@ -1351,6 +1349,19 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       // Store the selected product for weight display
                       setSelectedProduct(selectedProduct);
                       
+                      // Auto-adjust selected weight based on selected product weight
+                      if (selectedProduct.weight) {
+                        const baseWeight = selectedProduct.weight;
+                        const unit = formData.weightUnit;
+                        
+                        setFormData(prev => ({
+                          ...prev,
+                          selectedWeight: baseWeight
+                        }));
+                        
+                        console.log(`Auto-adjusted selected weight: ${baseWeight}${unit}`);
+                      }
+                      
                       // Auto-populate Product Type based on category
                       let productType = '';
                       if (selectedProduct.category_name) {
@@ -1473,7 +1484,26 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
               {/* Product Weight Display */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Product Weight</label>
+                <div className="flex items-center gap-2 mb-1">
+                  <label className="block text-sm font-medium">Product Weight</label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Set selected weight to product weight when gear is clicked
+                      if (selectedProduct?.weight) {
+                        setFormData(prev => ({
+                          ...prev,
+                          selectedWeight: selectedProduct.weight
+                        }));
+                      }
+                    }}
+                    className="h-6 w-6 p-0 text-xs"
+                    title="Customize weight range"
+                  >
+                    ⚙️
+                  </Button>
+                </div>
                 <div className="space-y-3">
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
@@ -1495,6 +1525,24 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       <div className="text-xs text-amber-700 mt-1">
                         This is the actual weight of the product you selected above
                       </div>
+                      
+                      {/* Selected Weight Display */}
+                      <div className="mt-3 pt-3 border-t border-amber-200">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs text-amber-600">Customer's Selected Weight:</div>
+                          {formData.selectedWeight !== 3.5 ? (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                              Customized
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-sm font-medium text-amber-800">
+                          {(formData.selectedWeight || 0).toFixed(1)}{formData.weightUnit}
+                        </div>
+                        <div className="text-xs text-amber-600 mt-1">
+                          This is the exact weight the customer wants
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1504,9 +1552,24 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                     <Select 
                       value={formData.weightUnit} 
                       onValueChange={(value) => {
+                        // Convert selected weight when unit changes
+                        const oldUnit = formData.weightUnit;
+                        const newUnit = value;
+                        
+                        let newSelectedWeight = formData.selectedWeight;
+                        
+                        if (oldUnit === 'g' && newUnit === 'kg') {
+                          // Convert from grams to kilograms
+                          newSelectedWeight = formData.selectedWeight / 1000;
+                        } else if (oldUnit === 'kg' && newUnit === 'g') {
+                          // Convert from kilograms to grams
+                          newSelectedWeight = formData.selectedWeight * 1000;
+                        }
+                        
                         setFormData(prev => ({ 
                           ...prev, 
-                          weightUnit: value
+                          weightUnit: value,
+                          selectedWeight: newSelectedWeight
                         }));
                       }}
                     >
@@ -1518,6 +1581,27 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                         <SelectItem value="kg">Kilograms (kg)</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* Custom Weight Slider */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium text-gray-700">Custom Weight Selection</label>
+                      <span className="text-xs text-gray-500">Click to customize</span>
+                    </div>
+                    <WeightRangeSlider
+                      minWeight={0.1}
+                      maxWeight={100}
+                      currentWeight={Number(formData.selectedWeight) || 3.5}
+                      onWeightChange={(weight) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          selectedWeight: weight
+                        }));
+                      }}
+                      unit={formData.weightUnit}
+                      className="bg-gray-50 p-4 rounded-lg border"
+                    />
                   </div>
                 </div>
               </div>

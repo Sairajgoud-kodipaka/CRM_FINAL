@@ -39,27 +39,17 @@ class ImportExportPermission(permissions.BasePermission):
 
 
 """
-CLIENT MANAGEMENT SYSTEM - EXHIBITION LEADS SEPARATION
+CLIENT MANAGEMENT SYSTEM - CUSTOMER STATUS MANAGEMENT
 
-IMPORTANT: Exhibition leads are automatically excluded from the main customer system
-until they are promoted. This ensures clean data separation:
+IMPORTANT: Customer statuses are now simplified to three main categories:
+VVIP, VIP, and GENERAL. This provides clear customer segmentation:
 
-1. Exhibition leads (status='exhibition') are ONLY visible in:
-   - /api/exhibition/exhibition-leads/ (exhibition leads view)
-   - Django admin exhibition filter
+1. VVIP Customers: Highest value customers with premium status
+2. VIP Customers: High-value customers with special privileges  
+3. GENERAL Customers: Regular customers with standard service
 
-2. Main customer system (this view) EXCLUDES exhibition leads:
-   - /api/clients/clients/ (main customer list)
-   - All customer-related views and analytics
-   - Customer search and management
-
-3. When an exhibition lead is promoted:
-   - Status changes from 'exhibition' to 'lead'
-   - Lead becomes visible in main customer system
-   - Lead disappears from exhibition leads view
-
-This separation prevents exhibition leads from cluttering the main customer database
-and ensures they only appear where they belong.
+All customers are visible in the main customer system with appropriate
+status-based filtering and management capabilities.
 """
 
 class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
@@ -76,17 +66,12 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         return super().get_permissions()
     
     def get_queryset(self):
-        """Filter clients by user scope and exclude soft-deleted clients and exhibition leads"""
+        """Filter clients by user scope and exclude soft-deleted clients"""
         # For restore and permanent_delete actions, include soft-deleted clients
         if hasattr(self, 'action') and self.action in ['restore', 'permanent_delete']:
             queryset = self.get_scoped_queryset(Client)
         else:
             queryset = self.get_scoped_queryset(Client, is_deleted=False)
-        
-        # CRITICAL: Exclude exhibition leads from main customer list
-        # Exhibition leads should ONLY be visible in the exhibition leads view
-        # This ensures complete separation until they are promoted
-        queryset = queryset.exclude(status='exhibition')
         
         return queryset
     
@@ -770,7 +755,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                             'catchment_area': row.get('catchment_area', '').strip() or '',
                             'next_follow_up': row.get('next_follow_up', '').strip() or '',
                             'summary_notes': row.get('summary_notes', '').strip() or '',
-                            'status': row.get('status', 'lead'),
+                            'status': row.get('status', 'general'),
                             'tenant': request.user.tenant.id if request.user.tenant else None,
                             'store': request.user.store.id if request.user.store else None,
                         }
@@ -964,7 +949,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                             'catchment_area': customer_data.get('catchment_area', '').strip(),
                             'next_follow_up': customer_data.get('next_follow_up', '').strip(),
                             'summary_notes': customer_data.get('summary_notes', '').strip(),
-                            'status': customer_data.get('status', 'lead'),
+                            'status': customer_data.get('status', 'general'),
                             'tenant': request.user.tenant.id if request.user.tenant else None,
                         }
                         
@@ -1028,7 +1013,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     '1990-01-01', '2015-06-15', 'Gold', 'Diamond',
                     '7', '1000-5000', 'website', 'Interested in engagement rings', 'General',
                     'English', 'Engagement Ring', '25-35', 'Monthly',
-                    'Downtown', 'Call next week', 'High potential customer', 'lead', 'High Value, Engagement, Gold'
+                    'Downtown', 'Call next week', 'High potential customer', 'general', 'High Value, Engagement, Gold'
                 ]
                 
                 for col, value in enumerate(example_data, 1):
@@ -1089,7 +1074,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     'catchment_area': 'Downtown',
                     'next_follow_up': 'Call next week',
                     'summary_notes': 'High potential customer',
-                    'status': 'lead',
+                    'status': 'general',
                     'tags': 'High Value, Engagement, Gold'
                 }
                 writer.writerow(example_row)

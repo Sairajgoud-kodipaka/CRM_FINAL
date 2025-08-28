@@ -103,25 +103,15 @@ export const CUSTOMER_TYPES = {
 } as const;
 
 export const CUSTOMER_STATUS = {
-  LEAD: 'lead',
-  PROSPECT: 'prospect',
-  CUSTOMER: 'customer',
+  VVIP: 'vvip',
   VIP: 'vip',
-  INACTIVE: 'inactive',
-  EXHIBITION: 'exhibition',
-  SOCIAL_MEDIA: 'social_media',
-  STORE_WALKIN: 'store_walkin',
+  GENERAL: 'general',
 } as const;
 
 export const CUSTOMER_STATUS_LABELS = {
-  [CUSTOMER_STATUS.LEAD]: 'Lead',
-  [CUSTOMER_STATUS.PROSPECT]: 'Prospect',
-  [CUSTOMER_STATUS.CUSTOMER]: 'Customer',
+  [CUSTOMER_STATUS.VVIP]: 'VVIP Customer',
   [CUSTOMER_STATUS.VIP]: 'VIP Customer',
-  [CUSTOMER_STATUS.INACTIVE]: 'Inactive',
-  [CUSTOMER_STATUS.EXHIBITION]: 'Exhibition Lead',
-  [CUSTOMER_STATUS.SOCIAL_MEDIA]: 'Social Media Lead',
-  [CUSTOMER_STATUS.STORE_WALKIN]: 'Store Walk-in',
+  [CUSTOMER_STATUS.GENERAL]: 'General Customer',
 } as const;
 
 export const CUSTOMER_SOURCES = {
