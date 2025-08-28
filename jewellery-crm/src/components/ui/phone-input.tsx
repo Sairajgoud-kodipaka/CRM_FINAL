@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
 import { cn } from "@/lib/utils";
 
 interface PhoneInputProps {
@@ -18,7 +16,7 @@ interface PhoneInputProps {
 export function PhoneInputComponent({
   value,
   onChange,
-  placeholder = "Enter phone number",
+  placeholder = "9876543210",
   className,
   required = false,
   disabled = false,
@@ -27,79 +25,117 @@ export function PhoneInputComponent({
   const [validationError, setValidationError] = useState<string>("");
   const [isValid, setIsValid] = useState<boolean>(true);
 
-  // Validate phone number to ensure exactly 10 digits (excluding country code)
-  const validatePhoneNumber = (phoneValue: string) => {
-    if (!phoneValue) {
+  // Extract mobile number from full value (remove +91 prefix)
+  const mobileNumber = value.startsWith('+91') ? value.substring(3) : value;
+
+  // Strict Indian phone number validation - exactly 10 digits
+  const validateIndianPhoneNumber = (mobileValue: string) => {
+    if (!mobileValue) {
       setValidationError("");
       setIsValid(true);
       return;
     }
 
-    // For international phone numbers, we need to extract the national number
-    // Remove the country code (usually starts with + and has 1-3 digits)
-    let nationalNumber = phoneValue;
+    // Remove all non-digit characters
+    const digitsOnly = mobileValue.replace(/\D/g, '');
     
-    // If it starts with +, remove the country code part
-    if (phoneValue.startsWith('+')) {
-      // Find the first space or extract after the country code
-      const spaceIndex = phoneValue.indexOf(' ');
-      if (spaceIndex !== -1) {
-        nationalNumber = phoneValue.substring(spaceIndex + 1);
-      } else {
-        // If no space, assume country code is 1-3 digits
-        const match = phoneValue.match(/^\+\d{1,3}(.+)$/);
-        if (match) {
-          nationalNumber = match[1];
-        }
-      }
-    }
-    
-    // Remove all non-digit characters from the national number
-    const digitsOnly = nationalNumber.replace(/\D/g, '');
-    
-    // Check if it has exactly 10 digits
+    // Strict validation: exactly 10 digits, no more, no less
     if (digitsOnly.length === 10) {
-      setValidationError("");
-      setIsValid(true);
+      // Additional validation: Indian mobile numbers start with 6, 7, 8, or 9
+      const firstDigit = digitsOnly.charAt(0);
+      if (['6', '7', '8', '9'].includes(firstDigit)) {
+        setValidationError("");
+        setIsValid(true);
+      } else {
+        setValidationError("Indian mobile numbers start with 6, 7, 8, or 9");
+        setIsValid(false);
+      }
     } else if (digitsOnly.length < 10) {
-      setValidationError("Phone number must have exactly 10 digits");
+      setValidationError("Mobile number must have exactly 10 digits");
       setIsValid(false);
     } else {
-      setValidationError("Phone number cannot exceed 10 digits");
+      setValidationError("Mobile number cannot exceed 10 digits");
       setIsValid(false);
     }
   };
 
   // Validate on value change
   useEffect(() => {
-    validatePhoneNumber(value);
-  }, [value]);
+    validateIndianPhoneNumber(mobileNumber);
+  }, [mobileNumber]);
 
-  // Handle phone number change with validation
-  const handlePhoneChange = (val: string | undefined) => {
-    const phoneValue = val || "";
-    onChange(phoneValue);
-    validatePhoneNumber(phoneValue);
+  // Handle mobile number change with strict validation
+  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    
+    // Remove all non-digit characters
+    const digitsOnly = inputValue.replace(/\D/g, '');
+    
+    // Enforce exactly 10 digits maximum
+    if (digitsOnly.length <= 10) {
+      // Concatenate +91 prefix with mobile number
+      const fullValue = digitsOnly.length > 0 ? `+91${digitsOnly}` : '';
+      onChange(fullValue);
+    }
+    // If more than 10 digits, ignore the input (enforced by maxLength)
   };
 
   return (
-    <div className="relative">
-      <PhoneInput
-        international
-        defaultCountry="IN"
-        value={value}
-        onChange={handlePhoneChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          (error || !isValid) && "border-red-500 focus-visible:ring-red-500",
-          className
-        )}
-        required={required}
-      />
+    <div className="space-y-3">
+      {/* Phone input field with integrated +91 prefix */}
+      <div className="relative flex">
+        {/* +91 prefix badge */}
+        <div className="inline-flex items-center justify-center px-3 py-2 text-sm font-semibold text-gray-700 bg-gray-100 border border-gray-300 border-r-0 rounded-l-md min-w-[48px]">
+          +91
+        </div>
+        
+        {/* Mobile number input */}
+        <input
+          type="tel"
+          value={mobileNumber}
+          onChange={handleMobileChange}
+          maxLength={10}
+          pattern="\d{10}"
+          placeholder={placeholder}
+          disabled={disabled}
+          required={required}
+          className={cn(
+            "flex-1 h-10 rounded-r-md border border-gray-300 bg-white px-3 py-2 text-sm",
+            "placeholder:text-gray-400 placeholder:font-medium",
+            "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+            "disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed",
+            (error || !isValid) && "border-red-500 focus:ring-red-500 focus:border-red-500",
+            className
+          )}
+        />
+      </div>
+      
+      {/* Help text */}
+      <p className="text-xs text-gray-500 font-medium">
+        Format: 10-digit mobile number starting with 6, 7, 8, or 9
+      </p>
+      
+      {/* Validation error */}
       {!isValid && validationError && (
-        <p className="text-sm text-red-500 mt-1">{validationError}</p>
+        <p className="text-sm text-red-600 font-medium flex items-center gap-2">
+          <span className="text-red-500 text-lg">⚠</span>
+          {validationError}
+        </p>
+      )}
+      
+      {/* Success indicator */}
+      {isValid && mobileNumber && mobileNumber.replace(/\D/g, '').length === 10 && (
+        <p className="text-sm text-green-600 font-medium flex items-center gap-2">
+          <span className="text-green-500 text-lg">✓</span>
+          Valid Indian mobile number
+        </p>
+      )}
+      
+      {/* Debug info - only in development */}
+      {process.env.NODE_ENV === 'development' && value && (
+        <div className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
+          <span className="font-medium">Debug:</span> Stored value: {value}
+        </div>
       )}
     </div>
   );

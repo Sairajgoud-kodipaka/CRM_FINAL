@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,16 +9,21 @@ import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal'
 import { EditCustomerModal } from '@/components/customers/EditCustomerModal';
 import { TrashModal } from '@/components/customers/TrashModal';
 import { apiService, Client } from '@/lib/api-service';
-import { Search, Filter, Download, Plus, Eye, Edit, Trash2, Archive } from 'lucide-react';
+import { Search, Filter, Download, Plus, Eye, Edit, Trash2, Archive, Loader2 } from 'lucide-react';
 import { useScopedVisibility } from '@/lib/scoped-visibility';
 import { useAuth } from '@/hooks/useAuth';
 import ScopeIndicator from '@/components/ui/ScopeIndicator';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SalesCustomersPage() {
   const { userScope } = useScopedVisibility();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [customers, setCustomers] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [updatingCustomer, setUpdatingCustomer] = useState<string | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showMyDataOnly, setShowMyDataOnly] = useState(false);
@@ -33,9 +38,35 @@ export default function SalesCustomersPage() {
   // Check if user can delete customers (managers and higher roles)
   const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
 
+  // Memoized fetch function to prevent unnecessary re-renders
+  const fetchCustomers = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching customers with user scope:', userScope.type);
+      
+      const response = await apiService.getClients();
+      console.log('Customers API response:', response);
+      
+      const customersData = Array.isArray(response.data) ? response.data : [];
+      console.log('Processed customers data:', customersData);
+      
+      setCustomers(customersData);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch customers. Please try again.",
+        variant: "destructive",
+      });
+      setCustomers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [userScope.type, toast]);
+
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [fetchCustomers]);
 
   useEffect(() => {
     // Filter customers based on search term, status, and my data filter
@@ -62,34 +93,102 @@ export default function SalesCustomersPage() {
     setFilteredCustomers(filtered);
   }, [customers, searchTerm, statusFilter, showMyDataOnly, user?.id]);
 
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      console.log('Fetching customers with user scope:', userScope.type);
-      
-      // Use scoped endpoint based on user role
-      // The backend middleware handles scoping automatically for getClients
-      // but we can add additional filtering if needed
-      const response = await apiService.getClients();
-      console.log('Customers API response:', response);
-      
-      // Ensure we have an array of customers
-      const customersData = Array.isArray(response.data) ? response.data : [];
-      console.log('Processed customers data:', customersData);
-      
-      setCustomers(customersData);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      setCustomers([]); // Set empty array on error
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCustomerCreated = () => {
+  // Optimistic update for customer creation
+  const handleCustomerCreated = useCallback((newCustomer: Client) => {
     setModalOpen(false);
-    fetchCustomers(); // Refresh the list
-  };
+    
+    // Optimistically add the new customer to the list
+    setCustomers(prev => [newCustomer, ...prev]);
+    
+    toast({
+      title: "Success!",
+      description: "Customer created successfully!",
+      variant: "success",
+    });
+    
+    // Refresh data in background to ensure consistency
+    fetchCustomers();
+  }, [fetchCustomers, toast]);
+
+  // Optimistic update for customer editing
+  const handleCustomerUpdated = useCallback((updatedCustomer: Client) => {
+    setEditModalOpen(false);
+    setSelectedCustomer(null);
+    
+    // Optimistically update the customer in the list
+    setCustomers(prev => prev.map(customer => 
+      customer.id?.toString() === updatedCustomer.id?.toString() ? updatedCustomer : customer
+    ));
+    
+    toast({
+      title: "Success!",
+      description: "Customer updated successfully!",
+      variant: "success",
+    });
+    
+    // Refresh data in background to ensure consistency
+    fetchCustomers();
+  }, [fetchCustomers, toast]);
+
+  // Optimistic update for customer deletion
+  const handleDeleteCustomer = useCallback(async (customerId: string) => {
+    try {
+      setDeletingCustomer(customerId);
+      
+      // Optimistically remove the customer from the list
+      setCustomers(prev => prev.filter(customer => customer.id?.toString() !== customerId));
+      
+      const response = await apiService.deleteClient(customerId);
+      
+      if (response.success) {
+        console.log('Customer deleted successfully');
+        toast({
+          title: "Success!",
+          description: "Customer moved to trash successfully!",
+          variant: "success",
+        });
+      } else {
+        console.error('Failed to delete customer:', response);
+        
+        // Revert optimistic update on failure
+        fetchCustomers();
+        
+        toast({
+          title: "Error",
+          description: "Failed to delete customer. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error deleting customer:', error);
+      
+      // Revert optimistic update on error
+      fetchCustomers();
+      
+      // Handle specific permission errors
+      if (error.message && error.message.includes('House sales persons cannot delete customers')) {
+        toast({
+          title: "Permission Denied",
+          description: "You do not have permission to delete customers. Only managers can delete customers.",
+          variant: "destructive",
+        });
+      } else if (error.message && error.message.includes('You do not have permission to delete this customer')) {
+        toast({
+          title: "Permission Denied",
+          description: "You do not have permission to delete this customer. You can only delete customers from your own store.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to delete customer. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setDeletingCustomer(null);
+    }
+  }, [fetchCustomers, toast]);
 
   const handleViewCustomer = (customerId: string) => {
     setSelectedCustomerId(customerId);
@@ -99,37 +198,6 @@ export default function SalesCustomersPage() {
   const handleEditCustomer = (customer: Client) => {
     setSelectedCustomer(customer);
     setEditModalOpen(true);
-  };
-
-  const handleDeleteCustomer = async (customerId: string) => {
-    try {
-      const response = await apiService.deleteClient(customerId);
-      if (response.success) {
-        console.log('Customer deleted successfully');
-        alert('Customer moved to trash successfully!');
-        fetchCustomers(); // Refresh the list
-      } else {
-        console.error('Failed to delete customer:', response);
-        alert('Failed to delete customer. Please try again.');
-      }
-    } catch (error: any) {
-      console.error('Error deleting customer:', error);
-      
-      // Handle specific permission errors
-      if (error.message && error.message.includes('House sales persons cannot delete customers')) {
-        alert('You do not have permission to delete customers. Only managers can delete customers. Please contact your store manager.');
-      } else if (error.message && error.message.includes('You do not have permission to delete this customer')) {
-        alert('You do not have permission to delete this customer. You can only delete customers from your own store.');
-      } else {
-        alert('Failed to delete customer. Please try again.');
-      }
-    }
-  };
-
-  const handleCustomerUpdated = () => {
-    setEditModalOpen(false);
-    setSelectedCustomer(null);
-    fetchCustomers(); // Refresh the list
   };
 
   const handleCustomerRestored = () => {
@@ -176,8 +244,19 @@ export default function SalesCustomersPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      
+      toast({
+        title: "Export Successful",
+        description: `Customers exported as ${format.toUpperCase()} successfully!`,
+        variant: "success",
+      });
     } catch (error) {
       console.error('Error exporting customers:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export customers. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -206,7 +285,11 @@ export default function SalesCustomersPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <AddCustomerModal open={modalOpen} onClose={() => setModalOpen(false)} />
+              <AddCustomerModal 
+          open={modalOpen} 
+          onClose={() => setModalOpen(false)}
+          onCustomerCreated={handleCustomerCreated}
+        />
       <CustomerDetailModal 
         open={detailModalOpen} 
         onClose={() => setDetailModalOpen(false)}
@@ -380,9 +463,14 @@ export default function SalesCustomersPage() {
                             size="sm" 
                             className="text-green-600 hover:text-green-800"
                             onClick={() => handleEditCustomer(customer)}
+                            disabled={updatingCustomer === customer.id?.toString()}
                           >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
+                                                          {updatingCustomer === customer.id?.toString() ? (
+                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            ) : (
+                              <Edit className="w-4 h-4 mr-1" />
+                            )}
+                            {updatingCustomer === customer.id.toString() ? 'Updating...' : 'Edit'}
                           </Button>
                           {canDeleteCustomers && (
                             <Button 
@@ -394,9 +482,14 @@ export default function SalesCustomersPage() {
                                   handleDeleteCustomer(customer.id.toString());
                                 }
                               }}
+                              disabled={deletingCustomer === customer.id?.toString()}
                             >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Move to Trash
+                              {deletingCustomer === customer.id?.toString() ? (
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4 mr-1" />
+                              )}
+                              {deletingCustomer === customer.id.toString() ? 'Moving...' : 'Move to Trash'}
                             </Button>
                           )}
                         </div>

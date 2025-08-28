@@ -1447,6 +1447,94 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
             'new_appointment_id': new_appointment.id
         })
 
+    @action(detail=False, methods=['get'])
+    def slots(self, request):
+        """Get available appointment slots for a given date range"""
+        from datetime import datetime, timedelta
+        from django.utils import timezone
+        
+        # Get query parameters
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        duration = int(request.query_params.get('duration', 60))  # Default 60 minutes
+        
+        if not start_date:
+            start_date = timezone.now().date()
+        else:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            
+        if not end_date:
+            end_date = start_date + timedelta(days=7)  # Default to 1 week
+        else:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        # Business hours (9 AM to 6 PM)
+        business_start = datetime.strptime('09:00', '%H:%M').time()
+        business_end = datetime.strptime('18:00', '%H:%M').time()
+        
+        # Generate time slots
+        slots = []
+        current_date = start_date
+        
+        while current_date <= end_date:
+            # Skip weekends (Saturday = 5, Sunday = 6)
+            if current_date.weekday() < 5:  # Monday to Friday
+                current_time = business_start
+                
+                while current_time < business_end:
+                    slot_end = (
+                        datetime.combine(current_date, current_time) + 
+                        timedelta(minutes=duration)
+                    ).time()
+                    
+                    if slot_end <= business_end:
+                        # Check if slot is available (no conflicting appointments)
+                        conflicting_appointments = Appointment.objects.filter(
+                            tenant=request.user.tenant,
+                            date=current_date,
+                            time__lt=slot_end,
+                            time__gte=current_time,
+                            status__in=['scheduled', 'confirmed'],
+                            is_deleted=False
+                        )
+                        
+                        if not conflicting_appointments.exists():
+                            slots.append({
+                                'date': current_date.strftime('%Y-%m-%d'),
+                                'time': current_time.strftime('%H:%M'),
+                                'end_time': slot_end.strftime('%H:%M'),
+                                'duration': duration,
+                                'available': True
+                            })
+                        else:
+                            slots.append({
+                                'date': current_date.strftime('%Y-%m-%d'),
+                                'time': current_time.strftime('%H:%M'),
+                                'end_time': slot_end.strftime('%H:%M'),
+                                'duration': duration,
+                                'available': False,
+                                'conflicts': conflicting_appointments.count()
+                            })
+                    
+                    # Move to next slot (30-minute intervals)
+                    current_time = (
+                        datetime.combine(current_date, current_time) + 
+                        timedelta(minutes=30)
+                    ).time()
+            
+            current_date += timedelta(days=1)
+        
+        return Response({
+            'slots': slots,
+            'start_date': start_date.strftime('%Y-%m-%d'),
+            'end_date': end_date.strftime('%Y-%m-%d'),
+            'duration': duration,
+            'business_hours': {
+                'start': business_start.strftime('%H:%M'),
+                'end': business_end.strftime('%H:%M')
+            }
+        })
+
     @action(detail=True, methods=['post'])
     def send_reminder(self, request, pk=None):
         """Send reminder for an appointment"""
