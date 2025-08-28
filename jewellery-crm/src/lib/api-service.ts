@@ -5,6 +5,7 @@ interface ApiResponse<T> {
   data: T;
   message?: string;
   success: boolean;
+  errors?: Record<string, string[]>;
 }
 
 // Type definitions based on backend models
@@ -389,13 +390,15 @@ class ApiService {
         
         // Try to get the error response body
         let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+        let errorData: any = null;
+        
         try {
           const errorBody = await response.text();
           console.error('API Error Response body:', errorBody);
           
           // Try to parse the error body as JSON
           try {
-            const errorData = JSON.parse(errorBody);
+            errorData = JSON.parse(errorBody);
             if (errorData.error) {
               errorMessage = errorData.error;
             } else if (errorData.message) {
@@ -423,6 +426,17 @@ class ApiService {
             window.location.href = '/login';
           }
         }
+        
+        // For 400 validation errors, return them in the response instead of throwing
+        if (response.status === 400 && errorData && (errorData.email || errorData.phone || errorData.errors)) {
+          return {
+            data: null as any,
+            success: false,
+            message: errorMessage,
+            errors: errorData
+          };
+        }
+        
         throw new Error(errorMessage);
       }
 
@@ -642,11 +656,11 @@ class ApiService {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.assigned_to) queryParams.append('assigned_to', params.assigned_to);
 
-    return this.request(`/clients/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/clients/clients/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async getClient(id: string): Promise<ApiResponse<Client>> {
-    return this.request(`/clients/${id}/`);
+    return this.request(`/clients/clients/${id}/`);
   }
 
   async getUser(id: string): Promise<ApiResponse<User>> {
@@ -654,21 +668,21 @@ class ApiService {
   }
 
   async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    return this.request('/clients/', {
+    return this.request('/clients/clients/', {
       method: 'POST',
       body: JSON.stringify(clientData),
     });
   }
 
   async updateClient(id: string, clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    return this.request(`/clients/${id}/`, {
+    return this.request(`/clients/clients/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(clientData),
     });
   }
 
   async deleteClient(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/clients/${id}/`, {
+    return this.request(`/clients/clients/${id}/`, {
       method: 'DELETE',
     });
   }
@@ -684,7 +698,7 @@ class ApiService {
   }
 
   async getClientAuditLogs(clientId: string): Promise<ApiResponse<AuditLog[]>> {
-    return this.request(`/clients/audit-logs/?client=${clientId}`);
+    return this.request(`/audit-logs/?client=${clientId}`);
   }
 
   async getCustomerDropdownOptions(): Promise<ApiResponse<any>> {
@@ -693,17 +707,17 @@ class ApiService {
 
   // Customer Tags and Segmentation
   async getCustomerTags(): Promise<ApiResponse<any[]>> {
-    return this.request('/clients/tags/');
+    return this.request('/tags/');
   }
 
   async getCustomerTagCategories(): Promise<ApiResponse<any[]>> {
-    return this.request('/clients/tags/categories/');
+    return this.request('/tags/categories/');
   }
 
   async getCustomerTagsByCategory(category?: string): Promise<ApiResponse<any>> {
     const queryParams = new URLSearchParams();
     if (category) queryParams.append('category', category);
-    return this.request(`/clients/tags/by_category/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/tags/by_category/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   // Exhibition Lead Management
@@ -737,7 +751,7 @@ class ApiService {
     notes?: string;
     customer_type?: string;
   }): Promise<ApiResponse<Client>> {
-    return this.request('/clients/', {
+    return this.request('/clients/clients/', {
       method: 'POST',
       body: JSON.stringify({
         ...leadData,
@@ -1147,6 +1161,19 @@ class ApiService {
     return this.request(`/clients/appointments/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
+  async getAppointmentSlots(params?: {
+    start_date?: string;
+    end_date?: string;
+    duration?: number;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
+    if (params?.duration) queryParams.append('duration', params.duration.toString());
+
+    return this.request(`/clients/appointments/slots/${queryParams.toString() ? `?${queryParams}` : ''}`);
+  }
+
   async createAppointment(appointmentData: Partial<Appointment>): Promise<ApiResponse<Appointment>> {
     return this.request('/clients/appointments/', {
       method: 'POST',
@@ -1194,15 +1221,12 @@ class ApiService {
 
   async editAppointment(id: string, appointmentData: Partial<Appointment>): Promise<ApiResponse<Appointment>> {
     return this.request(`/clients/appointments/${id}/`, {
-      method: 'PUT',
+      method: 'POST',
       body: JSON.stringify(appointmentData),
     });
   }
 
   // Users/Team
-  async getTeamMembers(): Promise<ApiResponse<User[]>> {
-    return this.request('/team-members/');
-  }
 
   async createTeamMember(memberData: {
     username: string;
@@ -1445,11 +1469,11 @@ class ApiService {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.client) queryParams.append('client', params.client);
 
-    return this.request(`/clients/follow-ups/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/follow-ups/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async createFollowUp(followUpData: any): Promise<ApiResponse<any>> {
-    return this.request('/clients/follow-ups/', {
+    return this.request('/follow-ups/', {
       method: 'POST',
       body: JSON.stringify(followUpData),
     });
@@ -1822,12 +1846,12 @@ class ApiService {
 
   // Get all purchases
   async getPurchases(): Promise<ApiResponse<any[]>> {
-    return this.request('/clients/purchases/');
+    return this.request('/purchases/');
   }
 
   // Create a new purchase
   async createPurchase(purchaseData: any): Promise<ApiResponse<any>> {
-    return this.request('/clients/purchases/', {
+    return this.request('/purchases/', {
       method: 'POST',
       body: JSON.stringify(purchaseData),
     });
@@ -1835,7 +1859,7 @@ class ApiService {
 
   // Update a purchase
   async updatePurchase(purchaseId: string, purchaseData: any): Promise<ApiResponse<any>> {
-    return this.request(`/clients/purchases/${purchaseId}/`, {
+    return this.request(`/purchases/${purchaseId}/`, {
       method: 'PUT',
       body: JSON.stringify(purchaseData),
     });
@@ -1843,7 +1867,7 @@ class ApiService {
 
   // Delete a purchase
   async deletePurchase(purchaseId: string): Promise<ApiResponse<void>> {
-    return this.request(`/clients/purchases/${purchaseId}/`, {
+    return this.request(`/purchases/${purchaseId}/`, {
       method: 'DELETE',
     });
   }
@@ -1855,6 +1879,43 @@ class ApiService {
   // Get all sales pipelines (different from existing pipeline methods)
   async getSalesPipelines(): Promise<ApiResponse<any[]>> {
     return this.request('/sales/pipeline/');
+  }
+
+  // ================================
+  // ROLE-BASED SALESPERSON ASSIGNMENT
+  // ================================
+
+  // Get team members for a manager
+  async getTeamMembers(managerId: number): Promise<ApiResponse<User[]>> {
+    return this.request(`/users/team-members/${managerId}/`);
+  }
+  
+  // Get sales users in a specific tenant
+  async getTenantSalesUsers(tenantId: number): Promise<ApiResponse<User[]>> {
+    return this.request(`/users/tenant/${tenantId}/sales-users/`);
+  }
+  
+  // Get all sales users (platform admin only)
+  async getAllSalesUsers(): Promise<ApiResponse<User[]>> {
+    return this.request('/users/sales-users/');
+  }
+  
+  // Log assignment override for audit trail
+  async logAssignmentOverride(audit: {
+    assignedByUserId: number;
+    assignedByRole: string;
+    assignedToUserId: number;
+    assignedToName: string;
+    assignmentType: 'self' | 'manager' | 'admin';
+    assignmentScope: 'self' | 'team' | 'tenant' | 'global';
+    timestamp: string;
+    overrideReason?: string;
+    teamViolation?: boolean;
+  }): Promise<ApiResponse<void>> {
+    return this.request('/audit/assignment-override/', {
+      method: 'POST',
+      body: JSON.stringify(audit)
+    });
   }
 }
 

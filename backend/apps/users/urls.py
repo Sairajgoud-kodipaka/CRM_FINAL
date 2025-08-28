@@ -25,4 +25,10 @@ urlpatterns = [
     path('team-members/<int:pk>/', views.TeamMemberDetailView.as_view(), name='team_member_detail'),
     path('team-members/<int:pk>/update/', views.TeamMemberUpdateView.as_view(), name='team_member_update'),
     path('team-members/<int:pk>/delete/', views.TeamMemberDeleteView.as_view(), name='team_member_delete'),
+    
+    # Role-based salesperson assignment
+    path('team-members/<int:manager_id>/', views.TeamMembersView.as_view(), name='team_members'),
+    path('tenant/<int:tenant_id>/sales-users/', views.TenantSalesUsersView.as_view(), name='tenant_sales_users'),
+    path('sales-users/', views.AllSalesUsersView.as_view(), name='all_sales_users'),
+    path('audit/assignment-override/', views.AssignmentOverrideAuditView.as_view(), name='assignment_override_audit'),
 ] 

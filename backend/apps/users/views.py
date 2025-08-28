@@ -1705,4 +1705,173 @@ class SalesPersonDetailView(APIView):
             return 'Low'
 
 
+# ================================
+# ROLE-BASED SALESPERSON ASSIGNMENT
+# ================================
+
+class TeamMembersView(APIView):
+    """Get team members for a manager"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, manager_id):
+        current_user = request.user
+        
+        # Only managers can see their team members
+        if current_user.role != 'manager':
+            return Response(
+                {'detail': 'Access denied - only managers can view team members'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Verify manager is requesting their own team
+        if current_user.id != manager_id:
+            return Response(
+                {'detail': 'Access denied - can only view your own team'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            # Get team members from TeamMember model
+            from .models import TeamMember
+            team_members = TeamMember.objects.filter(
+                manager__user_id=manager_id,
+                status='active'
+            ).select_related('user')
+            
+            # Return only necessary user data
+            users = [{
+                'id': member.user.id,
+                'name': member.user.get_full_name(),
+                'role': member.user.role,
+                'employee_id': member.employee_id,
+                'store_name': member.user.store.name if member.user.store else None
+            } for member in team_members]
+            
+            return Response(users)
+            
+        except Exception as e:
+            return Response(
+                {'detail': f'Error fetching team members: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class TenantSalesUsersView(APIView):
+    """Get sales users in a specific tenant"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, tenant_id):
+        current_user = request.user
+        
+        # Only business admins can see tenant sales users
+        if current_user.role != 'business_admin':
+            return Response(
+                {'detail': 'Access denied - only business admins can view tenant users'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Verify admin is requesting users from their own tenant
+        if current_user.tenant_id != tenant_id:
+            return Response(
+                {'detail': 'Access denied - can only view users in your own tenant'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            # Get sales users in tenant
+            sales_users = User.objects.filter(
+                tenant_id=tenant_id,
+                role__in=['inhouse_sales', 'tele_calling'],
+                is_active=True
+            )
+            
+            users = [{
+                'id': user.id,
+                'name': user.get_full_name(),
+                'role': user.role,
+                'store_name': user.store.name if user.store else None
+            } for user in sales_users]
+            
+            return Response(users)
+            
+        except Exception as e:
+            return Response(
+                {'detail': f'Error fetching tenant users: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AllSalesUsersView(APIView):
+    """Get all sales users (platform admin only)"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        current_user = request.user
+        
+        # Only platform admins can see all users
+        if current_user.role != 'platform_admin':
+            return Response(
+                {'detail': 'Access denied - only platform admins can view all users'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            # Get all sales users
+            sales_users = User.objects.filter(
+                role__in=['inhouse_sales', 'tele_calling', 'manager'],
+                is_active=True
+            )
+            
+            users = [{
+                'id': user.id,
+                'name': user.get_full_name(),
+                'role': user.role,
+                'tenant_name': user.tenant.name if user.tenant else None,
+                'store_name': user.store.name if user.store else None
+            } for user in sales_users]
+            
+            return Response(users)
+            
+        except Exception as e:
+            return Response(
+                {'detail': f'Error fetching all users: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AssignmentOverrideAuditView(APIView):
+    """Log assignment override for audit trail"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            audit_data = request.data
+            
+            # Validate required fields
+            required_fields = [
+                'assignedByUserId', 'assignedByRole', 'assignedToUserId', 
+                'assignedToName', 'assignmentType', 'assignmentScope', 'timestamp'
+            ]
+            
+            for field in required_fields:
+                if field not in audit_data:
+                    return Response(
+                        {'detail': f'Missing required field: {field}'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Log the assignment override
+            # In a real implementation, you would save this to an audit log table
+            # For now, we'll just log it to console
+            print(f"ASSIGNMENT OVERRIDE AUDIT: {audit_data}")
+            
+            return Response({'detail': 'Assignment override logged successfully'})
+            
+        except Exception as e:
+            return Response(
+                {'detail': f'Error logging assignment override: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 

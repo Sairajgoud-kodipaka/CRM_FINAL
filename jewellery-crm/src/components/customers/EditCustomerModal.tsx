@@ -15,7 +15,7 @@ interface EditCustomerModalProps {
   open: boolean;
   onClose: () => void;
   customer: Client | null;
-  onCustomerUpdated: () => void;
+  onCustomerUpdated: (updatedCustomer: Client) => void;
 }
 
 interface ProductInterest {
@@ -567,7 +567,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
           });
         }
         
-        onCustomerUpdated();
+        onCustomerUpdated(response.data);
         onClose();
       } else {
         console.error('Failed to update customer:', response);

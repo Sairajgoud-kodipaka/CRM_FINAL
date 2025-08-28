@@ -69,24 +69,27 @@ export const SALES_STAGES = {
 } as const;
 
 export const SALES_STAGE_LABELS = {
-  [SALES_STAGES.EXHIBITION]: 'Exhibition',
-  [SALES_STAGES.SOCIAL_MEDIA]: 'Social Media',
-  [SALES_STAGES.INTERESTED]: 'Interested',
-  [SALES_STAGES.STORE_WALKIN]: 'Store - Walkin',
-  [SALES_STAGES.NEGOTIATION]: 'Negotiation',
-  [SALES_STAGES.CLOSED_WON]: 'Closed Won',
-  [SALES_STAGES.CLOSED_LOST]: 'Closed Lost',
+  [SALES_STAGES.EXHIBITION]: 'Exhibition Lead',
+  [SALES_STAGES.SOCIAL_MEDIA]: 'Social Media Lead',
+  [SALES_STAGES.INTERESTED]: 'Interested Customer',
+  [SALES_STAGES.STORE_WALKIN]: 'Store Walk-in',
+  [SALES_STAGES.NEGOTIATION]: 'In Negotiation',
+  [SALES_STAGES.CLOSED_WON]: 'Deal Won',
+  [SALES_STAGES.CLOSED_LOST]: 'Deal Lost',
   [SALES_STAGES.FUTURE_PROSPECT]: 'Future Prospect',
   [SALES_STAGES.NOT_QUALIFIED]: 'Not Qualified',
 } as const;
 
 export const SALES_STAGE_COLORS = {
-  [SALES_STAGES.LEAD]: '#94A3B8', // slate-400
-  [SALES_STAGES.QUALIFIED]: '#60A5FA', // blue-400
-  [SALES_STAGES.PROPOSAL]: '#A78BFA', // violet-400
-  [SALES_STAGES.NEGOTIATION]: '#FBBF24', // amber-400
+  [SALES_STAGES.EXHIBITION]: '#94A3B8', // slate-400
+  [SALES_STAGES.SOCIAL_MEDIA]: '#60A5FA', // blue-400
+  [SALES_STAGES.INTERESTED]: '#A78BFA', // violet-400
+  [SALES_STAGES.STORE_WALKIN]: '#FBBF24', // amber-400
+  [SALES_STAGES.NEGOTIATION]: '#F59E0B', // amber-500
   [SALES_STAGES.CLOSED_WON]: '#34D399', // emerald-400
   [SALES_STAGES.CLOSED_LOST]: '#F87171', // red-400
+  [SALES_STAGES.FUTURE_PROSPECT]: '#8B5CF6', // violet-500
+  [SALES_STAGES.NOT_QUALIFIED]: '#6B7280', // gray-500
 } as const;
 
 // ================================
@@ -97,6 +100,28 @@ export const CUSTOMER_TYPES = {
   VIP: 'vip',
   REGULAR: 'regular',
   NEW_LEAD: 'new_lead',
+} as const;
+
+export const CUSTOMER_STATUS = {
+  LEAD: 'lead',
+  PROSPECT: 'prospect',
+  CUSTOMER: 'customer',
+  VIP: 'vip',
+  INACTIVE: 'inactive',
+  EXHIBITION: 'exhibition',
+  SOCIAL_MEDIA: 'social_media',
+  STORE_WALKIN: 'store_walkin',
+} as const;
+
+export const CUSTOMER_STATUS_LABELS = {
+  [CUSTOMER_STATUS.LEAD]: 'Lead',
+  [CUSTOMER_STATUS.PROSPECT]: 'Prospect',
+  [CUSTOMER_STATUS.CUSTOMER]: 'Customer',
+  [CUSTOMER_STATUS.VIP]: 'VIP Customer',
+  [CUSTOMER_STATUS.INACTIVE]: 'Inactive',
+  [CUSTOMER_STATUS.EXHIBITION]: 'Exhibition Lead',
+  [CUSTOMER_STATUS.SOCIAL_MEDIA]: 'Social Media Lead',
+  [CUSTOMER_STATUS.STORE_WALKIN]: 'Store Walk-in',
 } as const;
 
 export const CUSTOMER_SOURCES = {
@@ -372,24 +397,24 @@ export const API_ENDPOINTS = {
   USER_PROFILE: '/api/users/profile',
   
   // Customers
-  CUSTOMERS: '/api/customers',
-  CUSTOMER_SEARCH: '/api/customers/search',
+  CUSTOMERS: '/api/clients/clients',
+  CUSTOMER_SEARCH: '/api/clients/clients',
   
   // Products
   PRODUCTS: '/api/products',
   PRODUCT_CATEGORIES: '/api/products/categories',
   
   // Orders
-  ORDERS: '/api/orders',
-  ORDER_ITEMS: '/api/orders/items',
+  ORDERS: '/api/sales',
+  ORDER_ITEMS: '/api/sales/items',
   
   // Appointments
-  APPOINTMENTS: '/api/appointments',
-  APPOINTMENT_SLOTS: '/api/appointments/slots',
+  APPOINTMENTS: '/api/clients/appointments',
+  APPOINTMENT_SLOTS: '/api/clients/appointments/slots',
   
   // Sales
-  DEALS: '/api/deals',
-  PIPELINE: '/api/deals/pipeline',
+  DEALS: '/api/sales/pipeline',
+  PIPELINE: '/api/sales/pipeline',
   
   // Analytics
   DASHBOARD: '/api/analytics/dashboard',

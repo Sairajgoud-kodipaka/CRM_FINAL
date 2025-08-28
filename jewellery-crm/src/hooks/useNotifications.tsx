@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useState } from 'react';
 import { Notification, NotificationType, NotificationPriority, NotificationStatus, NotificationSettings } from '@/types';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from './useAuth';
@@ -178,8 +178,20 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     isConnected: false
   });
 
+  // Debounce mechanism to prevent rapid API calls
+  const [lastFetchTime, setLastFetchTime] = useState(0);
+  const DEBOUNCE_DELAY = 5000; // 5 seconds
+
   // Fetch notifications from API
   const fetchNotifications = useCallback(async () => {
+    const now = Date.now();
+    
+    // Prevent rapid successive calls
+    if (now - lastFetchTime < DEBOUNCE_DELAY) {
+      console.log('🔒 fetchNotifications debounced - too soon since last call');
+      return;
+    }
+    
     console.log('🔍 fetchNotifications called with:', { user: user?.username, isAuthenticated, isHydrated });
     
     if (!user || !isAuthenticated || !isHydrated) {
@@ -201,6 +213,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         const notifications = Array.isArray(response.data) ? response.data : (response.data as any).results || [];
         console.log('✅ Setting notifications in state:', notifications.length, 'notifications');
         dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
+        setLastFetchTime(Date.now()); // Update last fetch time on success
       } else {
         // If no data or error, set empty array
         console.log('⚠️ No data or error in response, setting empty notifications');
@@ -330,7 +343,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     // For now, we'll use polling
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 30000); // Poll every 30 seconds
+    }, 300000); // Poll every 5 minutes (300 seconds)
 
     dispatch({ type: 'SET_CONNECTION_STATUS', payload: true });
 

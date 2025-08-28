@@ -51,7 +51,7 @@ export const notificationTemplates = {
       priority: 'high',
       relatedId: appointmentId,
       relatedType: 'appointment',
-      actionUrl: `/appointments/${appointmentId}`,
+      actionUrl: `/clients/appointments/${appointmentId}`,
       actionText: 'View Appointment',
     }),
 
@@ -63,7 +63,7 @@ export const notificationTemplates = {
       priority: 'medium',
       relatedId: appointmentId,
       relatedType: 'appointment',
-      actionUrl: `/appointments/${appointmentId}`,
+      actionUrl: `/clients/appointments/${appointmentId}`,
       actionText: 'View Details',
     }),
 

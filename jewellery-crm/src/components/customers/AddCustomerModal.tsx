@@ -6,22 +6,81 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar } from "lucide-react";
-import { apiService } from "@/lib/api-service";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInputComponent } from "@/components/ui/phone-input";
+import { apiService } from "@/lib/api-service";
+import { 
+  INDIAN_CITIES, 
+  INDIAN_STATES, 
+  INDIAN_CATCHMENT_AREAS,
+  REASONS_FOR_VISIT,
+  CUSTOMER_STATUSES,
+  LEAD_SOURCES,
+  SAVING_SCHEMES,
+  CUSTOMER_INTERESTS,
+  PRODUCT_TYPES,
+  STYLES,
+  WEIGHT_RANGES,
+  getStateFromCity,
+  getPincodeFromCatchment,
+  getCatchmentAreasForCity,
+  lockField,
+  unlockField,
+  isFieldLocked
+} from "@/constants/indian-data";
+import { useAuth } from "@/hooks/useAuth";
+import { Loader2 } from 'lucide-react';
 
 interface AddCustomerModalProps {
   open: boolean;
   onClose: () => void;
+  onCustomerCreated: (customer: any) => void;
 }
 
-export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
+interface FormData {
+  fullName: string;
+  phone: string;
+  email: string;
+  birthDate: string;
+  anniversaryDate: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  country: string;
+  catchmentArea: string;
+  pincode: string;
+  salesPerson: string;
+  reasonForVisit: string;
+  customerStatus: string;
+  leadSource: string;
+  savingScheme: string;
+  customerInterests: string[];
+  productType: string;
+  style: string;
+  weightRange: string;
+  customerPreference: string;
+  designNumber: string;
+  nextFollowUpDate: string;
+  nextFollowUpTime: string;
+  summaryNotes: string;
+}
+
+interface AutofillLog {
+  fieldName: string;
+  sourceDataset: string;
+  timestamp: string;
+  userId: string;
+  originalValue: string;
+  newValue: string;
+}
+
+export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustomerModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   
-  // Form state
-  const [formData, setFormData] = useState({
+  // Form state with strict typing
+  const [formData, setFormData] = useState<FormData>({
     fullName: "",
     phone: "",
     email: "",
@@ -32,47 +91,70 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
     state: "",
     country: "India",
     catchmentArea: "",
-    community: "",
-    motherTongue: "",
+    pincode: "",
+    salesPerson: "",
     reasonForVisit: "",
+    customerStatus: "",
     leadSource: "",
-    ageOfEndUser: "",
-    savingScheme: "",
+    savingScheme: "Inactive",
+    customerInterests: [],
+    productType: "",
+    style: "",
+    weightRange: "",
+    customerPreference: "",
+    designNumber: "",
     nextFollowUpDate: "",
     nextFollowUpTime: "10:00",
     summaryNotes: "",
   });
 
-  // State for dynamic interests
-  const [interests, setInterests] = useState([
-    {
-      mainCategory: "",
-      products: [{ product: "", revenue: "" }],
-      preferences: {
-        designSelected: false,
-        wantsDiscount: false,
-        checkingOthers: false,
-        lessVariety: false,
-        other: "",
-      },
-    },
-  ]);
-
-  // State for API data
-  const [categories, setCategories] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [dropdownOptions, setDropdownOptions] = useState<any>({});
-  const [loading, setLoading] = useState(false);
+  // State for field locking (autofill enforcement)
+  const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
   
-  // State for sales pipeline
-  const [showPipelineSection, setShowPipelineSection] = useState(false);
-  const [pipelineOpportunities, setPipelineOpportunities] = useState<any[]>([]);
-  const [showDesignSelectedNotification, setShowDesignSelectedNotification] = useState(false);
+  // State for API data
+  const [salesPersons, setSalesPersons] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State for existing customer check
   const [existingCustomerInfo, setExistingCustomerInfo] = useState<{
     name: string;
     phone: string;
     status: string;
     email: string;
+  } | null>(null);
+
+  // State for autofill audit trail
+  const [autofillLogs, setAutofillLogs] = useState<AutofillLog[]>([]);
+
+  // Role-based salesperson field configuration
+  const ROLE_CONFIG = {
+    'inhouse_sales': { fieldType: 'locked', dataScope: 'self', canOverride: false },
+    'tele_calling': { fieldType: 'locked', dataScope: 'self', canOverride: false },
+    'manager': { fieldType: 'dropdown', dataScope: 'team', canOverride: true },
+    'business_admin': { fieldType: 'dropdown', dataScope: 'tenant', canOverride: true },
+    'platform_admin': { fieldType: 'dropdown', dataScope: 'global', canOverride: true }
+  };
+
+  // Role-aware field state management
+  const [fieldState, setFieldState] = useState<{
+    type: 'locked' | 'dropdown';
+    options: any[];
+    value: string;
+    locked: boolean;
+  }>({ type: 'locked', options: [], value: '', locked: true });
+
+  // Assignment audit trail
+  const [assignmentAudit, setAssignmentAudit] = useState<{
+    assignedByUserId: number;
+    assignedByRole: string;
+    assignedToUserId: number;
+    assignedToName: string;
+    assignmentType: 'self' | 'manager' | 'admin';
+    assignmentScope: 'self' | 'team' | 'tenant' | 'global';
+    timestamp: string;
+    overrideReason?: string;
+    teamViolation?: boolean;
   } | null>(null);
 
   // Helper function to suggest alternative emails
@@ -102,40 +184,118 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
     }
   };
 
-  const addInterest = () => {
-    setInterests([
-      ...interests,
-      {
-        mainCategory: "",
-        products: [{ product: "", revenue: "" }],
-        preferences: {
-          designSelected: false,
-          wantsDiscount: false,
-          checkingOthers: false,
-          lessVariety: false,
-          other: "",
-        },
-      },
-    ]);
+  // Deterministic autofill logic for City -> State with contextual catchment filtering
+  const handleCitySelection = (city: string) => {
+    const state = getStateFromCity(city);
+    
+    if (state) {
+      setFormData(prev => ({ 
+        ...prev, 
+        city, 
+        state,
+        // Clear catchment area and pincode when city changes
+        catchmentArea: "",
+        pincode: ""
+      }));
+      
+      // Lock the state field after autofill
+      setLockedFields(prev => lockField('state', prev));
+      
+      // Unlock catchment area and pincode fields for new selection
+      setLockedFields(prev => unlockField('catchmentArea', unlockField('pincode', prev)));
+      
+      // Log the autofill action
+      const autofillLog: AutofillLog = {
+        fieldName: 'state',
+        sourceDataset: 'CITY_STATE_MAP',
+        timestamp: new Date().toISOString(),
+        userId: 'current_user', // This should come from auth context
+        originalValue: formData.state,
+        newValue: state
+      };
+      setAutofillLogs(prev => [...prev, autofillLog]);
+      
+      // Log catchment area filtering
+      const catchmentAreas = getCatchmentAreasForCity(city);
+      const catchmentFilterLog: AutofillLog = {
+        fieldName: 'catchmentArea',
+        sourceDataset: 'CITY_CATCHMENT_MAP',
+        timestamp: new Date().toISOString(),
+        userId: 'current_user',
+        originalValue: `${formData.catchmentArea} (previous selection)`,
+        newValue: `${catchmentAreas.length} filtered options for ${city}`
+      };
+      setAutofillLogs(prev => [...prev, catchmentFilterLog]);
+      
+      toast({
+        title: "City Selection Updated",
+        description: `State set to ${state}. ${catchmentAreas.length} catchment areas available for ${city}.`,
+        variant: "default",
+      });
+    } else {
+      setFormData(prev => ({ 
+        ...prev, 
+        city, 
+        state: "",
+        catchmentArea: "",
+        pincode: ""
+      }));
+      
+      // Unlock state field if city doesn't have mapping
+      setLockedFields(prev => unlockField('state', prev));
+      
+      toast({
+        title: "City Selected",
+        description: `City "${city}" selected. Please manually select state and catchment area.`,
+        variant: "default",
+      });
+    }
   };
 
-  const addProductToInterest = (idx: number) => {
-    setInterests((prev) => {
-      const copy = [...prev];
-      copy[idx].products.push({ product: "", revenue: "" });
-      return copy;
-    });
+  // Deterministic autofill logic for Catchment Area -> Pincode
+  const handleCatchmentSelection = (catchmentArea: string) => {
+    const pincode = getPincodeFromCatchment(catchmentArea);
+    if (pincode) {
+      setFormData(prev => ({ ...prev, catchmentArea, pincode }));
+      
+      // Lock the pincode field after autofill
+      setLockedFields(prev => lockField('pincode', prev));
+      
+      // Log the autofill action
+      const autofillLog: AutofillLog = {
+        fieldName: 'pincode',
+        sourceDataset: 'CATCHMENT_PINCODE_MAP',
+        timestamp: new Date().toISOString(),
+        userId: 'current_user', // This should come from auth context
+        originalValue: formData.pincode,
+        newValue: pincode
+      };
+      setAutofillLogs(prev => [...prev, autofillLog]);
+      
+      toast({
+        title: "Pincode Auto-filled",
+        description: `Pincode automatically set to ${pincode} based on selected catchment area.`,
+        variant: "default",
+      });
+    } else {
+      setFormData(prev => ({ ...prev, catchmentArea, pincode: "" }));
+      // Unlock pincode field if catchment area doesn't have mapping
+      setLockedFields(prev => unlockField('pincode', prev));
+    }
   };
 
-  const removeProductFromInterest = (interestIdx: number, productIdx: number) => {
-    setInterests((prev) => {
-      const copy = [...prev];
-      copy[interestIdx].products.splice(productIdx, 1);
-      return copy;
-    });
+  // Handle multi-select for customer interests
+  const handleInterestToggle = (interest: string) => {
+    setFormData(prev => ({
+      ...prev,
+      customerInterests: prev.customerInterests.includes(interest)
+        ? prev.customerInterests.filter(i => i !== interest)
+        : [...prev.customerInterests, interest]
+    }));
   };
 
-  const handleInputChange = (field: keyof typeof formData, value: string) => {
+  // Handle form input changes with validation
+  const handleInputChange = (field: keyof FormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear existing customer info when email changes
@@ -144,28 +304,92 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
     }
   };
 
+  // Validate form before submission
+  const validateForm = (): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    if (!formData.fullName.trim()) {
+      errors.push("Full Name is required");
+    }
+    
+    if (!formData.phone.trim()) {
+      errors.push("Phone Number is required");
+    }
+    
+    if (!formData.city) {
+      errors.push("City is required");
+    }
+    
+    if (!formData.state) {
+      errors.push("State is required");
+    }
+    
+    if (!formData.catchmentArea) {
+      errors.push("Catchment Area is required");
+    }
+    
+    if (!formData.pincode) {
+      errors.push("Pincode is required");
+    }
+    
+    if (!formData.salesPerson) {
+      errors.push("Sales Person is required");
+    }
+    
+    if (!formData.reasonForVisit) {
+      errors.push("Reason for Visit is required");
+    }
+    
+    if (!formData.customerStatus) {
+      errors.push("Customer Status is required");
+    }
+    
+    if (!formData.leadSource) {
+      errors.push("Lead Source is required");
+    }
+    
+    if (!formData.savingScheme) {
+      errors.push("Monthly Saving Scheme is required");
+    }
+    
+    if (formData.customerInterests.length === 0) {
+      errors.push("At least one Customer Interest is required");
+    }
+    
+    if (!formData.productType) {
+      errors.push("Product Type is required");
+    }
+    
+    if (!formData.style) {
+      errors.push("Style is required");
+    }
+    
+    if (!formData.weightRange) {
+      errors.push("Weight Range is required");
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  };
+
   const handleSubmit = async () => {
     try {
-      // Validate required fields
-          if (!formData.fullName.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter the customer's full name.",
-        variant: "destructive",
-      });
-      return;
-    }
+      setIsSubmitting(true);
       
-              if (!formData.phone.trim()) {
-          toast({
-            title: "Validation Error",
-            description: "Please enter the customer's phone number.",
-            variant: "destructive",
-          });
-          return;
-        }
+      // Validate form
+      const validation = validateForm();
+      if (!validation.isValid) {
+        toast({
+          title: "Validation Error",
+          description: `Please fix the following errors:\n${validation.errors.join('\n')}`,
+          variant: "destructive",
+        });
+        return;
+      }
       
-      console.log('Submitting customer data:', { formData, interests });
+      console.log('Submitting customer data:', { formData, autofillLogs });
       
       // Format dates properly for API
       const formatDateForAPI = (dateString: string) => {
@@ -185,6 +409,22 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
         return value && value.trim() ? value.trim() : '';
       };
       
+      // Create assignment audit trail
+      const assignmentAudit = {
+        assignedByUserId: user?.id || 0,
+        assignedByRole: user?.role || 'unknown',
+        assignedToUserId: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? user?.id || 0 : 0, // Will be set based on selection
+        assignedToName: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? user?.name || 'Auto-assigned' : formData.salesPerson,
+        assignmentType: (user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? 'self' : 
+                       user?.role === 'manager' ? 'manager' : 'admin') as 'self' | 'manager' | 'admin',
+                assignmentScope: (user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? 'self' : 
+                         user?.role === 'manager' ? 'team' : 
+                         user?.role === 'business_admin' ? 'tenant' : 'global') as 'self' | 'team' | 'tenant' | 'global',
+        timestamp: new Date().toISOString(),
+        overrideReason: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? undefined : 'Role-based override',
+        teamViolation: false // Will be checked for managers
+      };
+
       // Prepare customer data
       const customerData = {
         first_name: formData.fullName.split(' ')[0] || formData.fullName,
@@ -192,61 +432,29 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
         email: cleanStringField(formData.email),
         phone: formData.phone,
         address: cleanStringField(formData.streetAddress),
-        city: cleanStringField(formData.city),
-        state: cleanStringField(formData.state),
+        city: formData.city,
+        state: formData.state,
         country: formData.country,
         date_of_birth: formatDateForAPI(formData.birthDate),
         anniversary_date: formatDateForAPI(formData.anniversaryDate),
-        community: cleanStringField(formData.community),
-        mother_tongue: cleanStringField(formData.motherTongue),
-        reason_for_visit: cleanStringField(formData.reasonForVisit),
-        lead_source: cleanStringField(formData.leadSource),
-        status: formData.leadSource === 'exhibition' ? 'exhibition' : 'lead', // Set status based on lead source
-        age_of_end_user: cleanStringField(formData.ageOfEndUser),
-        saving_scheme: cleanStringField(formData.savingScheme),
-        catchment_area: cleanStringField(formData.catchmentArea),
+        catchment_area: formData.catchmentArea,
+        pincode: formData.pincode,
+        sales_person: formData.salesPerson,
+        reason_for_visit: formData.reasonForVisit,
+        customer_status: formData.customerStatus,
+        lead_source: formData.leadSource,
+        saving_scheme: formData.savingScheme,
+        customer_interests: formData.customerInterests,
+        product_type: formData.productType,
+        style: formData.style,
+        weight_range: formData.weightRange,
+        customer_preference: cleanStringField(formData.customerPreference),
+        design_number: cleanStringField(formData.designNumber),
         next_follow_up: formatDateForAPI(formData.nextFollowUpDate),
         next_follow_up_time: formData.nextFollowUpTime,
         summary_notes: cleanStringField(formData.summaryNotes),
-        customer_interests_input: (() => {
-          console.log('=== FRONTEND: Processing interests ===');
-          console.log('Raw interests:', interests);
-          
-          const filteredInterests = interests
-            .filter(interest => {
-              const hasCategory = interest.mainCategory && interest.mainCategory.trim();
-              console.log(`Interest '${interest.mainCategory}' - hasCategory: ${hasCategory}`);
-              return hasCategory;
-            })
-            .map(interest => {
-              // Only include products that have both name and revenue
-              const validProducts = interest.products.filter(p => {
-                const hasProduct = p.product && p.product.trim();
-                const hasRevenue = p.revenue && p.revenue.trim();
-                console.log(`Product '${p.product}' - hasProduct: ${hasProduct}, hasRevenue: ${hasRevenue}`);
-                return hasProduct && hasRevenue;
-              });
-              
-              console.log(`Interest '${interest.mainCategory}': ${validProducts.length} valid products out of ${interest.products.length} total`);
-              
-              // Only include interests that have at least one valid product
-              if (validProducts.length === 0) {
-                console.log(`Skipping interest '${interest.mainCategory}' - no valid products`);
-                return null;
-              }
-              
-              return JSON.stringify({
-                category: interest.mainCategory,
-                products: validProducts,
-                preferences: interest.preferences
-              });
-            })
-            .filter(interestStr => interestStr !== null); // Remove null entries
-          
-          console.log(`Filtered ${filteredInterests.length} valid interests out of ${interests.length} total`);
-          console.log('Final filtered interests:', filteredInterests);
-          return filteredInterests;
-        })()
+        autofill_audit_trail: autofillLogs, // Include audit trail
+        assignment_audit: assignmentAudit, // Include assignment audit
       };
 
       // Remove undefined values to avoid sending them to API
@@ -256,47 +464,31 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
 
       console.log('Sending customer data to API:', cleanedCustomerData);
       
-      // Debug: Log the specific date fields
-      console.log('Date fields debug:', {
-        birthDate: formData.birthDate,
-        anniversaryDate: formData.anniversaryDate,
-        nextFollowUpDate: formData.nextFollowUpDate,
-        formattedBirthDate: formatDateForAPI(formData.birthDate),
-        formattedAnniversaryDate: formatDateForAPI(formData.anniversaryDate),
-        formattedNextFollowUp: formatDateForAPI(formData.nextFollowUpDate)
-      });
-      
       // Call API to create customer
       const response = await apiService.createClient(cleanedCustomerData);
       
-      if (response.success) {
+      // Check if API call succeeded AND no business logic errors
+      if (response.success && !response.errors && response.data) {
         console.log('Customer created successfully:', response.data);
         
-        // Create sales pipeline opportunities if customer is interested
-        if (showPipelineSection && pipelineOpportunities.length > 0) {
-          await createPipelineOpportunities(response.data.id);
-          toast({
-          title: "Success!",
-          description: `Customer created successfully! 1 consolidated sales pipeline opportunity has been created.`,
-          variant: "success",
-        });
+        // Log assignment override for audit trail
+        if (assignmentAudit.assignmentType !== 'self') {
+          try {
+            await apiService.logAssignmentOverride(assignmentAudit);
+            console.log('Assignment override logged successfully');
+          } catch (error) {
+            console.error('Failed to log assignment override:', error);
+          }
         }
         
-        // Check if follow-up date was provided and show appropriate message
-        if (formData.nextFollowUpDate) {
-          const time = formData.nextFollowUpTime || '10:00';
-          toast({
-            title: "Success!",
-            description: `Customer added successfully! A follow-up appointment has been scheduled for ${formData.nextFollowUpDate} at ${time}.`,
-            variant: "success",
-          });
-        } else {
-          toast({
-            title: "Success!",
-            description: "Customer added successfully!",
-            variant: "success",
-          });
-        }
+        toast({
+          title: "Success!",
+          description: `Customer added successfully! ${assignmentAudit.assignmentType === 'self' ? 'Auto-assigned to you.' : `Assigned to ${assignmentAudit.assignedToName}.`}`,
+          variant: "success",
+        });
+        
+        // Call the callback with the created customer data
+        onCustomerCreated(response.data);
         
         onClose();
         // Reset form
@@ -311,35 +503,45 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
           state: "",
           country: "India",
           catchmentArea: "",
-          community: "",
-          motherTongue: "",
+          pincode: "",
+          salesPerson: "",
           reasonForVisit: "",
+          customerStatus: "",
           leadSource: "",
-          ageOfEndUser: "",
-          savingScheme: "",
+          savingScheme: "Inactive",
+          customerInterests: [],
+          productType: "",
+          style: "",
+          weightRange: "",
+          customerPreference: "",
+          designNumber: "",
           nextFollowUpDate: "",
           nextFollowUpTime: "10:00",
           summaryNotes: "",
         });
-        setInterests([{
-          mainCategory: "",
-          products: [{ product: "", revenue: "" }],
-          preferences: {
-            designSelected: false,
-            wantsDiscount: false,
-            checkingOthers: false,
-            lessVariety: false,
-            other: "",
-          },
-        }]);
-        setPipelineOpportunities([]);
-        setShowPipelineSection(false);
-        setShowDesignSelectedNotification(false);
+        setLockedFields(new Set());
+        setAutofillLogs([]);
       } else {
         console.error('Failed to create customer:', response);
         
-        // Handle specific error messages from backend
-        if (response.message) {
+        // Handle specific error cases
+        if (response.errors && response.errors.email) {
+          // Handle duplicate email error
+          const emailError = response.errors.email[0];
+          if (emailError.includes('already exists')) {
+            toast({
+              title: "Duplicate Customer",
+              description: emailError,
+              variant: "warning",
+            });
+          } else {
+            toast({
+              title: "Email Error",
+              description: emailError,
+              variant: "destructive",
+            });
+          }
+        } else if (response.message) {
           toast({
             title: "Error",
             description: `Failed to add customer: ${response.message}`,
@@ -356,7 +558,6 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
     } catch (error: any) {
       console.error('Error creating customer:', error);
       
-      // Handle specific error types
       if (error.message && error.message.includes('duplicate key value violates unique constraint')) {
         if (error.message.includes('email')) {
           const suggestions = suggestAlternativeEmails(formData.email);
@@ -386,163 +587,105 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
           variant: "destructive",
         });
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const createPipelineOpportunities = async (customerId: number) => {
-    try {
-      // Since we now have only ONE consolidated opportunity, just create that single entry
-      if (pipelineOpportunities.length === 1) {
-        const opportunity = pipelineOpportunities[0];
-        const pipelineData = {
-          title: opportunity.title,
-          client_id: customerId, // Changed from client to client_id
-          sales_representative: { id: 1, username: 'current_user', full_name: 'Current User' }, // Fixed type to match expected object
-          stage: opportunity.stage,
-          probability: opportunity.probability,
-          expected_value: opportunity.expected_value,
-          notes: opportunity.notes,
-          next_action: opportunity.next_action,
-          next_action_date: opportunity.next_action_date
+  // Fetch sales persons when modal opens - OPTIMIZED
+  useEffect(() => {
+    if (open && user) {
+      // Only fetch if we don't already have options
+      if (salesPersons.length === 0 || salesPersons.includes('Sales Person 1')) {
+        const fetchData = async () => {
+          try {
+            setLoading(true);
+            console.log('Fetching data for AddCustomerModal...');
+            
+            // Load salesperson options based on role
+            await loadSalesPersonOptions();
+            
+          } catch (error) {
+            console.error('Error fetching data:', error);
+            // Fallback to default options
+            setSalesPersons(['Sales Person 1', 'Sales Person 2', 'Sales Person 3']);
+          } finally {
+            setLoading(false);
+          }
         };
         
-        console.log('Creating consolidated pipeline with data:', pipelineData);
-        const response = await apiService.createSalesPipeline(pipelineData);
-        if (response.success) {
-          console.log('Consolidated pipeline opportunity created:', response.data);
-        } else {
-          console.error('Failed to create consolidated pipeline opportunity:', response);
-          console.error('Response details:', response);
-        }
-      } else {
-        console.warn('Expected exactly 1 consolidated opportunity, but found:', pipelineOpportunities.length);
+        fetchData();
       }
+    }
+  }, [open, user, salesPersons.length]);
+
+  // Role-aware salesperson field initialization
+  useEffect(() => {
+    if (!user) return;
+    
+    // Auto-fill salesPerson for sales users
+    if (user.role === 'inhouse_sales' || user.role === 'tele_calling') {
+      setFormData(prev => ({ ...prev, salesPerson: user.name }));
+    }
+    
+    // Load salesperson options based on role
+    loadSalesPersonOptions();
+  }, [user]);
+
+  const loadSalesPersonOptions = async () => {
+    if (!user) return;
+    
+    try {
+      let options: any[] = [];
+      
+      switch (user.role) {
+        case 'manager':
+          // Load team members for managers
+          const teamResponse = await apiService.getTeamMembers(user.id);
+          if (teamResponse.success) {
+            options = teamResponse.data.filter((u: any) => u.role === 'inhouse_sales');
+          }
+          break;
+          
+        case 'business_admin':
+          // Load tenant sales users for business admins
+          if (user.tenant) {
+            const tenantResponse = await apiService.getTenantSalesUsers(user.tenant);
+            if (tenantResponse.success) {
+              options = tenantResponse.data.filter((u: any) => ['inhouse_sales', 'tele_calling'].includes(u.role));
+            }
+          }
+          break;
+          
+        case 'platform_admin':
+          // Load all sales users for platform admins
+          const globalResponse = await apiService.getAllSalesUsers();
+          if (globalResponse.success) {
+            options = globalResponse.data;
+          }
+          break;
+      }
+      
+      setSalesPersons(options.map((u: any) => u.name));
     } catch (error) {
-      console.error('Error creating consolidated pipeline opportunity:', error);
+      console.error('Failed to load salesperson options:', error);
+      // Fallback to default options
+      setSalesPersons(['Sales Person 1', 'Sales Person 2', 'Sales Person 3']);
     }
   };
-
-  const generatePipelineOpportunities = () => {
-    // Consolidate all interests into one pipeline opportunity per customer
-    const allInterests = interests.filter(interest => 
-      interest.mainCategory && interest.products.length > 0
-    );
-    
-    if (allInterests.length === 0) {
-      setPipelineOpportunities([]);
-      setShowPipelineSection(false);
-      return;
-    }
-    
-    // Calculate total revenue across all interests
-    const totalRevenue = allInterests.reduce((sum, interest) => {
-      const interestRevenue = interest.products.reduce((productSum, product) => {
-        return productSum + (parseFloat(product.revenue) || 0);
-      }, 0);
-      return sum + interestRevenue;
-        }, 0);
-        
-    // Determine overall stage and probability based on all interests
-    const hasDesignSelected = allInterests.some(interest => interest.preferences.designSelected);
-    // Default to store_walkin for new customers from store, not exhibition
-    const stage = hasDesignSelected ? 'closed_won' : 'store_walkin';
-    const probability = hasDesignSelected ? 100 : 50;
-    
-    // Create consolidated notes with all interests
-    const interestDetails = allInterests.map(interest => {
-          const categoryName = categories.find(cat => 
-            cat.id?.toString() === interest.mainCategory || cat.name === interest.mainCategory
-          )?.name || `Category ${interest.mainCategory}`;
-          
-      const products = interest.products.map(p => p.product).join(', ');
-      const designStatus = interest.preferences.designSelected ? ' - Design Selected!' : '';
-      
-      return `${categoryName}: ${products}${designStatus}`;
-    }).join('\n');
-    
-    // Create single consolidated opportunity
-    const consolidatedOpportunity = {
-      title: `${formData.fullName} - Complete Opportunity`,
-            probability: probability,
-            expected_value: totalRevenue,
-            stage: stage,
-      notes: `Consolidated customer interests:\n${interestDetails}`,
-      next_action: hasDesignSelected ? 'Process complete order' : 'Follow up with customer on all interests',
-            next_action_date: formData.nextFollowUpDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    };
-    
-    setPipelineOpportunities([consolidatedOpportunity]);
-    setShowPipelineSection(true);
-  };
-
-  // Watch for design selection changes and update pipeline opportunities
-  useEffect(() => {
-    if (showPipelineSection && pipelineOpportunities.length > 0) {
-      // Only regenerate if we don't already have a consolidated opportunity
-      if (pipelineOpportunities.length !== 1) {
-      generatePipelineOpportunities();
-      }
-    }
-  }, [interests]);
-
-  // Fetch categories, products, and dropdown options when modal opens
-  useEffect(() => {
-    if (open) {
-      const fetchData = async () => {
-        try {
-          setLoading(true);
-          console.log('Fetching data for AddCustomerModal...');
-          
-          // Fetch categories
-          const categoriesResponse = await apiService.getCategories();
-          console.log('Categories response:', categoriesResponse);
-          if (categoriesResponse.success && categoriesResponse.data) {
-            const categoriesData = Array.isArray(categoriesResponse.data) 
-              ? categoriesResponse.data 
-              : (categoriesResponse.data as any).results || (categoriesResponse.data as any).data || [];
-            setCategories(categoriesData);
-            console.log('Categories loaded:', categoriesData.length);
-          }
-          
-          // Fetch products
-          const productsResponse = await apiService.getProducts();
-          console.log('Products response:', productsResponse);
-          if (productsResponse.success && productsResponse.data) {
-            const productsData = Array.isArray(productsResponse.data) 
-              ? productsResponse.data 
-              : (productsResponse.data as any).results || (productsResponse.data as any).data || [];
-            setProducts(productsData);
-            console.log('Products loaded:', productsData.length);
-          }
-
-          // Fetch dropdown options
-          const dropdownResponse = await apiService.getCustomerDropdownOptions();
-          console.log('Dropdown options response:', dropdownResponse);
-          if (dropdownResponse.success && dropdownResponse.data) {
-            setDropdownOptions(dropdownResponse.data);
-            console.log('Dropdown options loaded:', dropdownResponse.data);
-          }
-        } catch (error) {
-          console.error('Error fetching data:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      
-      fetchData();
-    }
-  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl overflow-y-auto max-h-[90vh]">
+      <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Add New Customer / Visit Log</DialogTitle>
+          <DialogTitle>Add New Customer - Strict Dropdown Form</DialogTitle>
           <DialogDescription>
-            Enter customer details, track revenue opportunities, and convert leads to sales.
+            Customer onboarding form with deterministic autofill and strict dropdown enforcement. 
+            All fields except Street Address, Customer Preference, and Design Number must be selected from dropdowns.
           </DialogDescription>
           {loading && <div className="text-sm text-blue-600 mt-2">Loading data...</div>}
         </DialogHeader>
+
         {/* Customer Details */}
         <div className="border rounded-lg p-4 mb-4">
           <div className="font-semibold mb-2">Customer Details</div>
@@ -608,9 +751,10 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
             </div>
           </div>
         </div>
-        {/* Address */}
+
+        {/* Address Section */}
         <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-2">Address</div>
+          <div className="font-semibold mb-2">Address Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Street Address</label>
@@ -621,423 +765,357 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">City</label>
-              <Input 
-                placeholder="e.g., Mumbai" 
-                value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">State</label>
-              <Select value={formData.state} onValueChange={(value) => handleInputChange('state', value)}>
-                <SelectTrigger><SelectValue placeholder="Select State" /></SelectTrigger>
+              <label className="block text-sm font-medium mb-1">City *</label>
+              <Select 
+                value={formData.city} 
+                onValueChange={handleCitySelection}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select City" />
+                </SelectTrigger>
                 <SelectContent>
-                  {dropdownOptions.states?.map((state: any) => (
-                    <SelectItem key={state.value} value={state.value}>
-                      {state.label}
+                  {INDIAN_CITIES.map((city) => (
+                    <SelectItem key={city} value={city}>
+                      {city}
                     </SelectItem>
-                  )) || (
-                    <>
-                      <SelectItem value="MH">Maharashtra</SelectItem>
-                      <SelectItem value="TG">Telangana</SelectItem>
-                      <SelectItem value="KA">Karnataka</SelectItem>
-                    </>
-                  )}
+                  ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">State *</label>
+              <Select 
+                value={formData.state} 
+                onValueChange={(value) => handleInputChange('state', value)}
+                disabled={isFieldLocked('state', lockedFields)}
+              >
+                <SelectTrigger className={isFieldLocked('state', lockedFields) ? 'bg-gray-100' : ''}>
+                  <SelectValue placeholder={isFieldLocked('state', lockedFields) ? "Auto-filled from City" : "Select State"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isFieldLocked('state', lockedFields) && (
+                <div className="text-xs text-blue-600 mt-1">
+                  🔒 Auto-filled from selected city
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Country</label>
               <Input value="India" disabled />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Catchment Area</label>
-              <Input 
-                placeholder="e.g., South Mumbai, Bandra West" 
-                value={formData.catchmentArea}
-                onChange={(e) => handleInputChange('catchmentArea', e.target.value)}
-              />
+              <label className="block text-sm font-medium mb-1">Catchment Area *</label>
+              <Select 
+                value={formData.catchmentArea} 
+                onValueChange={handleCatchmentSelection}
+                disabled={!formData.city}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={formData.city ? "Select Catchment Area" : "Select City First"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {formData.city ? (
+                    getCatchmentAreasForCity(formData.city).map((area: string) => (
+                      <SelectItem key={area} value={area}>
+                        {area}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-city-selected" disabled>
+                      Please select a city first
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {!formData.city && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Select a city to see available catchment areas
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Pincode *</label>
+              <Select 
+                value={formData.pincode} 
+                onValueChange={(value) => handleInputChange('pincode', value)}
+                disabled={isFieldLocked('pincode', lockedFields)}
+              >
+                <SelectTrigger className={isFieldLocked('pincode', lockedFields) ? 'bg-gray-100' : ''}>
+                  <SelectValue placeholder={isFieldLocked('pincode', lockedFields) ? "Auto-filled from Catchment" : "Select Pincode"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {formData.catchmentArea && formData.pincode && (
+                    <SelectItem key={formData.pincode} value={formData.pincode}>
+                      {formData.pincode}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {isFieldLocked('pincode', lockedFields) && (
+                <div className="text-xs text-blue-600 mt-1">
+                  🔒 Auto-filled from selected catchment area
+                </div>
+              )}
             </div>
           </div>
         </div>
-        {/* Demographics & Visit */}
+
+        {/* Sales & Lead Information */}
         <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-2">Demographics & Visit</div>
+          <div className="font-semibold mb-2">Sales & Lead Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Community</label>
-              <Select value={formData.community} onValueChange={(value) => handleInputChange('community', value)}>
-                <SelectTrigger><SelectValue placeholder="Select Community" /></SelectTrigger>
+              <label className="block text-sm font-medium mb-1">Sales Person *</label>
+              {user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? (
+                // Auto-filled and locked for sales users
+                <div className="relative">
+                  <Input
+                    value={user?.name || 'Auto-assigned'}
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                    readOnly
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <span className="text-gray-400">🔒</span>
+                  </div>
+                </div>
+              ) : (
+                // Dropdown for managers and admins
+                <Select 
+                  value={formData.salesPerson} 
+                  onValueChange={(value) => handleInputChange('salesPerson', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Sales Person" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {salesPersons.map((person) => (
+                      <SelectItem key={person} value={person}>
+                        {person}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              
+              {/* Role context indicator */}
+              <div className="mt-1 text-sm text-gray-500">
+                {user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? (
+                  <span className="flex items-center">
+                    🔒 Auto-assigned to you (cannot be changed)
+                  </span>
+                ) : user?.role === 'manager' ? (
+                  <span className="flex items-center">
+                    👥 Select from your team members
+                  </span>
+                ) : user?.role === 'business_admin' ? (
+                  <span className="flex items-center">
+                    🏢 Select from tenant sales team
+                  </span>
+                ) : user?.role === 'platform_admin' ? (
+                  <span className="flex items-center">
+                    🌐 Select any sales user
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    👤 Select sales person
+                  </span>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Reason for Visit *</label>
+              <Select 
+                value={formData.reasonForVisit} 
+                onValueChange={(value) => handleInputChange('reasonForVisit', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Reason" />
+                </SelectTrigger>
                 <SelectContent>
-                  {dropdownOptions.communities?.map((community: any) => (
-                    <SelectItem key={community.value} value={community.value}>
-                      {community.label}
+                  {REASONS_FOR_VISIT.map((reason) => (
+                    <SelectItem key={reason} value={reason}>
+                      {reason}
                     </SelectItem>
-                  )) || (
-                    <>
-                      <SelectItem value="hindu">Hindu</SelectItem>
-                      <SelectItem value="muslim">Muslim</SelectItem>
-                      <SelectItem value="sikh">Sikh</SelectItem>
-                      <SelectItem value="christian">Christian</SelectItem>
-                      <SelectItem value="jain">Jain</SelectItem>
-                      <SelectItem value="buddhist">Buddhist</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </>
-                  )}
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Mother Tongue / Sub-community</label>
-              <Input 
-                placeholder="e.g., Gujarati, Marwari Jain" 
-                value={formData.motherTongue}
-                onChange={(e) => handleInputChange('motherTongue', e.target.value)}
+              <label className="block text-sm font-medium mb-1">Customer Status *</label>
+              <Select 
+                value={formData.customerStatus} 
+                onValueChange={(value) => handleInputChange('customerStatus', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CUSTOMER_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Lead Source *</label>
+              <Select 
+                value={formData.leadSource} 
+                onValueChange={(value) => handleInputChange('leadSource', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEAD_SOURCES.map((source) => (
+                    <SelectItem key={source} value={source}>
+                      {source}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Monthly Saving Scheme *</label>
+              <Select 
+                value={formData.savingScheme} 
+                onValueChange={(value) => handleInputChange('savingScheme', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SAVING_SCHEMES.map((scheme) => (
+                    <SelectItem key={scheme} value={scheme}>
+                      {scheme}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Product Preferences */}
+        <div className="border rounded-lg p-4 mb-4">
+          <div className="font-semibold mb-2">Product Preferences</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Customer Interest * (Multi-select)</label>
+              <div className="border rounded p-3 max-h-32 overflow-y-auto">
+                {CUSTOMER_INTERESTS.map((interest) => (
+                  <label key={interest} className="flex items-center gap-2 mb-2">
+                    <Checkbox 
+                      checked={formData.customerInterests.includes(interest)}
+                      onCheckedChange={() => handleInterestToggle(interest)}
+                    /> 
+                    {interest}
+                  </label>
+                ))}
+              </div>
+              {formData.customerInterests.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {formData.customerInterests.map((interest) => (
+                    <Badge key={interest} variant="secondary">
+                      {interest}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Product Type *</label>
+              <Select 
+                value={formData.productType} 
+                onValueChange={(value) => handleInputChange('productType', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Product Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRODUCT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Style *</label>
+              <Select 
+                value={formData.style} 
+                onValueChange={(value) => handleInputChange('style', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Style" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STYLES.map((style) => (
+                    <SelectItem key={style} value={style}>
+                      {style}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Weight Range *</label>
+              <Select 
+                value={formData.weightRange} 
+                onValueChange={(value) => handleInputChange('weightRange', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Weight Range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEIGHT_RANGES.map((range) => (
+                    <SelectItem key={range} value={range}>
+                      {range}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Information */}
+        <div className="border rounded-lg p-4 mb-4">
+          <div className="font-semibold mb-2">Additional Information</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Customer Preference</label>
+              <Textarea 
+                placeholder="Optional notes about customer preferences..." 
+                rows={3}
+                value={formData.customerPreference}
+                onChange={(e) => handleInputChange('customerPreference', e.target.value)}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Reason for Visit</label>
-              <Select value={formData.reasonForVisit} onValueChange={(value) => handleInputChange('reasonForVisit', value)}>
-                <SelectTrigger><SelectValue placeholder="Select Reason" /></SelectTrigger>
-                <SelectContent>
-                  {dropdownOptions.reasons_for_visit?.map((reason: any) => (
-                    <SelectItem key={reason.value} value={reason.value}>
-                      {reason.label}
-                    </SelectItem>
-                  )) || (
-                    <>
-                      <SelectItem value="purchase">Purchase</SelectItem>
-                      <SelectItem value="inquiry">Inquiry</SelectItem>
-                      <SelectItem value="repair">Repair</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Lead Source</label>
-              <Select value={formData.leadSource} onValueChange={(value) => handleInputChange('leadSource', value)}>
-                <SelectTrigger><SelectValue placeholder="Select Source" /></SelectTrigger>
-                <SelectContent>
-                  {dropdownOptions.lead_sources?.map((source: any) => (
-                    <SelectItem key={source.value} value={source.value}>
-                      {source.label}
-                    </SelectItem>
-                  )) || (
-                    <>
-                      <SelectItem value="walkin">Walk-in</SelectItem>
-                      <SelectItem value="referral">Referral</SelectItem>
-                      <SelectItem value="online">Online</SelectItem>
-                      <SelectItem value="exhibition">Exhibition</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Age of End-User</label>
-              <Select value={formData.ageOfEndUser} onValueChange={(value) => handleInputChange('ageOfEndUser', value)}>
-                <SelectTrigger><SelectValue placeholder="Select Age Group" /></SelectTrigger>
-                <SelectContent>
-                  {dropdownOptions.age_groups?.map((ageGroup: any) => (
-                    <SelectItem key={ageGroup.value} value={ageGroup.value}>
-                      {ageGroup.label}
-                    </SelectItem>
-                  )) || (
-                    <>
-                      <SelectItem value="18-25">18-25</SelectItem>
-                      <SelectItem value="26-35">26-35</SelectItem>
-                      <SelectItem value="36-50">36-50</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Monthly Saving Scheme</label>
-              <Select value={formData.savingScheme} onValueChange={(value) => handleInputChange('savingScheme', value)}>
-                <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
-                <SelectContent>
-                  {dropdownOptions.saving_schemes?.map((scheme: any) => (
-                    <SelectItem key={scheme.value} value={scheme.value}>
-                      {scheme.label}
-                    </SelectItem>
-                  )) || (
-                    <>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
+              <label className="block text-sm font-medium mb-1">Design Number</label>
+              <Input 
+                placeholder="e.g., DES-2024-001" 
+                value={formData.designNumber}
+                onChange={(e) => handleInputChange('designNumber', e.target.value)}
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                Alphanumeric code for inventory tracking
+              </div>
             </div>
           </div>
         </div>
-        {/* Customer Interests (dynamic) */}
-        <div className="border rounded-lg p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="font-semibold">Customer Interests</div>
-            <Button variant="outline" size="sm" onClick={addInterest}>+ Add Interest</Button>
-          </div>
-          {interests.map((interest, idx) => (
-            <div key={idx} className="border rounded p-3 mb-4">
-              <div className="mb-2 font-medium">Interest Item #{idx + 1}</div>
-              <div className="mb-2">
-                <label className="block text-sm font-medium mb-1">Main Category *</label>
-                <Select value={interest.mainCategory} onValueChange={val => {
-                  setInterests(prev => {
-                    const copy = [...prev];
-                    copy[idx].mainCategory = val;
-                    return copy;
-                  });
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loading ? "Loading categories..." : "Select Main Category"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {loading ? (
-                      <SelectItem value="loading" disabled>Loading categories...</SelectItem>
-                    ) : categories.length > 0 ? (
-                      categories.map((category) => {
-                        const categoryValue = category.id?.toString() || category.name || `category-${category.id}`;
-                        const categoryName = category.name || `Category ${category.id}`;
-                        return (
-                          <SelectItem key={category.id} value={categoryValue}>
-                            {categoryName}
-                          </SelectItem>
-                        );
-                      })
-                    ) : (
-                      <SelectItem value="no-categories" disabled>No categories available</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* Only show product/revenue fields if mainCategory is selected */}
-              {interest.mainCategory && (
-                <>
-                  {interest.products.map((prod, pidx) => (
-                    <div key={pidx} className="border rounded p-2 mb-2 flex flex-col md:flex-row gap-2 items-center">
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium mb-1">Product *</label>
-                        <Select 
-                          value={prod.product}
-                          onValueChange={(value) => {
-                            setInterests(prev => {
-                              const copy = [...prev];
-                              copy[idx].products[pidx].product = value;
-                              return copy;
-                            });
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={loading ? "Loading products..." : "Select Product"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {loading ? (
-                              <SelectItem value="loading-products" disabled>Loading products...</SelectItem>
-                            ) : products.length > 0 ? (
-                              products.map((product) => {
-                                const productValue = product.id?.toString() || product.name || `product-${product.id}`;
-                                const productName = product.name || `Product ${product.id}`;
-                                return (
-                                  <SelectItem key={product.id} value={productValue}>
-                                    {productName}
-                                  </SelectItem>
-                                );
-                              })
-                            ) : (
-                              <SelectItem value="no-products" disabled>No products available</SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium mb-1">Revenue Opportunity (₹) *</label>
-                        <Input 
-                          placeholder="e.g., 50000" 
-                          value={prod.revenue}
-                          onChange={(e) => {
-                            setInterests(prev => {
-                              const copy = [...prev];
-                              copy[idx].products[pidx].revenue = e.target.value;
-                              return copy;
-                            });
-                          }}
-                        />
-                        <div className="text-xs text-blue-600">Estimated revenue opportunity for this product</div>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="self-end text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => removeProductFromInterest(idx, pidx)}
-                        type="button"
-                      >
-                        🗑️
-                      </Button>
-                    </div>
-                  ))}
-                  <Button variant="link" size="sm" className="text-orange-600" onClick={() => addProductToInterest(idx)}>
-                    + Add Product to this Interest
-                  </Button>
-                </>
-              )}
-              {/* Customer Preference */}
-              <div className="border rounded p-3 mt-3">
-                <div className="font-semibold mb-2">Customer Preference</div>
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2">
-                    <Checkbox 
-                      checked={interest.preferences.designSelected}
-                      onCheckedChange={(checked) => {
-                        setInterests(prev => {
-                          const copy = [...prev];
-                          copy[idx].preferences.designSelected = checked as boolean;
-                          return copy;
-                        });
-                        
-                        // If design is selected, automatically generate/update pipeline opportunities
-                        if (checked) {
-                          setTimeout(() => {
-                            generatePipelineOpportunities();
-                            setShowDesignSelectedNotification(true);
-                            // Hide notification after 5 seconds
-                            setTimeout(() => setShowDesignSelectedNotification(false), 5000);
-                          }, 100);
-                        }
-                      }}
-                    /> 
-                    Design Selected?
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <Checkbox 
-                      checked={interest.preferences.wantsDiscount}
-                      onCheckedChange={(checked) => {
-                        setInterests(prev => {
-                          const copy = [...prev];
-                          copy[idx].preferences.wantsDiscount = checked as boolean;
-                          return copy;
-                        });
-                      }}
-                    /> 
-                    Wants More Discount
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <Checkbox 
-                      checked={interest.preferences.checkingOthers}
-                      onCheckedChange={(checked) => {
-                        setInterests(prev => {
-                          const copy = [...prev];
-                          copy[idx].preferences.checkingOthers = checked as boolean;
-                          return copy;
-                        });
-                      }}
-                    /> 
-                    Checking Other Jewellers
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <Checkbox 
-                      checked={interest.preferences.lessVariety}
-                      onCheckedChange={(checked) => {
-                        setInterests(prev => {
-                          const copy = [...prev];
-                          copy[idx].preferences.lessVariety = checked as boolean;
-                          return copy;
-                        });
-                      }}
-                    /> 
-                    Felt Less Variety
-                  </label>
-                  <Input 
-                    placeholder="Other Preferences (if any)" 
-                    className="mt-2"
-                    value={interest.preferences.other}
-                    onChange={(e) => {
-                      setInterests(prev => {
-                        const copy = [...prev];
-                        copy[idx].preferences.other = e.target.value;
-                        return copy;
-                      });
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Sales Pipeline Opportunities */}
-        {interests.some(interest => interest.mainCategory && interest.products.some(p => p.product && p.revenue)) && (
-          <div className="border rounded-lg p-4 mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold">Sales Pipeline Opportunities</div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={generatePipelineOpportunities}
-                className="bg-blue-50 text-blue-700 hover:bg-blue-100"
-              >
-                🎯 Generate Opportunities
-              </Button>
-            </div>
-            <div className="text-sm text-gray-600 mb-3">
-              Create sales pipeline opportunities based on customer interests and revenue potential
-            </div>
-            
-            {/* Design Selected Notification */}
-            {showDesignSelectedNotification && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <span className="text-green-600">🎉</span>
-                  <span className="text-green-800 font-medium">
-                    Design Selected! Pipeline opportunities have been automatically updated to "Closed Won" stage.
-                  </span>
-                </div>
-                <div className="text-sm text-green-700 mt-1">
-                  Revenue will be reflected in the sales pipeline as a won deal.
-                </div>
-              </div>
-            )}
-            
-            {showPipelineSection && pipelineOpportunities.length > 0 && (
-              <div className="space-y-3">
-                <div className="text-sm font-medium text-green-700 mb-2">
-                  ✅ 1 consolidated opportunity will be created in the sales pipeline
-                </div>
-                {pipelineOpportunities.map((opportunity, idx) => (
-                  <div key={idx} className={`border rounded p-3 ${opportunity.stage === 'closed_won' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
-                    <div className="font-medium text-green-800 flex items-center gap-2">
-                      {opportunity.title}
-                      {opportunity.stage === 'closed_won' && (
-                        <Badge variant="default" className="bg-green-600 text-white">
-                          🎉 Closed Won
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      <span className="font-medium">Expected Value:</span> ₹{opportunity.expected_value.toLocaleString()}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">Probability:</span> {opportunity.probability}%
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">Stage:</span> {opportunity.stage === 'closed_won' ? 'Closed Won' : opportunity.stage === 'store_walkin' ? 'Store Walkin' : 'Exhibition'}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">Next Action:</span> {opportunity.next_action}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {opportunity.notes}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        
+
         {/* Follow-up & Summary */}
         <div className="border rounded-lg p-4 mb-4">
           <div className="font-semibold mb-2">Follow-up & Summary</div>
@@ -1049,9 +1127,6 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
                 value={formData.nextFollowUpDate}
                 onChange={(e) => handleInputChange('nextFollowUpDate', e.target.value)}
               />
-              <div className="text-xs text-blue-600 mt-1">
-                Setting a follow-up date will automatically create an appointment
-              </div>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Follow-up Time</label>
@@ -1061,7 +1136,7 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
                 onChange={(e) => handleInputChange('nextFollowUpTime', e.target.value)}
               />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Summary Notes of Visit</label>
               <Textarea 
                 placeholder="Key discussion points, items shown, next steps..." 
@@ -1071,12 +1146,47 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
               />
             </div>
           </div>
-          <div className="mt-4 flex justify-end">
-            <Button className="btn-primary" onClick={handleSubmit}>
-              Add Customer & Visit Log
-            </Button>
-          </div>
         </div>
+
+        {/* Autofill Audit Trail */}
+        {autofillLogs.length > 0 && (
+          <div className="border rounded-lg p-4 mb-4">
+            <div className="font-semibold mb-2">🔒 Autofill Audit Trail</div>
+            <div className="text-sm text-gray-600 mb-2">
+              Fields automatically populated with verified Indian dataset values:
+            </div>
+            <div className="space-y-2">
+              {autofillLogs.map((log, index) => (
+                <div key={index} className="text-xs bg-blue-50 p-2 rounded border">
+                  <span className="font-medium">{log.fieldName}:</span> {log.originalValue} → {log.newValue}
+                  <br />
+                  <span className="text-gray-500">
+                    Source: {log.sourceDataset} | Time: {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <div className="mt-4 flex justify-end">
+          <Button 
+            className="btn-primary" 
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating Customer...
+              </>
+            ) : (
+              'Add Customer with Strict Validation'
+            )}
+          </Button>
+        </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
         </DialogFooter>
