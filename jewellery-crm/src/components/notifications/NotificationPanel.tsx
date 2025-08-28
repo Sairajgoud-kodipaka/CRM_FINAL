@@ -101,6 +101,18 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
     setVolume(notificationSound.getVolume());
   }, []);
 
+  // Close panel when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
   // Filter notifications based on user role and store access
   const getScopedNotifications = (notifications: Notification[]) => {
     console.log('🔍 getScopedNotifications called with:', {
@@ -174,18 +186,6 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
 
   const scopedNotifications = getScopedNotifications(state.notifications);
   const unreadCount = scopedNotifications.filter(n => n.status === 'unread').length;
-
-  // Close panel when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
 
   const handleMarkAsRead = async (notificationId: string) => {
     await actions.markAsRead(notificationId);
