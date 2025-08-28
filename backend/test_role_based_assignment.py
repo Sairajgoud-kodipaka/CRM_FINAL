@@ -264,8 +264,8 @@ class RoleBasedAssignmentTest(TestCase):
             'assignedByRole': self.manager.role,
             'assignedToUserId': self.sales_person_1.id,
             'assignedToName': self.sales_person_1.get_full_name(),
-        'assignmentType': 'manager',
-        'assignmentScope': 'team',
+            'assignmentType': 'manager',
+            'assignmentScope': 'team',
             'timestamp': '2024-01-01T00:00:00Z'
         }
         
@@ -282,8 +282,8 @@ class RoleBasedAssignmentTest(TestCase):
     def test_api_endpoint_access_control(self):
         """Test API endpoint access control"""
         print("\n🧪 Testing API Endpoint Access Control...")
-    
-    endpoints = [
+        
+        endpoints = [
             ('/api/users/team-members/1/', 'GET'),
             ('/api/users/tenant/1/sales-users/', 'GET'),
             ('/api/users/sales-users/', 'GET'),
@@ -339,9 +339,9 @@ class RoleBasedAssignmentTest(TestCase):
     def run_all_tests(self):
         """Run all tests and provide summary"""
         print("🚀 Starting Role-Based Assignment Test Suite...")
-    print("=" * 60)
-    
-    try:
+        print("=" * 60)
+        
+        try:
             self.test_role_assignment_logic()
             self.test_deterministic_dropdown_behavior()
             self.test_security_and_permissions()
@@ -357,8 +357,8 @@ class RoleBasedAssignmentTest(TestCase):
             print("✅ Audit Trail Logging: VERIFIED")
             print("✅ API Access Control: VERIFIED")
             print("✅ Data Filtering: VERIFIED")
-        
-    except Exception as e:
+            
+        except Exception as e:
             print(f"❌ Test failed: {str(e)}")
             raise
 

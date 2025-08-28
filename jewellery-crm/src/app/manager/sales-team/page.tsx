@@ -79,9 +79,9 @@ export default function ManagerSalesTeamPage() {
     try {
       setLoading(true);
       console.log('🔍 Fetching team performance...');
-      console.log('📡 API URL: /users/sales-team/performance/');
+      console.log('📡 API URL: /sales-team/performance/');
       
-      const response = await apiService.get('/users/sales-team/performance/');
+      const response = await apiService.get('/sales-team/performance/');
       console.log('📡 API Response:', response);
       
       if (response.success) {
@@ -491,7 +491,7 @@ function SalesPersonDetailModal({ salesPerson, onClose }: SalesPersonDetailModal
   const fetchDetailedProfile = async () => {
     try {
       setLoading(true);
-      const response = await apiService.get(`/users/sales-team/${salesPerson.user_id}/profile/`);
+              const response = await apiService.get(`/sales-team/${salesPerson.user_id}/profile/`);
       if (response.success) {
         setDetailedProfile(response.data);
       }

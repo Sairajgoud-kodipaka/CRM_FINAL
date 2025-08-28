@@ -125,7 +125,7 @@ export default function BusinessAdminAppointmentsPage() {
         return true;
       }
       
-      // Show past appointments only if they're incomplete and user wants to see overdue
+      // Show past appointments only if they&apos;re incomplete and user wants to see overdue
       if (showOverdue && appointment.status !== 'completed' && appointment.status !== 'cancelled') {
         return true;
       }
@@ -221,10 +221,10 @@ export default function BusinessAdminAppointmentsPage() {
         });
       }
       
-      // Show summary notification for today's appointments
+      // Show summary notification for today&apos;s appointments
       if (currentHour === 9) { // Show at 9 AM
         toast({
-          title: "📅 Today's Appointments",
+          title: "📅 Today&apos;s Appointments",
           description: `You have ${todayAppointments.length} appointment(s) scheduled for today`,
           variant: "default",
         });
@@ -384,7 +384,7 @@ export default function BusinessAdminAppointmentsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="flex flex-col gap-1 p-5">
           <div className="text-xl font-bold text-text-primary">{stats.todayAppointments}</div>
-          <div className="text-sm text-text-secondary font-medium">Today's Appointments</div>
+          <div className="text-sm text-text-secondary font-medium">Today&apos;s Appointments</div>
         </Card>
         <Card className="flex flex-col gap-1 p-5">
           <div className="text-xl font-bold text-text-primary">{stats.upcomingAppointments}</div>

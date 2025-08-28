@@ -347,12 +347,23 @@ class ApiService {
         if (authStorage) {
           const parsed = JSON.parse(authStorage);
           
-          // Try different possible structures
+          // Try different possible structures - prioritize state.token
           const token = parsed.state?.token || parsed.token || null;
           if (token) {
             console.log('🔑 Token found in auth-storage:', token.substring(0, 20) + '...');
             return token;
           }
+        }
+        
+        // Also try to get from Zustand store directly
+        try {
+          const authStore = JSON.parse(localStorage.getItem('auth-storage') || '{}');
+          if (authStore.state?.token) {
+            console.log('🔑 Token found in Zustand store:', authStore.state.token.substring(0, 20) + '...');
+            return authStore.state.token;
+          }
+        } catch (e) {
+          // Ignore parsing errors for Zustand store
         }
         
         console.log('❌ No token found in storage');
@@ -1942,17 +1953,17 @@ class ApiService {
 
   // Get team members for a manager
   async getTeamMembers(managerId: number): Promise<ApiResponse<User[]>> {
-    return this.request(`/users/team-members/${managerId}/`);
+    return this.request(`/team-members/${managerId}/`);
   }
   
   // Get sales users in a specific tenant
   async getTenantSalesUsers(tenantId: number): Promise<ApiResponse<User[]>> {
-    return this.request(`/users/tenant/${tenantId}/sales-users/`);
+    return this.request(`/tenant/${tenantId}/sales-users/`);
   }
   
   // Get all sales users (platform admin only)
   async getAllSalesUsers(): Promise<ApiResponse<User[]>> {
-    return this.request('/users/sales-users/');
+    return this.request('/sales-users/');
   }
   
   // Log assignment override for audit trail

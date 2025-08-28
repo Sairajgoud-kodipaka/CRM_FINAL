@@ -69,7 +69,7 @@ export default function SalesTeamPage() {
   const fetchTeamPerformance = async () => {
     try {
       setLoading(true);
-      const response = await apiService.get('/users/sales-team/performance/');
+      const response = await apiService.get('/sales-team/performance/');
       if (response.success && response.data) {
         // Type guard to ensure data matches TeamPerformance structure
         const data = response.data as any;
@@ -483,7 +483,7 @@ function SalesPersonDetailModal({ salesPerson, onClose }: SalesPersonDetailModal
   const fetchDetailedProfile = async () => {
     try {
       setLoading(true);
-      const response = await apiService.get(`/users/sales-team/${salesPerson.user_id}/profile/`);
+              const response = await apiService.get(`/sales-team/${salesPerson.user_id}/profile/`);
       if (response.success) {
         setDetailedProfile(response.data);
       }

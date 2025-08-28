@@ -1710,45 +1710,96 @@ class SalesPersonDetailView(APIView):
 # ================================
 
 class TeamMembersView(APIView):
-    """Get team members for a manager"""
+    """
+    Get team members for a specific manager with role-based access control.
+    
+    Access rules:
+    - Manager: Can only see their own team members
+    - Business Admin: Can see team members for any manager in their tenant
+    - Platform Admin: Can see team members for any manager
+    - Others: Access denied
+    """
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request, manager_id):
         current_user = request.user
         
-        # Only managers can see their team members
-        if current_user.role != 'manager':
+        # Only managers, business admins, and platform admins can access
+        if current_user.role not in ['manager', 'business_admin', 'platform_admin']:
             return Response(
-                {'detail': 'Access denied - only managers can view team members'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Verify manager is requesting their own team
-        if current_user.id != manager_id:
-            return Response(
-                {'detail': 'Access denied - can only view your own team'}, 
+                {'detail': 'Access denied - insufficient permissions'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
         try:
-            # Get team members from TeamMember model
-            from .models import TeamMember
-            team_members = TeamMember.objects.filter(
-                manager__user_id=manager_id,
-                status='active'
-            ).select_related('user')
+            # Get the target manager
+            target_manager = User.objects.get(id=manager_id, is_active=True)
             
-            # Return only necessary user data
+            # Role-based access control
+            if current_user.role == 'manager':
+                # Manager can only see their own team
+                if current_user.id != manager_id:
+                    return Response(
+                        {'detail': 'Access denied - can only view your own team'}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                
+                # Get team members from TeamMember model where this user is the manager
+                team_members = TeamMember.objects.filter(
+                    manager__user_id=manager_id,
+                    status='active'
+                ).select_related('user')
+                
+            elif current_user.role == 'business_admin':
+                # Business admin can see team members in their tenant
+                if not current_user.tenant or target_manager.tenant != current_user.tenant:
+                    return Response(
+                        {'detail': 'Access denied - can only view users in your own tenant'}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                
+                # Get team members for the target manager in the same tenant
+                team_members = TeamMember.objects.filter(
+                    manager__user_id=manager_id,
+                    status='active',
+                    user__tenant=current_user.tenant
+                ).select_related('user')
+                
+            elif current_user.role == 'platform_admin':
+                # Platform admin can see any team members
+                team_members = TeamMember.objects.filter(
+                    manager__user_id=manager_id,
+                    status='active'
+                ).select_related('user')
+            
+            else:
+                return Response(
+                    {'detail': 'Access denied'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Return only necessary user data for salesperson assignment
             users = [{
                 'id': member.user.id,
-                'name': member.user.get_full_name(),
+                'name': member.user.get_full_name() or member.user.username,
                 'role': member.user.role,
                 'employee_id': member.employee_id,
-                'store_name': member.user.store.name if member.user.store else None
-            } for member in team_members]
+                'store_name': member.user.store.name if member.user.store else None,
+                'tenant_name': member.user.tenant.name if member.user.tenant else None
+            } for member in team_members if member.user.role in ['inhouse_sales', 'tele_calling']]
             
-            return Response(users)
+            return Response({
+                'users': users,
+                'total_count': len(users),
+                'manager_name': target_manager.get_full_name() or target_manager.username,
+                'access_level': current_user.role
+            })
             
+        except User.DoesNotExist:
+            return Response(
+                {'detail': 'Manager not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
         except Exception as e:
             return Response(
                 {'detail': f'Error fetching team members: {str(e)}'}, 
@@ -1757,95 +1808,200 @@ class TeamMembersView(APIView):
 
 
 class TenantSalesUsersView(APIView):
-    """Get sales users in a specific tenant"""
+    """
+    Get sales users in a specific tenant with role-based access control.
+    
+    Access rules:
+    - Business Admin: Can see all sales users in their tenant
+    - Manager: Can see sales users in their store/tenant
+    - Others: Access denied
+    """
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request, tenant_id):
         current_user = request.user
         
-        # Only business admins can see tenant sales users
-        if current_user.role != 'business_admin':
+        # Only business admins and managers can access
+        if current_user.role not in ['business_admin', 'manager']:
             return Response(
-                {'detail': 'Access denied - only business admins can view tenant users'}, 
+                {'detail': 'Access denied - insufficient permissions'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Verify admin is requesting users from their own tenant
-        if current_user.tenant_id != tenant_id:
+        # Verify user is requesting users from their own tenant
+        if not current_user.tenant or current_user.tenant_id != tenant_id:
             return Response(
                 {'detail': 'Access denied - can only view users in your own tenant'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
         try:
-            # Get sales users in tenant
-            sales_users = User.objects.filter(
-                tenant_id=tenant_id,
-                role__in=['inhouse_sales', 'tele_calling'],
-                is_active=True
-            )
+            # Get sales users based on role and scope
+            if current_user.role == 'manager':
+                # Manager can see sales users in their store and tenant
+                if current_user.store:
+                    # Manager with specific store - see users in that store
+                    sales_users = User.objects.filter(
+                        tenant_id=tenant_id,
+                        store=current_user.store,
+                        role__in=['inhouse_sales', 'tele_calling'],
+                        is_active=True
+                    )
+                else:
+                    # Manager without specific store - see all sales users in tenant
+                    sales_users = User.objects.filter(
+                        tenant_id=tenant_id,
+                        role__in=['inhouse_sales', 'tele_calling'],
+                        is_active=True
+                    )
+            else:
+                # Business admin can see all sales users in tenant
+                sales_users = User.objects.filter(
+                    tenant_id=tenant_id,
+                    role__in=['inhouse_sales', 'tele_calling'],
+                    is_active=True
+                )
             
+            # Return user data for salesperson assignment
             users = [{
                 'id': user.id,
-                'name': user.get_full_name(),
+                'name': user.get_full_name() or user.username,
                 'role': user.role,
-                'store_name': user.store.name if user.store else None
-            } for user in sales_users]
+                'store_name': user.store.name if user.store else None,
+                'tenant_name': user.tenant.name if user.tenant else None,
+                'is_available': user.is_active and (
+                    not hasattr(user, 'last_login') or 
+                    not user.last_login or 
+                    user.last_login > timezone.now() - timedelta(hours=24)
+                )
+            } for user in sales_users.order_by('first_name', 'last_name')]
             
-            return Response(users)
+            return Response({
+                'users': users,
+                'total_count': len(users),
+                'tenant_name': current_user.tenant.name,
+                'access_level': current_user.role,
+                'store_scope': current_user.store.name if current_user.store else 'all_stores'
+            })
             
         except Exception as e:
             return Response(
-                {'detail': f'Error fetching tenant users: {str(e)}'}, 
+                {'detail': f'Error fetching tenant sales users: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
 class AllSalesUsersView(APIView):
-    """Get all sales users (platform admin only)"""
+    """
+    Get all sales users with role-based access control.
+    
+    Access rules:
+    - Platform Admin: Can see all sales users across all tenants
+    - Business Admin: Can see all sales users in their tenant
+    - Manager: Can see sales users in their store/tenant
+    - Others: Access denied
+    """
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
         current_user = request.user
         
-        # Only platform admins can see all users
-        if current_user.role != 'platform_admin':
+        # Only platform admins, business admins, and managers can access
+        if current_user.role not in ['platform_admin', 'business_admin', 'manager']:
             return Response(
-                {'detail': 'Access denied - only platform admins can view all users'}, 
+                {'detail': 'Access denied - insufficient permissions'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
         try:
-            # Get all sales users
-            sales_users = User.objects.filter(
-                role__in=['inhouse_sales', 'tele_calling', 'manager'],
-                is_active=True
-            )
+            # Get sales users based on role and scope
+            if current_user.role == 'platform_admin':
+                # Platform admin can see all sales users
+                sales_users = User.objects.filter(
+                    role__in=['inhouse_sales', 'tele_calling', 'manager'],
+                    is_active=True
+                )
+            elif current_user.role == 'business_admin':
+                # Business admin can see sales users in their tenant
+                if not current_user.tenant:
+                    return Response(
+                        {'detail': 'No tenant associated'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                sales_users = User.objects.filter(
+                    tenant=current_user.tenant,
+                    role__in=['inhouse_sales', 'tele_calling', 'manager'],
+                    is_active=True
+                )
+            elif current_user.role == 'manager':
+                # Manager can see sales users in their store and tenant
+                if not current_user.tenant:
+                    return Response(
+                        {'detail': 'No tenant associated'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if current_user.store:
+                    # Manager with specific store - see users in that store
+                    sales_users = User.objects.filter(
+                        tenant=current_user.tenant,
+                        store=current_user.store,
+                        role__in=['inhouse_sales', 'tele_calling'],
+                        is_active=True
+                    )
+                else:
+                    # Manager without specific store - see all sales users in tenant
+                    sales_users = User.objects.filter(
+                        tenant=current_user.tenant,
+                        role__in=['inhouse_sales', 'tele_calling'],
+                        is_active=True
+                    )
+            else:
+                return Response(
+                    {'detail': 'Access denied'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
             
+            # Return user data for salesperson assignment
             users = [{
                 'id': user.id,
-                'name': user.get_full_name(),
+                'name': user.get_full_name() or user.username,
                 'role': user.role,
                 'tenant_name': user.tenant.name if user.tenant else None,
-                'store_name': user.store.name if user.store else None
-            } for user in sales_users]
+                'store_name': user.store.name if user.store else None,
+                'is_available': user.is_active and (
+                    not hasattr(user, 'last_login') or 
+                    not user.last_login or 
+                    user.last_login > timezone.now() - timedelta(hours=24)
+                )
+            } for user in sales_users.order_by('first_name', 'last_name')]
             
-            return Response(users)
+            return Response({
+                'users': users,
+                'total_count': len(users),
+                'access_level': current_user.role,
+                'tenant_scope': current_user.tenant.name if current_user.tenant else 'global',
+                'store_scope': current_user.store.name if current_user.store else 'all_stores'
+            })
             
         except Exception as e:
             return Response(
-                {'detail': f'Error fetching all users: {str(e)}'}, 
+                {'detail': f'Error fetching sales users: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
 class AssignmentOverrideAuditView(APIView):
-    """Log assignment override for audit trail"""
+    """
+    Log assignment override for audit trail with comprehensive tracking.
+    
+    This endpoint logs every salesperson assignment for compliance and audit purposes.
+    """
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
         try:
             audit_data = request.data
+            current_user = request.user
             
             # Validate required fields
             required_fields = [
@@ -1860,18 +2016,60 @@ class AssignmentOverrideAuditView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
             
-            # Log the assignment override
-            # In a real implementation, you would save this to an audit log table
-            # For now, we'll just log it to console
-            print(f"ASSIGNMENT OVERRIDE AUDIT: {audit_data}")
+            # Validate that the current user matches the assignedByUserId
+            if current_user.id != audit_data['assignedByUserId']:
+                return Response(
+                    {'detail': 'User ID mismatch - cannot log assignment for another user'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
             
-            return Response({'detail': 'Assignment override logged successfully'})
+            # Add additional audit metadata
+            audit_log = {
+                **audit_data,
+                'ip_address': self._get_client_ip(request),
+                'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+                'session_id': request.session.session_key if request.session else None,
+                'tenant_id': current_user.tenant.id if current_user.tenant else None,
+                'store_id': current_user.store.id if current_user.store else None,
+                'audit_timestamp': timezone.now().isoformat(),
+                'system_version': '1.0.0'  # Add your system version here
+            }
+            
+            # Log the assignment override with comprehensive details
+            print(f"🔐 ASSIGNMENT OVERRIDE AUDIT LOG:")
+            print(f"   📅 Timestamp: {audit_log['audit_timestamp']}")
+            print(f"   👤 Assigned By: {audit_log['assignedByUserId']} ({audit_log['assignedByRole']})")
+            print(f"   🎯 Assigned To: {audit_log['assignedToUserId']} ({audit_log['assignedToName']})")
+            print(f"   🔄 Type: {audit_log['assignmentType']}")
+            print(f"   🌍 Scope: {audit_log['assignmentScope']}")
+            print(f"   🏢 Tenant: {audit_log['tenant_id']}")
+            print(f"   🏪 Store: {audit_log['store_id']}")
+            print(f"   💻 IP: {audit_log['ip_address']}")
+            print(f"   📱 User Agent: {audit_log['user_agent']}")
+            
+            # In a production environment, save this to an audit log table
+            # For now, we'll just log it to console and return success
+            
+            return Response({
+                'detail': 'Assignment override logged successfully',
+                'audit_id': f"AUDIT_{int(timezone.now().timestamp())}",
+                'logged_at': audit_log['audit_timestamp']
+            })
             
         except Exception as e:
             return Response(
                 {'detail': f'Error logging assignment override: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    def _get_client_ip(self, request):
+        """Extract client IP address from request."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
 
 
 
