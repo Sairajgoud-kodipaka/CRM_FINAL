@@ -553,7 +553,7 @@ class ApiService {
 
   // Authentication
   async login(username: string, password: string): Promise<ApiResponse<LoginResponse>> {
-    return this.request('/login/', {
+    return this.request<LoginResponse>('/login/', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
@@ -1907,12 +1907,12 @@ class ApiService {
 
   // Get all purchases
   async getPurchases(): Promise<ApiResponse<any[]>> {
-    return this.request('/purchases/');
+    return this.request('/clients/purchases/');
   }
 
   // Create a new purchase
   async createPurchase(purchaseData: any): Promise<ApiResponse<any>> {
-    return this.request('/purchases/', {
+    return this.request('/clients/purchases/', {
       method: 'POST',
       body: JSON.stringify(purchaseData),
     });
@@ -1920,7 +1920,7 @@ class ApiService {
 
   // Update a purchase
   async updatePurchase(purchaseId: string, purchaseData: any): Promise<ApiResponse<any>> {
-    return this.request(`/purchases/${purchaseId}/`, {
+    return this.request(`/clients/purchases/${purchaseId}/`, {
       method: 'PUT',
       body: JSON.stringify(purchaseData),
     });
@@ -1928,7 +1928,7 @@ class ApiService {
 
   // Delete a purchase
   async deletePurchase(purchaseId: string): Promise<ApiResponse<void>> {
-    return this.request(`/purchases/${purchaseId}/`, {
+    return this.request(`/clients/purchases/${purchaseId}/`, {
       method: 'DELETE',
     });
   }
