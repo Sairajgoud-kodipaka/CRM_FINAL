@@ -20,6 +20,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileNav } from './MobileNav';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { PerformanceDashboard } from '../performance/PerformanceDashboard';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -113,6 +114,9 @@ export function AppLayout({ children, className }: AppLayoutProps) {
       {isMobile && (
         <MobileNav className="fixed bottom-0 left-0 right-0 z-30" />
       )}
+
+      {/* Performance Dashboard - Development Only */}
+      {process.env.NODE_ENV === 'development' && <PerformanceDashboard />}
     </div>
   );
 }
