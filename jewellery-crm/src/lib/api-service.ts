@@ -1,11 +1,24 @@
 // API Service for connecting to Django backend
 import { config, getApiUrl } from './config'
+import { performanceMonitor } from './performance-monitor'
 
 interface ApiResponse<T> {
   data: T;
   message?: string;
   success: boolean;
   errors?: Record<string, string[]>;
+}
+
+// Performance optimization interfaces
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
+interface PendingRequest<T> {
+  promise: Promise<ApiResponse<T>>;
+  timestamp: number;
 }
 
 // Type definitions based on backend models
@@ -338,6 +351,12 @@ interface SupportTicket {
 }
 
 class ApiService {
+  // Performance optimization properties
+  private cache = new Map<string, CacheEntry<any>>();
+  private pendingRequests = new Map<string, PendingRequest<any>>();
+  private readonly DEFAULT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly REQUEST_DEDUP_WINDOW = 1000; // 1 second
+
   private getAuthToken(): string | null {
     // Get token from localStorage or sessionStorage
     if (typeof window !== 'undefined') {
@@ -376,11 +395,91 @@ class ApiService {
     return null;
   }
 
+  // Cache management methods
+  private getCacheKey(endpoint: string, options?: RequestInit): string {
+    const method = options?.method || 'GET';
+    const body = options?.body ? JSON.stringify(options.body) : '';
+    return `${method}:${endpoint}:${body}`;
+  }
+
+  private getFromCache<T>(cacheKey: string): T | null {
+    const entry = this.cache.get(cacheKey);
+    if (!entry) return null;
+    
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.cache.delete(cacheKey);
+      return null;
+    }
+    
+    return entry.data;
+  }
+
+  private setCache<T>(cacheKey: string, data: T, ttl?: number): void {
+    this.cache.set(cacheKey, {
+      data,
+      timestamp: Date.now(),
+      ttl: ttl || this.DEFAULT_CACHE_TTL
+    });
+  }
+
+  private clearCache(pattern?: string): void {
+    if (pattern) {
+      for (const key of this.cache.keys()) {
+        if (key.includes(pattern)) {
+          this.cache.delete(key);
+        }
+      }
+    } else {
+      this.cache.clear();
+    }
+  }
+
+  // Request deduplication
+  private async deduplicateRequest<T>(
+    cacheKey: string, 
+    requestFn: () => Promise<ApiResponse<T>>
+  ): Promise<ApiResponse<T>> {
+    const pending = this.pendingRequests.get(cacheKey);
+    
+    if (pending && Date.now() - pending.timestamp < this.REQUEST_DEDUP_WINDOW) {
+      console.log('🔄 Deduplicating request:', cacheKey);
+      return pending.promise;
+    }
+
+    const promise = requestFn();
+    this.pendingRequests.set(cacheKey, {
+      promise,
+      timestamp: Date.now()
+    });
+
+    try {
+      const result = await promise;
+      return result;
+    } finally {
+      this.pendingRequests.delete(cacheKey);
+    }
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = getApiUrl(endpoint);
+    const cacheKey = this.getCacheKey(endpoint, options);
+    
+    // Start performance monitoring
+    performanceMonitor.startTiming(endpoint);
+    
+    // Check cache for GET requests
+    if (!options.method || options.method === 'GET') {
+      const cachedData = this.getFromCache<T>(cacheKey);
+      if (cachedData) {
+        console.log('⚡ Cache hit:', endpoint);
+        performanceMonitor.recordCacheHit();
+        performanceMonitor.endTiming(endpoint, true);
+        return { data: cachedData, success: true };
+      }
+    }
     
     const token = this.getAuthToken();
     
@@ -512,43 +611,87 @@ class ApiService {
       }
       
       // Check if the response is already in ApiResponse format
+      let result: ApiResponse<T>;
       if (data && typeof data === 'object' && 'success' in data) {
         // Response is already in ApiResponse format
-        return data;
+        result = data;
       } else {
         // Response is direct data, wrap it in ApiResponse format
-        return {
+        result = {
           data,
           success: true,
         };
       }
+      
+      // Cache successful GET responses
+      if ((!options.method || options.method === 'GET') && result.success) {
+        this.setCache(cacheKey, result.data);
+        console.log('💾 Cached response:', endpoint);
+      }
+      
+      // End performance monitoring for successful requests
+      performanceMonitor.endTiming(endpoint, false);
+      return result;
     } catch (error) {
       console.error('API Request failed:', error);
+      // End performance monitoring for failed requests
+      performanceMonitor.endTiming(endpoint, false);
       throw error;
     }
   }
 
-  // Generic HTTP methods
+  // Generic HTTP methods with deduplication
   async get<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: 'GET' });
+    const cacheKey = this.getCacheKey(endpoint, { method: 'GET' });
+    return this.deduplicateRequest(cacheKey, () => 
+      this.request<T>(endpoint, { method: 'GET' })
+    );
   }
 
   async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+    const cacheKey = this.getCacheKey(endpoint, { 
+      method: 'POST', 
+      body: data ? JSON.stringify(data) : undefined 
     });
+    return this.deduplicateRequest(cacheKey, () => 
+      this.request<T>(endpoint, {
+        method: 'POST',
+        body: data ? JSON.stringify(data) : undefined,
+      })
+    );
   }
 
   async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
+    const cacheKey = this.getCacheKey(endpoint, { 
+      method: 'PUT', 
+      body: data ? JSON.stringify(data) : undefined 
     });
+    return this.deduplicateRequest(cacheKey, () => 
+      this.request<T>(endpoint, {
+        method: 'PUT',
+        body: data ? JSON.stringify(data) : undefined,
+      })
+    );
   }
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    const cacheKey = this.getCacheKey(endpoint, { method: 'DELETE' });
+    return this.deduplicateRequest(cacheKey, () => 
+      this.request<T>(endpoint, { method: 'DELETE' })
+    );
+  }
+
+  // Cache management public methods
+  invalidateCache(pattern?: string): void {
+    this.clearCache(pattern);
+    console.log('🗑️ Cache invalidated:', pattern || 'all');
+  }
+
+  getCacheStats(): { size: number; keys: string[] } {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys())
+    };
   }
 
   // Authentication
