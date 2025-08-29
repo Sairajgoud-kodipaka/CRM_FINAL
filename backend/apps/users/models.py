@@ -1,3 +1,4 @@
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -44,6 +45,17 @@ class User(AbstractUser):
         blank=True,
         related_name='users',
         help_text=_('Store this user belongs to (null for platform/business admins)')
+    )
+    
+
+    # Manager relationship for sales users
+    manager = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subordinates',
+        help_text=_('Manager this user reports to (for sales users)')
     )
     
     # Additional fields

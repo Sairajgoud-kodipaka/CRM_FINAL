@@ -789,25 +789,37 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const loadSalesPersonOptions = async () => {
     if (!user) return;
     
-    // Always set fallback options first to ensure UI is never empty
-    const fallbackOptions = [
-      { id: 1, name: 'Sales Person 1', role: 'inhouse_sales' },
-      { id: 2, name: 'Sales Person 2', role: 'inhouse_sales' },
-      { id: 3, name: 'Sales Person 3', role: 'inhouse_sales' }
-    ];
-    
     try {
       let options: any[] = [];
       let apiResponse: any = null;
+      
+      console.log('🔍 DEBUG: Starting loadSalesPersonOptions');
+      console.log('🔍 DEBUG: User:', user);
+      console.log('🔍 DEBUG: User ID:', user.id);
+      console.log('🔍 DEBUG: User Role:', user.role);
       
       // Implement deterministic dropdown logic based on role
       if (user.role === 'manager') {
         // Manager: Only their team members
         console.log('👥 Manager: Loading team members...');
+        console.log('🔍 DEBUG: Calling apiService.getTeamMembers with ID:', user.id);
+        
         apiResponse = await safeApiCall(() => apiService.getTeamMembers(user.id || 0));
+        
+        console.log('🔍 DEBUG: Raw API Response:', apiResponse);
+        console.log('🔍 DEBUG: API Response success:', apiResponse?.success);
+        console.log('🔍 DEBUG: API Response data:', apiResponse?.data);
+        console.log('🔍 DEBUG: API Response data.users:', apiResponse?.data?.users);
+        
         if (apiResponse?.success && apiResponse.data?.users) {
           options = apiResponse.data.users;
           console.log(`✅ Loaded ${options.length} team members for manager`);
+          console.log('🔍 DEBUG: Options array:', options);
+        } else {
+          console.log('❌ API Response validation failed');
+          console.log('❌ Success:', apiResponse?.success);
+          console.log('❌ Data:', apiResponse?.data);
+          console.log('❌ Users:', apiResponse?.data?.users);
         }
       } else if (user.role === 'business_admin' && user.tenant) {
         // Business Admin: All sales users in their tenant
@@ -832,17 +844,49 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         ['inhouse_sales', 'tele_calling'].includes(u.role)
       );
       
-      // Use API options if available, otherwise use fallback
-      const finalOptions = salesUserOptions.length > 0 ? salesUserOptions : fallbackOptions;
-      setSalesPersons(finalOptions.map((u: any) => u.name || u.id));
+      console.log('🔍 DEBUG: Filtered sales user options:', salesUserOptions);
+      
+      if (salesUserOptions.length > 0) {
+        // Use real API options
+        const names = salesUserOptions.map((u: any) => u.name || u.id);
+        setSalesPersons(names);
+        console.log(`✅ Set ${salesUserOptions.length} real salesperson options:`, names);
+      } else {
+        // No sales users found - show appropriate message
+        setSalesPersons([]);
+        console.log('⚠️ No sales users found for the current role/scope');
+        
+        // Show user-friendly message based on role
+        if (user.role === 'manager') {
+          toast({
+            title: "No Team Members",
+            description: "You don't have any sales team members assigned yet. Please contact your administrator.",
+            variant: "warning",
+          });
+        } else if (user.role === 'business_admin') {
+          toast({
+            title: "No Sales Users",
+            description: "No sales users found in your tenant. Please add sales users first.",
+            variant: "warning",
+          });
+        }
+      }
       
       // Log the role-based assignment scope
       console.log(`🎯 Role-based assignment scope: ${user.role}`);
-      console.log(`📊 Available options: ${finalOptions.length} sales users`);
+      console.log(`📊 Available options: ${salesUserOptions.length} sales users`);
       
     } catch (error) {
-      console.warn('Salesperson options loading failed, using fallback options:', error);
-      setSalesPersons(fallbackOptions.map((u: any) => u.name || u.id));
+      console.error('Salesperson options loading failed:', error);
+      // Don't set hardcoded options - keep empty array
+      setSalesPersons([]);
+      
+      // Show error message to user
+      toast({
+        title: "Failed to Load Sales Team",
+        description: "Unable to load salesperson data. Please check your connection and try again.",
+        variant: "destructive",
+      });
     }
   };
 

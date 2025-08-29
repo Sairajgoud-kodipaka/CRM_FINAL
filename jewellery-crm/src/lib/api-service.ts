@@ -1948,22 +1948,22 @@ class ApiService {
 
   // List team members (filtered by current user's context)
   async listTeamMembers(): Promise<ApiResponse<User[]>> {
-    return this.request('/team-members/list/');
+    return this.request('/users/team-members/list/');
   }
 
   // Get team members for a manager
   async getTeamMembers(managerId: number): Promise<ApiResponse<User[]>> {
-    return this.request(`/team-members/${managerId}/`);
+    return this.request(`/users/team-members/${managerId}/`);
   }
   
   // Get sales users in a specific tenant
   async getTenantSalesUsers(tenantId: number): Promise<ApiResponse<User[]>> {
-    return this.request(`/tenant/${tenantId}/sales-users/`);
+    return this.request(`/users/tenant/${tenantId}/sales-users/`);
   }
   
   // Get all sales users (platform admin only)
   async getAllSalesUsers(): Promise<ApiResponse<User[]>> {
-    return this.request('/sales-users/');
+    return this.request('/users/sales-users/');
   }
   
   // Log assignment override for audit trail
