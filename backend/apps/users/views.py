@@ -1744,11 +1744,12 @@ class TeamMembersView(APIView):
                         status=status.HTTP_403_FORBIDDEN
                     )
                 
-                # Get team members from TeamMember model where this user is the manager
-                team_members = TeamMember.objects.filter(
-                    manager__user_id=manager_id,
-                    status='active'
-                ).select_related('user')
+                # Get subordinates directly from User model using the new manager field
+                team_members = User.objects.filter(
+                    manager_id=manager_id,
+                    role__in=['inhouse_sales', 'tele_calling'],
+                    is_active=True
+                )
                 
             elif current_user.role == 'business_admin':
                 # Business admin can see team members in their tenant
@@ -1758,19 +1759,21 @@ class TeamMembersView(APIView):
                         status=status.HTTP_403_FORBIDDEN
                     )
                 
-                # Get team members for the target manager in the same tenant
-                team_members = TeamMember.objects.filter(
-                    manager__user_id=manager_id,
-                    status='active',
-                    user__tenant=current_user.tenant
-                ).select_related('user')
+                # Get subordinates for the target manager in the same tenant
+                team_members = User.objects.filter(
+                    manager_id=manager_id,
+                    role__in=['inhouse_sales', 'tele_calling'],
+                    is_active=True,
+                    tenant=current_user.tenant
+                )
                 
             elif current_user.role == 'platform_admin':
                 # Platform admin can see any team members
-                team_members = TeamMember.objects.filter(
-                    manager__user_id=manager_id,
-                    status='active'
-                ).select_related('user')
+                team_members = User.objects.filter(
+                    manager_id=manager_id,
+                    role__in=['inhouse_sales', 'tele_calling'],
+                    is_active=True
+                )
             
             else:
                 return Response(
@@ -1780,13 +1783,12 @@ class TeamMembersView(APIView):
             
             # Return only necessary user data for salesperson assignment
             users = [{
-                'id': member.user.id,
-                'name': member.user.get_full_name() or member.user.username,
-                'role': member.user.role,
-                'employee_id': member.employee_id,
-                'store_name': member.user.store.name if member.user.store else None,
-                'tenant_name': member.user.tenant.name if member.user.tenant else None
-            } for member in team_members if member.user.role in ['inhouse_sales', 'tele_calling']]
+                'id': member.id,
+                'name': member.get_full_name() or member.username,
+                'role': member.role,
+                'store_name': member.store.name if member.store else None,
+                'tenant_name': member.tenant.name if member.tenant else None
+            } for member in team_members]
             
             return Response({
                 'users': users,

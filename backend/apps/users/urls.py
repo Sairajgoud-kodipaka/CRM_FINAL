@@ -20,15 +20,15 @@ urlpatterns = [
     path('sales-team/performance/', views.SalesTeamPerformanceView.as_view(), name='sales_team_performance'),
     path('sales-team/<int:user_id>/profile/', views.SalesPersonDetailView.as_view(), name='sales_person_detail'),
     path('sales-team/<int:pk>/', views.UserDetailView.as_view(), name='sales_team_profile'),
-    path('team-members/', views.TeamMemberListView.as_view(), name='team_members_list'),
-    path('team-members/list/', views.team_members_list, name='team_members_list'),
-    path('team-members/<int:pk>/', views.TeamMemberDetailView.as_view(), name='team_member_detail'),
-    path('team-members/<int:pk>/update/', views.TeamMemberUpdateView.as_view(), name='team_member_update'),
-    path('team-members/<int:pk>/delete/', views.TeamMemberDeleteView.as_view(), name='team_member_delete'),
+    path('users/team-members/', views.TeamMemberListView.as_view(), name='team_members_list'),
+    path('users/team-members/list/', views.team_members_list, name='team_members_list'),
+    path('users/team-members/<int:pk>/', views.TeamMemberDetailView.as_view(), name='team_member_detail'),
+    path('users/team-members/<int:pk>/update/', views.TeamMemberUpdateView.as_view(), name='team_member_update'),
+    path('users/team-members/<int:pk>/delete/', views.TeamMemberDeleteView.as_view(), name='team_member_delete'),
     
     # Role-based salesperson assignment
-    path('team-members/<int:manager_id>/', views.TeamMembersView.as_view(), name='team_members'),
-    path('tenant/<int:tenant_id>/sales-users/', views.TenantSalesUsersView.as_view(), name='tenant_sales_users'),
-    path('sales-users/', views.AllSalesUsersView.as_view(), name='all_sales_users'),
+    path('users/team-members/<int:manager_id>/', views.TeamMembersView.as_view(), name='team_members'),
+    path('users/tenant/<int:tenant_id>/sales-users/', views.TenantSalesUsersView.as_view(), name='tenant_sales_users'),
+    path('users/sales-users/', views.AllSalesUsersView.as_view(), name='all_sales_users'),
     path('audit/assignment-override/', views.AssignmentOverrideAuditView.as_view(), name='assignment_override_audit'),
 ] 
