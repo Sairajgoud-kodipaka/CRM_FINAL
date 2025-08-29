@@ -275,6 +275,17 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     }
   };
 
+  // Ensure selectedWeight is always a number
+  useEffect(() => {
+    if (typeof formData.selectedWeight !== 'number' || isNaN(formData.selectedWeight)) {
+      console.warn('Invalid selectedWeight detected, fixing:', formData.selectedWeight);
+      setFormData(prev => ({
+        ...prev,
+        selectedWeight: Number(prev.selectedWeight) || 3.5
+      }));
+    }
+  }, [formData.selectedWeight]);
+
   // Deterministic autofill logic for City -> State with contextual catchment filtering
   const handleCitySelection = (city: string) => {
     const state = getStateFromCity(city);
@@ -465,6 +476,15 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
+      
+      // Ensure selectedWeight is a valid number before submission
+      if (typeof formData.selectedWeight !== 'number' || isNaN(formData.selectedWeight)) {
+        console.warn('Fixing invalid selectedWeight before submission:', formData.selectedWeight);
+        setFormData(prev => ({
+          ...prev,
+          selectedWeight: Number(prev.selectedWeight) || 3.5
+        }));
+      }
       
       // Validate form
       const validation = validateForm();
@@ -1395,8 +1415,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       
                       // Auto-adjust selected weight based on selected product weight
                       if (selectedProduct.weight) {
-                        const baseWeight = selectedProduct.weight;
+                        const baseWeight = Number(selectedProduct.weight) || 0;
                         const unit = formData.weightUnit;
+                        
+                        console.log(`Product weight before conversion:`, selectedProduct.weight, typeof selectedProduct.weight);
+                        console.log(`Converted weight:`, baseWeight, typeof baseWeight);
                         
                         setFormData(prev => ({
                           ...prev,
@@ -1558,7 +1581,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       <div className="text-lg font-semibold text-amber-900">
                         {selectedProduct && selectedProduct.weight 
                           ? (() => {
-                              const weight = selectedProduct.weight;
+                              const weight = Number(selectedProduct.weight) || 0;
                               const unit = formData.weightUnit;
                               const displayWeight = unit === 'kg' ? (weight / 1000).toFixed(3) : weight;
                               return `${displayWeight}${unit}`;
@@ -1574,14 +1597,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       <div className="mt-3 pt-3 border-t border-amber-200">
                         <div className="flex items-center justify-between mb-1">
                           <div className="text-xs text-amber-600">Customer's Selected Weight:</div>
-                          {formData.selectedWeight !== 3.5 ? (
+                          {Number(formData.selectedWeight) !== 3.5 ? (
                             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
                               Customized
                             </span>
                           ) : null}
                         </div>
                         <div className="text-sm font-medium text-amber-800">
-                          {(formData.selectedWeight || 0).toFixed(1)}{formData.weightUnit}
+                          {(Number(formData.selectedWeight) || 0).toFixed(1)}{formData.weightUnit}
                         </div>
                         <div className="text-xs text-amber-600 mt-1">
                           This is the exact weight the customer wants
@@ -1600,14 +1623,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                         const oldUnit = formData.weightUnit;
                         const newUnit = value;
                         
-                        let newSelectedWeight = formData.selectedWeight;
+                        let newSelectedWeight = Number(formData.selectedWeight) || 0;
                         
                         if (oldUnit === 'g' && newUnit === 'kg') {
                           // Convert from grams to kilograms
-                          newSelectedWeight = formData.selectedWeight / 1000;
+                          newSelectedWeight = newSelectedWeight / 1000;
                         } else if (oldUnit === 'kg' && newUnit === 'g') {
                           // Convert from kilograms to grams
-                          newSelectedWeight = formData.selectedWeight * 1000;
+                          newSelectedWeight = newSelectedWeight * 1000;
                         }
                         
                         setFormData(prev => ({ 
@@ -1640,7 +1663,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       onWeightChange={(weight) => {
                         setFormData(prev => ({
                           ...prev,
-                          selectedWeight: weight
+                          selectedWeight: Number(weight) || 0
                         }));
                       }}
                       unit={formData.weightUnit}
