@@ -37,7 +37,7 @@ SESSION_SAVE_EVERY_REQUEST = True
 # CSRF Settings
 CSRF_COOKIE_AGE = 31449600  # 1 year
 CSRF_USE_SESSIONS = True
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='https://crm-final-five.vercel.app,https://crm-final-mfe4.onrender.com').split(',')
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com').split(',')
 
 # Content Security Policy
 CSP_DEFAULT_SRC = ("'self'",)

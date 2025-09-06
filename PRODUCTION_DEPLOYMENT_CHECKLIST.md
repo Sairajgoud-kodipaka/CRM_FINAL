@@ -57,7 +57,7 @@
    - [ ] Push to `main` branch triggers deployment
    - [ ] Monitor build process in Vercel dashboard
    - [ ] Verify build completes without errors
-   - [ ] Check deployment URL: `https://crm-final-five.vercel.app`
+   - [ ] Check deployment URL: `https://jewel-crm.vercel.app`
 
 3. [ ] **Post-deployment Verification**
    - [ ] Homepage loads without errors
@@ -175,7 +175,7 @@
 
 - **Backend Health**: https://crm-final-mfe4.onrender.com/api/health/
 - **Backend Admin**: https://crm-final-mfe4.onrender.com/admin/
-- **Frontend App**: https://crm-final-five.vercel.app
+- **Frontend App**: https://jewel-crm.vercel.app
 - **Render Dashboard**: https://dashboard.render.com
 - **Vercel Dashboard**: https://vercel.com/dashboard
 

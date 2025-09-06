@@ -473,6 +473,79 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     };
   };
 
+  // Auto-create sales pipeline entry when customer is created
+  const createAutoPipelineEntry = async (customerData: any) => {
+    try {
+      console.log('🚀 Creating auto pipeline entry for customer:', customerData);
+      
+      // Determine pipeline stage based on customer status and lead source
+      let pipelineStage = 'interested'; // Default stage
+      let probability = 20; // Default probability
+      
+      if (formData.leadSource === 'exhibition') {
+        pipelineStage = 'exhibition';
+        probability = 5;
+      } else if (formData.leadSource === 'social_media') {
+        pipelineStage = 'social_media';
+        probability = 10;
+      } else if (formData.customerStatus === 'lead') {
+        pipelineStage = 'interested';
+        probability = 20;
+      } else if (formData.customerStatus === 'prospect') {
+        pipelineStage = 'store_walkin';
+        probability = 30;
+      }
+      
+      // Calculate expected value from product interests
+      let expectedValue = 0;
+      if (interests && interests.length > 0) {
+        expectedValue = interests.reduce((total, interest) => {
+          const revenue = parseFloat(interest.products?.[0]?.revenue || '0') || 0;
+          return total + revenue;
+        }, 0);
+      }
+      
+      // If no expected value from interests, use budget range
+      if (expectedValue === 0 && formData.budgetRange) {
+        const budgetRanges: { [key: string]: number } = {
+          '0-50000': 25000,
+          '50000-100000': 75000,
+          '100000-200000': 150000,
+          '200000-500000': 350000,
+          '500000+': 750000
+        };
+        expectedValue = budgetRanges[formData.budgetRange] || 50000;
+      }
+      
+      // Create pipeline data
+      const pipelineData = {
+        title: `${customerData.first_name} ${customerData.last_name} - ${formData.productType || 'Jewelry'}`,
+        client_id: customerData.id,
+        stage: pipelineStage,
+        probability: probability,
+        expected_value: expectedValue,
+        notes: `Auto-created pipeline entry for new customer. Lead source: ${formData.leadSource || 'Unknown'}. Customer status: ${formData.customerStatus || 'Unknown'}.`,
+        next_action: formData.nextFollowUpDate ? `Follow up on ${formData.nextFollowUpDate}` : 'Schedule follow-up call',
+        next_action_date: formData.nextFollowUpDate ? new Date(formData.nextFollowUpDate).toISOString() : undefined
+      };
+      
+      console.log('🎯 Creating pipeline with data:', pipelineData);
+      
+      // Call API to create pipeline
+      const pipelineResponse = await apiService.createSalesPipeline(pipelineData);
+      
+      if (pipelineResponse.success) {
+        console.log('✅ Auto pipeline entry created successfully:', pipelineResponse.data);
+      } else {
+        console.error('❌ Failed to create auto pipeline entry:', pipelineResponse);
+      }
+      
+    } catch (error) {
+      console.error('💥 Error creating auto pipeline entry:', error);
+      throw error; // Re-throw to be caught by the calling function
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
@@ -602,6 +675,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           }
         }
         
+        // Auto-create sales pipeline entry
+        try {
+          await createAutoPipelineEntry(response.data);
+        } catch (error) {
+          console.error('Failed to create auto pipeline entry:', error);
+          // Don't fail the customer creation if pipeline creation fails
+        }
+        
         toast({
           title: "Success!",
           description: `Customer added successfully! ${assignmentAudit.assignmentType === 'self' ? 'Auto-assigned to you.' : `Assigned to ${assignmentAudit.assignedToName}.`}`,
@@ -610,6 +691,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         
         // Call the callback with the created customer data
         if (typeof onCustomerCreated === 'function') {
+          console.log('📞 Calling onCustomerCreated with data:', response.data);
           onCustomerCreated(response.data);
         } else {
           console.warn('onCustomerCreated callback not provided');

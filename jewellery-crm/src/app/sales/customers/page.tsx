@@ -95,10 +95,16 @@ export default function SalesCustomersPage() {
 
   // Optimistic update for customer creation
   const handleCustomerCreated = useCallback((newCustomer: Client) => {
+    console.log('🔄 handleCustomerCreated called with:', newCustomer);
     setModalOpen(false);
     
     // Optimistically add the new customer to the list
-    setCustomers(prev => [newCustomer, ...prev]);
+    setCustomers(prev => {
+      console.log('📝 Previous customers count:', prev.length);
+      const updated = [newCustomer, ...prev];
+      console.log('📝 Updated customers count:', updated.length);
+      return updated;
+    });
     
     toast({
       title: "Success!",
@@ -106,9 +112,10 @@ export default function SalesCustomersPage() {
       variant: "success",
     });
     
-    // Refresh data in background to ensure consistency
-    fetchCustomers();
-  }, [fetchCustomers, toast]);
+    // Don't call fetchCustomers() immediately - it hits cache and overwrites optimistic update
+    // The optimistic update should be sufficient for immediate UI update
+    console.log('✅ Customer added optimistically - no background refresh needed');
+  }, [toast]);
 
   // Optimistic update for customer editing
   const handleCustomerUpdated = useCallback((updatedCustomer: Client) => {
