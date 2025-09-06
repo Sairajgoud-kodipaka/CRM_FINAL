@@ -46,12 +46,6 @@
       ]
     }
   ],
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://crm-final-mfe4.onrender.com/api/$1"
-    }
-  ],
   "env": {
     "NEXT_PUBLIC_API_URL": "https://crm-final-mfe4.onrender.com"
   }
