@@ -1,125 +1,169 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ApiService } from '@/lib/api-service';
-import { getAllTenants, TenantConfig } from '@/lib/tenant-config';
-
-const apiService = new ApiService();
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Eye, EyeOff, Lock, User, Building2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function HomePage() {
   const router = useRouter();
-  const [tenants, setTenants] = useState<TenantConfig[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { login, isLoading, error, user, setError } = useAuth();
+  
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
-  useEffect(() => {
-    // Load tenant configurations
-    const tenantConfigs = getAllTenants();
-    setTenants(tenantConfigs);
-    setLoading(false);
-  }, []);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setError(null); // Clear any previous errors from the auth hook
+    
+    if (!username || !password) {
+      setLoginError('Please enter both username and password');
+      return;
+    }
 
-  const handleTenantSelect = (tenantCode: string) => {
-    router.push(`/store/${tenantCode}`);
+    try {
+      const success = await login(username, password);
+      
+      if (success) {
+        // Get the current user state after login
+        const currentUser = useAuth.getState().user;
+        
+        if (currentUser) {
+          // Redirect based on user role from backend
+          switch (currentUser.role) {
+            case 'platform_admin':
+              router.push('/platform/dashboard');
+              break;
+            case 'business_admin':
+              router.push('/business-admin/dashboard');
+              break;
+            case 'manager':
+              router.push('/manager/dashboard');
+              break;
+            case 'sales_team':
+            case 'inhouse_sales':
+              router.push('/sales/dashboard');
+              break;
+            case 'marketing':
+              router.push('/marketing/dashboard');
+              break;
+            case 'tele_calling':
+              router.push('/telecaller/dashboard');
+              break;
+            default:
+              router.push('/sales/dashboard');
+          }
+        } else {
+          router.push('/sales/dashboard');
+        }
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setLoginError('An unexpected error occurred. Please try again.');
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="text-6xl mb-4">💎</div>
-          <h1 className="text-4xl font-bold mb-4">Jewellery CRM</h1>
-          <p className="text-xl mb-8">Loading stores...</p>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gold mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center text-white mb-16">
-          <div className="text-6xl mb-4">💎</div>
-          <h1 className="text-5xl font-bold mb-4">Jewellery Stores</h1>
-          <p className="text-xl text-gray-300">Select a store to browse</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="shadow-xl">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mb-4">
+              <Building2 className="w-8 h-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-gray-900">
+              Welcome Back
+            </CardTitle>
+            <CardDescription className="text-gray-600">
+              Sign in to your Jewellery CRM account
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            {/* Login Form */}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="username" className="text-sm font-medium text-gray-700">
+                  Username
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="pl-10"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
 
-        {tenants.length === 0 ? (
-          <div className="text-center text-white">
-            <p className="text-xl mb-4">No stores available</p>
-            <p className="text-gray-400">Please contact your administrator to set up stores.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {tenants.map((tenant) => (
-              <div
-                key={tenant.id}
-                onClick={() => handleTenantSelect(tenant.id)}
-                className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:bg-white/20 border border-white/20"
-              >
-                <div className="text-center">
-                  <div className="text-4xl mb-4">{tenant.logo}</div>
-                  <h3 className="text-2xl font-bold text-white mb-2">{tenant.displayName}</h3>
-                  {tenant.description && (
-                    <p className="text-gray-300 mb-4">{tenant.description}</p>
-                  )}
-                  <div className="bg-gold/20 text-gold px-4 py-2 rounded-full text-sm font-medium">
-                    {tenant.id}
+              <div className="space-y-2">
+                <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10"
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {(loginError || error) && (
+                <div className="text-red-600 text-sm bg-red-50 border border-red-200 p-4 rounded-md">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-red-800">
+                        {loginError || error}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
 
-        {/* Demo stores for testing */}
-        <div className="mt-16 text-center">
-          <h2 className="text-2xl font-bold text-white mb-8">Demo Stores</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <div
-              onClick={() => handleTenantSelect('mandeep')}
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:bg-white/20 border border-white/20"
-            >
-              <div className="text-center">
-                <div className="text-4xl mb-4">💍</div>
-                <h3 className="text-2xl font-bold text-white mb-2">Mandeep Jewelleries</h3>
-                <p className="text-gray-300 mb-4">Premium jewellery collection</p>
-                <div className="bg-gold/20 text-gold px-4 py-2 rounded-full text-sm font-medium">
-                  mandeep
-                </div>
-              </div>
-            </div>
+              <Button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </form>
 
-            <div
-              onClick={() => handleTenantSelect('royal')}
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:bg-white/20 border border-white/20"
-            >
-              <div className="text-center">
-                <div className="text-4xl mb-4">👑</div>
-                <h3 className="text-2xl font-bold text-white mb-2">Royal Jewellers</h3>
-                <p className="text-gray-300 mb-4">Luxury jewellery boutique</p>
-                <div className="bg-gold/20 text-gold px-4 py-2 rounded-full text-sm font-medium">
-                  royal
-                </div>
-              </div>
+            <div className="text-center space-y-2">
+              <p className="text-xs text-gray-500">
+                Need help? Contact your system administrator
+              </p>
             </div>
-
-            <div
-              onClick={() => handleTenantSelect('diamond')}
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:bg-white/20 border border-white/20"
-            >
-              <div className="text-center">
-                <div className="text-4xl mb-4">💎</div>
-                <h3 className="text-2xl font-bold text-white mb-2">Diamond Palace</h3>
-                <p className="text-gray-300 mb-4">Exclusive diamond collection</p>
-                <div className="bg-gold/20 text-gold px-4 py-2 rounded-full text-sm font-medium">
-                  diamond
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

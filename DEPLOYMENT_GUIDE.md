@@ -20,7 +20,7 @@ This guide covers deploying your Jewellery CRM application with:
 2. Update `.env.local` with production values:
 ```bash
 NEXT_PUBLIC_API_URL=https://crm-final-mfe4.onrender.com
-NEXT_PUBLIC_SITE_URL=https://crm-final-five.vercel.app
+NEXT_PUBLIC_SITE_URL=https://jewel-crm.vercel.app
 
 ### Step 2: Deploy to Vercel
 1. Go to [vercel.com](https://vercel.com)
@@ -37,8 +37,8 @@ NEXT_PUBLIC_SITE_URL=https://crm-final-five.vercel.app
 Add these in Vercel dashboard:
 ```bash
 NEXT_PUBLIC_API_URL=https://crm-final-mfe4.onrender.com
-NEXT_PUBLIC_SITE_URL=https://crm-final-five.vercel.app
-NEXTAUTH_URL=https://crm-final-five.vercel.app
+NEXT_PUBLIC_SITE_URL=https://jewel-crm.vercel.app
+NEXTAUTH_URL=https://jewel-crm.vercel.app
 NEXTAUTH_SECRET=your-secret-key
 ```
 
@@ -67,8 +67,8 @@ Add these in Render dashboard:
 DEBUG=False
 SECRET_KEY=your-production-secret-key
 ALLOWED_HOSTS=crm-final-mfe4.onrender.com
-CORS_ALLOWED_ORIGINS=https://crm-final-five.vercel.app
-CSRF_TRUSTED_ORIGINS=https://crm-final-five.vercel.app
+CORS_ALLOWED_ORIGINS=https://jewel-crm.vercel.app
+CSRF_TRUSTED_ORIGINS=https://jewel-crm.vercel.app
 DB_NAME=jewellery_crm
 DB_USER=jewellery_crm_user
 DB_PASSWORD=your-database-password
