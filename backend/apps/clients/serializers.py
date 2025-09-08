@@ -844,6 +844,8 @@ class ClientSerializer(serializers.ModelSerializer):
                                         preference_notes.append("Checking Other Jewellers")
                                     if preferences.get('lessVariety'):
                                         preference_notes.append("Felt Less Variety")
+                                    if preferences.get('purchased'):
+                                        preference_notes.append("Purchased")
                                     if preferences.get('other'):
                                         preference_notes.append(f"Other: {preferences['other']}")
                                     

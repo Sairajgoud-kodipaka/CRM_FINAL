@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/lib/api-service';
-import { Users, TrendingUp, Package, DollarSign, Calendar, ShoppingBag, Loader2, Target, Store, Award, Filter, X, CheckCircle, ArrowRight } from 'lucide-react';
+import { Users, TrendingUp, Package, DollarSign, Calendar, ShoppingBag, Target, Store, Award, Filter, X, CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { DashboardSkeleton, KPICardSkeleton } from '@/components/ui/skeleton';
 
 import { NotificationBell } from '@/components/notifications';
 
@@ -24,7 +25,7 @@ interface DashboardData {
     month_count: number;
   };
   pipeline_revenue: number;
-  closed_won_pipeline_count: number;
+  purchased_pipeline_count: number;
   pipeline_deals_count: number;
   
   // Store Performance
@@ -32,7 +33,7 @@ interface DashboardData {
     id: number;
     name: string;
     revenue: number;
-    closed_won_revenue: number;
+    purchased_revenue: number;
   }>;
   
   // Top Performers
@@ -303,10 +304,56 @@ export default function BusinessAdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading dashboard...</span>
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-8 w-64 bg-muted animate-pulse rounded" />
+            <div className="h-4 w-96 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="flex space-x-2">
+            <div className="h-9 w-24 bg-muted animate-pulse rounded" />
+            <div className="h-9 w-32 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+
+        {/* KPI Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <KPICardSkeleton key={i} />
+          ))}
+        </div>
+
+        {/* Content Grid Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="p-6 border rounded-lg">
+              <div className="flex items-center justify-between mb-6">
+                <div className="space-y-2">
+                  <div className="h-6 w-32 bg-muted animate-pulse rounded" />
+                  <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+                </div>
+                <div className="h-8 w-20 bg-muted animate-pulse rounded" />
+              </div>
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, j) => (
+                  <div key={j} className="p-4 border rounded-lg">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="h-10 w-10 bg-muted animate-pulse rounded-full" />
+                      <div className="space-y-2">
+                        <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-32 bg-muted animate-pulse rounded" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-2 w-full bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -553,15 +600,15 @@ export default function BusinessAdminDashboard() {
           </CardContent>
         </Card>
         
-        {/* Closed Won Pipeline */}
+        {/* Purchased Pipeline */}
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Closed Won</CardTitle>
+            <CardTitle className="text-sm font-medium">Purchased</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {dashboardData.closed_won_pipeline_count}
+              {dashboardData.purchased_pipeline_count}
             </div>
             <p className="text-xs text-muted-foreground">
               deals closed this month
@@ -702,13 +749,13 @@ export default function BusinessAdminDashboard() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-text-secondary">Closed Won:</span>
+                    <span className="text-sm text-text-secondary">Purchased:</span>
                     <span className="font-medium text-green-600">
-                      {formatCurrency(store.closed_won_revenue)}
+                      {formatCurrency(store.purchased_revenue)}
                     </span>
                   </div>
                   <p className="text-xs text-text-secondary mt-2">
-                    All combined closed won - Revenue
+                    All combined purchased - Revenue
                   </p>
                 </div>
               </div>

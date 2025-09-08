@@ -17,6 +17,10 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { apiService } from '@/lib/api-service';
+import { useAuth } from '@/hooks/useAuth';
+import { useSalesDashboard, useSalesPipeline, useAppointments } from '@/hooks/useDashboardData';
+import { DashboardSkeleton, KPICardSkeleton, PipelineItemSkeleton, AppointmentItemSkeleton, QuickActionSkeleton } from '@/components/ui/skeleton';
 import { 
   DashboardLayout, 
   CardContainer,
@@ -45,143 +49,179 @@ import {
 } from 'lucide-react';
 
 /**
- * Mock data for sales representative metrics
+ * Sales representative metrics interface
  */
-const salesMetrics = {
+interface SalesMetrics {
   personal: {
-    name: 'Sales Representative',
-    monthlyTarget: 200000,
-    achieved: 175000,
-    commission: 8750,
-    rank: 3,
-    totalReps: 15,
-  },
+    name: string;
+    monthlyTarget: number;
+    achieved: number;
+    commission: number;
+    rank: number;
+    totalReps: number;
+  };
   customers: {
-    total: 31,
-    newThisMonth: 4,
-    appointments: 6,
-    followUps: 8,
-  },
+    total: number;
+    newThisMonth: number;
+    appointments: number;
+    followUps: number;
+  };
   performance: {
-    conversionRate: 68.5,
-    avgDealSize: 45000,
-    customerSatisfaction: 4.8,
-  },
-};
+    conversionRate: number;
+    avgDealSize: number;
+    customerSatisfaction: number;
+  };
+}
 
 /**
- * Customer pipeline data
+ * Customer pipeline interface
  */
-const customerPipeline = [
-  {
-    id: 1,
-    name: 'Mrs. Aditi Patel',
-    stage: 'Exhibition',
-    value: 125000,
-    probability: 85,
-    lastContact: '2 days ago',
-    nextAction: 'Follow up on custom design',
-    phone: '+91 98765 43210',
-    avatar: null,
-  },
-  {
-    id: 2,
-    name: 'Mr. Vikram Singh',
-    stage: 'Negotiation',
-    value: 85000,
-    probability: 70,
-    lastContact: '1 day ago',
-    nextAction: 'Discuss pricing options',
-    phone: '+91 87654 32109',
-    avatar: null,
-  },
-  {
-    id: 3,
-    name: 'Ms. Kavya Nair',
-    stage: 'Qualified',
-    value: 65000,
-    probability: 60,
-    lastContact: '3 days ago',
-    nextAction: 'Show earring collection',
-    phone: '+91 76543 21098',
-    avatar: null,
-  },
-  {
-    id: 4,
-    name: 'Mrs. Sunita Sharma',
-    stage: 'Store - Walkin',
-    value: 45000,
-    probability: 30,
-    lastContact: '1 week ago',
-    nextAction: 'Schedule consultation',
-    phone: '+91 65432 10987',
-    avatar: null,
-  },
-];
+interface CustomerPipeline {
+  id: number;
+  name: string;
+  stage: string;
+  value: number;
+  probability: number;
+  lastContact: string;
+  nextAction: string;
+  phone: string;
+  avatar: string | null;
+}
 
 /**
- * Upcoming appointments
+ * Appointment interface
  */
-const upcomingAppointments = [
-  {
-    id: 1,
-    customer: 'Mrs. Aditi Patel',
-    time: 'Today, 2:00 PM',
-    type: 'Design Review',
-    location: 'Store',
-    status: 'confirmed',
-  },
-  {
-    id: 2,
-    customer: 'Mr. Rajesh Kumar',
-    time: 'Tomorrow, 11:00 AM',
-    type: 'Wedding Collection',
-    location: 'Store',
-    status: 'confirmed',
-  },
-  {
-    id: 3,
-    customer: 'Ms. Priya Gupta',
-    time: 'Tomorrow, 4:00 PM',
-    type: 'Ring Sizing',
-    location: 'Store',
-    status: 'pending',
-  },
-];
+interface Appointment {
+  id: number;
+  customer: string;
+  time: string;
+  type: string;
+  location: string;
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed';
+}
 
 /**
- * Recent achievements
+ * Achievement interface
  */
-const recentAchievements = [
-  {
-    id: 1,
-    title: 'Deal Closed',
-    description: 'Sold diamond necklace set to Mrs. Sharma',
-    amount: 125000,
-    date: 'Today',
-    icon: 'trophy',
-  },
-  {
-    id: 2,
-    title: 'New Customer',
-    description: 'Successfully onboarded Mr. Patel',
-    date: 'Yesterday',
-    icon: 'user',
-  },
-  {
-    id: 3,
-    title: 'Target Milestone',
-    description: 'Achieved 75% of monthly target',
-    date: '2 days ago',
-    icon: 'target',
-  },
-];
+interface Achievement {
+  id: number;
+  title: string;
+  description: string;
+  amount?: number;
+  date: string;
+  icon: string;
+}
 
 /**
  * Sales Team Dashboard Component
  */
-export function SalesTeamDashboard() {
+export const SalesTeamDashboard = React.memo(function SalesTeamDashboard() {
+  const { user } = useAuth();
   const router = useRouter();
+
+  // React Query hooks for data fetching
+  const { 
+    data: salesData, 
+    isLoading: salesLoading, 
+    error: salesError 
+  } = useSalesDashboard();
+
+  const { 
+    data: pipelineData, 
+    isLoading: pipelineLoading 
+  } = useSalesPipeline();
+
+  const { 
+    data: appointmentsData, 
+    isLoading: appointmentsLoading 
+  } = useAppointments();
+
+  // Derived state from React Query data
+  const salesMetrics = React.useMemo((): SalesMetrics | null => {
+    if (!salesData) return null;
+    
+    return {
+      personal: {
+        name: user?.name || 'Sales Representative',
+        monthlyTarget: 200000,
+        achieved: salesData.monthly_revenue || 0,
+        commission: (salesData.monthly_revenue || 0) * 0.05,
+        rank: 1,
+        totalReps: 1,
+      },
+      customers: {
+        total: salesData.total_customers || 0,
+        newThisMonth: 0,
+        appointments: 0,
+        followUps: 0,
+      },
+      performance: {
+        conversionRate: salesData.conversion_rate || 0,
+        avgDealSize: salesData.avg_deal_size || 0,
+        customerSatisfaction: 4.8,
+      },
+    };
+  }, [salesData, user]);
+
+  const customerPipeline = React.useMemo((): CustomerPipeline[] => {
+    if (!pipelineData || !Array.isArray(pipelineData)) return [];
+    
+    return pipelineData.slice(0, 4).map((pipeline: any) => ({
+      id: pipeline.id,
+      name: pipeline.client_name || 'Customer',
+      stage: pipeline.stage || 'Unknown',
+      value: pipeline.expected_value || 0,
+      probability: pipeline.probability || 0,
+      lastContact: pipeline.updated_at ? new Date(pipeline.updated_at).toLocaleDateString() : 'Unknown',
+      nextAction: pipeline.next_action || 'Follow up',
+      phone: pipeline.client_phone || '',
+      avatar: null,
+    }));
+  }, [pipelineData]);
+
+  const upcomingAppointments = React.useMemo((): Appointment[] => {
+    if (!appointmentsData || !Array.isArray(appointmentsData)) return [];
+    
+    return appointmentsData.slice(0, 3).map((appointment: any) => ({
+      id: appointment.id,
+      customer: appointment.client_name || 'Customer',
+      time: appointment.date ? new Date(appointment.date).toLocaleString() : 'TBD',
+      type: appointment.purpose || 'Meeting',
+      location: appointment.location || 'Store',
+      status: appointment.status || 'pending',
+    }));
+  }, [appointmentsData]);
+
+  const recentAchievements = React.useMemo((): Achievement[] => {
+    if (!salesData) return [];
+    
+    const achievements: Achievement[] = [];
+    if (salesData.sales_count > 0) {
+      achievements.push({
+        id: 1,
+        title: 'Deal Closed',
+        description: `Completed ${salesData.sales_count} sales this month`,
+        amount: salesData.monthly_revenue,
+        date: 'This month',
+        icon: 'trophy',
+      });
+    }
+    if (salesData.total_customers > 0) {
+      achievements.push({
+        id: 2,
+        title: 'New Customer',
+        description: `Added ${salesData.total_customers} customers`,
+        date: 'This month',
+        icon: 'user',
+      });
+    }
+    return achievements;
+  }, [salesData]);
+
+  // Loading and error states
+  const isLoading = salesLoading || pipelineLoading || appointmentsLoading;
+  const error = salesError?.message || null;
+
 
   // Navigation handlers for buttons
   const handleMyCalendar = () => {
@@ -221,6 +261,48 @@ export function SalesTeamDashboard() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <DashboardLayout
+        title="My Dashboard"
+        subtitle="Loading your sales data..."
+      >
+        <DashboardSkeleton />
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout
+        title="My Dashboard"
+        subtitle="Error loading dashboard data"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!salesMetrics) {
+    return (
+      <DashboardLayout
+        title="My Dashboard"
+        subtitle="No data available"
+      >
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">No sales data available</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout
       title="My Dashboard"
@@ -241,68 +323,84 @@ export function SalesTeamDashboard() {
       {/* Personal Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Monthly Target Progress */}
-        <CardContainer className="border-l-4 border-l-primary">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Monthly Target</p>
-              <p className="text-3xl font-bold text-foreground">
-                {((salesMetrics.personal.achieved / salesMetrics.personal.monthlyTarget) * 100).toFixed(0)}%
-              </p>
-              <p className="text-sm text-green-600 font-medium mt-1 flex items-center">
-                <IndianRupee className="w-3 h-3 mr-1" />
-                {(salesMetrics.personal.achieved / 100000).toFixed(1)}L achieved
-              </p>
+        {salesLoading ? (
+          <KPICardSkeleton />
+        ) : (
+          <CardContainer className="border-l-4 border-l-primary">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Monthly Target</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {(((salesMetrics?.personal.achieved || 0) / (salesMetrics?.personal.monthlyTarget || 1)) * 100).toFixed(0)}%
+                </p>
+                <p className="text-sm text-green-600 font-medium mt-1 flex items-center">
+                  <IndianRupee className="w-3 h-3 mr-1" />
+                  {((salesMetrics?.personal.achieved || 0) / 100000).toFixed(1)}L achieved
+                </p>
+              </div>
+              <Target className="h-8 w-8 text-primary" />
             </div>
-            <Target className="h-8 w-8 text-primary" />
-          </div>
-        </CardContainer>
+          </CardContainer>
+        )}
 
         {/* Commission Earned */}
-        <CardContainer className="border-l-4 border-l-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Commission Earned</p>
-              <p className="text-3xl font-bold text-foreground flex items-center">
-                <IndianRupee className="w-6 h-6 mr-1" />
-                {(salesMetrics.personal.commission / 1000).toFixed(1)}K
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                This month
-              </p>
+        {salesLoading ? (
+          <KPICardSkeleton />
+        ) : (
+          <CardContainer className="border-l-4 border-l-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Commission Earned</p>
+                <p className="text-3xl font-bold text-foreground flex items-center">
+                  <IndianRupee className="w-6 h-6 mr-1" />
+                  {((salesMetrics?.personal.commission || 0) / 1000).toFixed(1)}K
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This month
+                </p>
+              </div>
+              <Award className="h-8 w-8 text-green-500" />
             </div>
-            <Award className="h-8 w-8 text-green-500" />
-          </div>
-        </CardContainer>
+          </CardContainer>
+        )}
 
         {/* My Customers */}
-        <CardContainer className="border-l-4 border-l-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">My Customers</p>
-              <p className="text-3xl font-bold text-foreground">{salesMetrics.customers.total}</p>
-              <p className="text-sm text-green-600 font-medium mt-1">
-                +{salesMetrics.customers.newThisMonth} new this month
-              </p>
+        {salesLoading ? (
+          <KPICardSkeleton />
+        ) : (
+          <CardContainer className="border-l-4 border-l-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">My Customers</p>
+                <p className="text-3xl font-bold text-foreground">{salesMetrics?.customers.total || 0}</p>
+                <p className="text-sm text-green-600 font-medium mt-1">
+                  +{salesMetrics?.customers.newThisMonth || 0} new this month
+                </p>
+              </div>
+              <Users className="h-8 w-8 text-blue-500" />
             </div>
-            <Users className="h-8 w-8 text-blue-500" />
-          </div>
-        </CardContainer>
+          </CardContainer>
+        )}
 
         {/* Team Ranking */}
-        <CardContainer className="border-l-4 border-l-purple-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Team Ranking</p>
-              <p className="text-3xl font-bold text-foreground">
-                #{salesMetrics.personal.rank}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                out of {salesMetrics.personal.totalReps} reps
-              </p>
+        {salesLoading ? (
+          <KPICardSkeleton />
+        ) : (
+          <CardContainer className="border-l-4 border-l-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Team Ranking</p>
+                <p className="text-3xl font-bold text-foreground">
+                  #{salesMetrics?.personal.rank || 0}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  out of {salesMetrics?.personal.totalReps || 0} reps
+                </p>
+              </div>
+              <Star className="h-8 w-8 text-purple-500" />
             </div>
-            <Star className="h-8 w-8 text-purple-500" />
-          </div>
-        </CardContainer>
+          </CardContainer>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -320,7 +418,12 @@ export function SalesTeamDashboard() {
           </div>
           
           <div className="space-y-4">
-            {customerPipeline.map((customer) => (
+            {pipelineLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <PipelineItemSkeleton key={i} />
+              ))
+            ) : (
+              customerPipeline.map((customer) => (
               <div key={customer.id} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
@@ -362,7 +465,8 @@ export function SalesTeamDashboard() {
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContainer>
 
@@ -380,7 +484,12 @@ export function SalesTeamDashboard() {
           </div>
 
           <div className="space-y-4">
-            {upcomingAppointments.map((appointment) => (
+            {appointmentsLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <AppointmentItemSkeleton key={i} />
+              ))
+            ) : (
+              upcomingAppointments.map((appointment) => (
               <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="flex items-center space-x-4">
                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -401,7 +510,8 @@ export function SalesTeamDashboard() {
                   </Badge>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContainer>
       </div>
@@ -551,4 +661,4 @@ export function SalesTeamDashboard() {
       </CardContainer>
     </DashboardLayout>
   );
-}
+});

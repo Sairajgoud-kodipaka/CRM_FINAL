@@ -231,7 +231,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
       case 'interested': return 'default';
       case 'store_walkin': return 'default';
       case 'negotiation': return 'default';
-      case 'closed_won': return 'default';
+      case 'purchased': return 'default';
       case 'closed_lost': return 'destructive';
       case 'future_prospect': return 'default';
       case 'not_qualified': return 'secondary';
@@ -245,7 +245,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
     { value: 'interested', label: 'Interested', color: 'bg-yellow-500' },
     { value: 'store_walkin', label: 'Store - Walkin', color: 'bg-green-500' },
     { value: 'negotiation', label: 'Negotiation', color: 'bg-orange-500' },
-    { value: 'closed_won', label: 'Closed Won', color: 'bg-emerald-500' },
+    { value: 'purchased', label: 'Purchased', color: 'bg-emerald-500' },
     { value: 'closed_lost', label: 'Closed Lost', color: 'bg-red-500' },
     { value: 'future_prospect', label: 'Future Prospect', color: 'bg-indigo-500' },
     { value: 'not_qualified', label: 'Not Qualified', color: 'bg-gray-500' },
@@ -569,7 +569,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                         <Label className="text-sm font-medium text-gray-600">Actual Close Date</Label>
                         <p className="text-sm">{formatDate(deal.actual_close_date)}</p>
                       </div>
-                      {deal.stage === 'closed_won' ? (
+                      {deal.stage === 'purchased' ? (
                         <CheckCircle className="w-5 h-5 text-green-500" />
                       ) : (
                         <XCircle className="w-5 h-5 text-red-500" />

@@ -26,6 +26,7 @@ interface ProductInterest {
     wantsDiscount: boolean;
     checkingOthers: boolean;
     lessVariety: boolean;
+    purchased: boolean;
     other: string;
   };
 }
@@ -82,6 +83,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         wantsDiscount: false,
         checkingOthers: false,
         lessVariety: false,
+        purchased: false,
         other: "",
       },
     },
@@ -236,6 +238,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                 wantsDiscount: parsedInterest.preferences?.wantsDiscount || false,
                 checkingOthers: parsedInterest.preferences?.checkingOthers || false,
                 lessVariety: parsedInterest.preferences?.lessVariety || false,
+                purchased: parsedInterest.preferences?.purchased || false,
                 other: parsedInterest.preferences?.other || "",
               },
             };
@@ -252,6 +255,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
               wantsDiscount: false,
               checkingOthers: false,
               lessVariety: false,
+              purchased: false,
               other: "",
             },
           }]);
@@ -301,6 +305,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
           wantsDiscount: false,
           checkingOthers: false,
           lessVariety: false,
+          purchased: false,
           other: "",
         },
     };
@@ -971,6 +976,22 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                         />
                         <label htmlFor={`lessVariety-${interestIdx}`} className="text-sm">
                           Less Variety
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`purchased-${interestIdx}`}
+                          checked={interest.preferences.purchased}
+                          onCheckedChange={(checked) => {
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              copy[interestIdx].preferences.purchased = checked as boolean;
+                              return copy;
+                            });
+                          }}
+                        />
+                        <label htmlFor={`purchased-${interestIdx}`} className="text-sm">
+                          Purchased
                         </label>
                       </div>
                     </div>
