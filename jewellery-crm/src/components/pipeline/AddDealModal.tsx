@@ -135,7 +135,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
     { value: 'interested', label: 'Interested', color: 'bg-yellow-500' },
     { value: 'store_walkin', label: 'Store - Walkin', color: 'bg-green-500' },
     { value: 'negotiation', label: 'Negotiation', color: 'bg-orange-500' },
-    { value: 'closed_won', label: 'Closed Won', color: 'bg-emerald-500' },
+    { value: 'purchased', label: 'Purchased', color: 'bg-emerald-500' },
     { value: 'closed_lost', label: 'Closed Lost', color: 'bg-red-500' },
     { value: 'future_prospect', label: 'Future Prospect', color: 'bg-indigo-500' },
     { value: 'not_qualified', label: 'Not Qualified', color: 'bg-gray-500' },
@@ -147,7 +147,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
     { value: '20', label: '20% - Interested' },
     { value: '30', label: '30% - Store - Walkin' },
     { value: '80', label: '80% - Negotiation' },
-    { value: '100', label: '100% - Closed Won' },
+    { value: '100', label: '100% - Purchased' },
     { value: '0', label: '0% - Closed Lost' },
   ];
 

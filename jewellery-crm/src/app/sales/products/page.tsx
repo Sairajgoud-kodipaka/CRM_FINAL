@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Product } from '@/lib/api-service';
 import { useOptimizedGet } from '@/hooks/useOptimizedFetch';
-import { TableSkeleton } from '@/components/ui/loading-skeleton';
+import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { Search, Filter, Eye, ShoppingCart, Upload, Download } from 'lucide-react';
 
 export default function SalesProductsPage() {

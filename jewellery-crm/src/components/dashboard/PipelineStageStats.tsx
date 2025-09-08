@@ -34,7 +34,7 @@ export default function PipelineStageStats({ className }: PipelineStageStatsProp
     { name: 'Interested', value: 'interested', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
     { name: 'Store - Walkin', value: 'store_walkin', color: 'bg-green-100 text-green-800 border-green-200' },
     { name: 'Negotiation', value: 'negotiation', color: 'bg-orange-100 text-orange-800 border-orange-200' },
-    { name: 'Closed Won', value: 'closed_won', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+    { name: 'Purchased', value: 'purchased', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
     { name: 'Closed Lost', value: 'closed_lost', color: 'bg-red-100 text-red-800 border-red-200' },
     { name: 'Future Prospect', value: 'future_prospect', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
     { name: 'Not Qualified', value: 'not_qualified', color: 'bg-gray-100 text-gray-800 border-gray-200' },

@@ -566,6 +566,11 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                                       ⚠️ Less Variety
                                     </span>
                                   )}
+                                  {preferences.purchased && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                      ✅ Purchased
+                                    </span>
+                                  )}
                                   {preferences.other && (
                                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                       📝 {preferences.other}

@@ -113,6 +113,7 @@ interface ProductInterest {
     wantsDiscount: boolean;
     checkingOthers: boolean;
     lessVariety: boolean;
+    purchased: boolean;
     other: string;
   };
 }
@@ -235,6 +236,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           wantsDiscount: false,
           checkingOthers: false,
           lessVariety: false,
+          purchased: false,
           other: "",
         },
       },
@@ -807,6 +809,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             wantsDiscount: false,
             checkingOthers: false,
             lessVariety: false,
+            purchased: false,
             other: "",
           },
         }]);
@@ -1251,6 +1254,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           wantsDiscount: false,
           checkingOthers: false,
           lessVariety: false,
+          purchased: false,
           other: "",
         },
     };
@@ -1867,13 +1871,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                           setInterests(prev => {
                             const copy = [...prev];
                             if (!copy[idx].preferences) {
-                              copy[idx].preferences = {
-                                designSelected: false,
-                                wantsDiscount: false,
-                                checkingOthers: false,
-                                lessVariety: false,
-                                other: "",
-                              };
+                            copy[idx].preferences = {
+                              designSelected: false,
+                              wantsDiscount: false,
+                              checkingOthers: false,
+                              lessVariety: false,
+                              purchased: false,
+                              other: "",
+                            };
                             }
                             copy[idx].preferences.designSelected = checked as boolean;
                             return copy;
@@ -1889,13 +1894,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                           setInterests(prev => {
                             const copy = [...prev];
                             if (!copy[idx].preferences) {
-                              copy[idx].preferences = {
-                                designSelected: false,
-                                wantsDiscount: false,
-                                checkingOthers: false,
-                                lessVariety: false,
-                                other: "",
-                              };
+                            copy[idx].preferences = {
+                              designSelected: false,
+                              wantsDiscount: false,
+                              checkingOthers: false,
+                              lessVariety: false,
+                              purchased: false,
+                              other: "",
+                            };
                             }
                             copy[idx].preferences.wantsDiscount = checked as boolean;
                             return copy;
@@ -1911,13 +1917,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                           setInterests(prev => {
                             const copy = [...prev];
                             if (!copy[idx].preferences) {
-                              copy[idx].preferences = {
-                                designSelected: false,
-                                wantsDiscount: false,
-                                checkingOthers: false,
-                                lessVariety: false,
-                                other: "",
-                              };
+                            copy[idx].preferences = {
+                              designSelected: false,
+                              wantsDiscount: false,
+                              checkingOthers: false,
+                              lessVariety: false,
+                              purchased: false,
+                              other: "",
+                            };
                             }
                             copy[idx].preferences.checkingOthers = checked as boolean;
                             return copy;
@@ -1938,6 +1945,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                                 wantsDiscount: false,
                                 checkingOthers: false,
                                 lessVariety: false,
+                                purchased: false,
                                 other: "",
                               };
                             }
@@ -1947,6 +1955,29 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                         }}
                       /> 
                       Less Variety
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <Checkbox 
+                        checked={interest.preferences?.purchased || false}
+                        onCheckedChange={(checked) => {
+                          setInterests(prev => {
+                            const copy = [...prev];
+                            if (!copy[idx].preferences) {
+                              copy[idx].preferences = {
+                                designSelected: false,
+                                wantsDiscount: false,
+                                checkingOthers: false,
+                                lessVariety: false,
+                                purchased: false,
+                                other: "",
+                              };
+                            }
+                            copy[idx].preferences.purchased = checked as boolean;
+                            return copy;
+                          });
+                        }}
+                      /> 
+                      Purchased
                     </label>
                   </div>
                   
@@ -1958,13 +1989,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       setInterests(prev => {
                         const copy = [...prev];
                         if (!copy[idx].preferences) {
-                          copy[idx].preferences = {
-                            designSelected: false,
-                            wantsDiscount: false,
-                            checkingOthers: false,
-                            lessVariety: false,
-                            other: "",
-                          };
+                            copy[idx].preferences = {
+                              designSelected: false,
+                              wantsDiscount: false,
+                              checkingOthers: false,
+                              lessVariety: false,
+                              purchased: false,
+                              other: "",
+                            };
                         }
                         copy[idx].preferences.other = e.target.value;
                         return copy;

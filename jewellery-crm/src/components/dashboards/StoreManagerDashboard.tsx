@@ -47,6 +47,8 @@ import { apiService, User, Client, Product, Sale, Appointment } from '@/lib/api-
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useStoreDashboard, useStoreMetrics, useTeamPerformance } from '@/hooks/useDashboardData';
+import { DashboardSkeleton, KPICardSkeleton } from '@/components/ui/skeleton';
 
 /**
  * Store metrics interface
@@ -121,7 +123,7 @@ interface StoreActivity {
 /**
  * Store Manager Dashboard Component
  */
-export function StoreManagerDashboard() {
+export const StoreManagerDashboard = React.memo(function StoreManagerDashboard() {
   const [storeMetrics, setStoreMetrics] = React.useState<StoreMetrics>({
     store: {
       name: 'Loading...',
@@ -383,19 +385,19 @@ export function StoreManagerDashboard() {
       // Fetch sales
       console.log('💰 Fetching sales...');
       try {
-        // Use the new manager dashboard API that includes closed won pipelines
+        // Use the new manager dashboard API that includes purchased pipelines
         const dashboardResponse = await apiService.getManagerDashboard();
         console.log('Manager Dashboard response:', dashboardResponse);
         
         if (dashboardResponse.success && dashboardResponse.data) {
           const dashboardData = dashboardResponse.data;
           
-          // Update revenue with combined sales + closed won pipelines
+          // Update revenue with combined sales + purchased pipelines
           todaySales = 0; // Today's sales would need separate calculation
           monthlyRevenue = dashboardData.monthly_revenue || 0;
           
           console.log('Manager dashboard data:', dashboardData);
-          console.log('Monthly revenue (including closed won):', monthlyRevenue);
+          console.log('Monthly revenue (including purchased):', monthlyRevenue);
         } else {
           console.log('❌ Failed to get manager dashboard:', dashboardResponse);
           // Fallback to old sales API
@@ -550,9 +552,12 @@ export function StoreManagerDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
+      <DashboardLayout
+        title={`${user?.store_name || 'Store'} Dashboard`}
+        subtitle={`${user?.store_name || 'Your Store'} - Daily operations and team performance`}
+      >
+        <DashboardSkeleton />
+      </DashboardLayout>
     );
   }
 
@@ -609,7 +614,7 @@ export function StoreManagerDashboard() {
                         Week: {formatCurrency(dashboardData.total_sales?.week || 0)}
                       </p>
                       <p className="text-xs text-green-600 font-medium">
-                        {dashboardData.total_sales?.month_count || 0} sales (includes closed won)
+                        {dashboardData.total_sales?.month_count || 0} sales (includes purchased)
                       </p>
                     </div>
                     <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -638,17 +643,17 @@ export function StoreManagerDashboard() {
                 </CardContent>
               </Card>
               
-              {/* Closed Won Pipeline */}
+              {/* Purchased Pipeline */}
               <Card className="shadow-sm">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-text-secondary">Closed Won Pipeline</p>
+                      <p className="text-sm font-medium text-text-secondary">Purchased Pipeline</p>
                       <p className="text-lg font-bold text-text-primary">
-                        {formatNumber(dashboardData.closed_won_pipeline_count || 0)}
+                        {formatNumber(dashboardData.purchased_pipeline_count || 0)}
                       </p>
-                      <p className="text-xs text-text-secondary">Successfully closed</p>
-                      <p className="text-xs text-purple-600 font-medium">Store deal count: closed won</p>
+                      <p className="text-xs text-text-secondary">Successfully purchased</p>
+                      <p className="text-xs text-purple-600 font-medium">Store deal count: purchased</p>
                     </div>
                     <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                       <ShoppingBag className="w-4 h-4 text-purple-600" />
@@ -706,13 +711,13 @@ export function StoreManagerDashboard() {
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-text-secondary">Closed Won:</span>
+                        <span className="text-sm text-text-secondary">Purchased:</span>
                         <span className="font-medium text-green-600">
-                          {formatCurrency(store.closed_won_revenue)}
+                          {formatCurrency(store.purchased_revenue)}
                         </span>
                       </div>
                       <p className="text-xs text-text-secondary mt-2">
-                        Store closed won - Revenue
+                        Store purchased - Revenue
                       </p>
                     </div>
                   </div>
@@ -975,4 +980,4 @@ export function StoreManagerDashboard() {
       </CardContainer>
     </DashboardLayout>
   );
-}
+});

@@ -97,7 +97,7 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
     { name: 'Interested', value: 'interested', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Store - Walkin', value: 'store_walkin', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Negotiation', value: 'negotiation', color: 'bg-white text-gray-800 border-gray-200' },
-    { name: 'Closed Won', value: 'closed_won', color: 'bg-white text-gray-800 border-gray-200' },
+    { name: 'Purchased', value: 'purchased', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Closed Lost', value: 'closed_lost', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Future Prospect', value: 'future_prospect', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Not Qualified', value: 'not_qualified', color: 'bg-white text-gray-800 border-gray-200' },
@@ -303,8 +303,17 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
     <div className={className}>
       {/* Loading State */}
       {loading && (
-        <div className="flex items-center justify-center py-8">
-          <div className="text-muted-foreground">Loading pipeline stats...</div>
+        <div className="space-y-4">
+          <div className="h-6 w-48 bg-muted animate-pulse rounded" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="p-4 border rounded-lg">
+                <div className="h-4 w-20 bg-muted animate-pulse rounded mb-2" />
+                <div className="h-8 w-16 bg-muted animate-pulse rounded mb-1" />
+                <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
