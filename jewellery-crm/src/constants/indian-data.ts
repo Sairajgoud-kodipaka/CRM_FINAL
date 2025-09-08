@@ -297,4 +297,76 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'Sales Person 2',
     'Sales Person 3',
   ] as const;
+
+  // Age ranges for end user
+  export const AGE_RANGES = [
+    '18-25',
+    '25-35', 
+    '35-45',
+    '45-60',
+    '60+',
+  ] as const;
+
+  // Product subtypes for detailed categorization
+  export const PRODUCT_SUBTYPES = [
+    'DI.RING',
+    'DI.EARRINGS', 
+    'DI.NECKLACE',
+    'DI.BRACELET',
+    'DI.BANGLE',
+    'G.AD.RING',
+    'G.AD.EARRINGS',
+    'G.AD.NECKLACE',
+    'G.AD.BRACELET',
+    'G.AD.BANGLE',
+    'G.PLAIN.RING',
+    'G.PLAIN.EARRINGS',
+    'G.PLAIN.NECKLACE',
+    'G.PLAIN.BRACELET',
+    'G.PLAIN.BANGLE',
+    'J.SET',
+    'POLKI.RING',
+    'POLKI.EARRINGS',
+    'POLKI.NECKLACE',
+    'POLKI.BRACELET',
+    'POLKI.BANGLE',
+    'JADTAR.RING',
+    'JADTAR.EARRINGS',
+    'JADTAR.NECKLACE',
+    'JADTAR.BRACELET',
+    'JADTAR.BANGLE',
+    'OTHER',
+  ] as const;
+
+  // Gold price ranges
+  export const GOLD_RANGES = [
+    '100K-500K',
+    '500K-1000K',
+    '1000K-1500K',
+    '1500K-2000K',
+    '2000K-2400K',
+    '2400K+',
+  ] as const;
+
+  // Diamond price ranges
+  export const DIAMOND_RANGES = [
+    '0-50K',
+    '50K-100K',
+    '100K-150K',
+    '150K-200K',
+    '200K-250K',
+    '250K+',
+  ] as const;
+
+  // Material types for jewelry
+  export const MATERIAL_TYPES = [
+    'GOLD JEWELLERY',
+    'DIAMOND JEWELLERY', 
+    'UNCUT JEWELLERY',
+    'PLATINUM JEWELLERY',
+    'SILVER JEWELLERY',
+    'GEMSTONE JEWELLERY',
+    'PEARL JEWELLERY',
+    'OTHER',
+  ] as const;
   
