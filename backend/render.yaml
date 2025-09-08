@@ -4,7 +4,7 @@ services:
     env: python
     plan: starter
     buildCommand: chmod +x ./build.sh && ./build.sh
-    startCommand: gunicorn core.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --max-requests 1000 --max-requests-jitter 100
+    startCommand: chmod +x ./start.sh && ./start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -68,6 +68,12 @@ services:
         value: DENY
       - key: SECURE_REFERRER_POLICY
         value: strict-origin-when-cross-origin
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: DJANGO_SETTINGS_MODULE
+        value: core.settings
+      - key: GUNICORN_CMD_ARGS
+        value: "--timeout=300 --workers=2 --preload"
     healthCheckPath: /api/health/
     autoDeploy: true
     buildFilter:
@@ -80,8 +86,12 @@ services:
     scaling:
       minInstances: 1
       maxInstances: 3
-      targetConcurrency: 100
+      targetConcurrency: 50
       targetCpuUtilizationPercentage: 70
+    # Add startup probe configuration
+    healthCheckGracePeriod: 300
+    healthCheckInterval: 30
+    healthCheckTimeout: 10
 
 databases:
   - name: jewellery-crm-db-managed

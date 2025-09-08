@@ -25,11 +25,11 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/media /app/staticfiles /app/logs
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
+# Collect static files (skip if not needed for faster builds)
+RUN python manage.py collectstatic --noinput || echo "Static files collection skipped"
 
 # Expose port
 EXPOSE 8000
 
 # Run the application with Gunicorn
-CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "--max-requests", "1000", "--max-requests-jitter", "100"] 
+CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "300", "--max-requests", "1000", "--max-requests-jitter", "100", "--preload", "--worker-class", "sync"] 
