@@ -1744,12 +1744,26 @@ class TeamMembersView(APIView):
                         status=status.HTTP_403_FORBIDDEN
                     )
                 
-                # Get subordinates directly from User model using the new manager field
-                team_members = User.objects.filter(
-                    manager_id=manager_id,
-                    role__in=['inhouse_sales', 'tele_calling'],
-                    is_active=True
-                )
+                # Get subordinates from TeamMember model using the manager field
+                from .models import TeamMember
+                print(f"Querying TeamMember objects for manager user_id={manager_id}")
+                
+                # First, find the TeamMember record for the manager
+                try:
+                    manager_team_member = TeamMember.objects.get(user_id=manager_id)
+                    print(f"Found manager TeamMember: {manager_team_member}")
+                    
+                    # Now find subordinates where manager points to this TeamMember
+                    team_member_objects = TeamMember.objects.filter(
+                        manager=manager_team_member,
+                        user__role__in=['inhouse_sales', 'tele_calling'],
+                        user__is_active=True
+                    ).distinct('user')  # Ensure unique users
+                    print(f"Found {team_member_objects.count()} TeamMember objects")
+                    team_members = [tm.user for tm in team_member_objects]
+                except TeamMember.DoesNotExist:
+                    print(f"No TeamMember record found for manager user_id={manager_id}")
+                    team_members = []
                 
             elif current_user.role == 'business_admin':
                 # Business admin can see team members in their tenant
@@ -1760,26 +1774,41 @@ class TeamMembersView(APIView):
                     )
                 
                 # Get subordinates for the target manager in the same tenant
-                team_members = User.objects.filter(
-                    manager_id=manager_id,
-                    role__in=['inhouse_sales', 'tele_calling'],
-                    is_active=True,
-                    tenant=current_user.tenant
-                )
+                from .models import TeamMember
+                try:
+                    manager_team_member = TeamMember.objects.get(user_id=manager_id)
+                    team_member_objects = TeamMember.objects.filter(
+                        manager=manager_team_member,
+                        user__role__in=['inhouse_sales', 'tele_calling'],
+                        user__is_active=True,
+                        user__tenant=current_user.tenant
+                    ).distinct('user')  # Ensure unique users
+                    team_members = [tm.user for tm in team_member_objects]
+                except TeamMember.DoesNotExist:
+                    team_members = []
                 
             elif current_user.role == 'platform_admin':
                 # Platform admin can see any team members
-                team_members = User.objects.filter(
-                    manager_id=manager_id,
-                    role__in=['inhouse_sales', 'tele_calling'],
-                    is_active=True
-                )
+                from .models import TeamMember
+                try:
+                    manager_team_member = TeamMember.objects.get(user_id=manager_id)
+                    team_member_objects = TeamMember.objects.filter(
+                        manager=manager_team_member,
+                        user__role__in=['inhouse_sales', 'tele_calling'],
+                        user__is_active=True
+                    ).distinct('user')  # Ensure unique users
+                    team_members = [tm.user for tm in team_member_objects]
+                except TeamMember.DoesNotExist:
+                    team_members = []
             
             else:
                 return Response(
                     {'detail': 'Access denied'}, 
                     status=status.HTTP_403_FORBIDDEN
                 )
+            
+            print(f"Found {len(team_members)} team members for manager {manager_id}")
+            print(f"Team members: {[(tm.id, tm.username, tm.role) for tm in team_members]}")
             
             # Return only necessary user data for salesperson assignment
             users = [{
@@ -1791,10 +1820,13 @@ class TeamMembersView(APIView):
             } for member in team_members]
             
             return Response({
-                'users': users,
-                'total_count': len(users),
-                'manager_name': target_manager.get_full_name() or target_manager.username,
-                'access_level': current_user.role
+                'success': True,
+                'data': {
+                    'users': users,
+                    'total_count': len(users),
+                    'manager_name': target_manager.get_full_name() or target_manager.username,
+                    'access_level': current_user.role
+                }
             })
             
         except User.DoesNotExist:

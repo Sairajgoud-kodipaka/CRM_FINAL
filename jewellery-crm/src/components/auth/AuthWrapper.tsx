@@ -19,7 +19,7 @@ export function AuthWrapper({ children, requiredRole }: AuthWrapperProps) {
     if (isHydrated && !isLoading) {
       if (!user) {
         console.log('No user found, redirecting to login');
-        router.push('/login');
+        router.push('/');
         return;
       }
 

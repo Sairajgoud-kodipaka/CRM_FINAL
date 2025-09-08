@@ -46,20 +46,7 @@ const nextConfig: NextConfig = {
     formats: ['image/webp', 'image/avif'],
   },
   
-  // Bundle analysis in development
-  ...(process.env.NODE_ENV === 'development' && {
-    webpack: (config, { dev, isServer }) => {
-      if (dev && !isServer) {
-        config.plugins.push(
-          new (require('webpack-bundle-analyzer').BundleAnalyzerPlugin)({
-            analyzerMode: 'static',
-            openAnalyzer: false,
-          })
-        );
-      }
-      return config;
-    },
-  }),
+  // Bundle analysis removed for stability
 };
 
 export default nextConfig;

@@ -61,7 +61,7 @@ export default function SplashPage() {
           clearInterval(timer);
           // Redirect to login after showing all steps
           setTimeout(() => {
-            window.location.href = '/login';
+            window.location.href = '/';
           }, 1000);
           return prev;
         }

@@ -78,7 +78,7 @@ export default function ManagerTeamPage() {
             fetchCurrentUser();
           } else {
             console.log('Auto-login failed, redirecting to login page');
-            router.push('/login');
+            router.push('/');
           }
         } catch (error) {
           console.error('Auto-login error:', error);
