@@ -22,12 +22,13 @@ urlpatterns = [
     path('sales-team/<int:pk>/', views.UserDetailView.as_view(), name='sales_team_profile'),
     path('users/team-members/', views.TeamMemberListView.as_view(), name='team_members_list'),
     path('users/team-members/list/', views.team_members_list, name='team_members_list'),
+    
+    # Role-based salesperson assignment - MUST come before generic detail view
+    path('users/team-members/<int:manager_id>/', views.TeamMembersView.as_view(), name='team_members'),
+    
     path('users/team-members/<int:pk>/', views.TeamMemberDetailView.as_view(), name='team_member_detail'),
     path('users/team-members/<int:pk>/update/', views.TeamMemberUpdateView.as_view(), name='team_member_update'),
     path('users/team-members/<int:pk>/delete/', views.TeamMemberDeleteView.as_view(), name='team_member_delete'),
-    
-    # Role-based salesperson assignment
-    path('users/team-members/<int:manager_id>/', views.TeamMembersView.as_view(), name='team_members'),
     path('users/tenant/<int:tenant_id>/sales-users/', views.TenantSalesUsersView.as_view(), name='tenant_sales_users'),
     path('users/sales-users/', views.AllSalesUsersView.as_view(), name='all_sales_users'),
     path('audit/assignment-override/', views.AssignmentOverrideAuditView.as_view(), name='assignment_override_audit'),

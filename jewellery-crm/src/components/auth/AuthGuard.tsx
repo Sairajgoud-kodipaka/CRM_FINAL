@@ -19,7 +19,7 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
 
     // If not authenticated, redirect to login
     if (!isAuthenticated || !user) {
-      router.push('/login');
+      router.push('/');
       return;
     }
 

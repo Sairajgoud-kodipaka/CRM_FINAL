@@ -225,7 +225,7 @@ export function StoreManagerDashboard() {
           fetchDashboardData();
         } else {
           console.log('❌ Auto-login failed, redirecting to login');
-          router.push('/login');
+          router.push('/');
           return;
         }
       } else {

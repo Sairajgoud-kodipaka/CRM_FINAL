@@ -547,7 +547,7 @@ class ApiService {
           // Token expired or invalid, redirect to login
           if (typeof window !== 'undefined') {
             localStorage.removeItem('auth-storage');
-            window.location.href = '/login';
+            window.location.href = '/';
           }
         }
         

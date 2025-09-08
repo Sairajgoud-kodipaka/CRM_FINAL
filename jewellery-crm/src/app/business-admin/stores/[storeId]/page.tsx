@@ -120,7 +120,7 @@ export default function StoreDetailPage() {
   useEffect(() => {
     // Redirect to login if not authenticated
     if (!isAuthenticated || !token) {
-      router.push('/login');
+      router.push('/');
       return;
     }
     

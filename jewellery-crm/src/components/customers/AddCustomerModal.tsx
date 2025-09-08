@@ -79,6 +79,7 @@ interface FormData {
   weightUnit: string;
   customerPreference: string;
   designNumber: string;
+  addToPipeline: boolean;
   nextFollowUpDate: string;
   nextFollowUpTime: string;
   summaryNotes: string;
@@ -160,6 +161,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     weightUnit: "g",
     customerPreference: "",
     designNumber: "",
+    addToPipeline: false,
     nextFollowUpDate: "",
     nextFollowUpTime: "10:00",
     summaryNotes: "",
@@ -249,22 +251,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // State for autofill audit trail
   const [autofillLogs, setAutofillLogs] = useState<AutofillLog[]>([]);
 
-  // Role-based salesperson field configuration
-  const ROLE_CONFIG = {
-    'inhouse_sales': { fieldType: 'locked', dataScope: 'self', canOverride: false },
-    'tele_calling': { fieldType: 'locked', dataScope: 'self', canOverride: false },
-    'manager': { fieldType: 'dropdown', dataScope: 'team', canOverride: true },
-    'business_admin': { fieldType: 'dropdown', dataScope: 'tenant', canOverride: true },
-    'platform_admin': { fieldType: 'dropdown', dataScope: 'global', canOverride: true }
-  };
-
-  // Role-aware field state management
-  const [fieldState, setFieldState] = useState<{
-    type: 'locked' | 'dropdown';
-    options: any[];
-    value: string;
-    locked: boolean;
-  }>({ type: 'locked', options: [], value: '', locked: true });
 
   // Assignment audit trail
   const [assignmentAudit, setAssignmentAudit] = useState<{
@@ -465,9 +451,9 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       errors.push("Pincode is required");
     }
     
-    // Sales person validation - hybrid approach
-    if (user?.role !== 'inhouse_sales' && user?.role !== 'tele_calling' && !formData.salesPerson) {
-      errors.push("Sales Person is required for managers and admins");
+    // Sales person validation - required for all roles
+    if (!formData.salesPerson) {
+      errors.push("Sales Person is required");
     }
     
     if (!formData.reasonForVisit) {
@@ -641,20 +627,18 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       const assignmentAudit = {
         assignedByUserId: user?.id || 0,
         assignedByRole: user?.role || 'unknown',
-        assignedToUserId: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? user?.id || 0 : 0, // Will be set based on selection
-        assignedToName: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? user?.name || 'Auto-assigned' : formData.salesPerson,
-        assignmentType: (user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? 'self' : 
-                       user?.role === 'manager' ? 'manager' : 'admin') as 'self' | 'manager' | 'admin',
-        assignmentScope: (user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? 'self' : 
-                         user?.role === 'manager' ? 'team' : 
+        assignedToUserId: 0, // Will be set based on selection
+        assignedToName: formData.salesPerson,
+        assignmentType: (user?.role === 'manager' ? 'manager' : 'admin') as 'self' | 'manager' | 'admin',
+        assignmentScope: (user?.role === 'manager' ? 'team' : 
                          user?.role === 'business_admin' ? 'tenant' : 'global') as 'self' | 'team' | 'tenant' | 'global',
         timestamp: new Date().toISOString(),
-        overrideReason: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? undefined : 'Role-based override',
+        overrideReason: 'Manual assignment',
         teamViolation: false, // Will be checked for managers
         // Enhanced audit metadata for compliance
         userTenant: user?.tenant || null,
         userStore: user?.store || null,
-        assignmentMethod: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? 'automatic' : 'manual',
+        assignmentMethod: 'manual',
         availableOptions: salesPersons.length,
         roleBasedFiltering: true,
         complianceStatus: 'compliant'
@@ -674,7 +658,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         anniversary_date: formatDateForAPI(formData.anniversaryDate),
         catchment_area: formData.catchmentArea,
         pincode: formData.pincode,
-        sales_person: user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? user?.name : formData.salesPerson,
+        sales_person: formData.salesPerson,
         reason_for_visit: formData.reasonForVisit,
         customer_status: formData.customerStatus,
         lead_source: formData.leadSource,
@@ -746,7 +730,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         
         toast({
           title: "Success!",
-          description: `Customer added successfully! ${assignmentAudit.assignmentType === 'self' ? 'Auto-assigned to you.' : `Assigned to ${assignmentAudit.assignedToName}.`}`,
+          description: `Customer added successfully! Assigned to ${assignmentAudit.assignedToName}.`,
           variant: "success",
         });
         
@@ -790,6 +774,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           weightUnit: "g",
           customerPreference: "",
           designNumber: "",
+          addToPipeline: false,
           nextFollowUpDate: "",
           nextFollowUpTime: "10:00",
           summaryNotes: "",
@@ -912,8 +897,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // Fetch sales persons when modal opens - OPTIMIZED
   useEffect(() => {
     if (open && user) {
-      // Only fetch if we don't already have options
-      if (salesPersons.length === 0 || salesPersons.includes('Sales Person 1')) {
+      // Always fetch fresh data when modal opens
+      console.log('🔄 Modal opened, fetching fresh data...');
         const fetchData = async () => {
           try {
             setLoading(true);
@@ -945,25 +930,35 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         };
         
         fetchData();
-      }
     }
-  }, [open, user, salesPersons.length]);
+  }, [open, user]);
 
-  // Role-aware salesperson field initialization
+  // Load salesperson options when user changes
   useEffect(() => {
-    if (!user) return;
-    
-    // Auto-fill salesPerson for sales users
-    if (user.role === 'inhouse_sales' || user.role === 'tele_calling') {
-      setFormData(prev => ({ ...prev, salesPerson: user.name }));
+    console.log('🔄 useEffect triggered for loadSalesPersonOptions');
+    console.log('🔄 User in useEffect:', user);
+    if (!user) {
+      console.log('❌ No user in useEffect, returning');
+      return;
     }
     
     // Load salesperson options based on role
+    console.log('🔄 Calling loadSalesPersonOptions...');
     loadSalesPersonOptions();
   }, [user]);
 
+  // Monitor salesPersons state changes
+  useEffect(() => {
+    if (salesPersons.length > 0) {
+      console.log('✅ Sales persons loaded:', salesPersons.length, 'options');
+    }
+  }, [salesPersons]);
+
   const loadSalesPersonOptions = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('❌ No user found, cannot load salesperson options');
+      return;
+    }
     
     try {
       let options: any[] = [];
@@ -973,29 +968,61 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       console.log('🔍 DEBUG: User:', user);
       console.log('🔍 DEBUG: User ID:', user.id);
       console.log('🔍 DEBUG: User Role:', user.role);
+      console.log('🔍 DEBUG: User object keys:', Object.keys(user));
       
       // Implement deterministic dropdown logic based on role
       if (user.role === 'manager') {
-        // Manager: Only their team members
-        console.log('👥 Manager: Loading team members...');
-        console.log('🔍 DEBUG: Calling apiService.getTeamMembers with ID:', user.id);
+        // Manager: Only their specific team members
+        console.log('👥 Manager: Loading specific team members...');
+        console.log('🔍 DEBUG: Calling apiService.getTeamMembers with manager ID:', user.id);
         
-        apiResponse = await safeApiCall(() => apiService.getTeamMembers(user.id || 0));
+        console.log('🔍 DEBUG: About to call apiService.getTeamMembers()');
+        try {
+          apiResponse = await apiService.getTeamMembers(user.id || 0);
+          console.log('🔍 DEBUG: API call completed successfully');
+        } catch (error) {
+          console.error('🔍 DEBUG: API call failed with error:', error);
+          apiResponse = null;
+        }
         
         console.log('🔍 DEBUG: Raw API Response:', apiResponse);
         console.log('🔍 DEBUG: API Response success:', apiResponse?.success);
         console.log('🔍 DEBUG: API Response data:', apiResponse?.data);
-        console.log('🔍 DEBUG: API Response data.users:', apiResponse?.data?.users);
+        console.log('🔍 DEBUG: API Response data type:', typeof apiResponse?.data);
+        console.log('🔍 DEBUG: API Response data is array:', Array.isArray(apiResponse?.data));
         
-        if (apiResponse?.success && apiResponse.data?.users) {
-          options = apiResponse.data.users;
-          console.log(`✅ Loaded ${options.length} team members for manager`);
-          console.log('🔍 DEBUG: Options array:', options);
+        if (apiResponse?.success && apiResponse.data) {
+          // Handle manager-specific team members response
+          if (apiResponse.data.users && Array.isArray(apiResponse.data.users)) {
+            options = apiResponse.data.users;
+            console.log(`✅ Loaded ${options.length} specific team members for manager`);
+            console.log('🔍 DEBUG: Manager-specific team members:', options);
+            console.log('🔍 DEBUG: Manager name:', apiResponse.data.manager_name);
+            console.log('🔍 DEBUG: Access level:', apiResponse.data.access_level);
+          } else {
+            console.log('❌ Manager-specific API response format unexpected');
+            console.log('❌ Data structure:', apiResponse.data);
+          }
         } else {
-          console.log('❌ API Response validation failed');
+          console.log('❌ Manager-specific API Response validation failed');
           console.log('❌ Success:', apiResponse?.success);
           console.log('❌ Data:', apiResponse?.data);
-          console.log('❌ Users:', apiResponse?.data?.users);
+          
+          // Fallback to general team members list if manager-specific fails
+          console.log('🔄 Falling back to general team members list...');
+          try {
+            const fallbackResponse = await apiService.listTeamMembers();
+            if (fallbackResponse?.success && fallbackResponse.data) {
+              if (Array.isArray(fallbackResponse.data)) {
+                options = fallbackResponse.data;
+              } else if (typeof fallbackResponse.data === 'object' && fallbackResponse.data !== null && 'results' in fallbackResponse.data && Array.isArray((fallbackResponse.data as any).results)) {
+                options = (fallbackResponse.data as any).results;
+              }
+              console.log(`✅ Fallback loaded ${options.length} team members`);
+            }
+          } catch (fallbackError) {
+            console.error('❌ Fallback also failed:', fallbackError);
+          }
         }
       } else if (user.role === 'business_admin' && user.tenant) {
         // Business Admin: All sales users in their tenant
@@ -1013,44 +1040,98 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           options = apiResponse.data.users;
           console.log(`✅ Loaded ${options.length} sales users globally`);
         }
+      } else if (['inhouse_sales', 'tele_calling'].includes(user.role)) {
+        // Sales Users: Load all sales users in their tenant or globally
+        console.log(`👤 ${user.role}: Loading sales users...`);
+        
+        // Try to get tenant sales users first
+        if (user.tenant) {
+          console.log('🏢 Trying tenant sales users first...');
+          apiResponse = await safeApiCall(() => apiService.getTenantSalesUsers(user.tenant || 0));
+          if (apiResponse?.success && apiResponse.data?.users) {
+            options = apiResponse.data.users;
+            console.log(`✅ Loaded ${options.length} sales users from tenant`);
+          }
+        }
+        
+        // If no tenant data or no tenant, try global sales users
+        if (options.length === 0) {
+          console.log('🌐 Trying global sales users...');
+          apiResponse = await safeApiCall(() => apiService.getAllSalesUsers());
+          if (apiResponse?.success && apiResponse.data?.users) {
+            options = apiResponse.data.users;
+            console.log(`✅ Loaded ${options.length} sales users globally`);
+          }
+        }
       }
       
-      // Filter options to only include sales users (not managers)
-      const salesUserOptions = options.filter((u: any) => 
-        ['inhouse_sales', 'tele_calling'].includes(u.role)
-      );
+      // For managers, use all team members (not just sales users)
+      let finalOptions = options;
       
-      console.log('🔍 DEBUG: Filtered sales user options:', salesUserOptions);
-      
-      if (salesUserOptions.length > 0) {
-        // Use real API options
-        const names = salesUserOptions.map((u: any) => u.name || u.id);
-        setSalesPersons(names);
-        console.log(`✅ Set ${salesUserOptions.length} real salesperson options:`, names);
+      if (user.role === 'manager') {
+        // For managers, use all team members as they are the manager's team
+        console.log('👥 Manager: Using all team members as salesperson options');
+        finalOptions = options;
       } else {
-        // No sales users found - show appropriate message
-        setSalesPersons([]);
-        console.log('⚠️ No sales users found for the current role/scope');
-        
-        // Show user-friendly message based on role
+        // For other roles, filter to only include sales users
+        finalOptions = options.filter((u: any) => 
+          ['inhouse_sales', 'tele_calling'].includes(u.role)
+        );
+      }
+      
+      console.log('🔍 DEBUG: Final options after filtering:', finalOptions);
+      
+      if (finalOptions.length > 0) {
+        // Use real API options
+        let names: string[];
         if (user.role === 'manager') {
-          toast({
-            title: "No Team Members",
-            description: "You don't have any sales team members assigned yet. Please contact your administrator.",
-            variant: "warning",
-          });
-        } else if (user.role === 'business_admin') {
-          toast({
-            title: "No Sales Users",
-            description: "No sales users found in your tenant. Please add sales users first.",
-            variant: "warning",
-          });
+          // Manager-specific endpoint returns users with 'name' field
+          names = finalOptions.map((u: any) => u.name || u.username || `User ${u.id}`);
+        } else {
+          // Other endpoints return users with 'first_name' and 'last_name' fields
+          names = finalOptions.map((u: any) => u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || `User ${u.id}`);
+        }
+        console.log('🔍 DEBUG: About to set salesPersons with names:', names);
+        setSalesPersons(names);
+        console.log(`✅ Set ${finalOptions.length} salesperson options:`, names);
+        console.log('🔍 DEBUG: salesPersons state should now be updated');
+      } else {
+        // If no sales users found from API, provide fallback options
+        if (['inhouse_sales', 'tele_calling'].includes(user.role)) {
+          // For sales users, include themselves and some default options
+          const fallbackOptions = [
+            user.name || 'Current User',
+            'Sales Person 1',
+            'Sales Person 2', 
+            'Sales Person 3'
+          ];
+          setSalesPersons(fallbackOptions);
+          console.log('✅ Added fallback options for sales user:', fallbackOptions);
+        } else {
+          // No sales users found - show appropriate message
+          setSalesPersons([]);
+          console.log('⚠️ No sales users found for the current role/scope');
+          
+          // Show user-friendly message based on role
+          if (user.role === 'manager') {
+            toast({
+              title: "No Team Members",
+              description: "You don't have any sales team members assigned yet. Please contact your administrator.",
+              variant: "warning",
+            });
+          } else if (user.role === 'business_admin') {
+            toast({
+              title: "No Sales Users",
+              description: "No sales users found in your tenant. Please add sales users first.",
+              variant: "warning",
+            });
+          }
         }
       }
       
       // Log the role-based assignment scope
       console.log(`🎯 Role-based assignment scope: ${user.role}`);
-      console.log(`📊 Available options: ${salesUserOptions.length} sales users`);
+      console.log(`📊 Available options: ${finalOptions.length} sales users`);
       
     } catch (error) {
       console.error('Salesperson options loading failed:', error);
@@ -1208,9 +1289,9 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
         </DialogHeader>
 
-        {/* Customer Details */}
+        {/* Basic Customer Information */}
         <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-2">Customer Details</div>
+          <div className="font-semibold mb-3 text-lg">👤 Basic Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Full Name *</label>
@@ -1256,22 +1337,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Birth Date</label>
-              <Input 
-                type="date" 
-                value={formData.birthDate}
-                onChange={(e) => handleInputChange('birthDate', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Anniversary Date</label>
-              <Input 
-                type="date" 
-                value={formData.anniversaryDate}
-                onChange={(e) => handleInputChange('anniversaryDate', e.target.value)}
-              />
-            </div>
-            <div>
               <label className="block text-sm font-medium mb-1">Age of End User</label>
               <Select 
                 value={formData.ageOfEndUser} 
@@ -1292,11 +1357,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           </div>
         </div>
 
-        {/* Address Section */}
+        {/* Address Information */}
         <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-2">Address Information</div>
+          <div className="font-semibold mb-3 text-lg">📍 Address</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Street Address</label>
               <Input 
                 placeholder="e.g., 123, Diamond Lane" 
@@ -1345,10 +1410,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   🔒 Auto-filled from selected city
                 </div>
               )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Country</label>
-              <Input value="India" disabled />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Catchment Area *</label>
@@ -1407,98 +1468,33 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           </div>
         </div>
 
-        {/* Sales & Lead Information */}
+        {/* Sales Information */}
         <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-2">Sales & Lead Information</div>
+          <div className="font-semibold mb-3 text-lg">💼 Sales Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Sales Person *</label>
-              {user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? (
-                // Auto-filled and locked for sales users
-                <div className="relative">
-                  <Input
-                    value={user?.name || 'Auto-assigned'}
-                    disabled
-                    className="bg-gray-100 cursor-not-allowed"
-                    readOnly
-                  />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                    <span className="text-gray-400">🔒</span>
-                  </div>
-                </div>
-              ) : (
-                // Dropdown for managers and admins
-                <Select 
-                  value={formData.salesPerson} 
-                  onValueChange={(value) => handleInputChange('salesPerson', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Sales Person" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {salesPersons.map((person) => (
-                      <SelectItem key={person} value={person}>
-                        {person}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              
-              {/* Role context indicator */}
-              <div className="mt-1 text-sm text-gray-500">
-                {user?.role === 'inhouse_sales' || user?.role === 'tele_calling' ? (
-                  <span className="flex items-center">
-                    🔒 Auto-assigned to you (cannot be changed)
-                  </span>
-                ) : user?.role === 'manager' ? (
-                  <span className="flex items-center">
-                    👥 Select from your team members only
-                  </span>
-                ) : user?.role === 'business_admin' ? (
-                  <span className="flex items-center">
-                    🏢 Select from tenant sales team
-                  </span>
-                ) : user?.role === 'platform_admin' ? (
-                  <span className="flex items-center">
-                    🌐 Select any sales user globally
-                  </span>
-                ) : (
-                  <span className="flex items-center">
-                    👤 Select sales person
-                  </span>
-                )}
-              </div>
-              
-              {/* Assignment scope info */}
-              {user?.role !== 'inhouse_sales' && user?.role !== 'tele_calling' && (
-                <div className="mt-1 text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                  <strong>Assignment Scope:</strong> {
-                    user?.role === 'manager' ? 'Team Members Only' :
-                    user?.role === 'business_admin' ? 'Tenant Sales Users' :
-                    user?.role === 'platform_admin' ? 'Global Sales Users' :
-                    'Limited Access'
-                  }
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Reason for Visit *</label>
               <Select 
-                value={formData.reasonForVisit} 
-                onValueChange={(value) => handleInputChange('reasonForVisit', value)}
+                value={formData.salesPerson} 
+                onValueChange={(value) => handleInputChange('salesPerson', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Reason" />
+                  <SelectValue placeholder="Select Sales Person" />
                 </SelectTrigger>
                 <SelectContent>
-                  {REASONS_FOR_VISIT.map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {reason}
+                  {salesPersons.map((person, index) => (
+                    <SelectItem key={`${person}-${index}`} value={person}>
+                      {person}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <div className="mt-1 text-xs text-gray-500">
+                {user?.role === 'manager' ? '👥 Your team members only' :
+                 user?.role === 'business_admin' ? '🏢 Tenant sales team' :
+                 user?.role === 'platform_admin' ? '🌐 All sales users' :
+                 '👤 Available sales team'}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Customer Status *</label>
@@ -1513,6 +1509,24 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   {CUSTOMER_STATUSES.map((status) => (
                     <SelectItem key={status} value={status}>
                       {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Reason for Visit *</label>
+              <Select 
+                value={formData.reasonForVisit} 
+                onValueChange={(value) => handleInputChange('reasonForVisit', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REASONS_FOR_VISIT.map((reason) => (
+                    <SelectItem key={reason} value={reason}>
+                      {reason}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1536,72 +1550,23 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Monthly Saving Scheme *</label>
-              <Select 
-                value={formData.savingScheme} 
-                onValueChange={(value) => handleInputChange('savingScheme', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SAVING_SCHEMES.map((scheme) => (
-                    <SelectItem key={scheme} value={scheme}>
-                      {scheme}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </div>
 
 
 
-        {/* Customer Interests */}
+        {/* Product Interest */}
         <div className="border rounded-lg p-4 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="font-semibold">Product Interests</div>
-            <Button variant="outline" size="sm" onClick={addInterest}>+ Add Interest</Button>
-          </div>
-          {interests.map((interest, idx) => {
-            // Safety check to ensure interest has the required structure
-            if (!interest || !interest.preferences) {
-              return null;
-            }
-            
-            return (
-            <div key={idx} className="border rounded p-3 mb-4">
-              <div className="mb-2 font-medium">Interest Item #{idx + 1}</div>
-              
-              {/* Product Chosen Field */}
+          <div className="font-semibold mb-3 text-lg">💎 Product Interest</div>
+          
+          {/* Product Selection */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Product Chosen</label>
+            <label className="block text-sm font-medium mb-1">Select Product *</label>
                 <Select 
                   onValueChange={(productId) => {
                     const selectedProduct = products.find(p => p.id.toString() === productId);
                     if (selectedProduct) {
-                      console.log('Selected product:', selectedProduct);
-                      
-                      // Store the selected product for weight display
                       setSelectedProduct(selectedProduct);
-                      
-                      // Auto-adjust selected weight based on selected product weight
-                      if (selectedProduct.weight) {
-                        const baseWeight = Number(selectedProduct.weight) || 0;
-                        const unit = formData.weightUnit;
-                        
-                        console.log(`Product weight before conversion:`, selectedProduct.weight, typeof selectedProduct.weight);
-                        console.log(`Converted weight:`, baseWeight, typeof baseWeight);
-                        
-                        setFormData(prev => ({
-                          ...prev,
-                          selectedWeight: baseWeight
-                        }));
-                        
-                        console.log(`Auto-adjusted selected weight: ${baseWeight}${unit}`);
-                      }
                       
                       // Auto-populate Product Type based on category
                       let productType = '';
@@ -1615,28 +1580,20 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       
                       if (productType) {
                         setFormData(prev => ({ ...prev, productType }));
-                        console.log('Auto-populated Product Type:', productType);
                       }
                       
-                      // Auto-populate the Product field and Revenue in the CURRENT interest item
+                  // Auto-populate the first interest item
                       setInterests(prev => {
                         const copy = [...prev];
-                        // Update the current interest item (idx) instead of always the first one
-                        if (copy[idx] && copy[idx].products.length > 0) {
-                          // Update the first product in the current interest item
-                          copy[idx].products[0].product = selectedProduct.id.toString();
-                          // Auto-populate revenue with product price
+                    if (copy[0] && copy[0].products.length > 0) {
+                      copy[0].products[0].product = selectedProduct.id.toString();
                           const productPrice = selectedProduct.selling_price || selectedProduct.price || 0;
-                          copy[idx].products[0].revenue = productPrice.toString();
-                          console.log(`Auto-populated Product field in Interest Item #${idx + 1}:`, selectedProduct.name);
-                          console.log(`Auto-populated Revenue field with price:`, productPrice);
-                        } else if (copy[idx]) {
-                          // If no products exist in this interest item, create one
-                          copy[idx].products = [{
+                      copy[0].products[0].revenue = productPrice.toString();
+                    } else if (copy[0]) {
+                      copy[0].products = [{
                             product: selectedProduct.id.toString(),
                             revenue: (selectedProduct.selling_price || selectedProduct.price || 0).toString()
                           }];
-                          console.log(`Created new product in Interest Item #${idx + 1}:`, selectedProduct.name);
                         }
                         return copy;
                       });
@@ -1651,7 +1608,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   disabled={productsLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={productsLoading ? "Loading products..." : "Select Product with Price"} />
+                <SelectValue placeholder={productsLoading ? "Loading products..." : "Select Product"} />
                   </SelectTrigger>
                   <SelectContent>
                     {productsLoading ? (
@@ -1667,13 +1624,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                     )}
                   </SelectContent>
                 </Select>
-                <div className="text-xs text-gray-500 mt-1">
-                  Select a product to auto-populate Product Type
-                </div>
               </div>
 
-              {/* Product Type Field */}
-              <div className="mb-4">
+          {/* Product Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
                 <label className="block text-sm font-medium mb-1">Product Type *</label>
                 <Select 
                   value={formData.productType} 
@@ -1681,7 +1636,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   disabled={!formData.productType}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={formData.productType ? formData.productType : "Auto-populated from Product Chosen"} />
+                  <SelectValue placeholder={formData.productType ? formData.productType : "Auto-filled from product"} />
                   </SelectTrigger>
                   <SelectContent>
                     {formData.productType ? (
@@ -1690,21 +1645,13 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       </SelectItem>
                     ) : (
                       <SelectItem value="no-product-selected" disabled>
-                        Select a product first to see Product Type
+                      Select a product first
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
-                <div className="text-xs text-gray-500 mt-1">
-                  {formData.productType 
-                    ? `Product Type: ${formData.productType}` 
-                    : "Product Type will be auto-populated when you select a product above"
-                  }
                 </div>
-              </div>
-
-              {/* Style Field */}
-              <div className="mb-4">
+            <div>
                 <label className="block text-sm font-medium mb-1">Style *</label>
                 <Select 
                   value={formData.style} 
@@ -1722,59 +1669,48 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Product Subtype Field */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Product Subtype</label>
+            <div>
+              <label className="block text-sm font-medium mb-1">Material Type *</label>
                 <Select 
-                  value={formData.productSubtype} 
-                  onValueChange={(value) => handleInputChange('productSubtype', value)}
+                value={formData.materialType} 
+                onValueChange={(value) => handleInputChange('materialType', value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select Product Subtype" />
+                  <SelectValue placeholder="Select Material Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PRODUCT_SUBTYPES.map((subtype) => (
-                      <SelectItem key={subtype} value={subtype}>
-                        {subtype}
+                  {MATERIAL_TYPES.map((material) => (
+                    <SelectItem key={material} value={material}>
+                      {material}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="text-xs text-gray-500 mt-1">
-                  Detailed product categorization (DI.RING, G.AD.RING, J.SET, etc.)
                 </div>
-              </div>
-
-              {/* Material Type Selection */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Material Type *</label>
+            <div>
+              <label className="block text-sm font-medium mb-1">Product Subtype</label>
                 <Select 
-                  value={formData.materialType} 
-                  onValueChange={(value) => handleInputChange('materialType', value)}
+                value={formData.productSubtype} 
+                onValueChange={(value) => handleInputChange('productSubtype', value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select Material Type" />
+                  <SelectValue placeholder="Select Subtype" />
                   </SelectTrigger>
                   <SelectContent>
-                    {MATERIAL_TYPES.map((material) => (
-                      <SelectItem key={material} value={material}>
-                        {material}
+                  {PRODUCT_SUBTYPES.map((subtype) => (
+                    <SelectItem key={subtype} value={subtype}>
+                      {subtype}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="text-xs text-gray-500 mt-1">
-                  Choose the primary material of the jewelry piece
                 </div>
               </div>
 
-              {/* Dynamic Weight/Value Field */}
+          {/* Material Weight/Value */}
               {formData.materialType && (
                 <div className="mb-4">
                   {['GOLD JEWELLERY', 'SILVER JEWELLERY', 'PLATINUM JEWELLERY'].includes(formData.materialType) ? (
-                    // Weight field for metals
-                    <div className="space-y-3">
                       <div className="flex items-center gap-3">
                         <label className="text-sm font-medium text-gray-700">Weight:</label>
                         <Input
@@ -1797,14 +1733,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                             <SelectItem value="oz">oz</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Enter the weight of the {formData.materialType.toLowerCase()} piece
-                      </div>
                     </div>
                   ) : (
-                    // Value field for stones/gems/diamonds
-                    <div className="space-y-3">
                       <div className="flex items-center gap-3">
                         <label className="text-sm font-medium text-gray-700">Value:</label>
                         <div className="relative">
@@ -1818,321 +1748,210 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                           />
                         </div>
                         <span className="text-sm text-gray-500">rupees</span>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Enter the value of the {formData.materialType.toLowerCase()} piece in rupees
-                      </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Product Weight Display */}
+          {/* Revenue Opportunity */}
               <div className="mb-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="block text-sm font-medium">Product Weight</label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Set selected weight to product weight when gear is clicked
-                      if (selectedProduct?.weight) {
-                        setFormData(prev => ({
-                          ...prev,
-                          selectedWeight: selectedProduct.weight
-                        }));
-                      }
-                    }}
-                    className="h-6 w-6 p-0 text-xs"
-                    title="Customize weight range"
-                  >
-                    ⚙️
-                  </Button>
-                </div>
-                <div className="space-y-3">
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-amber-600">⚖️</span>
-                      <span className="text-sm font-medium text-amber-800">Selected Product Weight</span>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-amber-900">
-                        {selectedProduct && selectedProduct.weight 
-                          ? (() => {
-                              const weight = Number(selectedProduct.weight) || 0;
-                              const unit = formData.weightUnit;
-                              const displayWeight = unit === 'kg' ? (weight / 1000).toFixed(3) : weight;
-                              return `${displayWeight}${unit}`;
-                            })()
-                          : 'No product selected'
-                        }
+            <label className="block text-sm font-medium mb-1">Expected Revenue (₹) *</label>
+                        <Input
+                          placeholder="e.g., 50000" 
+              value={interests[0]?.products[0]?.revenue || ''}
+                          onChange={(e) => {
+                            setInterests(prev => {
+                              const copy = [...prev];
+                  if (copy[0] && copy[0].products[0]) {
+                    copy[0].products[0].revenue = e.target.value;
+                  }
+                              return copy;
+                            });
+                          }}
+              className="w-48"
+                        />
                       </div>
-                      <div className="text-xs text-amber-700 mt-1">
-                        This is the actual weight of the product you selected above
-                      </div>
-                      
-                      {/* Selected Weight Display */}
-                      <div className="mt-3 pt-3 border-t border-amber-200">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="text-xs text-amber-600">Customer's Selected Weight:</div>
-                          {Number(formData.selectedWeight) !== 3.5 ? (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                              Customized
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="text-sm font-medium text-amber-800">
-                          {(Number(formData.selectedWeight) || 0).toFixed(1)}{formData.weightUnit}
-                        </div>
-                        <div className="text-xs text-amber-600 mt-1">
-                          This is the exact weight the customer wants
-                        </div>
-                      </div>
-                    </div>
+              
+          {/* Product Interests */}
+          <div className="border rounded p-4 bg-gray-50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-medium">Product Interests</div>
+              <Button variant="outline" size="sm" onClick={addInterest}>+ Add Interest</Button>
+            </div>
+            
+            {interests.map((interest, idx) => {
+              if (!interest || !interest.preferences) {
+                return null;
+              }
+              
+              return (
+                <div key={idx} className="border rounded p-3 mb-3 bg-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="font-medium text-sm">Interest #{idx + 1}</div>
+                    {interests.length > 1 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => {
+                          setInterests(prev => prev.filter((_, i) => i !== idx));
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </div>
-
-                  {/* Unit Selector */}
-                  <div className="flex items-center gap-3">
-                    <label className="text-sm font-medium text-gray-700">Display Unit:</label>
-                    <Select 
-                      value={formData.weightUnit} 
+                  
+                  {/* Product Selection for this interest */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">Product</label>
+                    <Select
+                      value={interest.products[0]?.product || ''}
                       onValueChange={(value) => {
-                        // Convert selected weight when unit changes
-                        const oldUnit = formData.weightUnit;
-                        const newUnit = value;
-                        
-                        let newSelectedWeight = Number(formData.selectedWeight) || 0;
-                        
-                        if (oldUnit === 'g' && newUnit === 'kg') {
-                          // Convert from grams to kilograms
-                          newSelectedWeight = newSelectedWeight / 1000;
-                        } else if (oldUnit === 'kg' && newUnit === 'g') {
-                          // Convert from kilograms to grams
-                          newSelectedWeight = newSelectedWeight * 1000;
-                        }
-                        
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          weightUnit: value,
-                          selectedWeight: newSelectedWeight
-                        }));
+                        setInterests(prev => {
+                          const copy = [...prev];
+                          if (!copy[idx].products[0]) {
+                            copy[idx].products[0] = { product: "", revenue: "" };
+                          }
+                          copy[idx].products[0].product = value;
+                          
+                          // Auto-populate revenue if product is selected
+                          const selectedProduct = products.find(p => p.id.toString() === value);
+                          if (selectedProduct) {
+                            const productPrice = selectedProduct.selling_price || selectedProduct.price || 0;
+                            copy[idx].products[0].revenue = productPrice.toString();
+                          }
+                          return copy;
+                        });
                       }}
                     >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Product" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="g">Grams (g)</SelectItem>
-                        <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id.toString()}>
+                            {product.name} - ₹{product.selling_price?.toLocaleString('en-IN') || 'Price N/A'}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {/* Custom Weight Slider */}
-                  <div className="border-t pt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium text-gray-700">Custom Weight Selection</label>
-                      <span className="text-xs text-gray-500">Click to customize</span>
-                    </div>
-                    <WeightRangeSlider
-                      minWeight={0.1}
-                      maxWeight={100}
-                      currentWeight={Number(formData.selectedWeight) || 3.5}
-                      onWeightChange={(weight) => {
-                        setFormData(prev => ({
-                          ...prev,
-                          selectedWeight: Number(weight) || 0
-                        }));
+                  
+                  {/* Revenue for this interest */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">Expected Revenue (₹)</label>
+                    <Input
+                      placeholder="e.g., 50000" 
+                      value={interest.products[0]?.revenue || ''}
+                      onChange={(e) => {
+                        setInterests(prev => {
+                          const copy = [...prev];
+                          if (!copy[idx].products[0]) {
+                            copy[idx].products[0] = { product: "", revenue: "" };
+                          }
+                          copy[idx].products[0].revenue = e.target.value;
+                          return copy;
+                        });
                       }}
-                      unit={formData.weightUnit}
-                      className="bg-gray-50 p-4 rounded-lg border"
+                      className="w-48"
                     />
                   </div>
-                </div>
-              </div>
-
-
-              <>
-                {interest.products.map((prod, pidx) => (
-                    <div key={pidx} className="border rounded p-2 mb-2 flex flex-col md:flex-row gap-2 items-center">
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium mb-1">Product</label>
-                        <Select
-                          value={prod.product}
-                          onValueChange={(value) => {
-                            console.log(`🎯 Product selected for interest ${idx}, product ${pidx}:`, value);
-                            setInterests(prev => {
-                              const copy = [...prev];
-                              copy[idx].products[pidx].product = value;
-                              console.log(`   Updated product ${pidx} in interest ${idx}:`, copy[idx].products[pidx]);
-                              return copy;
-                            });
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={loading ? "Loading products..." : `Select Product (${products.length} available)`} />
-                          </SelectTrigger>
-
-                          <SelectContent>
-                            {loading ? (
-                              <SelectItem value="loading-products" disabled>Loading products...</SelectItem>
-                            ) : (
-                              <>
-                                {console.log(`DEBUG: SelectContent rendering. products.length: ${products.length}`)}
-                                {products.length > 0 ? (
-                                  products.map((product) => {
-                                    const productValue = product.id?.toString() || product.name || `product-${product.id}`;
-                                    const productName = product.name || `Product ${product.id}`;
-                                    return (
-                                      <SelectItem key={product.id} value={productValue}>
-                                        {productName}
-                                      </SelectItem>
-                                    );
-                                  })
-                                ) : (
-                                  <SelectItem value="no-products" disabled>No products available</SelectItem>
-                                )}
-                              </>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium mb-1">Revenue Opportunity (₹)</label>
-                        <Input
-                          placeholder="e.g., 50000" 
-                          value={prod.revenue}
-                          onChange={(e) => {
-                            console.log(`💰 Revenue entered for interest ${idx}, product ${pidx}:`, e.target.value);
-                            setInterests(prev => {
-                              const copy = [...prev];
-                              copy[idx].products[pidx].revenue = e.target.value;
-                              console.log(`   Updated revenue for product ${pidx} in interest ${idx}:`, copy[idx].products[pidx]);
-                              return copy;
-                            });
-                          }}
-                        />
-
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="self-end text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => removeProductFromInterest(idx, pidx)}
-                        type="button"
-                      >
-                        🗑️
-                      </Button>
-                    </div>
-                  ))}
-                  <Button variant="link" size="sm" className="text-orange-600" onClick={() => addProductToInterest(idx)}>
-                    + Add Product to this Interest
-                  </Button>
-                </>
-              
-              {/* Customer Preferences */}
-              <div className="border rounded p-3 mt-3">
-                <div className="font-semibold mb-2">Customer Preferences</div>
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2">
-                    <Checkbox 
-                      checked={interest.preferences?.designSelected || false}
-                      onCheckedChange={(checked) => {
-                        setInterests(prev => {
-                          const copy = [...prev];
-                          if (!copy[idx].preferences) {
-                            copy[idx].preferences = {
-                              designSelected: false,
-                              wantsDiscount: false,
-                              checkingOthers: false,
-                              lessVariety: false,
-                              other: "",
-                            };
-                          }
-                          copy[idx].preferences.designSelected = checked as boolean;
-                          return copy;
-                        });
-                        
-                        // If design is selected, show notification
-                        if (checked) {
-                          toast({
-                            title: "Design Selected! 🎉",
-                            description: "Customer has selected a design. This will be reflected in the preferences.",
-                            variant: "default",
+                  
+                  {/* Customer Preferences for this interest */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center gap-2">
+                      <Checkbox 
+                        checked={interest.preferences?.designSelected || false}
+                        onCheckedChange={(checked) => {
+                          setInterests(prev => {
+                            const copy = [...prev];
+                            if (!copy[idx].preferences) {
+                              copy[idx].preferences = {
+                                designSelected: false,
+                                wantsDiscount: false,
+                                checkingOthers: false,
+                                lessVariety: false,
+                                other: "",
+                              };
+                            }
+                            copy[idx].preferences.designSelected = checked as boolean;
+                            return copy;
                           });
-                        }
-                      }}
-                    /> 
-                    Design Selected?
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <Checkbox 
-                      checked={interest.preferences?.wantsDiscount || false}
-                      onCheckedChange={(checked) => {
-                        setInterests(prev => {
-                          const copy = [...prev];
-                          if (!copy[idx].preferences) {
-                            copy[idx].preferences = {
-                              designSelected: false,
-                              wantsDiscount: false,
-                              checkingOthers: false,
-                              lessVariety: false,
-                              other: "",
-                            };
-                          }
-                          copy[idx].preferences.wantsDiscount = checked as boolean;
-                          return copy;
-                        });
-                      }}
-                    /> 
-                    Wants More Discount
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <Checkbox 
-                      checked={interest.preferences?.checkingOthers || false}
-                      onCheckedChange={(checked) => {
-                        setInterests(prev => {
-                          const copy = [...prev];
-                          if (!copy[idx].preferences) {
-                            copy[idx].preferences = {
-                              designSelected: false,
-                              wantsDiscount: false,
-                              checkingOthers: false,
-                              lessVariety: false,
-                              other: "",
-                            };
-                          }
-                          copy[idx].preferences.checkingOthers = checked as boolean;
-                          return copy;
-                        });
-                      }}
-                    /> 
-                    Checking Other Jewellers
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <Checkbox 
-                      checked={interest.preferences?.lessVariety || false}
-                      onCheckedChange={(checked) => {
-                        setInterests(prev => {
-                          const copy = [...prev];
-                          if (!copy[idx].preferences) {
-                            copy[idx].preferences = {
-                              designSelected: false,
-                              wantsDiscount: false,
-                              checkingOthers: false,
-                              lessVariety: false,
-                              other: "",
-                            };
-                          }
-                          copy[idx].preferences.lessVariety = checked as boolean;
-                          return copy;
-                        });
-                      }}
-                    /> 
-                    Felt Less Variety
-                  </label>
+                        }}
+                      /> 
+                      Design Selected
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <Checkbox 
+                        checked={interest.preferences?.wantsDiscount || false}
+                        onCheckedChange={(checked) => {
+                          setInterests(prev => {
+                            const copy = [...prev];
+                            if (!copy[idx].preferences) {
+                              copy[idx].preferences = {
+                                designSelected: false,
+                                wantsDiscount: false,
+                                checkingOthers: false,
+                                lessVariety: false,
+                                other: "",
+                              };
+                            }
+                            copy[idx].preferences.wantsDiscount = checked as boolean;
+                            return copy;
+                          });
+                        }}
+                      /> 
+                      Wants Discount
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <Checkbox 
+                        checked={interest.preferences?.checkingOthers || false}
+                        onCheckedChange={(checked) => {
+                          setInterests(prev => {
+                            const copy = [...prev];
+                            if (!copy[idx].preferences) {
+                              copy[idx].preferences = {
+                                designSelected: false,
+                                wantsDiscount: false,
+                                checkingOthers: false,
+                                lessVariety: false,
+                                other: "",
+                              };
+                            }
+                            copy[idx].preferences.checkingOthers = checked as boolean;
+                            return copy;
+                          });
+                        }}
+                      /> 
+                      Checking Others
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <Checkbox 
+                        checked={interest.preferences?.lessVariety || false}
+                        onCheckedChange={(checked) => {
+                          setInterests(prev => {
+                            const copy = [...prev];
+                            if (!copy[idx].preferences) {
+                              copy[idx].preferences = {
+                                designSelected: false,
+                                wantsDiscount: false,
+                                checkingOthers: false,
+                                lessVariety: false,
+                                other: "",
+                              };
+                            }
+                            copy[idx].preferences.lessVariety = checked as boolean;
+                            return copy;
+                          });
+                        }}
+                      /> 
+                      Less Variety
+                    </label>
+                  </div>
+                  
                   <Input 
-                    placeholder="Other Preferences (if any)" 
+                    placeholder="Other preferences for this interest..." 
                     className="mt-2"
                     value={interest.preferences?.other || ""}
                     onChange={(e) => {
@@ -2152,11 +1971,53 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       });
                     }}
                   />
-              </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Sales Pipeline Section */}
+        <div className="border rounded-lg p-4 mb-4">
+          <div className="font-semibold mb-3 text-lg">🚀 Sales Pipeline</div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 text-sm">📈</span>
+                </div>
+                <div>
+                  <div className="font-medium text-blue-900">Add to Sales Pipeline</div>
+                  <div className="text-sm text-blue-700">Track this customer's journey and follow-up progress</div>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    addToPipeline: !prev.addToPipeline
+                  }));
+                }}
+                className={`${
+                  formData.addToPipeline 
+                    ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                    : 'border-blue-300 text-blue-600 hover:bg-blue-50'
+                } transition-colors`}
+              >
+                {formData.addToPipeline ? '✓ Added to Pipeline' : '+ Add to Pipeline'}
+              </Button>
             </div>
-          );
-          })}
+            {formData.addToPipeline && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                <div className="flex items-center gap-2 text-green-700">
+                  <span className="text-sm">✓</span>
+                  <span className="text-sm font-medium">Customer will be added to the sales pipeline for tracking and follow-up management</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
 
@@ -2165,17 +2026,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
         {/* Additional Information */}
         <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-2">Additional Information</div>
+          <div className="font-semibold mb-3 text-lg">📝 Additional Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Customer Preference</label>
-              <Textarea 
-                placeholder="Optional notes about customer preferences..." 
-                rows={3}
-                value={formData.customerPreference}
-                onChange={(e) => handleInputChange('customerPreference', e.target.value)}
-              />
-            </div>
             <div>
               <label className="block text-sm font-medium mb-1">Design Number</label>
               <Input 
@@ -2183,17 +2035,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 value={formData.designNumber}
                 onChange={(e) => handleInputChange('designNumber', e.target.value)}
               />
-              <div className="text-xs text-gray-500 mt-1">
-                Alphanumeric code for inventory tracking
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Follow-up & Summary */}
-        <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-2">Follow-up & Summary</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
               <Input 
@@ -2202,18 +2044,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 onChange={(e) => handleInputChange('nextFollowUpDate', e.target.value)}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Follow-up Time</label>
-              <Input 
-                type="time" 
-                value={formData.nextFollowUpTime}
-                onChange={(e) => handleInputChange('nextFollowUpTime', e.target.value)}
-              />
-            </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Summary Notes of Visit</label>
+              <label className="block text-sm font-medium mb-1">Notes</label>
               <Textarea 
-                placeholder="Key discussion points, items shown, next steps..." 
+                placeholder="Key discussion points, customer preferences, next steps..." 
                 rows={3}
                 value={formData.summaryNotes}
                 onChange={(e) => handleInputChange('summaryNotes', e.target.value)}
@@ -2244,9 +2078,12 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         )}
 
         {/* Submit Button */}
-        <div className="mt-4 flex justify-end">
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
           <Button 
-            className="btn-primary" 
+            className="bg-blue-600 hover:bg-blue-700" 
             onClick={handleSubmit}
             disabled={isSubmitting}
           >
@@ -2256,14 +2093,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 Creating Customer...
               </>
             ) : (
-              'Add Customer with Strict Validation'
+              'Add Customer'
             )}
           </Button>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

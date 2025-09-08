@@ -40,6 +40,12 @@ if [[ ! -f "manage.py" ]]; then
     exit 1
 fi
 
+# Check Python version compatibility
+log "🐍 Checking Python version compatibility..."
+python check_python_version.py || {
+    warning "Python version check failed, but continuing with build..."
+}
+
 # Validate environment variables
 log "🔍 Validating environment variables..."
 required_vars=("DB_NAME" "DB_USER" "DB_PASSWORD" "DB_HOST" "DB_PORT" "SECRET_KEY")
