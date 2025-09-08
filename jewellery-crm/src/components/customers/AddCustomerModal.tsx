@@ -25,6 +25,11 @@ import {
   BUDGET_RANGES,
   APPOINTMENT_TYPES,
   CUSTOMER_TYPES,
+  AGE_RANGES,
+  PRODUCT_SUBTYPES,
+  GOLD_RANGES,
+  DIAMOND_RANGES,
+  MATERIAL_TYPES,
   getStateFromCity,
   getPincodeFromCatchment,
   getCatchmentAreasForCity,
@@ -85,6 +90,19 @@ interface FormData {
   
   // Customer Classification & Assignment
   customerType: string;
+  
+  // New Critical Fields
+  ageOfEndUser: string;
+  productSubtype: string;
+  goldRange: string;
+  diamondRange: string;
+  ageingPercentage: string;
+  
+  // Material Selection Fields
+  materialType: string;
+  materialWeight: number;
+  materialValue: number;
+  materialUnit: string;
 }
 
 interface ProductInterest {
@@ -153,6 +171,19 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     
     // Customer Classification & Assignment
     customerType: "individual",
+    
+    // New Critical Fields
+    ageOfEndUser: "",
+    productSubtype: "",
+    goldRange: "",
+    diamondRange: "",
+    ageingPercentage: "",
+    
+    // Material Selection Fields
+    materialType: "",
+    materialWeight: 0,
+    materialValue: 0,
+    materialUnit: "g",
   });
 
   // State for field locking (autofill enforcement)
@@ -465,6 +496,22 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       errors.push("Style is required");
     }
     
+    if (!formData.materialType) {
+      errors.push("Material Type is required");
+    }
+    
+    // Validate material-specific fields
+    if (formData.materialType) {
+      if (['GOLD JEWELLERY', 'SILVER JEWELLERY', 'PLATINUM JEWELLERY'].includes(formData.materialType)) {
+        if (!formData.materialWeight || formData.materialWeight <= 0) {
+          errors.push(`${formData.materialType} weight is required and must be greater than 0`);
+        }
+      } else {
+        if (!formData.materialValue || formData.materialValue <= 0) {
+          errors.push(`${formData.materialType} value is required and must be greater than 0`);
+        }
+      }
+    }
 
     
     return {
@@ -648,6 +695,20 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         next_follow_up: formatDateForAPI(formData.nextFollowUpDate),
         next_follow_up_time: formData.nextFollowUpTime,
         summary_notes: cleanStringField(formData.summaryNotes),
+        
+        // New Critical Fields
+        age_of_end_user: formData.ageOfEndUser,
+        product_subtype: formData.productSubtype,
+        gold_range: formData.goldRange,
+        diamond_range: formData.diamondRange,
+        ageing_percentage: cleanStringField(formData.ageingPercentage),
+        
+        // Material Selection Fields
+        material_type: formData.materialType,
+        material_weight: formData.materialWeight,
+        material_value: formData.materialValue,
+        material_unit: formData.materialUnit,
+        
         autofill_audit_trail: autofillLogs, // Include audit trail
         assignment_audit: assignmentAudit, // Include assignment audit
       };
@@ -740,6 +801,19 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           
           // Customer Classification & Assignment
           customerType: "individual",
+          
+          // New Critical Fields
+          ageOfEndUser: "",
+          productSubtype: "",
+          goldRange: "",
+          diamondRange: "",
+          ageingPercentage: "",
+          
+          // Material Selection Fields
+          materialType: "",
+          materialWeight: 0,
+          materialValue: 0,
+          materialUnit: "g",
         });
         setInterests([{
           products: [{ product: "", revenue: "" }],
@@ -1197,6 +1271,24 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 onChange={(e) => handleInputChange('anniversaryDate', e.target.value)}
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Age of End User</label>
+              <Select 
+                value={formData.ageOfEndUser} 
+                onValueChange={(value) => handleInputChange('ageOfEndUser', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Age Range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AGE_RANGES.map((age) => (
+                    <SelectItem key={age} value={age}>
+                      {age} years
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -1630,6 +1722,110 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Product Subtype Field */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Product Subtype</label>
+                <Select 
+                  value={formData.productSubtype} 
+                  onValueChange={(value) => handleInputChange('productSubtype', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Product Subtype" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_SUBTYPES.map((subtype) => (
+                      <SelectItem key={subtype} value={subtype}>
+                        {subtype}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="text-xs text-gray-500 mt-1">
+                  Detailed product categorization (DI.RING, G.AD.RING, J.SET, etc.)
+                </div>
+              </div>
+
+              {/* Material Type Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Material Type *</label>
+                <Select 
+                  value={formData.materialType} 
+                  onValueChange={(value) => handleInputChange('materialType', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Material Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MATERIAL_TYPES.map((material) => (
+                      <SelectItem key={material} value={material}>
+                        {material}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="text-xs text-gray-500 mt-1">
+                  Choose the primary material of the jewelry piece
+                </div>
+              </div>
+
+              {/* Dynamic Weight/Value Field */}
+              {formData.materialType && (
+                <div className="mb-4">
+                  {['GOLD JEWELLERY', 'SILVER JEWELLERY', 'PLATINUM JEWELLERY'].includes(formData.materialType) ? (
+                    // Weight field for metals
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm font-medium text-gray-700">Weight:</label>
+                        <Input
+                          type="number"
+                          placeholder="0.0"
+                          value={formData.materialWeight || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, materialWeight: parseFloat(e.target.value) || 0 }))}
+                          className="w-32"
+                        />
+                        <Select 
+                          value={formData.materialUnit} 
+                          onValueChange={(value) => handleInputChange('materialUnit', value)}
+                        >
+                          <SelectTrigger className="w-20">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="g">g</SelectItem>
+                            <SelectItem value="kg">kg</SelectItem>
+                            <SelectItem value="oz">oz</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Enter the weight of the {formData.materialType.toLowerCase()} piece
+                      </div>
+                    </div>
+                  ) : (
+                    // Value field for stones/gems/diamonds
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm font-medium text-gray-700">Value:</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={formData.materialValue || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, materialValue: parseFloat(e.target.value) || 0 }))}
+                            className="w-40 pl-8"
+                          />
+                        </div>
+                        <span className="text-sm text-gray-500">rupees</span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Enter the value of the {formData.materialType.toLowerCase()} piece in rupees
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Product Weight Display */}
               <div className="mb-4">
