@@ -1457,7 +1457,7 @@ class ApiService {
   }
 
   async deleteTeamMember(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/team-members/${id}/delete/`, {
+    return this.request(`/users/team-members/${id}/delete/`, {
       method: 'DELETE',
     });
   }
