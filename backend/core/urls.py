@@ -18,6 +18,7 @@ urlpatterns = [
     
     # API Routes
     path('api/', include('apps.users.urls')),  # Combined users and auth endpoints
+    path('api/team-members/', include('apps.users.urls')),  # Direct team-members access
     path('api/tenants/', include('apps.tenants.urls')),
     path('api/clients/', include('apps.clients.urls')),  # Enable clients module
     path('api/', include('apps.stores.urls')),  # Fixed: removed duplicate 'stores/'

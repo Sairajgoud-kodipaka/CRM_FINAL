@@ -1443,14 +1443,14 @@ class ApiService {
     address?: string;
     store?: number;
   }): Promise<ApiResponse<User>> {
-    return this.request('/team-members/', {
+    return this.request('/users/team-members/', {
       method: 'POST',
       body: JSON.stringify(memberData),
     });
   }
 
   async updateTeamMember(id: string, memberData: Partial<User>): Promise<ApiResponse<User>> {
-    return this.request(`/team-members/${id}/update/`, {
+    return this.request(`/users/team-members/${id}/update/`, {
       method: 'PUT',
       body: JSON.stringify(memberData),
     });
