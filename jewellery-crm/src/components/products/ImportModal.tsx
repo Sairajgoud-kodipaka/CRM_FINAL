@@ -17,17 +17,68 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const resetFileInput = () => {
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+    setFile(null);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const validateAndSetFile = (selectedFile: File) => {
+    console.log('Processing file:', selectedFile.name, selectedFile.type);
+    // More comprehensive CSV file validation
+    const isValidCSV = selectedFile.type === 'text/csv' || 
+                      selectedFile.name.toLowerCase().endsWith('.csv') ||
+                      selectedFile.type === 'application/csv' ||
+                      selectedFile.type === 'text/plain';
+    
+    if (isValidCSV) {
+      setFile(selectedFile);
+      setError(null);
+      setSuccess(null);
+      console.log('File accepted:', selectedFile.name);
+    } else {
+      setError('Please select a valid CSV file. Only .csv files are supported.');
+      setFile(null);
+      console.log('File rejected - invalid type:', selectedFile.type);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File change event triggered:', e.target.files);
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.type === 'text/csv' || selectedFile.name.endsWith('.csv')) {
-        setFile(selectedFile);
-        setError(null);
-      } else {
-        setError('Please select a valid CSV file');
-        setFile(null);
-      }
+      validateAndSetFile(selectedFile);
+    } else {
+      setFile(null);
+      setError(null);
+      console.log('No file selected');
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles.length > 0) {
+      const selectedFile = droppedFiles[0];
+      validateAndSetFile(selectedFile);
     }
   };
 
@@ -51,9 +102,8 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
         setSuccess('Products imported successfully!');
         onSuccess();
         setTimeout(() => {
+          resetFileInput();
           onClose();
-          setFile(null);
-          setSuccess(null);
         }, 2000);
       } else {
         setError(response.message || 'Failed to import products');
@@ -67,9 +117,9 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
   };
 
   const downloadTemplate = () => {
-    const csvContent = `name,sku,description,category,brand,cost_price,selling_price,discount_price,quantity,min_quantity,max_quantity,weight,dimensions,material,color,size,status,is_featured,is_bestseller
-Gold Ring,GOLD001,Beautiful gold ring,Rings,GoldBrand,5000,8000,7500,10,2,50,5.2,10x5x2 cm,Gold,Yellow,18K,active,true,false
-Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,SilverBrand,3000,5000,4500,15,3,100,8.5,15x8x1 cm,Silver,White,925,active,false,true`;
+        const csvContent = `name,sku,description,category,cost_price,selling_price,discount_price,quantity,min_quantity,max_quantity,weight,dimensions,material,color,size,status,is_featured,is_bestseller
+Gold Ring,GOLD001,Beautiful gold ring,Rings,5000,8000,7500,10,2,50,5.2,10 x 5 x 2 cm,Gold,Yellow,18K,active,true,false
+Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,3000,5000,4500,15,3,100,8.5,15 x 8 x 1 cm,Silver,White,925,active,false,true`;
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -89,7 +139,10 @@ Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,SilverBrand,3000,500
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-text-primary">Import Products</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={() => {
+            resetFileInput();
+            onClose();
+          }}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -127,24 +180,63 @@ Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,SilverBrand,3000,500
           {/* File Upload */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="file">Select CSV File</Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                <Input
-                  id="file"
+              <Label>Select CSV File</Label>
+              <div 
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+                  isDragOver 
+                    ? 'border-blue-400 bg-blue-50' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+                onClick={() => {
+                  console.log('Upload area clicked');
+                  const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                  if (fileInput) {
+                    console.log('File input found, clicking...');
+                    fileInput.click();
+                  } else {
+                    console.log('File input not found!');
+                  }
+                }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <input
+                  id="file-upload"
                   type="file"
-                  accept=".csv"
+                  accept=".csv,text/csv,application/csv"
                   onChange={handleFileChange}
-                  className="hidden"
+                  style={{ display: 'none' }}
                 />
-                <label htmlFor="file" className="cursor-pointer">
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                <div className="space-y-4">
+                  <Upload className="w-8 h-8 mx-auto text-gray-400" />
                   <p className="text-sm text-gray-600">
-                    {file ? file.name : 'Click to select CSV file'}
+                    {isDragOver 
+                      ? 'Drop your CSV file here' 
+                      : 'Drag and drop your CSV file here, or click to browse'
+                    }
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <Button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Choose File button clicked');
+                      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                      if (fileInput) {
+                        console.log('File input found, clicking...');
+                        fileInput.click();
+                      } else {
+                        console.log('File input not found!');
+                      }
+                    }}
+                    className="bg-primary hover:bg-primary/90 text-white"
+                  >
+                    Choose File
+                  </Button>
+                  <p className="text-xs text-gray-500">
                     Only CSV files are supported
                   </p>
-                </label>
+                </div>
               </div>
             </div>
 
@@ -173,7 +265,10 @@ Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,SilverBrand,3000,500
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={() => {
+                  resetFileInput();
+                  onClose();
+                }}
                 disabled={loading}
                 className="flex-1"
               >

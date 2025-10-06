@@ -14,7 +14,7 @@ const customer = {
 };
 
 export default function SalesCustomerDetailPage() {
-  const { customerId } = useParams();
+  const { customerId } = useParams() as { customerId: string };
   return (
     <div className="flex flex-col gap-8">
       <div className="mb-2">

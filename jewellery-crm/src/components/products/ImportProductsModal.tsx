@@ -112,8 +112,8 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
   };
 
   const downloadTemplate = () => {
-    const csvContent = `name,sku,description,category,brand,cost_price,selling_price,quantity,min_quantity,max_quantity,weight,dimensions,material,color,size,status,is_featured,is_bestseller
-Sample Product,SKU001,Product description,Category Name,Brand Name,1000.00,1500.00,10,5,100,10.5,10x5x2,Gold,Yellow,24k,active,true,false`;
+        const csvContent = `name,sku,description,category,cost_price,selling_price,quantity,min_quantity,max_quantity,weight,dimensions,material,color,size,status,is_featured,is_bestseller
+Sample Product,SKU001,Product description,Category Name,1000.00,1500.00,10,5,100,10.5,10 x 5 x 2,Gold,Yellow,24k,active,true,false`;
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -234,7 +234,7 @@ Sample Product,SKU001,Product description,Category Name,Brand Name,1000.00,1500.
             <ul className="list-disc list-inside space-y-1 ml-4">
               <li>First row should contain column headers</li>
               <li>Required columns: name, sku, cost_price, selling_price, quantity</li>
-              <li>Optional columns: description, category, brand, min_quantity, max_quantity, weight, dimensions, material, color, size, status, is_featured, is_bestseller</li>
+              <li>Optional columns: description, category, min_quantity, max_quantity, weight, dimensions, material, color, size, status, is_featured, is_bestseller</li>
               <li>Boolean values should be: true/false</li>
               <li>Status should be: active/inactive</li>
             </ul>

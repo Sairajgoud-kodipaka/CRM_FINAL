@@ -66,7 +66,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={lexend.variable}>
+    <html lang="en" className={lexend.variable} suppressHydrationWarning={true}>
       <body className="font-sans antialiased">
         <AppProviders>
           {children}

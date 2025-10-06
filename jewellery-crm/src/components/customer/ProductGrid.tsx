@@ -12,7 +12,7 @@ interface ProductGridProps {
 
 export default function ProductGrid({ products }: ProductGridProps) {
   const params = useParams();
-  const tenant = params.tenant as string;
+  const tenant = params?.tenant as string;
   const [wishlist, setWishlist] = useState<number[]>([]);
 
   const toggleWishlist = (productId: number) => {

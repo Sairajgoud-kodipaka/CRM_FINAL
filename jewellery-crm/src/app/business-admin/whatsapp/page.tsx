@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -615,13 +616,11 @@ Create memories that last forever! 💕
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="flex gap-2">
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+919876543210"
+                    <PhoneInputComponent
                       value={singleMessage.phone}
-                      onChange={(e) => setSingleMessage(prev => ({ ...prev, phone: e.target.value }))}
-                      required
+                      onChange={(value) => setSingleMessage(prev => ({ ...prev, phone: value }))}
+                      placeholder="9876543210"
+                      required={true}
                       className="flex-1"
                     />
                     <Button
@@ -689,7 +688,7 @@ Create memories that last forever! 💕
                     <div className="flex gap-2">
                       <Textarea
                         id="phones"
-                        placeholder="+919876543210&#10;+919876543211&#10;+919876543212"
+                        placeholder="9876543210&#10;9876543211&#10;9876543212"
                         value={bulkMessage.phones}
                         onChange={(e) => setBulkMessage(prev => ({ ...prev, phones: e.target.value }))}
                         rows={6}

@@ -811,9 +811,12 @@ class ProductImportView(APIView):
     
     def post(self, request):
         try:
-            print(f"Import request from user: {request.user.username}, tenant: {request.user.tenant}")
-            print(f"Request FILES: {request.FILES}")
-            print(f"Request content type: {request.content_type}")
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            logger.info(f"Import request from user: {request.user.username}, tenant: {request.user.tenant}")
+            logger.debug(f"Request FILES: {request.FILES}")
+            logger.debug(f"Request content type: {request.content_type}")
             
             if 'file' not in request.FILES:
                 return Response({
@@ -822,7 +825,7 @@ class ProductImportView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             file = request.FILES['file']
-            print(f"File received: {file.name}, size: {file.size}, content_type: {file.content_type}")
+            logger.info(f"File received: {file.name}, size: {file.size}, content_type: {file.content_type}")
             
             if not file.name.endswith('.csv'):
                 return Response({
@@ -834,9 +837,9 @@ class ProductImportView(APIView):
             try:
                 decoded_file = file.read().decode('utf-8')
                 csv_data = csv.DictReader(io.StringIO(decoded_file))
-                print(f"CSV file read successfully, headers: {csv_data.fieldnames}")
+                logger.info(f"CSV file read successfully, headers: {csv_data.fieldnames}")
             except Exception as e:
-                print(f"Error reading CSV file: {str(e)}")
+                logger.error(f"Error reading CSV file: {str(e)}", exc_info=True)
                 return Response({
                     'success': False,
                     'message': f'Error reading CSV file: {str(e)}'
@@ -899,11 +902,11 @@ class ProductImportView(APIView):
                             }
                         )
                         if created:
-                            print(f"Created new category: {category.name}")
+                            logger.info(f"Created new category: {category.name}")
                         else:
-                            print(f"Using existing category: {category.name}")
+                            logger.info(f"Using existing category: {category.name}")
                     except Exception as e:
-                        print(f"Error creating/getting category: {str(e)}")
+                        logger.error(f"Error creating/getting category: {str(e)}", exc_info=True)
                         errors.append(f"Row {row_num}: Error with category '{category_name}' - {str(e)}")
                         continue
                     
@@ -950,7 +953,6 @@ class ProductImportView(APIView):
                             material='',
                             color='',
                             size='',
-                            brand='',
                             main_image='',
                             additional_images=[],
                             meta_title='',
@@ -958,15 +960,15 @@ class ProductImportView(APIView):
                             tags=[]
                         )
                     except Exception as e:
-                        print(f"Error creating product: {str(e)}")
+                        logger.error(f"Error creating product: {str(e)}", exc_info=True)
                         errors.append(f"Row {row_num}: Error creating product - {str(e)}")
                         continue
                     
-                    print(f"Successfully created product: {product.name} (SKU: {product.sku})")
+                    logger.info(f"Successfully created product: {product.name} (SKU: {product.sku})")
                     imported_count += 1
                     
                 except Exception as e:
-                    print(f"Error processing row {row_num}: {str(e)}")
+                    logger.error(f"Error processing row {row_num}: {str(e)}", exc_info=True)
                     errors.append(f"Row {row_num}: {str(e)}")
                     continue
             
@@ -985,9 +987,7 @@ class ProductImportView(APIView):
             })
             
         except Exception as e:
-            print(f"Import failed with error: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Import failed with error: {str(e)}", exc_info=True)
             return Response({
                 'success': False,
                 'message': f'Import failed: {str(e)}'

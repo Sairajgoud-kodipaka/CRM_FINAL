@@ -195,11 +195,11 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
     switch (role.toLowerCase()) {
       case 'manager':
         return 'default';
-      case 'sales':
-        return 'secondary';
-      case 'tele_caller':
-        return 'outline';
       case 'inhouse_sales':
+        return 'secondary';
+      case 'tele_calling':
+        return 'outline';
+      case 'marketing':
         return 'outline';
       default:
         return 'outline';
@@ -386,9 +386,9 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="sales">Sales Representative</SelectItem>
-                      <SelectItem value="tele_caller">Tele Caller</SelectItem>
-                      <SelectItem value="inhouse_sales">In-House Sales</SelectItem>
+                      <SelectItem value="inhouse_sales">Sales Representative</SelectItem>
+                      <SelectItem value="tele_calling">Tele-Calling</SelectItem>
+                      <SelectItem value="marketing">Marketing</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

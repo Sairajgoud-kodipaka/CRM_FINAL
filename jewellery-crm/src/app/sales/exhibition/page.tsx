@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { Plus, RefreshCw, Search, Users, TrendingUp, ArrowUpRight, User, Phone, Mail, Calendar, MapPin } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useToast } from '@/hooks/use-toast';
@@ -445,11 +446,11 @@ export default function SalesExhibitionPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-              <Input 
-                placeholder="Enter phone number" 
+              <PhoneInputComponent 
                 value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                required
+                onChange={(value) => handleInputChange('phone', value)}
+                placeholder="9876543210"
+                required={true}
               />
             </div>
             <div>

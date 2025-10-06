@@ -1,6 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import ClientViewSet, ClientInteractionViewSet, AppointmentViewSet, FollowUpViewSet, TaskViewSet, AnnouncementViewSet, PurchaseViewSet, AuditLogViewSet, CustomerTagViewSet
+from .segmentation_views import (
+    get_segmentation_analytics,
+    get_segment_customers,
+    get_segmentation_rules,
+    create_custom_segment,
+    get_segmentation_insights
+)
 
 router = DefaultRouter()
 router.register(r'clients', ClientViewSet, basename='client')
@@ -23,6 +30,13 @@ urlpatterns = [
     # path('clients/export/xlsx/', ClientViewSet.as_view({'get': 'export_xlsx'}), name='client-export-xlsx'),
     path('clients/import/', ClientViewSet.as_view({'post': 'import_file'}), name='client-import'),
     path('clients/template/download/', ClientViewSet.as_view({'get': 'download_template'}), name='client-download-template'),
+    
+    # Segmentation URLs
+    path('segmentation/analytics/', get_segmentation_analytics, name='segmentation-analytics'),
+    path('segmentation/customers/<str:segment_name>/', get_segment_customers, name='segment-customers'),
+    path('segmentation/rules/', get_segmentation_rules, name='segmentation-rules'),
+    path('segmentation/custom-segment/', create_custom_segment, name='create-custom-segment'),
+    path('segmentation/insights/', get_segmentation_insights, name='segmentation-insights'),
     
     path('', include(router.urls)),
 ] 

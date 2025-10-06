@@ -8,6 +8,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { Plus, Download, Eye, Loader2, Search, X } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useRouter } from 'next/navigation';
@@ -125,7 +126,12 @@ export default function SupportTicketsPage() {
   };
 
   const handleViewTicket = (ticketId: number) => {
-    router.push(`/business-admin/support/tickets/${ticketId}`);
+    console.log('Navigating to ticket:', ticketId);
+    try {
+      router.push(`/business-admin/support/tickets/${ticketId}`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -305,11 +311,11 @@ export default function SupportTicketsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="callback_phone">Phone Number</Label>
-                      <Input
-                        id="callback_phone"
-                        placeholder="+91-9876543210"
-                        value={newTicket.callback_phone}
-                        onChange={(e) => setNewTicket({ ...newTicket, callback_phone: e.target.value })}
+                      <PhoneInputComponent
+                        value={newTicket.callback_phone || ''}
+                        onChange={(value) => setNewTicket({ ...newTicket, callback_phone: value })}
+                        placeholder="9876543210"
+                        required={false}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -411,7 +417,12 @@ export default function SupportTicketsPage() {
                         variant="ghost" 
                         size="icon" 
                         title="View Details"
-                        onClick={() => handleViewTicket(ticket.id)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Button clicked for ticket:', ticket.id, ticket.ticket_id);
+                          handleViewTicket(ticket.id);
+                        }}
                       >
                         <Eye className="w-4 h-4" />
                       </Button>

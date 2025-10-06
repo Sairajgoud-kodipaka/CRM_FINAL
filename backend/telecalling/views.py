@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.db.models import Q, Count, Avg, F
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -555,3 +556,76 @@ class AnalyticsViewSet(viewsets.ModelViewSet):
             })
         
         return activities
+
+
+class TelecallerDashboardLegacyView(APIView):
+    """Telecaller dashboard data using existing models"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        # Allow telecallers, managers, and admins to view dashboard data
+        if request.user.role not in ['tele_calling', 'manager', 'business_admin', 'platform_admin']:
+            return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        today = timezone.now().date()
+        
+        # Get assignments for user (or all assignments for managers/admins)
+        if request.user.role == 'tele_calling':
+            assignments_query = Assignment.objects.filter(telecaller=request.user)
+            call_logs_query = CallLog.objects.filter(assignment__telecaller=request.user)
+            followups_query = FollowUp.objects.filter(assignment__telecaller=request.user)
+        else:
+            assignments_query = Assignment.objects.all()
+            call_logs_query = CallLog.objects.all()
+            followups_query = FollowUp.objects.all()
+        
+        # Get today's calls
+        calls_today = call_logs_query.filter(call_time__date=today).count()
+        
+        # Calculate connected rate
+        total_calls = call_logs_query.count()
+        connected_calls = call_logs_query.filter(call_status='connected').count()
+        connected_rate = (connected_calls / total_calls * 100) if total_calls > 0 else 0
+        
+        # Get appointments set (assuming this comes from assignment status)
+        appointments_set = assignments_query.filter(status='completed').count()
+        
+        # Get follow-ups due
+        follow_ups_due = followups_query.filter(
+            scheduled_time__date=today,
+            status='pending'
+        ).count()
+        
+        # Get assigned leads
+        assigned_leads = assignments_query.count()
+        
+        # Get overdue calls (assignments not completed in 24 hours)
+        overdue_time = timezone.now() - timedelta(hours=24)
+        overdue_calls = assignments_query.filter(
+            status='assigned',
+            created_at__lt=overdue_time
+        ).count()
+        
+        # Calculate performance trend (simplified)
+        yesterday_calls = call_logs_query.filter(
+            call_time__date=today - timedelta(days=1)
+        ).count()
+        
+        if calls_today > yesterday_calls:
+            performance_trend = 'up'
+        elif calls_today < yesterday_calls:
+            performance_trend = 'down'
+        else:
+            performance_trend = 'stable'
+        
+        data = {
+            'calls_today': calls_today,
+            'connected_rate': round(connected_rate, 2),
+            'appointments_set': appointments_set,
+            'follow_ups_due': follow_ups_due,
+            'assigned_leads': assigned_leads,
+            'overdue_calls': overdue_calls,
+            'performance_trend': performance_trend
+        }
+        
+        return Response(data)

@@ -28,7 +28,7 @@ export default function CategoryGrid({
   selectedCategory 
 }: CategoryGridProps) {
   const params = useParams();
-  const tenant = params.tenant as string;
+  const tenant = params?.tenant as string;
 
   const getCategoryIcon = (categoryName: string) => {
     return categoryIcons[categoryName] || categoryIcons.default;

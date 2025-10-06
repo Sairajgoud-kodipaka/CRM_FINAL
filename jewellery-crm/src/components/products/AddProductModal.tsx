@@ -6,6 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { CustomDropdown } from '@/components/ui/custom-dropdown';
+import { DimensionsInput } from '@/components/ui/dimensions-input';
+import { WeightDropdown } from '@/components/ui/weight-dropdown';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, X } from 'lucide-react';
@@ -28,10 +31,9 @@ interface ProductFormData {
   sku: string;
   description: string;
   category: string;
-  brand: string;
-  cost_price: number;
-  selling_price: number;
-  discount_price: number;
+  price: number;
+  discount_percentage: number;
+  price_after_discount: number;
   quantity: number;
   min_quantity: number;
   max_quantity: number;
@@ -46,17 +48,36 @@ interface ProductFormData {
 }
 
 export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProductModalProps) {
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, isHydrated } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
+  
+  // Predefined options for dropdowns
+  const materialOptions = [
+    'Gold', 'Silver', 'Platinum', 'Rose Gold', 'White Gold', 'Yellow Gold',
+    'Diamond', 'Pearl', 'Ruby', 'Sapphire', 'Emerald', 'Topaz', 'Amethyst',
+    'Sterling Silver', 'Titanium', 'Stainless Steel', 'Brass', 'Copper'
+  ];
+  
+  const colorOptions = [
+    'Yellow', 'White', 'Rose', 'Gold', 'Silver', 'Platinum', 'Black',
+    'Blue', 'Red', 'Green', 'Purple', 'Pink', 'Orange', 'Brown',
+    'Multi-color', 'Clear', 'Transparent'
+  ];
+  
+  const karatsOptions = [
+    '9K', '10K', '14K', '18K', '22K', '24K', '925', '950', '999',
+    '10K Gold', '14K Gold', '18K Gold', '22K Gold', '24K Gold',
+    'Sterling Silver', 'Platinum', 'Palladium'
+  ];
+  
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     sku: '',
     description: '',
     category: '',
-    brand: '',
-    cost_price: 0,
-    selling_price: 0,
-    discount_price: 0,
+    price: 0,
+    discount_percentage: 0,
+    price_after_discount: 0,
     quantity: 0,
     min_quantity: 1,
     max_quantity: 100,
@@ -73,45 +94,60 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
   const [additionalImages, setAdditionalImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showQuantityDetails, setShowQuantityDetails] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      // Wait for hydration to complete before checking authentication
+      if (!isHydrated) {
+        return;
+      }
+      
+      // Check if user is authenticated
+      if (!isAuthenticated || !user) {
+        setError('Please log in to add products.');
+        return;
+      }
+      
       fetchCategories();
     }
-  }, [isOpen]);
+  }, [isOpen, isHydrated, isAuthenticated, user]);
 
   const fetchCategories = async () => {
     try {
       const response = await apiService.getCategories();
       if (response.success) {
-        const data = response.data as any;
-        setCategories(Array.isArray(data) ? data : data.results || []);
+        setCategories(response.data);
       }
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      console.error('Error fetching categories:', error);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent submission if authentication is still loading or not hydrated
+    if (!isHydrated || authLoading || !isAuthenticated || !user) {
+      setError('Please wait for authentication to complete or contact administrator.');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
 
     try {
-      // Create FormData for file upload
       const formDataToSend = new FormData();
-      
-      // Add basic product data
       formDataToSend.append('name', formData.name);
       formDataToSend.append('sku', formData.sku);
       formDataToSend.append('description', formData.description);
       if (formData.category) {
         formDataToSend.append('category', formData.category);
       }
-      formDataToSend.append('brand', formData.brand);
-      formDataToSend.append('cost_price', formData.cost_price.toString());
-      formDataToSend.append('selling_price', formData.selling_price.toString());
-      formDataToSend.append('discount_price', formData.discount_price.toString());
+      // Map pricing fields to backend
+      formDataToSend.append('cost_price', formData.price.toString());
+      formDataToSend.append('selling_price', formData.price_after_discount.toString());
+      formDataToSend.append('discount_price', formData.price_after_discount.toString());
       formDataToSend.append('quantity', formData.quantity.toString());
       formDataToSend.append('min_quantity', formData.min_quantity.toString());
       formDataToSend.append('max_quantity', formData.max_quantity.toString());
@@ -124,19 +160,17 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
       formDataToSend.append('is_featured', formData.is_featured.toString());
       formDataToSend.append('is_bestseller', formData.is_bestseller.toString());
 
-      // Add store ID from authenticated user
-      if (user?.store) {
-        formDataToSend.append('store', user.store.toString());
-      }
+      // Add store ID from authenticated user (always send store field)
+      formDataToSend.append('store', user.store ? user.store.toString() : '');
 
-      // Add main image
+      // Add main image if provided
       if (mainImage) {
         formDataToSend.append('main_image', mainImage);
       }
 
-      // Add additional images
+      // Add additional images if provided
       additionalImages.forEach((image, index) => {
-        formDataToSend.append('additional_images', image);
+        formDataToSend.append(`additional_images_${index}`, image);
       });
 
       const response = await apiService.createProduct(formDataToSend);
@@ -149,10 +183,9 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
           sku: '',
           description: '',
           category: '',
-          brand: '',
-          cost_price: 0,
-          selling_price: 0,
-          discount_price: 0,
+          price: 0,
+          discount_percentage: 0,
+          price_after_discount: 0,
           quantity: 0,
           min_quantity: 1,
           max_quantity: 100,
@@ -167,338 +200,390 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
         });
         setMainImage(null);
         setAdditionalImages([]);
+        setError(null);
       } else {
         setError(response.message || 'Failed to create product');
       }
     } catch (error) {
-      console.error('Failed to create product:', error);
-      setError('Failed to create product. Please try again.');
+      console.error('Error creating product:', error);
+      setError('An error occurred while creating the product');
     } finally {
       setLoading(false);
     }
   };
 
+  const calculatePriceAfterDiscount = (price: number, discountPercentage: number) => {
+    if (price <= 0 || discountPercentage <= 0) return price;
+    return price - (price * discountPercentage / 100);
+  };
+
+  const calculateDiscountPercentage = (price: number, discountedPrice: number) => {
+    if (price <= 0 || discountedPrice >= price) return 0;
+    return ((price - discountedPrice) / price) * 100;
+  };
+
   const handleInputChange = (field: keyof ProductFormData, value: string | number | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+
+      // Auto-calculate price after discount when price or discount percentage changes
+      if (field === 'price' || field === 'discount_percentage') {
+        newData.price_after_discount = calculatePriceAfterDiscount(
+          field === 'price' ? value as number : newData.price,
+          field === 'discount_percentage' ? value as number : newData.discount_percentage
+        );
+      }
+
+      // Auto-calculate discount percentage when price after discount changes
+      if (field === 'price_after_discount') {
+        newData.discount_percentage = calculateDiscountPercentage(newData.price, value as number);
+      }
+
+      return newData;
+    });
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-text-primary">Add New Product</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[95vh] overflow-hidden">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Add New Product</h2>
+              <p className="text-gray-600 mt-1">
+                {!isHydrated ? 'Loading...' : 
+                 authLoading ? 'Loading user information...' : 
+                 'Create a new jewelry product for your inventory'}
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded">
-              {error}
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(95vh-120px)]">
+          <form onSubmit={handleSubmit} className="space-y-8" style={{ pointerEvents: (!isHydrated || authLoading) ? 'none' : 'auto', opacity: (!isHydrated || authLoading) ? 0.6 : 1 }}>
+            {error && (
+              <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+                <div className="flex items-start">
+                  <X className="h-5 w-5 text-red-400 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-medium text-red-800">Error</h3>
+                    <div className="mt-1 text-sm text-red-700">{error}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Basic Information */}
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-medium text-gray-700">Product Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Enter product name"
+                    required
+                    className="h-10"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sku" className="text-sm font-medium text-gray-700">SKU *</Label>
+                  <Input
+                    id="sku"
+                    value={formData.sku}
+                    onChange={(e) => handleInputChange('sku', e.target.value)}
+                    placeholder="Enter SKU"
+                    required
+                    className="h-10"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="description" className="text-sm font-medium text-gray-700">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    placeholder="Enter product description"
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="category" className="text-sm font-medium text-gray-700">Category</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => handleInputChange('category', value)}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id.toString()}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
-          )}
 
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Product Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="Enter product name"
-                required
-              />
+            {/* Pricing */}
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Pricing</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price" className="text-sm font-medium text-gray-700">Price *</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
+                    <Input
+                      id="price"
+                      type="text"
+                      value={formData.price === 0 ? '' : formData.price.toString()}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9.]/g, '');
+                        handleInputChange('price', value ? parseFloat(value) : 0);
+                      }}
+                      placeholder="0.00"
+                      className="pl-8 h-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="discount_percentage" className="text-sm font-medium text-gray-700">Discount (%)</Label>
+                  <Input
+                    id="discount_percentage"
+                    type="number"
+                    step="0.01"
+                    value={formData.discount_percentage}
+                    onChange={(e) => handleInputChange('discount_percentage', parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                    className="h-10"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="price_after_discount" className="text-sm font-medium text-gray-700">Final Price</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
+                    <Input
+                      id="price_after_discount"
+                      type="text"
+                      value={formData.price_after_discount === 0 ? '' : formData.price_after_discount.toString()}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9.]/g, '');
+                        handleInputChange('price_after_discount', value ? parseFloat(value) : 0);
+                      }}
+                      placeholder="0.00"
+                      className="pl-8 h-10 bg-gray-100"
+                      readOnly
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="sku">SKU *</Label>
-              <Input
-                id="sku"
-                value={formData.sku}
-                onChange={(e) => handleInputChange('sku', e.target.value)}
-                placeholder="Enter SKU"
-                required
-              />
-            </div>
-          </div>
+            {/* Product Specifications */}
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Specifications</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <CustomDropdown
+                  label="Material"
+                  value={formData.material}
+                  onChange={(value) => handleInputChange('material', value)}
+                  options={materialOptions}
+                  placeholder="Select material"
+                />
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Enter product description"
-              rows={3}
-            />
-          </div>
+                <CustomDropdown
+                  label="Color"
+                  value={formData.color}
+                  onChange={(value) => handleInputChange('color', value)}
+                  options={colorOptions}
+                  placeholder="Select color"
+                />
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => handleInputChange('category', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <WeightDropdown
+                  label="Weight"
+                  value={formData.weight}
+                  onChange={(value) => handleInputChange('weight', value)}
+                />
 
-            <div className="space-y-2">
-              <Label htmlFor="brand">Brand</Label>
-              <Input
-                id="brand"
-                value={formData.brand}
-                onChange={(e) => handleInputChange('brand', e.target.value)}
-                placeholder="Enter brand"
-              />
-            </div>
-          </div>
+                <CustomDropdown
+                  label="Karats"
+                  value={formData.size}
+                  onChange={(value) => handleInputChange('size', value)}
+                  options={karatsOptions}
+                  placeholder="Select karats"
+                />
 
-          {/* Pricing */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cost_price">Cost Price *</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
-                <Input
-                  id="cost_price"
-                  type="text"
-                  value={formData.cost_price === 0 ? '' : formData.cost_price.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9.]/g, '');
-                    handleInputChange('cost_price', value ? parseFloat(value) : 0);
-                  }}
-                  placeholder="0.00"
-                  className="pl-8"
-                  required
+                <DimensionsInput
+                  label="Dimensions"
+                  value={formData.dimensions}
+                  onChange={(value) => handleInputChange('dimensions', value)}
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="selling_price">Selling Price *</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
-                <Input
-                  id="selling_price"
-                  type="text"
-                  value={formData.selling_price === 0 ? '' : formData.selling_price.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9.]/g, '');
-                    handleInputChange('selling_price', value ? parseFloat(value) : 0);
-                  }}
-                  placeholder="0.00"
-                  className="pl-8"
-                  required
-                />
+            {/* Inventory */}
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory</h3>
+              
+              <div className="flex items-center justify-between mb-4">
+                <div className="space-y-2 flex-1">
+                  <Label htmlFor="quantity" className="text-sm font-medium text-gray-700">Quantity *</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 0)}
+                    placeholder="0"
+                    required
+                    className="h-10"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowQuantityDetails(!showQuantityDetails)}
+                  className="ml-4 h-10 px-4"
+                >
+                  {showQuantityDetails ? 'Hide' : 'Show'} Details
+                </Button>
               </div>
+
+              {showQuantityDetails && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-white rounded-lg border">
+                  <div className="space-y-2">
+                    <Label htmlFor="min_quantity" className="text-sm font-medium text-gray-700">Minimum Quantity</Label>
+                    <Input
+                      id="min_quantity"
+                      type="number"
+                      value={formData.min_quantity}
+                      onChange={(e) => handleInputChange('min_quantity', parseInt(e.target.value) || 0)}
+                      placeholder="1"
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max_quantity" className="text-sm font-medium text-gray-700">Maximum Quantity</Label>
+                    <Input
+                      id="max_quantity"
+                      type="number"
+                      value={formData.max_quantity}
+                      onChange={(e) => handleInputChange('max_quantity', parseInt(e.target.value) || 0)}
+                      placeholder="100"
+                      className="h-10"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="discount_price">Discount Price</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
-                <Input
-                  id="discount_price"
-                  type="text"
-                  value={formData.discount_price === 0 ? '' : formData.discount_price.toString()}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9.]/g, '');
-                    handleInputChange('discount_price', value ? parseFloat(value) : 0);
-                  }}
-                  placeholder="0.00"
-                  className="pl-8"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Inventory */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity *</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 0)}
-                placeholder="0"
-                required
+            {/* Image Upload */}
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Images</h3>
+              <ImageUpload
+                onMainImageChange={setMainImage}
+                onAdditionalImagesChange={setAdditionalImages}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="min_quantity">Min Quantity</Label>
-              <Input
-                id="min_quantity"
-                type="number"
-                value={formData.min_quantity}
-                onChange={(e) => handleInputChange('min_quantity', parseInt(e.target.value) || 1)}
-                placeholder="1"
-              />
-            </div>
+            {/* Status & Features */}
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Status & Features</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="status" className="text-sm font-medium text-gray-700">Status</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => handleInputChange('status', value)}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="discontinued">Discontinued</SelectItem>
+                      <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="max_quantity">Max Quantity</Label>
-              <Input
-                id="max_quantity"
-                type="number"
-                value={formData.max_quantity}
-                onChange={(e) => handleInputChange('max_quantity', parseInt(e.target.value) || 100)}
-                placeholder="100"
-              />
-            </div>
-          </div>
-
-          {/* Product Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="material">Material</Label>
-              <Input
-                id="material"
-                value={formData.material}
-                onChange={(e) => handleInputChange('material', e.target.value)}
-                placeholder="e.g., Gold, Silver, Platinum"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="color">Color</Label>
-              <Input
-                id="color"
-                value={formData.color}
-                onChange={(e) => handleInputChange('color', e.target.value)}
-                placeholder="e.g., Yellow, White, Rose"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="weight">Weight (g)</Label>
-              <Input
-                id="weight"
-                type="number"
-                step="0.01"
-                value={formData.weight}
-                onChange={(e) => handleInputChange('weight', parseFloat(e.target.value) || 0)}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="size">Size</Label>
-              <Input
-                id="size"
-                value={formData.size}
-                onChange={(e) => handleInputChange('size', e.target.value)}
-                placeholder="e.g., 18K, 22K"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="dimensions">Dimensions</Label>
-              <Input
-                id="dimensions"
-                value={formData.dimensions}
-                onChange={(e) => handleInputChange('dimensions', e.target.value)}
-                placeholder="e.g., 10x5x2 cm"
-              />
-            </div>
-          </div>
-
-          {/* Image Upload */}
-          <ImageUpload
-            onMainImageChange={setMainImage}
-            onAdditionalImagesChange={setAdditionalImages}
-          />
-
-          {/* Status and Features */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => handleInputChange('status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Product Features</Label>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border">
                   <Switch
                     id="is_featured"
                     checked={formData.is_featured}
                     onCheckedChange={(checked) => handleInputChange('is_featured', checked)}
                   />
-                  <Label htmlFor="is_featured">Featured Product</Label>
+                  <Label htmlFor="is_featured" className="text-sm font-medium text-gray-700">Featured Product</Label>
                 </div>
-                <div className="flex items-center space-x-2">
+
+                <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border">
                   <Switch
                     id="is_bestseller"
                     checked={formData.is_bestseller}
                     onCheckedChange={(checked) => handleInputChange('is_bestseller', checked)}
                   />
-                  <Label htmlFor="is_bestseller">Best Seller</Label>
+                  <Label htmlFor="is_bestseller" className="text-sm font-medium text-gray-700">Bestseller</Label>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Create Product'
-              )}
-            </Button>
-          </div>
-        </form>
+            {/* Form Actions */}
+            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="h-10 px-6"
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="h-10 px-6"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Product...
+                  </>
+                ) : (
+                  'Create Product'
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
-} 
+}

@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+import uuid
 
 class CustomerVisit(models.Model):
     """Step 1: In-House Sales Rep records customer visit info"""
@@ -27,14 +28,20 @@ class Assignment(models.Model):
     """Step 2: Manager assigns leads to telecallers"""
     telecaller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='telecalling_assignments')
     customer_visit = models.ForeignKey(CustomerVisit, on_delete=models.CASCADE, related_name='assignments')
-    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='assigned_leads')
-    status = models.CharField(max_length=32, choices=[
-        ('assigned', 'Assigned'),
-        ('in_progress', 'In Progress'),
-        ('completed', 'Completed'),
-        ('follow_up', 'Follow-up Needed'),
-        ('unreachable', 'Unreachable'),
-    ], default='assigned')
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='assigned_assignments')
+    status = models.CharField(max_length=50, choices=[
+        ('new_uncontacted', 'New / Uncontacted'),
+        ('attempted_contact', 'Attempted Contact'),
+        ('missed_call_outbound', 'Missed Call (Outbound)'),
+        ('missed_call_inbound', 'Missed Call (Inbound)'),
+        ('contacted_in_progress', 'Contacted / In Progress'),
+        ('follow_up_scheduled', 'Follow-up Scheduled'),
+        ('interested_warm', 'Interested / Warm'),
+        ('qualified', 'Qualified'),
+        ('not_interested', 'Not Interested'),
+        ('converted_closed_won', 'Converted / Closed Won'),
+        ('lost_closed_lost', 'Lost / Closed Lost'),
+    ], default='new_uncontacted')
     priority = models.CharField(max_length=20, choices=[
         ('high', 'High'),
         ('medium', 'Medium'),
@@ -160,3 +167,226 @@ class Analytics(models.Model):
 
     def __str__(self):
         return f"Analytics for {self.date}"
+
+
+# New Telecalling Models for Google Sheets Integration and Exotel
+class Lead(models.Model):
+    """Lead model for Google Sheets integration"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=20)
+    email = models.EmailField(blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True)
+    source = models.CharField(max_length=50, choices=[
+        ('exhibition', 'Exhibition'),
+        ('social_media', 'Social Media'),
+        ('referral', 'Referral'),
+        ('website', 'Website'),
+        ('walk_in', 'Walk In'),
+    ], default='website')
+    status = models.CharField(max_length=50, choices=[
+        ('new', 'New'),
+        ('contacted', 'Contacted'),
+        ('qualified', 'Qualified'),
+        ('appointment_set', 'Appointment Set'),
+        ('not_interested', 'Not Interested'),
+        ('converted', 'Converted'),
+    ], default='new')
+    priority = models.CharField(max_length=20, choices=[
+        ('high', 'High'),
+        ('medium', 'Medium'),
+        ('low', 'Low'),
+    ], default='medium')
+    
+    # Google Sheets integration fields
+    source_system = models.CharField(max_length=50, default='google_sheets')
+    source_id = models.CharField(max_length=100, unique=True)
+    fetched_at = models.DateTimeField(default=timezone.now)
+    raw_data = models.JSONField(default=dict, blank=True)
+    
+    # Assignment fields
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_leads')
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    last_interaction = models.DateTimeField(null=True, blank=True)
+    next_followup = models.DateTimeField(null=True, blank=True)
+    call_attempts = models.IntegerField(default=0)
+    
+    # Additional fields
+    tags = models.JSONField(default=list, blank=True)
+    segments = models.JSONField(default=list, blank=True)
+    notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({self.phone})"
+
+
+class LeadStatusHistory(models.Model):
+    """Track status changes and notes for leads"""
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='status_history')
+    status = models.CharField(max_length=50, choices=[
+        ('new_uncontacted', 'New / Uncontacted'),
+        ('attempted_contact', 'Attempted Contact'),
+        ('missed_call_outbound', 'Missed Call (Outbound)'),
+        ('missed_call_inbound', 'Missed Call (Inbound)'),
+        ('contacted_in_progress', 'Contacted / In Progress'),
+        ('follow_up_scheduled', 'Follow-up Scheduled'),
+        ('interested_warm', 'Interested / Warm'),
+        ('qualified', 'Qualified'),
+        ('not_interested', 'Not Interested'),
+        ('converted_closed_won', 'Converted / Closed Won'),
+        ('lost_closed_lost', 'Lost / Closed Lost'),
+    ])
+    notes = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='status_changes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Additional metadata
+    call_duration = models.IntegerField(null=True, blank=True, help_text="Call duration in seconds")
+    call_outcome = models.CharField(max_length=100, blank=True, null=True)
+    next_action = models.TextField(blank=True, null=True)
+    next_action_date = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Lead Status History'
+        verbose_name_plural = 'Lead Status Histories'
+    
+    def __str__(self):
+        return f"{self.assignment.customer_visit.customer_name} - {self.get_status_display()} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
+
+
+class CallRequest(models.Model):
+    """Call request model for Exotel integration"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='call_requests')
+    telecaller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='call_requests')
+    
+    # Call details
+    call_type = models.CharField(max_length=50, choices=[
+        ('outbound', 'Outbound'),
+        ('followup', 'Follow-up'),
+        ('callback', 'Callback'),
+    ], default='outbound')
+    status = models.CharField(max_length=50, choices=[
+        ('initiated', 'Initiated'),
+        ('queued', 'Queued'),
+        ('ringing', 'Ringing'),
+        ('answered', 'Answered'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('busy', 'Busy'),
+        ('no_answer', 'No Answer'),
+    ], default='initiated')
+    
+    # Exotel integration
+    exotel_call_id = models.CharField(max_length=100, blank=True)
+    bridge_url = models.URLField(blank=True)
+    recording_url = models.URLField(blank=True)
+    
+    # Call metrics
+    duration = models.IntegerField(default=0, help_text="Duration in seconds")
+    disposition = models.CharField(max_length=100, blank=True)
+    sentiment = models.CharField(max_length=20, choices=[
+        ('positive', 'Positive'),
+        ('neutral', 'Neutral'),
+        ('negative', 'Negative'),
+    ], blank=True)
+    
+    # Timestamps
+    initiated_at = models.DateTimeField(auto_now_add=True)
+    answered_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Additional data
+    notes = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-initiated_at']
+    
+    def __str__(self):
+        return f"Call {self.id} - {self.lead.name}"
+
+
+class FollowUpRequest(models.Model):
+    """Follow-up request model"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='followup_requests')
+    telecaller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='followup_requests')
+    
+    due_at = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('overdue', 'Overdue'),
+        ('cancelled', 'Cancelled'),
+    ], default='pending')
+    
+    notes = models.TextField(blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['due_at']
+    
+    def __str__(self):
+        return f"Follow-up for {self.lead.name} - {self.due_at}"
+
+
+class AuditLog(models.Model):
+    """Audit log for all actions"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='audit_logs')
+    action = models.CharField(max_length=100)
+    target_type = models.CharField(max_length=50)
+    target_id = models.CharField(max_length=100)
+    
+    # Additional context
+    metadata = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.action} by {self.actor} on {self.target_type}"
+
+
+class WebhookLog(models.Model):
+    """Webhook processing logs"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    webhook_type = models.CharField(max_length=50, choices=[
+        ('exotel', 'Exotel'),
+        ('google_sheets', 'Google Sheets'),
+    ])
+    payload = models.JSONField()
+    status = models.CharField(max_length=20, choices=[
+        ('received', 'Received'),
+        ('processed', 'Processed'),
+        ('failed', 'Failed'),
+    ], default='received')
+    
+    error_message = models.TextField(blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.webhook_type} webhook - {self.status}"

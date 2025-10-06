@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneInputComponent } from "@/components/ui/phone-input";
 import { apiService } from "@/lib/api-service";
 import { useToast } from "@/hooks/use-toast";
 import { Gift, User, Phone, Mail, MapPin, MessageSquare } from "lucide-react";
@@ -153,16 +154,12 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
           {/* Phone */}
           <div>
             <label className="block text-sm font-medium mb-2">Phone Number *</label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input 
-                placeholder="+91 98XXXXXX00" 
-                required 
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                className="pl-10"
-              />
-            </div>
+            <PhoneInputComponent
+              value={formData.phone}
+              onChange={(value) => handleInputChange('phone', value)}
+              placeholder="9876543210"
+              required={true}
+            />
           </div>
 
           {/* Email */}

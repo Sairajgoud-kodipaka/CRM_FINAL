@@ -296,10 +296,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       if (response.success) {
         dispatch({ type: 'SET_SETTINGS', payload: response.data });
       } else {
-        console.error('Failed to fetch notification settings:', response.message);
+        console.warn('Failed to fetch notification settings:', response.message);
+        // Don't throw error, just log warning to prevent affecting other components
       }
     } catch (error) {
-      console.error('Error fetching notification settings:', error);
+      console.warn('Error fetching notification settings:', error);
+      // Don't throw error, just log warning to prevent affecting other components
     }
   }, [user]);
 

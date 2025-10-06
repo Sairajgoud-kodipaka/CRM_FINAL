@@ -14,9 +14,11 @@ import {
   ArrowLeft,
   Download,
   Calendar,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import { apiService } from '@/lib/api-service';
 
 interface BillingData {
   total_revenue: number;
@@ -42,59 +44,54 @@ interface BillingData {
 export default function PlatformBillingPage() {
   const [billingData, setBillingData] = useState<BillingData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
-  // Mock data for demonstration
   useEffect(() => {
-    const mockData: BillingData = {
-      total_revenue: 2500000, // 25L
-      monthly_revenue: 450000, // 4.5L
-      active_subscriptions: 6,
-      pending_payments: 2,
-      revenue_growth: 12.5,
-      subscription_plans: {
-        basic: 1,
-        professional: 4,
-        enterprise: 1
-      },
-      recent_transactions: [
-        {
-          id: 1,
-          tenant_name: 'Mandeep Jewelries',
-          amount: 15000,
-          plan: 'Professional',
-          status: 'paid',
-          date: '2025-08-01'
-        },
-        {
-          id: 2,
-          tenant_name: 'Sairaj Jewelries',
-          amount: 25000,
-          plan: 'Enterprise',
-          status: 'paid',
-          date: '2025-07-28'
-        },
-        {
-          id: 3,
-          tenant_name: 'Abhinav Jewelries',
-          amount: 8000,
-          plan: 'Basic',
-          status: 'pending',
-          date: '2025-07-25'
-        },
-        {
-          id: 4,
-          tenant_name: 'Chinmay Jewelries',
-          amount: 15000,
-          plan: 'Professional',
-          status: 'paid',
-          date: '2025-07-20'
-        }
-      ]
-    };
-    
-    setBillingData(mockData);
-    setLoading(false);
+    fetchBillingData();
   }, []);
+
+  const fetchBillingData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiService.getBillingOverview();
+      
+      if (response.success) {
+        setBillingData(response.data);
+      } else {
+        setError('Failed to load billing data');
+      }
+    } catch (err) {
+      console.error('Error fetching billing data:', err);
+      setError('Failed to load billing data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportReport = async () => {
+    try {
+      setExporting(true);
+      const blob = await apiService.exportBillingReport();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `billing_report_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+    } catch (err) {
+      console.error('Error exporting report:', err);
+      setError('Failed to export report');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -126,7 +123,7 @@ export default function PlatformBillingPage() {
       >
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
             <p className="text-muted-foreground">Loading billing data...</p>
           </div>
         </div>
@@ -134,14 +131,21 @@ export default function PlatformBillingPage() {
     );
   }
 
-  if (!billingData) {
+  if (error || !billingData) {
     return (
       <DashboardLayout
         title="Billing Overview"
         subtitle="Monitor platform revenue and subscription management"
       >
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">No billing data available</p>
+          <div className="text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 mb-4">{error || 'No billing data available'}</p>
+            <Button onClick={fetchBillingData} variant="outline">
+              <Loader2 className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -159,9 +163,18 @@ export default function PlatformBillingPage() {
               Back to Dashboard
             </Button>
           </Link>
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export Report
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleExportReport}
+            disabled={exporting}
+          >
+            {exporting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
+            {exporting ? 'Exporting...' : 'Export Report'}
           </Button>
         </div>
       }

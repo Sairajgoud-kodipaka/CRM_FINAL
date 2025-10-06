@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Search, Download, Upload, Plus, Filter, MoreHorizontal, Eye, Trash2 } from 'lucide-react';
 import { apiService, Client } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
+import { useCustomerRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { AddCustomerModal } from '@/components/customers/AddCustomerModal';
 import { ImportModal } from '@/components/customers/ImportModal';
 import { ExportModal } from '@/components/customers/ExportModal';
@@ -30,6 +31,21 @@ export default function CustomersPage() {
 
   // Check if user can delete customers (managers and higher roles)
   const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
+
+  // Real-time updates
+  useCustomerRealtimeUpdates(
+    () => {
+      console.log('🔄 Refreshing customers list due to real-time update');
+      fetchClients();
+    },
+    (customerId) => {
+      console.log('🔄 Customer details changed for ID:', customerId);
+      // If the detail modal is open for this customer, refresh it
+      if (selectedCustomerId === customerId && showDetailModal) {
+        // The CustomerDetailModal will handle its own refresh via the custom event
+      }
+    }
+  );
 
   useEffect(() => {
     fetchClients();
@@ -62,7 +78,8 @@ export default function CustomersPage() {
       const response = await apiService.createClient(customerData);
       if (response.success) {
         setShowAddModal(false);
-        fetchClients(); // Refresh the list
+        // Real-time updates will automatically refresh the list
+        console.log('✅ Customer created successfully, real-time updates will handle refresh');
       }
     } catch (error) {
       console.error('Failed to create client:', error);

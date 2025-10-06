@@ -43,6 +43,7 @@ import {
   Search,
   Gift,
   AlertTriangle,
+  Phone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -513,15 +514,27 @@ const navigationItems: NavItem[] = [
     roles: ['telecaller'],
   },
   {
-    title: 'Customers',
+    title: 'Leads',
     href: '/telecaller/customers',
     icon: Users,
+    roles: ['telecaller'],
+  },
+  {
+    title: 'Call Center',
+    href: '/telecaller/call',
+    icon: Phone,
     roles: ['telecaller'],
   },
   {
     title: 'Pipeline',
     href: '/telecaller/pipeline',
     icon: TrendingUp,
+    roles: ['telecaller'],
+  },
+  {
+    title: 'Call Logs',
+    href: '/telecaller/calls',
+    icon: Phone,
     roles: ['telecaller'],
   },
   {
@@ -600,7 +613,7 @@ export function Sidebar({ isOpen = true, onClose, className, role }: SidebarProp
     if (href === '/dashboard') {
       return pathname === '/dashboard' || pathname === '/';
     }
-    return pathname.startsWith(href);
+    return pathname?.startsWith(href);
   };
 
   /**

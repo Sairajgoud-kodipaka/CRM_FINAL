@@ -354,8 +354,12 @@ class ApiService {
   // Performance optimization properties
   private cache = new Map<string, CacheEntry<any>>();
   private pendingRequests = new Map<string, PendingRequest<any>>();
-  private readonly DEFAULT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly DEFAULT_CACHE_TTL = 2 * 60 * 1000; // 2 minutes (reduced for real-time updates)
   private readonly REQUEST_DEDUP_WINDOW = 1000; // 1 second
+  
+  // Real-time update system
+  private cacheInvalidationListeners = new Set<(keys: string[]) => void>();
+  private mutationCallbacks = new Map<string, Set<(data: any) => void>>();
 
   private getAuthToken(): string | null {
     // Get token from localStorage or sessionStorage
@@ -432,6 +436,64 @@ class ApiService {
     } else {
       this.cache.clear();
     }
+  }
+
+  // Real-time update methods
+  private invalidateCache(pattern: string | string[]): void {
+    const patterns = Array.isArray(pattern) ? pattern : [pattern];
+    const keysToInvalidate: string[] = [];
+    
+    for (const [key] of this.cache) {
+      if (patterns.some(p => key.includes(p))) {
+        keysToInvalidate.push(key);
+        this.cache.delete(key);
+      }
+    }
+    
+    if (keysToInvalidate.length > 0) {
+      console.log('🔄 Cache invalidated for patterns:', patterns, 'Keys:', keysToInvalidate.length);
+      this.cacheInvalidationListeners.forEach(listener => listener(keysToInvalidate));
+    }
+  }
+
+  private notifyMutationListeners(mutationType: string, data: any): void {
+    const listeners = this.mutationCallbacks.get(mutationType);
+    if (listeners) {
+      listeners.forEach(listener => {
+        try {
+          listener(data);
+        } catch (error) {
+          console.error('Error in mutation listener:', error);
+        }
+      });
+    }
+  }
+
+  // Public methods for real-time updates
+  public onCacheInvalidation(callback: (keys: string[]) => void): () => void {
+    this.cacheInvalidationListeners.add(callback);
+    return () => this.cacheInvalidationListeners.delete(callback);
+  }
+
+  public onMutation(mutationType: string, callback: (data: any) => void): () => void {
+    if (!this.mutationCallbacks.has(mutationType)) {
+      this.mutationCallbacks.set(mutationType, new Set());
+    }
+    this.mutationCallbacks.get(mutationType)!.add(callback);
+    
+    return () => {
+      const listeners = this.mutationCallbacks.get(mutationType);
+      if (listeners) {
+        listeners.delete(callback);
+        if (listeners.size === 0) {
+          this.mutationCallbacks.delete(mutationType);
+        }
+      }
+    };
+  }
+
+  public forceRefresh(pattern: string): void {
+    this.invalidateCache(pattern);
   }
 
   // Request deduplication
@@ -682,10 +744,6 @@ class ApiService {
   }
 
   // Cache management public methods
-  invalidateCache(pattern?: string): void {
-    this.clearCache(pattern);
-    console.log('🗑️ Cache invalidated:', pattern || 'all');
-  }
 
   getCacheStats(): { size: number; keys: string[] } {
     return {
@@ -836,23 +894,68 @@ class ApiService {
   }
 
   async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    return this.request('/clients/clients/', {
+    const response = await this.request('/clients/clients/', {
       method: 'POST',
       body: JSON.stringify(clientData),
     });
+    
+    // Invalidate cache and notify listeners on success
+    if (response.success) {
+      this.invalidateCache(['/clients/clients/', '/clients/audit-logs/']);
+      this.notifyMutationListeners('client:created', response.data);
+      
+      // Dispatch custom event for backward compatibility
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('refreshCustomerDetails', {
+          detail: { customerId: (response.data as any)?.id }
+        }));
+      }
+    }
+    
+    return response;
   }
 
   async updateClient(id: string, clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    return this.request(`/clients/clients/${id}/`, {
+    const response = await this.request(`/clients/clients/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(clientData),
     });
+    
+    // Invalidate cache and notify listeners on success
+    if (response.success) {
+      this.invalidateCache([`/clients/clients/${id}/`, '/clients/clients/', '/clients/audit-logs/']);
+      this.notifyMutationListeners('client:updated', response.data);
+      
+      // Dispatch custom event for backward compatibility
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('refreshCustomerDetails', {
+          detail: { customerId: id }
+        }));
+      }
+    }
+    
+    return response;
   }
 
   async deleteClient(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/clients/clients/${id}/`, {
+    const response = await this.request(`/clients/clients/${id}/`, {
       method: 'DELETE',
     });
+    
+    // Invalidate cache and notify listeners on success
+    if (response.success) {
+      this.invalidateCache([`/clients/clients/${id}/`, '/clients/clients/', '/clients/audit-logs/']);
+      this.notifyMutationListeners('client:deleted', { id });
+      
+      // Dispatch custom event for backward compatibility
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('refreshCustomerDetails', {
+          detail: { customerId: id }
+        }));
+      }
+    }
+    
+    return response;
   }
 
   async getTrashedClients(): Promise<ApiResponse<Client[]>> {
@@ -866,7 +969,7 @@ class ApiService {
   }
 
   async getClientAuditLogs(clientId: string): Promise<ApiResponse<AuditLog[]>> {
-    return this.request(`/audit-logs/?client=${clientId}`);
+    return this.request(`/clients/audit-logs/?client=${clientId}`);
   }
 
   async getCustomerDropdownOptions(): Promise<ApiResponse<any>> {
@@ -886,6 +989,45 @@ class ApiService {
     const queryParams = new URLSearchParams();
     if (category) queryParams.append('category', category);
     return this.request(`/tags/by_category/${queryParams.toString() ? `?${queryParams}` : ''}`);
+  }
+
+  // Customer Segmentation API methods
+  async getSegmentationAnalytics(viewType: 'buckets' | 'filters' = 'buckets', tenantId?: number): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('view_type', viewType);
+    if (tenantId) queryParams.append('tenant_id', tenantId.toString());
+    return this.request(`/clients/segmentation/analytics/?${queryParams}`);
+  }
+
+  async getSegmentCustomers(segmentName: string, viewType: 'buckets' | 'filters' = 'buckets', page: number = 1, pageSize: number = 20, tenantId?: number): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('view_type', viewType);
+    queryParams.append('page', page.toString());
+    queryParams.append('page_size', pageSize.toString());
+    if (tenantId) queryParams.append('tenant_id', tenantId.toString());
+    return this.request(`/clients/segmentation/customers/${segmentName}/?${queryParams}`);
+  }
+
+  async getSegmentationRules(): Promise<ApiResponse<any>> {
+    return this.request('/clients/segmentation/rules/');
+  }
+
+  async createCustomSegment(segmentData: {
+    name: string;
+    description?: string;
+    rules: any;
+    category?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.request('/clients/segmentation/custom-segment/', {
+      method: 'POST',
+      body: JSON.stringify(segmentData),
+    });
+  }
+
+  async getSegmentationInsights(tenantId?: number): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (tenantId) queryParams.append('tenant_id', tenantId.toString());
+    return this.request(`/clients/segmentation/insights/?${queryParams}`);
   }
 
   // Exhibition Lead Management
@@ -1443,6 +1585,7 @@ class ApiService {
     address?: string;
     store?: number;
   }): Promise<ApiResponse<User>> {
+    console.log('API Service: Creating team member with data:', memberData);
     return this.request('/users/team-members/', {
       method: 'POST',
       body: JSON.stringify(memberData),
@@ -1808,69 +1951,69 @@ class ApiService {
     if (params?.category) queryParams.append('category', params.category);
     if (params?.search) queryParams.append('search', params.search);
 
-    return this.request(`/escalations/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/escalation/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async getEscalation(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/escalations/${id}/`);
+    return this.request(`/escalation/${id}/`);
   }
 
   async createEscalation(escalationData: any): Promise<ApiResponse<any>> {
-    return this.request('/escalations/', {
+    return this.request('/escalation/', {
       method: 'POST',
       body: JSON.stringify(escalationData),
     });
   }
 
   async updateEscalation(id: string, escalationData: any): Promise<ApiResponse<any>> {
-    return this.request(`/escalations/${id}/`, {
+    return this.request(`/escalation/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(escalationData),
     });
   }
 
   async assignEscalation(id: string, userId: number): Promise<ApiResponse<any>> {
-    return this.request(`/escalations/${id}/assign/`, {
+    return this.request(`/escalation/${id}/assign/`, {
       method: 'POST',
       body: JSON.stringify({ assigned_to: userId }),
     });
   }
 
   async changeEscalationStatus(id: string, status: string): Promise<ApiResponse<any>> {
-    return this.request(`/escalations/${id}/change_status/`, {
+    return this.request(`/escalation/${id}/change_status/`, {
       method: 'POST',
       body: JSON.stringify({ status }),
     });
   }
 
   async resolveEscalation(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/escalations/${id}/resolve/`, {
+    return this.request(`/escalation/${id}/resolve/`, {
       method: 'POST',
     });
   }
 
   async closeEscalation(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/escalations/${id}/close/`, {
+    return this.request(`/escalation/${id}/close/`, {
       method: 'POST',
     });
   }
 
   async getEscalationNotes(escalationId: string): Promise<ApiResponse<any[]>> {
-    return this.request(`/escalations/${escalationId}/notes/`);
+    return this.request(`/escalation/${escalationId}/notes/`);
   }
 
   async createEscalationNote(escalationId: string, noteData: {
     content: string;
     is_internal?: boolean;
   }): Promise<ApiResponse<any>> {
-    return this.request(`/escalations/${escalationId}/notes/`, {
+    return this.request(`/escalation/${escalationId}/notes/`, {
       method: 'POST',
       body: JSON.stringify(noteData),
     });
   }
 
   async getEscalationStats(): Promise<ApiResponse<any>> {
-    return this.request('/escalations/stats/');
+    return this.request('/escalation/stats/');
   }
 
   async getMyEscalations(params?: {
@@ -1885,7 +2028,7 @@ class ApiService {
     if (params?.priority) queryParams.append('priority', params.priority);
     if (params?.category) queryParams.append('category', params.category);
 
-    return this.request(`/escalations/my-escalations/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/escalation/my-escalations/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   // ================================
@@ -2124,6 +2267,60 @@ class ApiService {
     return this.request('/audit/assignment-override/', {
       method: 'POST',
       body: JSON.stringify(audit)
+    });
+  }
+
+  // Platform Admin - Billing Overview
+  async getBillingOverview(): Promise<ApiResponse<{
+    total_revenue: number;
+    monthly_revenue: number;
+    active_subscriptions: number;
+    pending_payments: number;
+    revenue_growth: number;
+    subscription_plans: {
+      basic: number;
+      professional: number;
+      enterprise: number;
+    };
+    recent_transactions: Array<{
+      id: number;
+      tenant_name: string;
+      amount: number;
+      plan: string;
+      status: string;
+      date: string;
+    }>;
+  }>> {
+    return this.request('/tenants/billing/');
+  }
+
+  // Platform Admin - Export Billing Report
+  async exportBillingReport(): Promise<Blob> {
+    const token = this.getAuthToken();
+    const url = getApiUrl('/tenants/billing/export/');
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.statusText}`);
+    }
+
+    return response.blob();
+  }
+
+  // Platform Admin - Toggle Tenant Status
+  async toggleTenantStatus(tenantId: number): Promise<ApiResponse<{
+    id: number;
+    name: string;
+    subscription_status: string;
+  }>> {
+    return this.request(`/tenants/${tenantId}/toggle-status/`, {
+      method: 'PATCH',
     });
   }
 }

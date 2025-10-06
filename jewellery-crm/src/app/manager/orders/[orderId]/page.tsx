@@ -18,7 +18,7 @@ const order = {
 };
 
 export default function ManagerOrderDetailPage() {
-  const { orderId } = useParams();
+  const { orderId } = useParams() as { orderId: string };
   return (
     <div className="flex flex-col gap-8">
       <div className="mb-2">

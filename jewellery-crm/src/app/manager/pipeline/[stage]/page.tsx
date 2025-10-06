@@ -65,7 +65,7 @@ interface PipelineStage {
 export default function ManagerPipelineStagePage() {
   const router = useRouter();
   const params = useParams();
-  const stageValue = params.stage as string;
+  const stageValue = params?.stage as string;
   
   const [customers, setCustomers] = useState<CustomerInStage[]>([]);
   const [loading, setLoading] = useState(true);

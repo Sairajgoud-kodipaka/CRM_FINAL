@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, X } from 'lucide-react';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { apiService, User } from '@/lib/api-service';
 import { useRouter } from 'next/navigation';
 
@@ -62,6 +63,14 @@ export default function ManagerTeamPage() {
     }
     return password;
   };
+
+  // Initialize password when component mounts
+  useEffect(() => {
+    setInviteData(prev => ({
+      ...prev,
+      password: generateStrongPassword()
+    }));
+  }, []);
 
   useEffect(() => {
     // Check if user is logged in first
@@ -158,6 +167,18 @@ export default function ManagerTeamPage() {
       console.log('Inviting member with data:', inviteData);
       // Remove store field since backend will auto-assign it
       const { store, ...memberData } = inviteData;
+      
+      // Ensure all required fields are present
+      const requiredFields = ['username', 'email', 'first_name', 'last_name', 'password', 'role'];
+      const missingFields = requiredFields.filter(field => !memberData[field as keyof typeof memberData]);
+      
+      if (missingFields.length > 0) {
+        console.error('Missing required fields:', missingFields);
+        setNotification({type: 'error', message: `Missing required fields: ${missingFields.join(', ')}`});
+        return;
+      }
+      
+      console.log('Sending member data to API:', memberData);
       const response = await apiService.createTeamMember(memberData);
       
       if (response.success) {
@@ -171,16 +192,27 @@ export default function ManagerTeamPage() {
           password: generateStrongPassword(),
           role: 'inhouse_sales'
         });
-        setNotification({type: 'success', message: 'Team member invited successfully!'});
+        setNotification({type: 'success', message: 'Team member added successfully!'});
         // Refresh team members
         await fetchTeam();
       } else {
         console.error('Failed to invite member:', response);
-        setNotification({type: 'error', message: 'Failed to invite member. Please try again.'});
+        const errorMessage = typeof response.errors === 'string' ? response.errors : response.message || 'Failed to add member. Please try again.';
+        setNotification({type: 'error', message: errorMessage});
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error inviting member:', error);
-      setNotification({type: 'error', message: 'Error inviting member. Please try again.'});
+      let errorMessage = 'Error adding member. Please try again.';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
+      setNotification({type: 'error', message: errorMessage});
     } finally {
       setInviteLoading(false);
     }
@@ -206,9 +238,8 @@ export default function ManagerTeamPage() {
     setEditLoading(true);
     try {
       console.log('Updating member with data:', editData);
-      // Use user_id for updates, fallback to id if user_id is not available
-      const memberId = selectedMember.user_id || selectedMember.id;
-      const response = await apiService.updateTeamMember(memberId.toString(), editData);
+      // Use the team member ID for updates
+      const response = await apiService.updateTeamMember(selectedMember.id.toString(), editData);
       
       if (response.success) {
         console.log('Member updated successfully:', response.data);
@@ -250,9 +281,8 @@ export default function ManagerTeamPage() {
     
     try {
       console.log('Deleting member:', memberToDelete.id);
-      // Use the user_id from the API response, not the team member ID
-      const memberId = memberToDelete.user_id || memberToDelete.id;
-      const response = await apiService.deleteTeamMember(memberId.toString());
+      // Use the team member ID (not user_id) for deletion
+      const response = await apiService.deleteTeamMember(memberToDelete.id.toString());
       
       if (response.success) {
         console.log('Member deleted successfully');
@@ -414,7 +444,7 @@ export default function ManagerTeamPage() {
         <div className="fixed inset-0 bg-opacity-50 backdrop-blur-lg flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Invite Team Member</h2>
+              <h2 className="text-xl font-semibold">Add Team Member</h2>
               <Button
                 variant="ghost"
                 size="icon"
@@ -463,26 +493,25 @@ export default function ManagerTeamPage() {
                 />
               </div>
               
-                             <div>
-                 <label className="block text-sm font-medium mb-1">Password</label>
-                 <div className="flex gap-2">
-                   <Input
-                     type="password"
-                     value={inviteData.password}
-                     onChange={(e) => setInviteData({...inviteData, password: e.target.value})}
-                     required
-                     className="flex-1"
-                   />
-                   <Button
-                     type="button"
-                     variant="outline"
-                     onClick={() => setInviteData({...inviteData, password: generateStrongPassword()})}
-                     className="text-xs"
-                   >
-                     Generate
-                   </Button>
-                 </div>
-               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Password</label>
+                <div className="flex gap-2">
+                  <PasswordInput
+                    value={inviteData.password}
+                    onChange={(value) => setInviteData({...inviteData, password: value})}
+                    required
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setInviteData({...inviteData, password: generateStrongPassword()})}
+                    className="text-xs"
+                  >
+                    Generate
+                  </Button>
+                </div>
+              </div>
               
               <div>
                 <label className="block text-sm font-medium mb-1">Role</label>
@@ -504,7 +533,7 @@ export default function ManagerTeamPage() {
                   disabled={inviteLoading}
                   className="flex-1"
                 >
-                  {inviteLoading ? 'Inviting...' : 'Invite Member'}
+                  {inviteLoading ? 'Adding...' : 'Add Member'}
                 </Button>
                 <Button
                   type="button"

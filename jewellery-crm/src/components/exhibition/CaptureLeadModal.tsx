@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { Gift, Loader2 } from 'lucide-react';
 
 interface CaptureLeadModalProps {
@@ -35,6 +36,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -69,11 +71,30 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
     }
     
     setIsSubmitting(true);
+    setSubmitError(null); // Clear previous errors
     try {
       await onSubmit(formData);
       handleClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting lead:', error);
+      
+      // Extract error message from the error object
+      let errorMessage = 'Failed to create lead. Please try again.';
+      
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.email && Array.isArray(errorData.email)) {
+          errorMessage = errorData.email[0]; // Get the first email error
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      setSubmitError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -90,6 +111,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
       customer_type: 'individual'
     });
     setErrors({});
+    setSubmitError(null); // Clear submit error when closing
     onClose();
   };
 
@@ -111,6 +133,16 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Submit Error Display */}
+          {submitError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+              <div className="flex items-center gap-2 text-red-700">
+                <span className="text-red-500">⚠</span>
+                <span className="text-sm font-medium">{submitError}</span>
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="first_name">First Name *</Label>
@@ -158,12 +190,11 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
           
           <div>
             <Label htmlFor="phone">Phone Number *</Label>
-            <Input
-              id="phone"
+            <PhoneInputComponent
               value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              placeholder="Enter phone number"
-              className={errors.phone ? 'border-red-500' : ''}
+              onChange={(value) => handleInputChange('phone', value)}
+              placeholder="9876543210"
+              required={true}
             />
             {errors.phone && (
               <p className="text-red-500 text-xs mt-1">{errors.phone}</p>

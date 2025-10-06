@@ -1,15 +1,15 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PasswordForm } from '@/components/ui/password-form';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/lib/api-service';
 import { 
@@ -27,7 +27,8 @@ import {
   Store,
   Crown,
   Clock,
-  Activity
+  Activity,
+  Loader2
 } from 'lucide-react';
 
 interface ProfileData {
@@ -106,22 +107,16 @@ export default function ProfilePage() {
       setSaving(true);
       setError(null);
 
-      // Call the API to update the profile
       const response = await apiService.updateProfile(editFormData);
       
       if (response.success) {
-        // Update local profile data with the response
         setProfileData(response.data);
+        setEditMode(false);
+        setSuccess('Profile updated successfully!');
+        setTimeout(() => setSuccess(null), 3000);
       } else {
         throw new Error(response.message || 'Failed to update profile');
       }
-
-      setEditMode(false);
-      setSuccess('Profile updated successfully!');
-      
-      // Auto-hide success message
-      setTimeout(() => setSuccess(null), 3000);
-
     } catch (err: any) {
       console.error('Error updating profile:', err);
       setError(err.message || 'Failed to update profile');
@@ -176,19 +171,19 @@ export default function ProfilePage() {
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'business_admin':
-        return 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg';
+        return 'bg-purple-500 text-white';
       case 'platform_admin':
-        return 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg';
+        return 'bg-blue-500 text-white';
       case 'manager':
-        return 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg';
+        return 'bg-green-500 text-white';
       case 'inhouse_sales':
-        return 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg';
+        return 'bg-orange-500 text-white';
       case 'tele_calling':
-        return 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg';
+        return 'bg-pink-500 text-white';
       case 'marketing':
-        return 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg';
+        return 'bg-yellow-500 text-white';
       default:
-        return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg';
+        return 'bg-gray-500 text-white';
     }
   };
 
@@ -206,9 +201,9 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[500px]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600">Loading your profile...</p>
         </div>
       </div>
@@ -217,7 +212,7 @@ export default function ProfilePage() {
 
   if (!profileData) {
     return (
-      <div className="flex items-center justify-center min-h-[500px]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <X className="w-8 h-8 text-red-600" />
@@ -232,262 +227,237 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Enhanced Header */}
-      <div className="text-center space-y-4">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
-          <User className="w-4 h-4" />
-          Profile Management
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+          <p className="text-gray-600 mt-1">Manage your account settings and personal information</p>
         </div>
-        <h1 className="text-4xl font-bold text-text-primary tracking-tight">
-          My Profile
-        </h1>
-        <p className="text-xl text-text-secondary max-w-2xl mx-auto">
-          Manage your account settings, personal information, and security preferences
-        </p>
+        <Button
+          variant={editMode ? "outline" : "default"}
+          onClick={() => editMode ? handleCancelEdit() : setEditMode(true)}
+          disabled={saving}
+          className="flex items-center gap-2"
+        >
+          {editMode ? (
+            <>
+              <X className="w-4 h-4" />
+              Cancel
+            </>
+          ) : (
+            <>
+              <Edit2 className="w-4 h-4" />
+              Edit Profile
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Enhanced Alerts */}
+      {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-red-200 bg-red-50 shadow-lg">
-          <X className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800 font-medium">{error}</AlertDescription>
+        <Alert variant="destructive">
+          <X className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="border-green-200 bg-green-50 shadow-lg">
+        <Alert className="border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800 font-medium">{success}</AlertDescription>
+          <AlertDescription className="text-green-800">{success}</AlertDescription>
         </Alert>
       )}
 
-      {/* Enhanced Tabs */}
-      <Tabs defaultValue="general" className="space-y-8">
-        <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 bg-gray-100 p-1 rounded-xl">
-          <TabsTrigger value="general" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            General Information
-          </TabsTrigger>
-          <TabsTrigger value="security" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            Security
-          </TabsTrigger>
+      {/* Tabs */}
+      <Tabs defaultValue="general" className="space-y-6">
+        <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" className="space-y-8">
-          {/* Enhanced Profile Overview Card */}
-          <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-white to-gray-50">
-            <div className="bg-gradient-to-r from-gray-700 to-gray-800 p-8 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <Avatar className="h-24 w-24 border-4 border-white/20 shadow-xl">
-                    <AvatarImage src="" alt={`${profileData.first_name} ${profileData.last_name}`} />
-                    <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">
-                      {profileData.first_name?.charAt(0)}{profileData.last_name?.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="space-y-2">
-                    <h2 className="text-3xl font-bold">
-                      {profileData.first_name} {profileData.last_name}
-                    </h2>
-                    <p className="text-gray-300 text-lg">@{profileData.username}</p>
-                    <div className="flex items-center gap-3">
-                      <Badge className={getRoleColor(profileData.role)}>
-                        <Crown className="w-4 h-4 mr-2" />
-                        {getRoleDisplayName(profileData.role)}
+        <TabsContent value="general" className="space-y-6">
+          {/* Profile Overview */}
+          <Card>
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src="" alt={`${profileData.first_name} ${profileData.last_name}`} />
+                  <AvatarFallback className="text-lg font-bold">
+                    {profileData.first_name?.charAt(0)}{profileData.last_name?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {profileData.first_name} {profileData.last_name}
+                  </h2>
+                  <p className="text-gray-600">@{profileData.username}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge className={getRoleColor(profileData.role)}>
+                      <Crown className="w-3 h-3 mr-1" />
+                      {getRoleDisplayName(profileData.role)}
+                    </Badge>
+                    {profileData.is_active && (
+                      <Badge className="bg-green-500 text-white">
+                        <Activity className="w-3 h-3 mr-1" />
+                        Active
                       </Badge>
-                      {profileData.is_active && (
-                        <Badge className="bg-green-500 text-white border-0 shadow-lg">
-                          <Activity className="w-4 h-4 mr-2" />
-                          Active
-                        </Badge>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
-                <Button
-                  variant={editMode ? "outline" : "default"}
-                  onClick={() => editMode ? handleCancelEdit() : setEditMode(true)}
-                  disabled={saving}
-                  className={`${
-                    editMode 
-                      ? 'bg-white text-gray-900 hover:bg-gray-100 border-white' 
-                      : 'bg-white/20 text-white hover:bg-white/30 border-white/30'
-                  } shadow-lg`}
-                >
-                  {editMode ? (
-                    <>
-                      <X className="w-4 h-4 mr-2" />
-                      Cancel
-                    </>
-                  ) : (
-                    <>
-                      <Edit2 className="w-4 h-4 mr-2" />
-                      Edit Profile
-                    </>
-                  )}
-                </Button>
               </div>
-            </div>
+            </CardHeader>
             
-            <CardContent className="p-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                {/* Enhanced Personal Information */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <User className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-text-primary">Personal Information</h3>
-                  </div>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Personal Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    Personal Information
+                  </h3>
                   
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="first_name" className="text-sm font-medium text-text-secondary">First Name</Label>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">First Name</Label>
                         {editMode ? (
                           <Input
-                            id="first_name"
                             value={editFormData.first_name}
                             onChange={(e) => handleEditInputChange('first_name', e.target.value)}
                             disabled={saving}
-                            className="border-gray-200 focus:border-gray-500 focus:ring-gray-500"
+                            className="mt-1"
                           />
                         ) : (
-                          <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-text-primary font-medium">{profileData.first_name || 'Not set'}</p>
+                          <div className="mt-1 p-2 bg-gray-50 rounded border">
+                            <p className="text-gray-900">{profileData.first_name || 'Not set'}</p>
                           </div>
                         )}
                       </div>
                       
-                      <div className="space-y-2">
-                        <Label htmlFor="last_name" className="text-sm font-medium text-text-secondary">Last Name</Label>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Last Name</Label>
                         {editMode ? (
                           <Input
-                            id="last_name"
                             value={editFormData.last_name}
                             onChange={(e) => handleEditInputChange('last_name', e.target.value)}
                             disabled={saving}
-                            className="border-gray-200 focus:border-gray-500 focus:ring-gray-500"
+                            className="mt-1"
                           />
                         ) : (
-                          <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-text-primary font-medium">{profileData.last_name || 'Not set'}</p>
+                          <div className="mt-1 p-2 bg-gray-50 rounded border">
+                            <p className="text-gray-900">{profileData.last_name || 'Not set'}</p>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium text-text-secondary flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-gray-500" />
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
                         Email Address
                       </Label>
                       {editMode ? (
                         <Input
-                          id="email"
                           type="email"
                           value={editFormData.email}
                           onChange={(e) => handleEditInputChange('email', e.target.value)}
                           disabled={saving}
-                          className="border-gray-200 focus:border-gray-500 focus:ring-gray-500"
+                          className="mt-1"
                         />
                       ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <p className="text-text-primary font-medium">{profileData.email || 'Not set'}</p>
+                        <div className="mt-1 p-2 bg-gray-50 rounded border">
+                          <p className="text-gray-900">{profileData.email || 'Not set'}</p>
                         </div>
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-sm font-medium text-text-secondary flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-gray-500" />
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
                         Phone Number
                       </Label>
                       {editMode ? (
-                        <Input
-                          id="phone"
-                          value={editFormData.phone}
-                          onChange={(e) => handleEditInputChange('phone', e.target.value)}
+                        <PhoneInputComponent
+                          value={editFormData.phone || ''}
+                          onChange={(value) => handleEditInputChange('phone', value)}
+                          placeholder="9876543210"
                           disabled={saving}
-                          className="border-gray-200 focus:border-gray-500 focus:ring-gray-500"
                         />
                       ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <p className="text-text-primary font-medium">{profileData.phone || 'Not set'}</p>
+                        <div className="mt-1 p-2 bg-gray-50 rounded border">
+                          <p className="text-gray-900">{profileData.phone || 'Not set'}</p>
                         </div>
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="address" className="text-sm font-medium text-text-secondary flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-gray-500" />
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
                         Address
                       </Label>
                       {editMode ? (
                         <Input
-                          id="address"
                           value={editFormData.address}
                           onChange={(e) => handleEditInputChange('address', e.target.value)}
                           disabled={saving}
-                          className="border-gray-200 focus:border-gray-500 focus:ring-gray-500"
+                          className="mt-1"
                         />
                       ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <p className="text-text-primary font-medium">{profileData.address || 'Not set'}</p>
+                        <div className="mt-1 p-2 bg-gray-50 rounded border">
+                          <p className="text-gray-900">{profileData.address || 'Not set'}</p>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Enhanced Organization Information */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-text-primary">Organization</h3>
-                  </div>
+                {/* Organization Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Building2 className="w-5 h-5" />
+                    Organization
+                  </h3>
                   
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-text-secondary flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-gray-500" />
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Building2 className="w-4 h-4" />
                         Tenant
                       </Label>
-                      <div className="p-3 bg-gray-100 rounded-lg border border-gray-200">
-                        <p className="text-gray-900 font-medium">{profileData.tenant_name || 'Not assigned'}</p>
+                      <div className="mt-1 p-2 bg-gray-50 rounded border">
+                        <p className="text-gray-900">{profileData.tenant_name || 'Not assigned'}</p>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-text-secondary flex items-center gap-2">
-                        <Store className="w-4 h-4 text-gray-500" />
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Store className="w-4 h-4" />
                         Store
                       </Label>
-                      <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                        <p className="text-orange-900 font-medium">{profileData.store_name || 'Not assigned'}</p>
+                      <div className="mt-1 p-2 bg-orange-50 rounded border border-orange-200">
+                        <p className="text-orange-900">{profileData.store_name || 'Not assigned'}</p>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-text-secondary flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-500" />
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
                         Member Since
                       </Label>
-                      <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                        <p className="text-green-900 font-medium">{formatDate(profileData.created_at)}</p>
+                      <div className="mt-1 p-2 bg-green-50 rounded border border-green-200">
+                        <p className="text-green-900">{formatDate(profileData.created_at)}</p>
                       </div>
                     </div>
 
                     {profileData.last_login && (
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-text-secondary flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-gray-500" />
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
                           Last Login
                         </Label>
-                        <div className="p-3 bg-gray-100 rounded-lg border border-gray-200">
-                          <p className="text-gray-900 font-medium">{formatDate(profileData.last_login)}</p>
+                        <div className="mt-1 p-2 bg-gray-50 rounded border">
+                          <p className="text-gray-900">{formatDate(profileData.last_login)}</p>
                         </div>
                       </div>
                     )}
@@ -495,22 +465,22 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Enhanced Action Buttons */}
+              {/* Action Buttons */}
               {editMode && (
-                <div className="flex items-center gap-4 mt-8 pt-8 border-t border-gray-200">
+                <div className="flex items-center gap-3 mt-6 pt-6 border-t">
                   <Button 
                     onClick={handleSaveProfile} 
                     disabled={saving}
-                    className="bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 shadow-lg"
+                    className="flex items-center gap-2"
                   >
                     {saving ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        Saving Changes...
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
                       </>
                     ) : (
                       <>
-                        <Save className="w-4 h-4 mr-2" />
+                        <Save className="w-4 h-4" />
                         Save Changes
                       </>
                     )}
@@ -519,7 +489,6 @@ export default function ProfilePage() {
                     variant="outline" 
                     onClick={handleCancelEdit} 
                     disabled={saving}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
                   </Button>
@@ -529,89 +498,11 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="security" className="space-y-8">
-          {/* Enhanced Password Change */}
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-3 text-gray-800">
-                <Shield className="w-6 h-6" />
-                Change Password
-              </CardTitle>
-              <CardDescription className="text-gray-700">
-                Update your password to keep your account secure
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <PasswordForm 
-                onSuccess={handlePasswordChangeSuccess}
-                onError={handlePasswordChangeError}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Enhanced Account Security Info */}
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-3 text-gray-800">
-                <Shield className="w-6 h-6" />
-                Account Security
-              </CardTitle>
-              <CardDescription className="text-gray-700">
-                Keep your account secure with these recommendations
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 border border-green-200 rounded-xl bg-green-50 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                    <h4 className="font-semibold text-green-800">Strong Password</h4>
-                  </div>
-                  <p className="text-sm text-green-700">
-                    Use a password that's at least 8 characters long with a mix of letters, numbers, and symbols.
-                  </p>
-                </div>
-                
-                <div className="p-6 border border-green-200 rounded-xl bg-green-50 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                    <h4 className="font-semibold text-green-800">Regular Updates</h4>
-                  </div>
-                  <p className="text-sm text-green-700">
-                    Change your password regularly, especially if you suspect unauthorized access.
-                  </p>
-                </div>
-                
-                <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Shield className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <h4 className="font-semibold text-gray-800">Secure Connection</h4>
-                  </div>
-                  <p className="text-sm text-gray-700">
-                    Always access your account from secure, trusted networks and devices.
-                  </p>
-                </div>
-                
-                <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Shield className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <h4 className="font-semibold text-gray-800">Log Out</h4>
-                  </div>
-                  <p className="text-sm text-gray-700">
-                    Remember to log out when using shared or public computers.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="security" className="space-y-6">
+          <PasswordForm 
+            onSuccess={handlePasswordChangeSuccess}
+            onError={handlePasswordChangeError}
+          />
         </TabsContent>
       </Tabs>
     </div>

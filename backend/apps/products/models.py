@@ -90,7 +90,6 @@ class Product(models.Model):
         blank=True,
         related_name='products'
     )
-    brand = models.CharField(max_length=100, blank=True, null=True)
     
     # Pricing
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, help_text=_('Cost price'))

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User, TeamMember, TeamMemberActivity, TeamMemberPerformance
 from apps.stores.models import Store
+from shared.validators import validate_indian_phone_number, normalize_phone_number
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -250,11 +251,16 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
     # User fields
     username = serializers.CharField(max_length=150)
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, validators=[validate_password])
+    password = serializers.CharField(write_only=True, min_length=8)
     first_name = serializers.CharField(max_length=30)
     last_name = serializers.CharField(max_length=30)
     role = serializers.ChoiceField(choices=User.Role.choices)
-    phone = serializers.CharField(max_length=15, required=False, allow_blank=True)
+    phone = serializers.CharField(
+        max_length=15, 
+        required=False, 
+        allow_blank=True,
+        validators=[validate_indian_phone_number]
+    )
     address = serializers.CharField(required=False, allow_blank=True)
     store = serializers.PrimaryKeyRelatedField(queryset=Store.objects.none(), required=False, allow_null=True)
     
@@ -284,15 +290,25 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
 
     def validate_username(self, value):
         """Check that username is unique."""
+        print(f"Validating username: {value}")
         if User.objects.filter(username=value).exists():
+            print(f"Username {value} already exists")
             raise serializers.ValidationError("Username already exists")
         return value
 
     def validate_email(self, value):
         """Check that email is unique."""
+        print(f"Validating email: {value}")
         if User.objects.filter(email=value).exists():
+            print(f"Email {value} already exists")
             raise serializers.ValidationError("Email already exists")
         return value
+
+    def validate_phone(self, value):
+        """Validate and normalize phone number"""
+        if not value:
+            return value
+        return normalize_phone_number(value)
 
     def validate_manager_id(self, value):
         """Validate manager exists and is a team member."""
@@ -305,10 +321,15 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        print(f"TeamMemberCreateSerializer.create called with validated_data: {validated_data}")
+        
         # Extract user data from the request data
         request_data = self.context.get('request').data
         request = self.context.get('request')
         current_user = request.user if request else None
+        
+        print(f"Request data: {request_data}")
+        print(f"Current user: {current_user.username if current_user else 'None'}")
         
         # Automatically assign store from current manager's store
         store = None
@@ -426,7 +447,11 @@ class TeamMemberUpdateSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=False)
     last_name = serializers.CharField(required=False)
     email = serializers.EmailField(required=False)
-    phone = serializers.CharField(required=False, allow_blank=True)
+    phone = serializers.CharField(
+        required=False, 
+        allow_blank=True,
+        validators=[validate_indian_phone_number]
+    )
     role = serializers.ChoiceField(choices=User.Role.choices, required=False)
     store = serializers.PrimaryKeyRelatedField(queryset=Store.objects.all(), required=False, allow_null=True)
     
@@ -454,6 +479,12 @@ class TeamMemberUpdateSerializer(serializers.ModelSerializer):
         if value and User.objects.filter(email=value).exclude(id=self.instance.user.id).exists():
             raise serializers.ValidationError("Email already exists")
         return value
+
+    def validate_phone(self, value):
+        """Validate and normalize phone number"""
+        if not value:
+            return value
+        return normalize_phone_number(value)
 
     def update(self, instance, validated_data):
         # Update user fields
