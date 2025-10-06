@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     CustomerVisit, Assignment, CallLog, FollowUp, 
     CustomerProfile, Notification, Analytics,
-    Lead, CallRequest, FollowUpRequest, AuditLog, WebhookLog
+    Lead, LeadTransfer, CallRequest, FollowUpRequest, AuditLog, WebhookLog
 )
 from django.contrib.auth import get_user_model
 
@@ -196,7 +196,7 @@ class LeadDetailSerializer(serializers.ModelSerializer):
         model = Lead
         fields = [
             'id', 'name', 'phone', 'email', 'city', 'source', 'status', 'priority',
-            'source_system', 'source_id', 'fetched_at', 'assigned_to', 'assigned_to_details',
+            'source_system', 'source_id', 'fetched_at', 'raw_data', 'assigned_to', 'assigned_to_details',
             'assigned_at', 'last_interaction', 'next_followup', 'call_attempts',
             'tags', 'segments', 'notes', 'created_at', 'updated_at'
         ]
@@ -227,8 +227,8 @@ class CallInitiationSerializer(serializers.Serializer):
 class CallInitiationResponseSerializer(serializers.Serializer):
     call_request_id = serializers.UUIDField()
     status = serializers.ChoiceField(choices=['initiated', 'failed'])
-    error_message = serializers.CharField(required=False)
-    exotel_bridge_url = serializers.URLField(required=False)
+    error_message = serializers.CharField(required=False, allow_blank=True)
+    exotel_bridge_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class FollowUpRequestSerializer(serializers.ModelSerializer):
@@ -355,6 +355,47 @@ class AuditLogSerializer(serializers.ModelSerializer):
             'metadata', 'ip_address', 'user_agent', 'timestamp'
         ]
         read_only_fields = ['id', 'timestamp']
+
+
+class LeadTransferSerializer(serializers.ModelSerializer):
+    """Serializer for lead transfer functionality"""
+    from_user_details = UserMiniSerializer(source='from_user', read_only=True)
+    to_user_details = UserMiniSerializer(source='to_user', read_only=True)
+    lead_details = LeadSerializer(source='lead', read_only=True)
+    
+    class Meta:
+        model = LeadTransfer
+        fields = [
+            'id', 'lead', 'lead_details', 'from_user', 'from_user_details',
+            'to_user', 'to_user_details', 'transfer_reason', 'status',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class LeadTransferCreateSerializer(serializers.Serializer):
+    """Serializer for creating lead transfers"""
+    lead_id = serializers.UUIDField()
+    to_user_id = serializers.IntegerField()
+    transfer_reason = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate_lead_id(self, value):
+        """Validate that the lead exists and belongs to the current user's tenant"""
+        try:
+            lead = Lead.objects.get(id=value)
+            return value
+        except Lead.DoesNotExist:
+            raise serializers.ValidationError("Lead not found")
+    
+    def validate_to_user_id(self, value):
+        """Validate that the target user is a sales person in the same tenant"""
+        try:
+            user = User.objects.get(id=value)
+            if user.role != User.Role.INHOUSE_SALES:
+                raise serializers.ValidationError("Target user must be a sales person")
+            return value
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Target user not found")
 
 
 class WebhookLogSerializer(serializers.ModelSerializer):

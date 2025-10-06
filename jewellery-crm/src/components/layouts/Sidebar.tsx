@@ -695,7 +695,7 @@ export function Sidebar({ isOpen = true, onClose, className, role }: SidebarProp
     <div
       id="app-sidebar"
       className={cn(
-        'w-60 bg-sidebar text-sidebar-foreground h-full overflow-y-auto flex flex-col',
+        'w-60 bg-sidebar text-sidebar-foreground h-full overflow-y-auto flex flex-col scrollbar-hide',
         !isOpen && 'transform -translate-x-full lg:translate-x-0',
         className
       )}

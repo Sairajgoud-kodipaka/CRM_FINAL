@@ -22,7 +22,8 @@ def google_sheets_status(request):
         user = request.user
         
         # Check if user has permission to view this information
-        if user.role not in ['manager', 'business_admin', 'platform_admin']:
+        # Allow telecallers to see Google Sheets status since it affects their lead data
+        if user.role not in ['manager', 'business_admin', 'platform_admin', 'tele_calling']:
             return Response({
                 'error': 'Permission denied'
             }, status=status.HTTP_403_FORBIDDEN)
@@ -104,7 +105,8 @@ def test_connection(request):
         user = request.user
         
         # Check if user has permission
-        if user.role not in ['manager', 'business_admin', 'platform_admin']:
+        # Allow telecallers to test connection since it affects their lead data
+        if user.role not in ['manager', 'business_admin', 'platform_admin', 'tele_calling']:
             return Response({
                 'error': 'Permission denied'
             }, status=status.HTTP_403_FORBIDDEN)
@@ -112,13 +114,19 @@ def test_connection(request):
         # Test connection
         connection_ok = test_google_sheets_connection()
         
+        # Get sample data for debugging
+        sample_data = None
+        if connection_ok:
+            from .google_sheets_service import google_sheets_service
+            sample_data = google_sheets_service.get_sheet_data("Sheet1!A:F")
+        
         # Create webhook log for this test
         WebhookLog.objects.create(
             webhook_type='google_sheets',
             payload={'action': 'manual_connection_test', 'user': user.username},
             status='processed' if connection_ok else 'failed',
             processed_at=timezone.now() if connection_ok else None,
-            error_message=None if connection_ok else 'Connection test failed'
+            error_message='' if connection_ok else 'Connection test failed'
         )
         
         if connection_ok:
@@ -131,7 +139,8 @@ def test_connection(request):
         return Response({
             'connection_status': connection_ok,
             'message': message,
-            'timestamp': timezone.now()
+            'timestamp': timezone.now(),
+            'sample_data': sample_data[:3] if sample_data else None  # First 3 rows for debugging
         }, status=status_code)
         
     except Exception as e:
@@ -150,7 +159,8 @@ def manual_sync(request):
         user = request.user
         
         # Check if user has permission
-        if user.role not in ['manager', 'business_admin', 'platform_admin']:
+        # Allow telecallers to trigger manual sync since it affects their lead data
+        if user.role not in ['manager', 'business_admin', 'platform_admin', 'tele_calling']:
             return Response({
                 'error': 'Permission denied'
             }, status=status.HTTP_403_FORBIDDEN)

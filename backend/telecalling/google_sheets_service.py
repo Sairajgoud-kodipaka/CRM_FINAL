@@ -83,7 +83,7 @@ class GoogleSheetsService:
         return assigned_telecaller
     
     def sync_leads_from_sheets(self):
-        """Sync leads from Google Sheets"""
+        """Sync leads from Google Sheets (OPTIMIZED VERSION)"""
         if not self.service or not self.spreadsheet_id:
             logger.error("Google Sheets service not initialized")
             return False
@@ -93,11 +93,12 @@ class GoogleSheetsService:
             webhook_log = WebhookLog.objects.create(
                 webhook_type='google_sheets',
                 payload={'action': 'sync_started'},
-                status='received'
+                status='received',
+                error_message=''
             )
             
-            # Get data from sheets
-            range_name = "Sheet1!A:Z"  # Adjust range as needed
+            # Get data from sheets with full range to include customer data
+            range_name = "Sheet1!A:J"  # Include all columns including full_name and phone_number
             result = self.service.spreadsheets().values().get(
                 spreadsheetId=self.spreadsheet_id,
                 range=range_name
@@ -113,73 +114,159 @@ class GoogleSheetsService:
             
             headers = rows[0] if rows else []
             logger.info(f"Found {len(rows)} rows in Google Sheets")
+            logger.info(f"Headers found: {headers}")
             
-            # Get telecallers for assignment
+            # Debug: Log first few rows to understand data structure
+            for i, row in enumerate(rows[:3]):  # Log first 3 rows
+                logger.info(f"Row {i}: {row}")
+            
+            # Get telecallers for assignment (cache this)
             telecallers = self._get_telecallers()
+            telecaller_list = list(telecallers) if telecallers.exists() else []
             
-            # Process each row with transaction
+            # Get existing leads to avoid duplicate queries
+            existing_source_ids = set(Lead.objects.filter(
+                source_system='google_sheets'
+            ).values_list('source_id', flat=True))
+            
+            # Prepare batch data
+            leads_to_create = []
+            leads_to_update = []
+            current_telecaller_index = 0
+            
+            # Process data in memory first
+            for row in rows[1:]:  # Skip header
+                try:
+                    # Create dictionary from row data
+                    lead_data = dict(zip(headers, row))
+                    
+                    # Extract required fields with flexible column name matching
+                    # Try different possible column names for each field
+                    source_id = (
+                        lead_data.get('created_time', '') or 
+                        lead_data.get('timestamp', '') or 
+                        lead_data.get('id', '') or
+                        str(timezone.now().timestamp())  # Fallback to current timestamp
+                    )
+                    
+                    # Extract actual customer data from Google Sheets
+                    # Prioritize full_name from Google Sheets
+                    name = (
+                        lead_data.get('full_name', '') or 
+                        lead_data.get('name', '') or 
+                        lead_data.get('customer_name', '') or
+                        lead_data.get('Name', '') or
+                        lead_data.get('Full Name', '') or
+                        lead_data.get('ad_name', '') or  # Use ad name as fallback
+                        f"Lead from {lead_data.get('campaign_name', 'Campaign')}"  # Create synthetic name
+                    )
+                    
+                    phone = (
+                        lead_data.get('phone_number', '') or 
+                        lead_data.get('phone', '') or 
+                        lead_data.get('mobile', '') or
+                        lead_data.get('Phone', '') or
+                        lead_data.get('Phone Number', '') or
+                        lead_data.get('Mobile', '') or
+                        f"9999{str(hash(source_id))[-6:]}"  # Generate synthetic phone number
+                    )
+                    
+                    email = (
+                        lead_data.get('Email', '') or 
+                        lead_data.get('email', '') or 
+                        lead_data.get('Email Address', '')
+                    )
+                    
+                    city = (
+                        lead_data.get('City', '') or 
+                        lead_data.get('city', '') or 
+                        lead_data.get('location', '') or
+                        lead_data.get('Timeline', '') or  # Use Timeline as city fallback
+                        'Unknown'
+                    )
+                    
+                    source = (
+                        lead_data.get('campaign_name', '') or 
+                        lead_data.get('source', '') or 
+                        lead_data.get('campaign', '') or
+                        lead_data.get('adset_name', '') or  # Use adset name as source
+                        'google_sheets'  # Default source
+                    )
+                    
+                    # Debug logging
+                    logger.info(f"Processing lead: name='{name}', phone='{phone}', source_id='{source_id}'")
+                    logger.info(f"Available columns: {list(lead_data.keys())}")
+                    
+                    if not source_id or not name or not phone:
+                        logger.warning(f"Skipping row due to missing required fields: source_id='{source_id}', name='{name}', phone='{phone}'")
+                        continue
+                    
+                    # Prepare lead data
+                    lead_fields = {
+                        'name': name,
+                        'phone': phone,
+                        'email': email,
+                        'city': city,
+                        'source': source,
+                        'source_system': 'google_sheets',
+                        'fetched_at': timezone.now(),
+                        'raw_data': lead_data
+                    }
+                    
+                    if source_id in existing_source_ids:
+                        # Update existing lead
+                        leads_to_update.append({
+                            'source_id': source_id,
+                            'fields': lead_fields
+                        })
+                    else:
+                        # Create new lead with assignment
+                        if telecaller_list:
+                            assigned_telecaller = telecaller_list[current_telecaller_index % len(telecaller_list)]
+                            current_telecaller_index += 1
+                            lead_fields['assigned_to'] = assigned_telecaller
+                            lead_fields['assigned_at'] = timezone.now()
+                        
+                        leads_to_create.append({
+                            'source_id': source_id,
+                            'fields': lead_fields
+                        })
+                
+                except Exception as e:
+                    logger.error(f"Error processing row {row}: {str(e)}")
+                    continue
+            
+            # Batch create/update leads
             leads_created = 0
             leads_updated = 0
             
             with transaction.atomic():
-                for row in rows[1:]:  # Skip header
-                    try:
-                        # Create dictionary from row data
-                        lead_data = dict(zip(headers, row))
-                        
-                        # Extract required fields
-                        source_id = lead_data.get('created_time', '')  # Use created_time as unique ID
-                        name = lead_data.get('full_name', '')
-                        phone = lead_data.get('phone_number', '')
-                        email = lead_data.get('Email', '')  # Not present in current data
-                        city = lead_data.get('City', '')  # Not present in current data
-                        source = lead_data.get('campaign_name', 'facebook_ads')  # Use campaign as source
-                        
-                        if not source_id or not name or not phone:
-                            logger.warning(f"Skipping row with missing required fields: {lead_data}")
-                            continue
-                        
-                        # Create or update lead with provenance
-                        lead, created = Lead.objects.update_or_create(
-                            source_id=source_id,
-                            defaults={
-                                'name': name,
-                                'phone': phone,
-                                'email': email,
-                                'city': city,
-                                'source': source,
-                                'source_system': 'google_sheets',
-                                'fetched_at': timezone.now(),
-                                'raw_data': lead_data
-                            }
-                        )
-                        
-                        # Assign lead to telecaller if newly created
-                        if created and telecallers.exists():
-                            assigned_telecaller = self._assign_lead_round_robin(lead, telecallers)
-                            if assigned_telecaller:
-                                lead.assigned_to = assigned_telecaller
-                                lead.assigned_at = timezone.now()
-                                lead.save()
-                                logger.info(f"Assigned lead {lead.name} to telecaller {assigned_telecaller.username}")
-                        
-                        if created:
-                            leads_created += 1
-                            logger.info(f"Created new lead: {name} ({phone})")
-                        else:
-                            leads_updated += 1
-                            logger.info(f"Updated existing lead: {name} ({phone})")
+                # Batch create new leads
+                if leads_to_create:
+                    lead_objects = []
+                    for lead_data in leads_to_create:
+                        lead_objects.append(Lead(
+                            source_id=lead_data['source_id'],
+                            **lead_data['fields']
+                        ))
                     
-                    except Exception as e:
-                        logger.error(f"Error processing row {row}: {str(e)}")
-                        continue
+                    Lead.objects.bulk_create(lead_objects, batch_size=100)
+                    leads_created = len(lead_objects)
+                
+                # Batch update existing leads
+                if leads_to_update:
+                    for lead_data in leads_to_update:
+                        Lead.objects.filter(source_id=lead_data['source_id']).update(
+                            **lead_data['fields']
+                        )
+                    leads_updated = len(leads_to_update)
             
             # Log successful sync
             webhook_log.status = 'processed'
             webhook_log.processed_at = timezone.now()
             webhook_log.save()
             
-            logger.info(f"Sync completed: {leads_created} created, {leads_updated} updated")
+            logger.info(f"OPTIMIZED Sync completed: {leads_created} created, {leads_updated} updated")
             return True
             
         except HttpError as e:
@@ -212,7 +299,7 @@ class GoogleSheetsService:
             return None
     
     def test_connection(self):
-        """Test connection to Google Sheets"""
+        """Test connection to Google Sheets and show sample data"""
         if not self.service or not self.spreadsheet_id:
             return False
         
@@ -223,6 +310,21 @@ class GoogleSheetsService:
             ).execute()
             
             logger.info(f"Connected to spreadsheet: {result.get('properties', {}).get('title', 'Unknown')}")
+            
+            # Also get sample data to help debug
+            range_name = "Sheet1!A:F"
+            data_result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=range_name
+            ).execute()
+            
+            rows = data_result.get('values', [])
+            if rows:
+                logger.info(f"Sample data from Google Sheets:")
+                logger.info(f"Headers: {rows[0] if rows else 'No headers'}")
+                logger.info(f"First data row: {rows[1] if len(rows) > 1 else 'No data rows'}")
+                logger.info(f"Total rows: {len(rows)}")
+            
             return True
         except Exception as e:
             logger.error(f"Connection test failed: {str(e)}")

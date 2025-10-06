@@ -334,24 +334,6 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Calendar className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-500 mb-1">Date of Birth</p>
-                      <p className="font-medium">
-                        {customer.date_of_birth ? formatDate(customer.date_of_birth) : 'Not provided'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Calendar className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-500 mb-1">Anniversary</p>
-                      <p className="font-medium">
-                        {customer.anniversary_date ? formatDate(customer.anniversary_date) : 'Not provided'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
                     <User className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-gray-500 mb-1">Created By</p>
@@ -373,20 +355,6 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                       <p className="font-medium break-words">
                         {customer.address ? `${customer.address}, ${customer.city || ''}, ${customer.state || ''}` : 'Not provided'}
                       </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <User className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-500 mb-1">Community</p>
-                      <p className="font-medium">{customer.community || 'Not specified'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <User className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-500 mb-1">Mother Tongue</p>
-                      <p className="font-medium">{customer.mother_tongue || 'Not specified'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">

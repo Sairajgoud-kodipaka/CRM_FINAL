@@ -1777,7 +1777,7 @@ class TeamMembersView(APIView):
                         manager=manager_team_member,
                         user__role__in=['inhouse_sales', 'tele_calling'],
                         user__is_active=True
-                    ).order_by('user').distinct('user')  # Ensure unique users
+                    ).distinct('user').order_by('user')  # Ensure unique users
                     logger.debug(f"Found {team_member_objects.count()} TeamMember objects")
                     team_members = [tm.user for tm in team_member_objects]
                 except TeamMember.DoesNotExist:
@@ -1801,7 +1801,7 @@ class TeamMembersView(APIView):
                         user__role__in=['inhouse_sales', 'tele_calling'],
                         user__is_active=True,
                         user__tenant=current_user.tenant
-                    ).distinct('user')  # Ensure unique users
+                    ).distinct('user').order_by('user')  # Ensure unique users
                     team_members = [tm.user for tm in team_member_objects]
                 except TeamMember.DoesNotExist:
                     team_members = []
@@ -1815,7 +1815,7 @@ class TeamMembersView(APIView):
                         manager=manager_team_member,
                         user__role__in=['inhouse_sales', 'tele_calling'],
                         user__is_active=True
-                    ).distinct('user')  # Ensure unique users
+                    ).distinct('user').order_by('user')  # Ensure unique users
                     team_members = [tm.user for tm in team_member_objects]
                 except TeamMember.DoesNotExist:
                     team_members = []

@@ -442,12 +442,26 @@ class GoogleSheetsAutomationService:
     @staticmethod
     def get_sync_status():
         """Get Google Sheets sync status"""
-        return {
-            'status': 'active',
-            'last_sync': timezone.now().isoformat(),
-            'total_synced': 0,
-            'errors': []
-        }
+        try:
+            from .google_sheets_service import test_google_sheets_connection
+            connection_status = test_google_sheets_connection()
+            
+            return {
+                'connection_status': connection_status,
+                'status': 'active' if connection_status else 'inactive',
+                'last_sync': timezone.now().isoformat(),
+                'total_synced': 0,
+                'errors': [] if connection_status else ['Connection test failed']
+            }
+        except Exception as e:
+            logger.error(f"Error getting Google Sheets sync status: {str(e)}")
+            return {
+                'connection_status': False,
+                'status': 'error',
+                'last_sync': None,
+                'total_synced': 0,
+                'errors': [str(e)]
+            }
     
     @staticmethod
     def _get_acknowledgment_messages():

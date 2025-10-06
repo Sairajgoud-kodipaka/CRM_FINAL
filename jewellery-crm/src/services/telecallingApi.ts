@@ -14,6 +14,7 @@ export interface Lead {
   source_system: string;
   source_id: string;
   fetched_at: string;
+  raw_data?: Record<string, any>;
   assigned_to?: string;
   assigned_to_details?: {
     id: string;
@@ -145,9 +146,13 @@ export interface CallInitiationRequest {
 
 export interface CallInitiationResponse {
   call_request_id: string;
-  status: 'initiated' | 'failed';
+  status: 'initiated' | 'failed' | 'answered' | 'ringing';
   error_message?: string;
   exotel_bridge_url?: string;
+  // Additional fields for existing calls
+  error?: string;
+  call_id?: string;
+  exotel_call_id?: string;
 }
 
 export interface FollowUpCreateRequest {
@@ -239,12 +244,71 @@ class TelecallingApiService {
     return response.data;
   }
 
-  async endCall(callId: string): Promise<void> {
-    await apiService.post(`${this.baseUrl}/call-requests/${callId}/end/`);
+  // Test Exotel configuration
+  async testExotelConfig(): Promise<ApiResponse<any>> {
+    return this.request(`${this.baseUrl}/call-requests/test_exotel_config/`, {
+      method: 'POST'
+    });
   }
 
-  async getCallStatus(callId: string): Promise<CallRequest> {
-    const response = await apiService.get(`${this.baseUrl}/call-requests/${callId}/status/`);
+  // Get WebRTC configuration
+  async getWebRTCConfig(): Promise<any> {
+    const response = await apiService.get(`${this.baseUrl}/call-requests/webrtc_config/`);
+    return response.data;
+  }
+
+  // WebRTC API methods
+  async initiateWebRTCCall(data: {
+    to: string;
+    from?: string;
+    customField?: string;
+    webrtcEnabled?: boolean;
+  }): Promise<any> {
+    const response = await apiService.post(`${this.baseUrl}/webrtc/initiate/`, data);
+    return response.data;
+  }
+
+  async getWebRTCCallStatus(callSid: string): Promise<any> {
+    const response = await apiService.get(`${this.baseUrl}/webrtc/call-status/${callSid}/`);
+    return response.data;
+  }
+
+  async endWebRTCCall(callSid: string): Promise<any> {
+    const response = await apiService.post(`${this.baseUrl}/webrtc/end-call/${callSid}/`);
+    return response.data;
+  }
+
+  async muteWebRTCCall(callSid: string, muted: boolean): Promise<any> {
+    const response = await apiService.post(`${this.baseUrl}/webrtc/mute-call/${callSid}/`, { muted });
+    return response.data;
+  }
+
+  async holdWebRTCCall(callSid: string, onHold: boolean): Promise<any> {
+    const response = await apiService.post(`${this.baseUrl}/webrtc/hold-call/${callSid}/`, { onHold });
+    return response.data;
+  }
+
+  // Get real-time call status with comprehensive information
+  async getRealTimeCallStatus(callRequestId: string): Promise<any> {
+    const response = await apiService.get(`${this.baseUrl}/call-requests/${callRequestId}/real_time_status/`);
+    return response.data;
+  }
+
+  // Get basic call status
+  async getCallStatus(callRequestId: string): Promise<any> {
+    const response = await apiService.get(`${this.baseUrl}/call-requests/${callRequestId}/status/`);
+    return response.data;
+  }
+
+  // End an existing call
+  async endExistingCall(callRequestId: string): Promise<any> {
+    const response = await apiService.post(`${this.baseUrl}/call-requests/${callRequestId}/end/`);
+    return response.data;
+  }
+
+  // End current call
+  async endCall(callRequestId: string): Promise<any> {
+    const response = await apiService.post(`${this.baseUrl}/call-requests/${callRequestId}/end/`);
     return response.data;
   }
 
@@ -252,8 +316,40 @@ class TelecallingApiService {
     await apiService.post(`${this.baseUrl}/call-requests/${callId}/mute/`, { on: muted });
   }
 
-  async holdCall(callId: string, held: boolean): Promise<void> {
-    await apiService.post(`${this.baseUrl}/call-requests/${callId}/hold/`, { on: held });
+  async holdCall(callId: string, onHold: boolean): Promise<void> {
+    await apiService.post(`${this.baseUrl}/call-requests/${callId}/hold/`, { on: onHold });
+  }
+
+  async startRecording(callId: string): Promise<void> {
+    await apiService.post(`${this.baseUrl}/call-requests/${callId}/start_recording/`);
+  }
+
+  async stopRecording(callId: string): Promise<void> {
+    await apiService.post(`${this.baseUrl}/call-requests/${callId}/stop_recording/`);
+  }
+
+  async transferCall(callId: string, targetNumber: string): Promise<void> {
+    await apiService.post(`${this.baseUrl}/call-requests/${callId}/transfer/`, { 
+      target_number: targetNumber 
+    });
+  }
+
+  async conferenceCall(callId: string, participants: string[]): Promise<void> {
+    await apiService.post(`${this.baseUrl}/call-requests/${callId}/conference/`, { 
+      participants 
+    });
+  }
+
+  async getCallRecordings(callId: string): Promise<any[]> {
+    const response = await apiService.get(`${this.baseUrl}/call-requests/${callId}/recordings/`);
+    return response.data;
+  }
+
+  async downloadRecording(recordingId: string): Promise<Blob> {
+    const response = await apiService.get(`${this.baseUrl}/recordings/${recordingId}/download/`, {
+      responseType: 'blob'
+    });
+    return response.data;
   }
 
   async getCallLogs(filters: CallLogFilters = {}): Promise<CallLog[]> {
@@ -291,6 +387,48 @@ class TelecallingApiService {
     params.append('range', range.toString());
 
     const response = await apiService.get(`${this.baseUrl}/performance/?${params.toString()}`);
+    return response.data;
+  }
+
+  // Google Sheets API Status
+  async getGoogleSheetsStatus(): Promise<{
+    connection_status: boolean;
+    last_sync?: string;
+    total_leads?: number;
+    assigned_leads?: number;
+    automation_status?: {
+      sync_task_active: boolean;
+      last_sync?: string;
+      success_rate: number;
+    };
+    recent_activity?: Array<{
+      type: string;
+      status: string;
+      timestamp: string;
+      message: string;
+      details?: string;
+    }>;
+  }> {
+    const response = await apiService.get(`${this.baseUrl}/google-sheets/status/`);
+    return response.data;
+  }
+
+  async testGoogleSheetsConnection(): Promise<{
+    connection_status: boolean;
+    message: string;
+    timestamp: string;
+    sample_data?: any[];
+  }> {
+    const response = await apiService.post(`${this.baseUrl}/google-sheets/test-connection/`);
+    return response.data;
+  }
+
+  async triggerManualSync(): Promise<{
+    sync_status: boolean;
+    message: string;
+    timestamp: string;
+  }> {
+    const response = await apiService.post(`${this.baseUrl}/google-sheets/manual-sync/`);
     return response.data;
   }
 
@@ -454,6 +592,73 @@ class TelecallingApiService {
     };
     return colorMap[sentiment] || 'bg-gray-100 text-gray-800';
   }
+
+  // Lead Transfer Methods
+  async getSalesPersons(): Promise<SalesPerson[]> {
+    const response = await apiService.get(`${this.baseUrl}/sales-persons/`);
+    return response.data;
+  }
+
+  async transferLead(data: LeadTransferRequest): Promise<{ message: string; transfer_id: string }> {
+    const response = await apiService.post(`${this.baseUrl}/lead-transfers/transfer_lead/`, data);
+    return response.data;
+  }
+
+  async getLeadTransfers(): Promise<LeadTransfer[]> {
+    const response = await apiService.get(`${this.baseUrl}/lead-transfers/`);
+    return response.data;
+  }
+
+  async acceptTransfer(transferId: string): Promise<{ message: string }> {
+    const response = await apiService.post(`${this.baseUrl}/lead-transfers/${transferId}/accept_transfer/`);
+    return response.data;
+  }
+
+  async rejectTransfer(transferId: string): Promise<{ message: string }> {
+    const response = await apiService.post(`${this.baseUrl}/lead-transfers/${transferId}/reject_transfer/`);
+    return response.data;
+  }
+}
+
+export interface SalesPerson {
+  id: number;
+  name: string;
+  email: string;
+  username: string;
+}
+
+export interface LeadTransfer {
+  id: string;
+  lead: string;
+  lead_details: Lead;
+  from_user: string;
+  from_user_details: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    full_name: string;
+  };
+  to_user: string;
+  to_user_details: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    full_name: string;
+  };
+  transfer_reason: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadTransferRequest {
+  lead_id: string;
+  to_user_id: number;
+  transfer_reason?: string;
 }
 
 export const telecallingApiService = new TelecallingApiService();

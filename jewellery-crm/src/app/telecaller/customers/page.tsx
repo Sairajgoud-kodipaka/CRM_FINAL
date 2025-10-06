@@ -9,7 +9,7 @@ import { Phone, Loader2, AlertCircle, Users, Filter, Search, ChevronLeft, Chevro
 import { telecallingApiService, Lead, CallRequest, LeadListResponse } from '@/services/telecallingApi';
 import { useAuth } from '@/hooks/useAuth';
 import { CallPanel } from '@/components/telecalling/CallPanel';
-import { LeadDetailModal } from '@/components/telecalling/LeadDetailModal';
+import { useRouter } from 'next/navigation';
 
 const LeadRow = ({ 
   lead, 
@@ -106,6 +106,7 @@ const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) 
 
 export default function TelecallerCustomersPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,10 +123,6 @@ export default function TelecallerCustomersPage() {
   // Call panel state
   const [callPanelOpen, setCallPanelOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  
-  // Lead detail modal state
-  const [leadDetailOpen, setLeadDetailOpen] = useState(false);
-  const [selectedLeadDetail, setSelectedLeadDetail] = useState<Lead | null>(null);
 
   const fetchLeads = async (page: number = 1) => {
     try {
@@ -188,8 +185,8 @@ export default function TelecallerCustomersPage() {
   };
 
   const handleView = (lead: Lead) => {
-    setSelectedLeadDetail(lead);
-    setLeadDetailOpen(true);
+    // Navigate to the dedicated lead view page
+    router.push(`/telecaller/leads/${lead.id}`);
   };
 
   const handleCallEnded = (callLog: CallRequest) => {
@@ -422,17 +419,6 @@ export default function TelecallerCustomersPage() {
           onCallEnded={handleCallEnded}
         />
       )}
-
-      {/* Lead Detail Modal */}
-      <LeadDetailModal
-        lead={selectedLeadDetail}
-        isOpen={leadDetailOpen}
-        onClose={() => {
-          setLeadDetailOpen(false);
-          setSelectedLeadDetail(null);
-        }}
-        onCall={handleCall}
-      />
     </div>
   );
 }

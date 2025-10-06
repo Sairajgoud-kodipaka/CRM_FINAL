@@ -212,3 +212,4 @@ SMS_TEMPLATES = {
 
 # Initialize SMS service
 sms_service = ExotelSMSService()
+

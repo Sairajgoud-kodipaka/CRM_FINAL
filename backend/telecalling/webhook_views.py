@@ -1,242 +1,375 @@
-from django.http import HttpResponse, JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.utils import timezone
-from django.db import transaction
+"""
+Exotel Webhook Handlers for Real-time Call Status Updates
+Following the official Exotel integration guide
+"""
+
 import json
 import logging
-import hmac
-import hashlib
-from datetime import datetime
-
-from .models import CallRequest, Lead, AuditLog, WebhookLog
-from .utils import log_audit_action, verify_exotel_signature
-from .consumers import send_call_status_update, send_call_ended, send_call_started
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.utils.decorators import method_decorator
+from django.views import View
 from django.conf import settings
+from .models import CallRequest, CallLog, LeadStatusHistory
+from .serializers import CallLogSerializer
 
 logger = logging.getLogger(__name__)
 
+# Legacy webhook function for backward compatibility
 @csrf_exempt
-@require_http_methods(["POST"])
 def exotel_webhook(request):
-    """Handle Exotel webhook events"""
-    try:
-        # Log webhook for debugging
-        webhook_log = WebhookLog.objects.create(
-            webhook_type='exotel',
-            payload=request.body.decode('utf-8'),
-            status='processing'
-        )
+    """
+    Legacy Exotel webhook handler for backward compatibility
+    Redirects to the new ExotelVoiceWebhookView
+    """
+    if request.method == 'POST':
+        view = ExotelVoiceWebhookView()
+        return view.post(request)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-        # Verify webhook signature
-        signature = request.headers.get('X-Exotel-Signature')
-        if not verify_exotel_signature(request.body, signature):
-            webhook_log.status = 'failed'
-            webhook_log.error_message = 'Invalid signature'
-            webhook_log.save()
-            logger.warning("Invalid Exotel webhook signature")
-            return HttpResponse(status=401)
-
-        # Parse webhook data
-        data = json.loads(request.body)
-        call_sid = data.get('CallSid')
-        call_status = data.get('CallStatus')
-        
-        if not call_sid or not call_status:
-            webhook_log.status = 'failed'
-            webhook_log.error_message = 'Missing CallSid or CallStatus'
-            webhook_log.save()
-            return HttpResponse(status=400)
-
-        # Process webhook based on call status
-        with transaction.atomic():
-            # Find call request by Exotel call ID
-            try:
-                call_request = CallRequest.objects.get(exotel_call_id=call_sid)
-            except CallRequest.DoesNotExist:
-                logger.warning(f"Call request not found for Exotel call ID: {call_sid}")
-                webhook_log.status = 'failed'
-                webhook_log.error_message = 'Call request not found'
-                webhook_log.save()
-                return HttpResponse(status=404)
-
-            # Update call request based on status
-            previous_status = call_request.status
-            
-            if call_status == 'ringing':
-                call_request.status = 'ringing'
-                call_request.save()
-                
-                # Send WebSocket notification (async call will be handled by background task)
-                # await send_call_started(str(call_request.id), 'ringing')
-                
-                # Log audit action
-                log_audit_action(
-                    actor=call_request.telecaller,
-                    action='CALL_RINGING',
-                    target_type='call',
-                    target_id=str(call_request.id),
-                    metadata={
-                        'lead_id': str(call_request.lead.id),
-                        'exotel_call_id': call_sid
-                    }
-                )
-
-            elif call_status == 'answered':
-                call_request.status = 'answered'
-                call_request.answered_at = timezone.now()
-                call_request.save()
-                
-                # Send WebSocket notification (async call will be handled by background task)
-                # await send_call_status_update(str(call_request.id), 'answered')
-                
-                # Log audit action
-                log_audit_action(
-                    actor=call_request.telecaller,
-                    action='CALL_ANSWERED',
-                    target_type='call',
-                    target_id=str(call_request.id),
-                    metadata={
-                        'lead_id': str(call_request.lead.id),
-                        'exotel_call_id': call_sid
-                    }
-                )
-
-            elif call_status in ['completed', 'failed', 'busy', 'no-answer']:
-                # Calculate duration
-                duration = 0
-                if call_request.answered_at:
-                    end_time = timezone.now()
-                    duration = int((end_time - call_request.answered_at).total_seconds())
-                
-                call_request.status = 'completed' if call_status == 'completed' else 'failed'
-                call_request.completed_at = timezone.now()
-                call_request.duration = duration
-                call_request.disposition = call_status
-                
-                # Handle recording URL
-                recording_url = data.get('RecordingUrl')
-                if recording_url:
-                    call_request.recording_url = recording_url
-                
-                call_request.save()
-                
-                # Send WebSocket notification (async call will be handled by background task)
-                # await send_call_ended(str(call_request.id), duration, recording_url, call_status)
-                
-                # Update lead's call attempts
-                call_request.lead.call_attempts += 1
-                call_request.lead.last_interaction = timezone.now()
-                call_request.lead.save()
-                
-                # Log audit action
-                log_audit_action(
-                    actor=call_request.telecaller,
-                    action='CALL_COMPLETED',
-                    target_type='call',
-                    target_id=str(call_request.id),
-                    metadata={
-                        'lead_id': str(call_request.lead.id),
-                        'exotel_call_id': call_sid,
-                        'duration': duration,
-                        'disposition': call_status,
-                        'recording_url': recording_url
-                    }
-                )
-
-            # Update webhook log
-            webhook_log.status = 'processed'
-            webhook_log.processed_at = timezone.now()
-            webhook_log.save()
-
-            # Trigger post-call automation
-            if call_status == 'completed' and call_request:
-                _trigger_post_call_automation(call_request)
-
-            logger.info(f"Processed Exotel webhook: {call_sid} - {call_status}")
-
-        return HttpResponse(status=200)
-
-    except json.JSONDecodeError:
-        logger.error("Invalid JSON in Exotel webhook")
-        return HttpResponse(status=400)
-    except Exception as e:
-        logger.error(f"Error processing Exotel webhook: {str(e)}")
-        
-        # Update webhook log with error
+@method_decorator(csrf_exempt, name='dispatch')
+class ExotelVoiceWebhookView(View):
+    """
+    Handle Exotel voice call status webhooks
+    Receives JSON payloads for call events (answered, terminal)
+    """
+    
+    def post(self, request, *args, **kwargs):
         try:
-            webhook_log.status = 'failed'
-            webhook_log.error_message = str(e)
-            webhook_log.save()
-        except:
-            pass
+            # Parse JSON payload from Exotel
+            webhook_data = json.loads(request.body)
             
-        return HttpResponse(status=500)
+            logger.info(f"Exotel webhook received: {webhook_data}")
+            
+            # Extract key information from webhook
+            call_sid = webhook_data.get('CallSid')
+            event_type = webhook_data.get('EventType')
+            status = webhook_data.get('Status')
+            custom_field = webhook_data.get('CustomField')
+            
+            if not call_sid:
+                logger.error("No CallSid in webhook payload")
+                return JsonResponse({'error': 'Missing CallSid'}, status=400)
+            
+            # Find the call request using CustomField (our CRM call_request_id)
+            call_request = None
+            if custom_field:
+                try:
+                    call_request = CallRequest.objects.get(id=custom_field)
+                except CallRequest.DoesNotExist:
+                    logger.error(f"CallRequest not found for CustomField: {custom_field}")
+                    return JsonResponse({'error': 'CallRequest not found'}, status=404)
+            
+            # Handle different event types
+            if event_type == 'initiated':
+                self._handle_call_initiated(call_request, webhook_data)
+            elif event_type == 'ringing':
+                self._handle_call_ringing(call_request, webhook_data)
+            elif event_type == 'answered':
+                self._handle_call_answered(call_request, webhook_data)
+            elif event_type == 'completed':
+                self._handle_call_completed(call_request, webhook_data)
+            elif event_type == 'busy':
+                self._handle_call_busy(call_request, webhook_data)
+            elif event_type == 'no-answer':
+                self._handle_call_no_answer(call_request, webhook_data)
+            elif event_type == 'failed':
+                self._handle_call_failed(call_request, webhook_data)
+            elif event_type == 'terminal':
+                self._handle_call_terminated(call_request, webhook_data)
+            else:
+                logger.info(f"Unhandled event type: {event_type}")
+            
+            return JsonResponse({'status': 'success'}, status=200)
+            
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON in webhook payload")
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            logger.error(f"Error processing webhook: {str(e)}")
+            return JsonResponse({'error': 'Internal server error'}, status=500)
+    
+    def _handle_call_initiated(self, call_request, webhook_data):
+        """Handle call initiated event"""
+        if call_request:
+            call_request.status = 'initiated'
+            call_request.exotel_call_id = webhook_data.get('CallSid')
+            call_request.save()
+            
+            logger.info(f"Call initiated - CallRequest ID: {call_request.id}, CallSid: {webhook_data.get('CallSid')}")
+            
+            # Create call log entry
+            CallLog.objects.create(
+                call_request=call_request,
+                lead=call_request.lead,
+                telecaller=call_request.telecaller,
+                call_status='initiated',
+                call_time=webhook_data.get('DateCreated'),
+                exotel_call_id=webhook_data.get('CallSid')
+            )
+    
+    def _handle_call_ringing(self, call_request, webhook_data):
+        """Handle call ringing event"""
+        if call_request:
+            call_request.status = 'ringing'
+            call_request.save()
+            
+            logger.info(f"Call ringing - CallRequest ID: {call_request.id}, CallSid: {webhook_data.get('CallSid')}")
+            
+            # Update existing call log or create new one
+            call_log, created = CallLog.objects.get_or_create(
+                call_request=call_request,
+                defaults={
+                    'lead': call_request.lead,
+                    'telecaller': call_request.telecaller,
+                    'call_status': 'ringing',
+                    'call_time': webhook_data.get('DateCreated'),
+                    'exotel_call_id': webhook_data.get('CallSid')
+                }
+            )
+            if not created:
+                call_log.call_status = 'ringing'
+                call_log.save()
+    
+    def _handle_call_answered(self, call_request, webhook_data):
+        """Handle call answered event"""
+        if call_request:
+            call_request.status = 'answered'
+            call_request.save()
+            
+            logger.info(f"Call answered - CallRequest ID: {call_request.id}, CallSid: {webhook_data.get('CallSid')}")
+            
+            # Update existing call log or create new one
+            call_log, created = CallLog.objects.get_or_create(
+                call_request=call_request,
+                defaults={
+                    'lead': call_request.lead,
+                    'telecaller': call_request.telecaller,
+                    'call_status': 'answered',
+                    'call_time': webhook_data.get('DateCreated'),
+                    'exotel_call_id': webhook_data.get('CallSid')
+                }
+            )
+            if not created:
+                call_log.call_status = 'answered'
+                call_log.save()
+    
+    def _handle_call_completed(self, call_request, webhook_data):
+        """Handle call completed event"""
+        if call_request:
+            call_request.status = 'completed'
+            call_request.duration = webhook_data.get('ConversationDuration', 0)
+            call_request.recording_url = webhook_data.get('RecordingUrl', '')
+            call_request.save()
+            
+            logger.info(f"Call completed - CallRequest ID: {call_request.id}, Duration: {webhook_data.get('ConversationDuration')}")
+            
+            # Update call log
+            call_log, created = CallLog.objects.get_or_create(
+                call_request=call_request,
+                defaults={
+                    'lead': call_request.lead,
+                    'telecaller': call_request.telecaller,
+                    'call_status': 'completed',
+                    'call_time': webhook_data.get('DateCreated'),
+                    'call_duration': webhook_data.get('ConversationDuration', 0),
+                    'exotel_call_id': webhook_data.get('CallSid'),
+                    'recording_url': webhook_data.get('RecordingUrl', '')
+                }
+            )
+            if not created:
+                call_log.call_status = 'completed'
+                call_log.call_duration = webhook_data.get('ConversationDuration', 0)
+                call_log.recording_url = webhook_data.get('RecordingUrl', '')
+                call_log.save()
+            
+            # Update lead status
+            self._update_lead_status(call_request, webhook_data)
+    
+    def _handle_call_busy(self, call_request, webhook_data):
+        """Handle call busy event"""
+        if call_request:
+            call_request.status = 'busy'
+            call_request.save()
+            
+            logger.info(f"Call busy - CallRequest ID: {call_request.id}, CallSid: {webhook_data.get('CallSid')}")
+            
+            # Update call log
+            call_log, created = CallLog.objects.get_or_create(
+                call_request=call_request,
+                defaults={
+                    'lead': call_request.lead,
+                    'telecaller': call_request.telecaller,
+                    'call_status': 'busy',
+                    'call_time': webhook_data.get('DateCreated'),
+                    'exotel_call_id': webhook_data.get('CallSid')
+                }
+            )
+            if not created:
+                call_log.call_status = 'busy'
+                call_log.save()
+            
+            # Update lead status
+            self._update_lead_status(call_request, webhook_data)
+    
+    def _handle_call_no_answer(self, call_request, webhook_data):
+        """Handle call no answer event"""
+        if call_request:
+            call_request.status = 'no-answer'
+            call_request.save()
+            
+            logger.info(f"Call no answer - CallRequest ID: {call_request.id}, CallSid: {webhook_data.get('CallSid')}")
+            
+            # Update call log
+            call_log, created = CallLog.objects.get_or_create(
+                call_request=call_request,
+                defaults={
+                    'lead': call_request.lead,
+                    'telecaller': call_request.telecaller,
+                    'call_status': 'no-answer',
+                    'call_time': webhook_data.get('DateCreated'),
+                    'exotel_call_id': webhook_data.get('CallSid')
+                }
+            )
+            if not created:
+                call_log.call_status = 'no-answer'
+                call_log.save()
+            
+            # Update lead status
+            self._update_lead_status(call_request, webhook_data)
+    
+    def _handle_call_failed(self, call_request, webhook_data):
+        """Handle call failed event"""
+        if call_request:
+            call_request.status = 'failed'
+            call_request.save()
+            
+            logger.info(f"Call failed - CallRequest ID: {call_request.id}, CallSid: {webhook_data.get('CallSid')}")
+            
+            # Update call log
+            call_log, created = CallLog.objects.get_or_create(
+                call_request=call_request,
+                defaults={
+                    'lead': call_request.lead,
+                    'telecaller': call_request.telecaller,
+                    'call_status': 'failed',
+                    'call_time': webhook_data.get('DateCreated'),
+                    'exotel_call_id': webhook_data.get('CallSid')
+                }
+            )
+            if not created:
+                call_log.call_status = 'failed'
+                call_log.save()
+            
+            # Update lead status
+            self._update_lead_status(call_request, webhook_data)
+    
+    def _handle_call_terminated(self, call_request, webhook_data):
+        """Handle call terminated event"""
+        if call_request:
+            # Update call request with final status
+            call_request.status = webhook_data.get('Status', 'completed')
+            call_request.duration = webhook_data.get('ConversationDuration', 0)
+            call_request.recording_url = webhook_data.get('RecordingUrl', '')
+            call_request.save()
+            
+            logger.info(f"Call terminated - CallRequest ID: {call_request.id}, Status: {webhook_data.get('Status')}, Duration: {webhook_data.get('ConversationDuration')}")
+            
+            # Create final call log entry
+            call_log = CallLog.objects.create(
+                call_request=call_request,
+                lead=call_request.lead,
+                telecaller=call_request.telecaller,
+                call_status=webhook_data.get('Status', 'completed'),
+                call_time=webhook_data.get('DateCreated'),
+                call_duration=webhook_data.get('ConversationDuration', 0),
+                exotel_call_id=webhook_data.get('CallSid'),
+                recording_url=webhook_data.get('RecordingUrl', '')
+            )
+            
+            # Update lead status based on call outcome
+            self._update_lead_status(call_request, webhook_data)
+            
+            # Download recording if available (implement this based on your storage solution)
+            if webhook_data.get('RecordingUrl'):
+                self._download_recording(call_request, webhook_data.get('RecordingUrl'))
+    
+    def _update_lead_status(self, call_request, webhook_data):
+        """Update lead status based on call outcome"""
+        try:
+            lead = call_request.lead
+            status = webhook_data.get('Status', call_request.status)
+            
+            # Map Exotel status to CRM status
+            status_mapping = {
+                'completed': 'contacted',
+                'answered': 'contacted',
+                'no-answer': 'no_answer',
+                'busy': 'busy',
+                'failed': 'failed',
+                'initiated': 'calling',
+                'ringing': 'calling'
+            }
+            
+            new_status = status_mapping.get(status, 'contacted')
+            
+            # Create status history entry
+            LeadStatusHistory.objects.create(
+                lead=lead,
+                old_status=lead.status,
+                new_status=new_status,
+                changed_by=call_request.telecaller,
+                notes=f"Call {status} - Duration: {webhook_data.get('ConversationDuration', 0)}s",
+                call_duration=webhook_data.get('ConversationDuration', 0),
+                call_outcome=status
+            )
+            
+            # Update lead status
+            lead.status = new_status
+            lead.save()
+            
+            logger.info(f"Lead status updated - Lead ID: {lead.id}, New Status: {new_status}")
+            
+        except Exception as e:
+            logger.error(f"Error updating lead status: {str(e)}")
+    
+    def _download_recording(self, call_request, recording_url):
+        """Download and store call recording"""
+        try:
+            # TODO: Implement recording download and storage
+            # This should download the recording from Exotel's S3 bucket
+            # and store it in your own secure storage (e.g., AWS S3, Google Cloud Storage)
+            
+            logger.info(f"Recording available for CallRequest {call_request.id}: {recording_url}")
+            
+            # Example implementation:
+            # 1. Download recording from Exotel URL
+            # 2. Upload to your storage solution
+            # 3. Update call_request.recording_url with your storage URL
+            # 4. Delete from Exotel (request auto-purging)
+            
+        except Exception as e:
+            logger.error(f"Error downloading recording: {str(e)}")
 
-def _trigger_post_call_automation(call_request):
-    """Trigger post-call automation workflows"""
-    try:
-        from .sms_service import sms_service
-        from .automation_service import automation_service, rules_engine
-        from .voice_service import voice_automation_service
-        
-        lead = call_request.lead
-        
-        # 1. Send post-call SMS based on sentiment
-        if call_request.sentiment:
-            sms_result = sms_service.send_post_call_sms(
-                lead.phone, 
-                lead.name, 
-                call_request.sentiment
-            )
-            logger.info(f"Post-call SMS sent: {sms_result.get('success', False)}")
-        
-        # 2. Trigger automation rules
-        automation_result = rules_engine.execute_automation_rules(str(lead.id))
-        logger.info(f"Automation rules executed: {automation_result.get('automations_executed', 0)}")
-        
-        # 3. Schedule follow-up if needed
-        if call_request.follow_up_required:
-            follow_up_time = timezone.now() + timedelta(days=1)
-            automation_service.schedule_follow_up_call(
-                str(lead.id), 
-                follow_up_time, 
-                'follow_up'
-            )
-            logger.info(f"Follow-up call scheduled for {lead.name}")
-        
-        # 4. Send voice message for high-priority leads
-        if lead.priority == 'high' and call_request.sentiment == 'positive':
-            voice_result = voice_automation_service.send_follow_up_voice(
-                lead.phone, 
-                lead.name, 
-                call_request.sentiment
-            )
-            logger.info(f"Follow-up voice message sent: {voice_result.get('success', False)}")
-        
-    except Exception as e:
-        logger.error(f"Error in post-call automation: {str(e)}")
 
-def verify_exotel_signature(payload, signature):
-    """Verify Exotel webhook signature"""
-    try:
-        exotel_config = getattr(settings, 'EXOTEL_CONFIG', {})
-        webhook_secret = exotel_config.get('webhook_secret')
-        
-        if not webhook_secret:
-            logger.warning("Exotel webhook secret not configured")
-            return True  # Allow in development
-        
-        # Calculate expected signature
-        expected_signature = hmac.new(
-            webhook_secret.encode('utf-8'),
-            payload,
-            hashlib.sha256
-        ).hexdigest()
-        
-        # Compare signatures
-        return hmac.compare_digest(signature, expected_signature)
-        
-    except Exception as e:
-        logger.error(f"Error verifying Exotel signature: {str(e)}")
-        return False
+@method_decorator(csrf_exempt, name='dispatch')
+class ExotelWhatsAppWebhookView(View):
+    """
+    Handle Exotel WhatsApp message status webhooks
+    For future WhatsApp integration
+    """
+    
+    def post(self, request, *args, **kwargs):
+        try:
+            webhook_data = json.loads(request.body)
+            logger.info(f"WhatsApp webhook received: {webhook_data}")
+            
+            # TODO: Implement WhatsApp webhook handling
+            # Handle message status updates (sent, delivered, read)
+            
+            return JsonResponse({'status': 'success'}, status=200)
+            
+        except Exception as e:
+            logger.error(f"Error processing WhatsApp webhook: {str(e)}")
+            return JsonResponse({'error': 'Internal server error'}, status=500)
