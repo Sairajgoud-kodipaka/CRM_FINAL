@@ -36,8 +36,12 @@ export default function ImageUpload({
 
   // Handle additional images previews
   useEffect(() => {
-    setAdditionalImagesPreviews(additionalImages);
-  }, [additionalImages]);
+    if (additionalImages && additionalImages.length > 0) {
+      setAdditionalImagesPreviews(additionalImages);
+    } else {
+      setAdditionalImagesPreviews([]);
+    }
+  }, [additionalImages?.length]);
 
   const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;

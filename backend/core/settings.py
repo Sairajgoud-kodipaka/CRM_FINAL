@@ -16,9 +16,12 @@ PORT = config('PORT', default=8000, cast=int)
 SECRET_KEY = config('SECRET_KEY', default='jewelry-crm-2024-production-secure-key-8f7e6d5c4b3a2918-7f6e5d4c3b2a1909-8f7e6d5c4b3a2918-7f6e5d4c3b2a1909')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = config('DEBUG', default=True, cast=bool)  # Changed to True for development
 
 ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',') if host.strip()]
+
+# Google Sheets Configuration
+GOOGLE_SHEETS_ID = config('GOOGLE_SHEETS_ID', default='16pJPUtjKmCTEntCwP4lzJf849pLiN38y4pmFHjQkefk')
 
 # Application definition
 INSTALLED_APPS = [
@@ -34,6 +37,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
+    'channels',
     # 'drf_spectacular',  # Temporarily disabled for deployment
     
     # Local apps
@@ -60,7 +64,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    # 'whitenoise.middleware.WhiteNoiseMiddleware',  # Commented out for development
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -70,7 +74,10 @@ MIDDLEWARE = [
     'apps.users.middleware.ScopedVisibilityMiddleware',
 ]
 
-# Debug toolbar removed for production
+# Debug toolbar configuration for development
+if DEBUG:
+    INSTALLED_APPS += ['debug_toolbar']
+    MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
 
 ROOT_URLCONF = 'core.urls'
 
@@ -92,41 +99,43 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database - Only configure when not running collectstatic
+# Database Configuration - PostgreSQL for all environments
 import sys
-if 'collectstatic' not in sys.argv:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME'),
-            'USER': config('DB_USER'),
-            'PASSWORD': config('DB_PASSWORD'),
-            'HOST': config('DB_HOST'),
-            'PORT': config('DB_PORT'),
-            'OPTIONS': {
-                'connect_timeout': 30,
-            },
-        }
-    }
 
-    # Production configuration for Render managed database
-    if not DEBUG:
-        # Render automatically provides these environment variables for managed databases
-        # No need to configure SSL manually - Render handles it
-        DATABASES['default']['OPTIONS'].update({
-            'application_name': 'jewellery_crm_backend',
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5,
-            'connect_timeout': 60,
-        })
-        
-        # Production connection pooling
-        DATABASES['default']['CONN_MAX_AGE'] = 600
-        DATABASES['default']['CONN_HEALTH_CHECKS'] = True
-else:
-    # During collectstatic, use a dummy database config
+# Use PostgreSQL for all environments
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='jewellery_crm'),
+        'USER': config('DB_USER', default='postgres'),
+        'PASSWORD': config('DB_PASSWORD', default='postgresql'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+        'OPTIONS': {
+            'connect_timeout': 30,
+        },
+    }
+}
+
+# Production configuration for Render managed database
+if not DEBUG:
+    # Render automatically provides these environment variables for managed databases
+    # No need to configure SSL manually - Render handles it
+    DATABASES['default']['OPTIONS'].update({
+        'application_name': 'jewellery_crm_backend',
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
+        'connect_timeout': 60,
+    })
+    
+    # Production connection pooling
+    DATABASES['default']['CONN_MAX_AGE'] = 600
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+
+# During collectstatic, use a dummy database config
+if 'collectstatic' in sys.argv:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -161,8 +170,8 @@ STATIC_URL = config('STATIC_URL', default='/static/')
 STATIC_ROOT = BASE_DIR / config('STATIC_ROOT', default='staticfiles')
 STATICFILES_DIRS = []  # Empty for production - static files will be collected to STATIC_ROOT
 
-# Whitenoise configuration for static files
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Whitenoise configuration for static files (commented out for development)
+# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = config('MEDIA_URL', default='/media/')
@@ -180,7 +189,8 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        # 'rest_framework.permissions.IsAuthenticated',  # Temporarily disabled for testing
+        'rest_framework.permissions.AllowAny',
     ),
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
@@ -284,33 +294,33 @@ CELERY_TIMEZONE = TIME_ZONE
 #     'SCHEMA_GENERATOR_CLASS': None,
 # }
 
-# Production Security Settings
-if not DEBUG:
-    # Security Headers
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    
-    # HTTPS Settings - Render handles SSL automatically
-    SECURE_SSL_REDIRECT = False  # Render handles HTTPS redirects
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # Trust proxy headers
-    SECURE_HSTS_SECONDS = 31536000  # 1 year
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    
-    # Cookie Security
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    
-    # Additional Security
-    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+# Production Security Settings (commented out for development)
+# if not DEBUG:
+#     # Security Headers
+#     SECURE_BROWSER_XSS_FILTER = True
+#     SECURE_CONTENT_TYPE_NOSNIFF = True
+#     X_FRAME_OPTIONS = 'DENY'
+#     
+#     # HTTPS Settings - Render handles SSL automatically
+#     SECURE_SSL_REDIRECT = False  # Render handles HTTPS redirects
+#     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # Trust proxy headers
+#     SECURE_HSTS_SECONDS = 31536000  # 1 year
+#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+#     SECURE_HSTS_PRELOAD = True
+#     
+#     # Cookie Security
+#     SESSION_COOKIE_SECURE = True
+#     CSRF_COOKIE_SECURE = True
+#     
+#     # Additional Security
+#     SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # Internal IPs for development (if needed)
 INTERNAL_IPS = [
     '127.0.0.1',
 ]
 
-# Logging Configuration
+# Logging Configuration - Development Mode (Reduced Verbosity)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -325,30 +335,99 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django.log',
-            'formatter': 'verbose',
-        },
         'console': {
-            'level': 'INFO',
+            'level': 'INFO',  # Reduced from DEBUG to INFO
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
     },
     'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
+        'handlers': ['console'],
+        'level': 'INFO',  # Reduced from DEBUG to INFO
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
+            'handlers': ['console'],
+            'level': 'INFO',  # Reduced from DEBUG to INFO
+            'propagate': False,
+        },
+        'django.utils.autoreload': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Suppress autoreload debug messages
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Suppress database debug messages
             'propagate': False,
         },
     },
 }
 
-# Create logs directory if it doesn't exist
-os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+# Production Logging Configuration (commented out for development)
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+#             'style': '{',
+#         },
+#         'simple': {
+#             'format': '{levelname} {message}',
+#             'style': '{',
+#         },
+#     },
+#     'handlers': {
+#         'file': {
+#             'level': 'INFO',
+#             'class': 'logging.FileHandler',
+#             'filename': BASE_DIR / 'logs' / 'django.log',
+#             'formatter': 'verbose',
+#         },
+#         'console': {
+#             'level': 'INFO',
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'simple',
+#         },
+#     },
+#     'root': {
+#         'handlers': ['console', 'file'],
+#         'level': 'INFO',
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['console', 'file'],
+#             'level': 'INFO',
+#             'propagate': False,
+#         },
+#     },
+# }
+# 
+# # Create logs directory if it doesn't exist
+# os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+
+# Channels Configuration
+ASGI_APPLICATION = 'core.asgi.application'
+
+# Redis Configuration for Channels
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
+
+# Exotel Configuration
+EXOTEL_CONFIG = {
+    'account_sid': config('EXOTEL_ACCOUNT_SID', default=''),
+    'api_key': config('EXOTEL_API_KEY', default=''),
+    'api_token': config('EXOTEL_API_TOKEN', default=''),
+    'agent_number': config('EXOTEL_AGENT_NUMBER', default=''),
+    'caller_id': config('EXOTEL_CALLER_ID', default=''),
+    'webhook_url': config('EXOTEL_WEBHOOK_URL', default=''),
+    'webhook_secret': config('EXOTEL_WEBHOOK_SECRET', default=''),
+    'record_calls': config('EXOTEL_RECORD_CALLS', default=True, cast=bool),
+}

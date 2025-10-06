@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Loader2, AlertTriangle, Trash2, Eye, Search, Plus, Building2, Users, Calendar } from 'lucide-react';
+import { Loader2, AlertTriangle, Trash2, Eye, Search, Plus, Building2, Users, Calendar, Edit } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout, CardContainer } from '@/components/layouts/AppLayout';
@@ -46,6 +46,7 @@ export default function TenantsListPage() {
   const [deleting, setDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [toggling, setToggling] = useState<number | null>(null);
   const { user, token, isAuthenticated } = useAuth();
 
   const fetchTenants = async () => {
@@ -105,6 +106,29 @@ export default function TenantsListPage() {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false);
     setTenantToDelete(null);
+  };
+
+  const handleToggleStatus = async (tenant: Tenant) => {
+    try {
+      setToggling(tenant.id);
+      const response = await apiService.toggleTenantStatus(tenant.id);
+      
+      if (response.success) {
+        // Update the tenant in the local state
+        setTenants(prev => prev.map(t => 
+          t.id === tenant.id 
+            ? { ...t, subscription_status: response.data.subscription_status }
+            : t
+        ));
+      } else {
+        setError(`Failed to toggle tenant status: ${response.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Error toggling tenant status:', err);
+      setError(`Failed to toggle tenant status: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setToggling(null);
+    }
   };
 
   const getStatusColor = (status: string | null) => {
@@ -356,6 +380,20 @@ export default function TenantsListPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => handleToggleStatus(tenant)}
+                        disabled={toggling === tenant.id}
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        title={`Toggle status to ${tenant.subscription_status === 'active' ? 'Inactive' : 'Active'}`}
+                      >
+                        {toggling === tenant.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Edit className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleDeleteClick(tenant)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
@@ -412,6 +450,20 @@ export default function TenantsListPage() {
                       View Details
                     </Button>
                   </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleToggleStatus(tenant)}
+                    disabled={toggling === tenant.id}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    title={`Toggle status to ${tenant.subscription_status === 'active' ? 'Inactive' : 'Active'}`}
+                  >
+                    {toggling === tenant.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Edit className="w-4 h-4" />
+                    )}
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"

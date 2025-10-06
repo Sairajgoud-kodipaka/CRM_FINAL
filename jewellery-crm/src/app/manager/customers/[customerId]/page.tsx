@@ -7,7 +7,7 @@ import { useParams } from 'next/navigation';
 import { apiService, Client } from '@/lib/api-service';
 
 export default function ManagerCustomerDetailPage() {
-  const { customerId } = useParams();
+  const { customerId } = useParams() as { customerId: string };
   const [customer, setCustomer] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
 

@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Building, Mail, Phone, MapPin, Globe, User, Lock } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
@@ -61,6 +62,15 @@ export default function NewTenantPage() {
     }
     
     setForm({ ...form, [e.target.name]: value });
+  }
+
+  function handlePhoneChange(value: string) {
+    // Clear error when user starts typing
+    if (error) {
+      setError(null);
+    }
+    
+    setForm({ ...form, phone: value });
   }
 
   function handleSelectChange(name: string, value: string) {
@@ -237,12 +247,10 @@ export default function NewTenantPage() {
 
             <div>
               <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                name="phone"
+              <PhoneInputComponent
                 value={form.phone}
-                onChange={handleChange}
-                placeholder="+1 (555) 123-4567"
+                onChange={handlePhoneChange}
+                placeholder="9876543210"
               />
             </div>
 

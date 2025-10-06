@@ -141,13 +141,45 @@ export default function ManagerExhibitionPage() {
         // Refresh the leads list
         await fetchExhibitionLeads();
         console.log('✅ Exhibition lead captured successfully:', response.data);
+        setError(null); // Clear any previous errors
       } else {
         console.error('❌ Failed to capture exhibition lead:', response);
-        setError('Failed to capture lead. Please try again.');
+        
+        // Extract detailed error message from response
+        let errorMessage = 'Failed to capture lead. Please try again.';
+        
+        if (response.errors) {
+          if (typeof response.errors === 'string') {
+            errorMessage = response.errors;
+          } else if (response.errors.email && Array.isArray(response.errors.email)) {
+            errorMessage = response.errors.email[0]; // Get the first email error
+          } else if (response.errors.detail && typeof response.errors.detail === 'string') {
+            errorMessage = response.errors.detail;
+          }
+        }
+        
+        setError(errorMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error capturing exhibition lead:', error);
-      setError(`Error capturing lead: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Handle API error responses with detailed error messages
+      let errorMessage = 'Error capturing lead. Please try again.';
+      
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.email && Array.isArray(errorData.email)) {
+          errorMessage = errorData.email[0]; // Get the first email error
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     }
   };
 

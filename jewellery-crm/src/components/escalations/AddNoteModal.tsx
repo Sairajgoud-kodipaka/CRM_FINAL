@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 interface AddNoteModalProps {
   escalationId: string;
   onSuccess?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface NoteFormData {
@@ -19,13 +21,16 @@ interface NoteFormData {
   is_internal: boolean;
 }
 
-export default function AddNoteModal({ escalationId, onSuccess }: AddNoteModalProps) {
-  const [open, setOpen] = useState(false);
+export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChange }: AddNoteModalProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<NoteFormData>({
     content: '',
     is_internal: false,
   });
+
+  const isOpen = open !== undefined ? open : internalOpen;
+  const setIsOpen = onOpenChange || setInternalOpen;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +50,7 @@ export default function AddNoteModal({ escalationId, onSuccess }: AddNoteModalPr
 
       if (response.success) {
         toast.success('Note added successfully!');
-        setOpen(false);
+        setIsOpen(false);
         setFormData({
           content: '',
           is_internal: false,
@@ -70,7 +75,7 @@ export default function AddNoteModal({ escalationId, onSuccess }: AddNoteModalPr
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="flex items-center gap-2">
           <Plus className="w-4 h-4" />
@@ -153,7 +158,7 @@ export default function AddNoteModal({ escalationId, onSuccess }: AddNoteModalPr
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => setIsOpen(false)}
               disabled={loading}
             >
               Cancel

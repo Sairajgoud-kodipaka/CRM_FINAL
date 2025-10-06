@@ -528,7 +528,18 @@ export default function ManagerEscalationsPage() {
       {showAddNoteModal && selectedEscalation && (
         <AddNoteModal
           escalationId={selectedEscalation.id.toString()}
-          onSuccess={handleRefresh}
+          open={showAddNoteModal}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowAddNoteModal(false);
+              setSelectedEscalation(null);
+            }
+          }}
+          onSuccess={() => {
+            setShowAddNoteModal(false);
+            setSelectedEscalation(null);
+            handleRefresh();
+          }}
         />
       )}
     </div>

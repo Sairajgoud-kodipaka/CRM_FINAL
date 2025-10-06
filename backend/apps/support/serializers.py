@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import SupportTicket, TicketMessage, SupportNotification, SupportSettings
+from shared.validators import validate_indian_phone_number, normalize_phone_number
 
 
 class TicketMessageSerializer(serializers.ModelSerializer):
@@ -90,12 +91,25 @@ class SupportTicketSerializer(serializers.ModelSerializer):
 
 
 class SupportTicketCreateSerializer(serializers.ModelSerializer):
+    callback_phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        validators=[validate_indian_phone_number]
+    )
+    
     class Meta:
         model = SupportTicket
         fields = [
             'title', 'summary', 'category', 'priority', 'is_urgent',
             'requires_callback', 'callback_phone', 'callback_preferred_time'
         ]
+
+    def validate_callback_phone(self, value):
+        """Validate and normalize callback phone number"""
+        if not value:
+            return value
+        return normalize_phone_number(value)
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -107,12 +121,25 @@ class SupportTicketCreateSerializer(serializers.ModelSerializer):
 
 
 class SupportTicketUpdateSerializer(serializers.ModelSerializer):
+    callback_phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        validators=[validate_indian_phone_number]
+    )
+    
     class Meta:
         model = SupportTicket
         fields = [
             'status', 'assigned_to', 'priority', 'category', 'is_urgent',
             'requires_callback', 'callback_phone', 'callback_preferred_time'
         ]
+
+    def validate_callback_phone(self, value):
+        """Validate and normalize callback phone number"""
+        if not value:
+            return value
+        return normalize_phone_number(value)
 
 
 class TicketMessageCreateSerializer(serializers.ModelSerializer):

@@ -198,17 +198,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // State for products data
-  const [products, setProducts] = useState<any[]>([
-    // Initial sample products to ensure field is always populated
-    { id: 1, name: "Gold Chain Necklace", category: "Necklaces", price: 45000, weight: 3.5 },
-    { id: 2, name: "Diamond Ring", category: "Rings", price: 75000, weight: 2.8 },
-    { id: 3, name: "Pearl Earrings", category: "Earrings", price: 25000, weight: 1.2 },
-    { id: 4, name: "Silver Bracelet", category: "Bracelets", price: 18000, weight: 4.0 },
-    { id: 5, name: "Platinum Pendant", category: "Pendants", price: 95000, weight: 1.8 },
-    { id: 6, name: "Ruby Necklace", category: "Necklaces", price: 65000, weight: 2.5 },
-    { id: 7, name: "Emerald Ring", category: "Rings", price: 55000, weight: 3.2 },
-    { id: 8, name: "Sapphire Earrings", category: "Earrings", price: 35000, weight: 1.5 }
-  ]);
+  const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   
   // Debug: Log products state changes
@@ -1155,47 +1145,24 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     try {
       setProductsLoading(true);
       console.log('📡 Calling API for products...');
-      // Use public API with tenant slug 'zinzuwadia' (ZINZUWADIA JEWELLERS) for now
-      // This can be made dynamic later based on user's tenant
-      const response = await apiService.getProducts({ tenantId: 'zinzuwadia' });
+      // Use authenticated API to get products for the current user's tenant
+      const response = await apiService.getProducts();
       console.log('📦 Products API Response:', response);
       if (response.success && response.data) {
         // Handle paginated response from Django REST Framework
-        const products = (response.data as any).results || response.data;
-        setProducts(products);
-        console.log('✅ Products loaded successfully:', products.length, 'products');
-        console.log('📋 First product:', products[0]);
+        const productsData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data as { results?: any[]; data?: any[] }).results || (response.data as { results?: any[]; data?: any[] }).data || [];
+        setProducts(productsData);
+        console.log('✅ Products loaded successfully:', productsData.length, 'products');
+        console.log('📋 First product:', productsData[0]);
       } else {
         console.error('❌ Failed to load products:', response);
-        // Fallback to sample products if API fails
-        const fallbackProducts = [
-          { id: 1, name: "Gold Chain Necklace", category: "Necklaces", price: 45000, weight: 3.5 },
-          { id: 2, name: "Diamond Ring", category: "Rings", price: 75000, weight: 2.8 },
-          { id: 3, name: "Pearl Earrings", category: "Earrings", price: 25000, weight: 1.2 },
-          { id: 4, name: "Silver Bracelet", category: "Bracelets", price: 18000, weight: 4.0 },
-          { id: 5, name: "Platinum Pendant", category: "Pendants", price: 95000, weight: 1.8 },
-          { id: 6, name: "Ruby Necklace", category: "Necklaces", price: 65000, weight: 2.5 },
-          { id: 7, name: "Emerald Ring", category: "Rings", price: 55000, weight: 3.2 },
-          { id: 8, name: "Sapphire Earrings", category: "Earrings", price: 35000, weight: 1.5 }
-        ];
-        setProducts(fallbackProducts);
-        console.log('🔄 Using fallback products:', fallbackProducts.length, 'products');
+        setProducts([]);
       }
     } catch (error) {
       console.error('💥 Error loading products:', error);
-      // Fallback to sample products if API fails
-      const fallbackProducts = [
-        { id: 1, name: "Gold Chain Necklace", category: "Necklaces", price: 45000, weight: 3.5 },
-        { id: 2, name: "Diamond Ring", category: "Rings", price: 75000, weight: 2.8 },
-        { id: 3, name: "Pearl Earrings", category: "Earrings", price: 25000, weight: 1.2 },
-        { id: 4, name: "Silver Bracelet", category: "Bracelets", price: 18000, weight: 4.0 },
-        { id: 5, name: "Platinum Pendant", category: "Pendants", price: 95000, weight: 1.8 },
-        { id: 6, name: "Ruby Necklace", category: "Necklaces", price: 65000, weight: 2.5 },
-        { id: 7, name: "Emerald Ring", category: "Rings", price: 55000, weight: 3.2 },
-        { id: 8, name: "Sapphire Earrings", category: "Earrings", price: 35000, weight: 1.5 }
-      ];
-      setProducts(fallbackProducts);
-      console.log('🔄 Using fallback products due to error:', fallbackProducts.length, 'products');
+      setProducts([]);
     } finally {
       setProductsLoading(false);
       console.log('🏁 loadProducts completed');
@@ -1204,7 +1171,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
   const loadCategories = async () => {
     try {
-      const response = await apiService.getCategories({ tenantId: 'zinzuwadia' });
+      const response = await apiService.getCategories();
       if (response.success && response.data) {
         const categoriesData = Array.isArray(response.data) 
           ? response.data 

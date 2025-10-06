@@ -9,7 +9,7 @@ interface CustomerLayoutProps {
 
 export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const params = useParams();
-  const tenant = params.tenant as string;
+  const tenant = params?.tenant as string;
 
   return (
     <div className="min-h-screen bg-white">

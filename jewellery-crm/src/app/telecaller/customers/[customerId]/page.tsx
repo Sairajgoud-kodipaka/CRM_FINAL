@@ -13,7 +13,7 @@ const customer = {
 };
 
 export default function TelecallerCustomerDetailPage() {
-  const { customerId } = useParams();
+  const { customerId } = useParams() as { customerId: string };
   const [log, setLog] = useState('');
   const [logs, setLogs] = useState([
     { text: 'Called customer, no answer.', date: '7/30/2025' },

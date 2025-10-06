@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Loader2, Search, X } from 'lucide-react';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -266,10 +267,8 @@ export default function TeamSettingsPage() {
       'business_admin': 'Business Admin',
       'inhouse_sales': 'In-House Sales',
       'marketing': 'Marketing',
-      'tele_caller': 'Tele-Caller',
+      'tele_calling': 'Tele-Calling',
       'manager': 'Manager',
-      'sales': 'Sales',
-      'support': 'Support',
     };
     return roleMap[role] || role;
   };
@@ -381,11 +380,10 @@ export default function TeamSettingsPage() {
               
               <div>
                 <Label htmlFor="password">Password *</Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   value={createFormData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  onChange={(value) => handleInputChange('password', value)}
                   placeholder="Enter password"
                 />
               </div>
@@ -399,10 +397,8 @@ export default function TeamSettingsPage() {
                   <SelectContent>
                     <SelectItem value="inhouse_sales">In-House Sales</SelectItem>
                     <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="tele_caller">Tele-Caller</SelectItem>
+                    <SelectItem value="tele_calling">Tele-Calling</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="sales">Sales</SelectItem>
-                    <SelectItem value="support">Support</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -531,10 +527,8 @@ export default function TeamSettingsPage() {
                   <SelectContent>
                     <SelectItem value="inhouse_sales">In-House Sales</SelectItem>
                     <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="tele_caller">Tele-Caller</SelectItem>
+                    <SelectItem value="tele_calling">Tele-Calling</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="sales">Sales</SelectItem>
-                    <SelectItem value="support">Support</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

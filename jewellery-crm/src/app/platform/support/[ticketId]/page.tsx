@@ -68,7 +68,7 @@ export default function PlatformSupportTicketDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { isAuthenticated, user } = useAuth();
-  const ticketId = params.ticketId as string;
+  const ticketId = params?.ticketId as string;
   
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [messages, setMessages] = useState<TicketMessage[]>([]);

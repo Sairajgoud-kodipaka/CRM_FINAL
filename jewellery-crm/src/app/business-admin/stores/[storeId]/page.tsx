@@ -108,7 +108,7 @@ export default function StoreDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isAuthenticated, token } = useAuth();
-  const storeId = params.storeId as string;
+  const storeId = params?.storeId as string;
 
   const [store, setStore] = useState<Store | null>(null);
   const [performance, setPerformance] = useState<StorePerformance | null>(null);

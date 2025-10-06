@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { 
   Search, 
   Plus, 
@@ -816,12 +817,11 @@ export default function CRMSalesPipelinePage() {
                    <label className="block text-sm font-medium text-text-secondary mb-2">
                      Phone
                    </label>
-                   <input
-                     type="tel"
+                   <PhoneInputComponent
                      value={newLead.phone}
-                     onChange={(e) => handleInputChange('phone', e.target.value)}
-                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                     placeholder="Enter phone number"
+                     onChange={(value) => handleInputChange('phone', value)}
+                     placeholder="9876543210"
+                     required={false}
                    />
                  </div>
 

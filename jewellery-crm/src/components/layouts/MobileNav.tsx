@@ -86,10 +86,10 @@ export function MobileNav({ className }: MobileNavProps) {
       return !coveredRoutes.some(route => 
         route === '/dashboard' 
           ? (pathname === '/dashboard' || pathname === '/') 
-          : pathname.startsWith(route)
+          : pathname?.startsWith(route)
       );
     }
-    return pathname.startsWith(href);
+    return pathname?.startsWith(href);
   };
 
   return (

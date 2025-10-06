@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q, Count, Sum, Avg
 from django.utils import timezone
 from datetime import datetime, timedelta
+import logging
 from .models import User, TeamMember, TeamMemberActivity, TeamMemberPerformance
 from .serializers import (
     UserSerializer, UserCreateSerializer, UserRegistrationSerializer, UserProfileSerializer,
@@ -26,6 +27,9 @@ from django.shortcuts import render
 from django.db.models import Q
 from .models import User
 from .serializers import UserSerializer
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 class UserRegistrationView(generics.CreateAPIView):
@@ -113,7 +117,7 @@ class ChangePasswordView(APIView):
         user.save()
 
         # Log the password change for security audit
-        print(f"Password changed for user: {user.username} ({user.role}) at {timezone.now()}")
+        logger.info(f"Password changed for user: {user.username} ({user.role}) at {timezone.now()}")
 
         return Response({
             'message': 'Password changed successfully',
@@ -234,7 +238,7 @@ class UserCreateView(generics.CreateAPIView):
                     created_user.is_active = True
                     created_user.save()
             except Exception as e:
-                print('Could not set user as active:', e)
+                logger.error('Could not set user as active:', exc_info=True)
         return response
 
 
@@ -343,53 +347,59 @@ class TeamMemberListView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         """Override create method to add debugging and better error handling."""
         try:
-            print(f"TeamMemberListView.create called with data: {request.data}")
+            logger.info(f"TeamMemberListView.create called with data: {request.data}")
             return super().create(request, *args, **kwargs)
         except Exception as e:
-            print(f"Error in TeamMemberListView.create: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
+            logger.error(f"Error in TeamMemberListView.create: {e}", exc_info=True)
+            
+            # Return more specific error response
+            if hasattr(e, 'detail'):
+                return Response({
+                    'success': False,
+                    'error': str(e.detail),
+                    'message': 'Validation error occurred'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({
+                    'success': False,
+                    'error': str(e),
+                    'message': 'Failed to create team member'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
         """Filter team members based on user's role, tenant, and store."""
         user = self.request.user
         queryset = TeamMember.objects.all()
 
-        print(f"TeamMemberListView.get_queryset - User: {user.username}, Role: {user.role}, Tenant: {user.tenant}, Store: {user.store}")
-        print(f"Request headers: {dict(self.request.headers)}")
+        logger.debug(f"TeamMemberListView.get_queryset - User: {user.username}, Role: {user.role}, Tenant: {user.tenant}, Store: {user.store}")
 
         if user.is_platform_admin:
-            print("User is platform admin - showing all team members")
+            logger.debug("User is platform admin - showing all team members")
             pass
         elif user.is_business_admin and user.tenant:
-            print(f"User is business admin - filtering by tenant: {user.tenant}")
+            logger.debug(f"User is business admin - filtering by tenant: {user.tenant}")
             queryset = queryset.filter(user__tenant=user.tenant)
         elif user.is_manager and user.tenant and user.store:
             # Managers can see all team members in their store
-            print(f"User is manager - filtering by tenant: {user.tenant} and store: {user.store}")
+            logger.debug(f"User is manager - filtering by tenant: {user.tenant} and store: {user.store}")
             queryset = queryset.filter(user__tenant=user.tenant, user__store=user.store)
         elif user.is_manager and user.tenant:
             # Managers without specific store can see all team members in their tenant
-            print(f"User is manager without store - filtering by tenant: {user.tenant}")
+            logger.debug(f"User is manager without store - filtering by tenant: {user.tenant}")
             queryset = queryset.filter(user__tenant=user.tenant)
         elif user.role == 'tele_caller' and user.tenant and user.store:
-            print(f"User is tele_caller - filtering by tenant: {user.tenant} and store: {user.store}")
+            logger.debug(f"User is tele_caller - filtering by tenant: {user.tenant} and store: {user.store}")
             queryset = queryset.filter(user__tenant=user.tenant, user__store=user.store, user__role='tele_caller')
         else:
-            print(f"User is other role - showing only self")
+            logger.debug(f"User is other role - showing only self")
             queryset = queryset.filter(user=user)
 
         store_id = self.request.query_params.get('store')
         if store_id:
-            print(f"Additional store filter: {store_id}")
+            logger.debug(f"Additional store filter: {store_id}")
             queryset = queryset.filter(user__store_id=store_id)
 
-        print(f"Final queryset count: {queryset.count()}")
-        
-        # Print the actual team members being returned
-        for tm in queryset[:5]:  # Show first 5 for debugging
-            print(f"  - {tm.user.get_full_name()} ({tm.user.username}) - Role: {tm.user.role}")
+        logger.debug(f"Final queryset count: {queryset.count()}")
         
         return queryset
 
@@ -397,7 +407,7 @@ class TeamMemberListView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         """Set tenant for new team members."""
         user = self.request.user
-        print(f"TeamMemberListView.perform_create for user: {user.username}, role: {user.role}")
+        logger.info(f"TeamMemberListView.perform_create for user: {user.username}, role: {user.role}")
 
         # Restrict manager to only create certain roles
         if user.role == 'manager':
@@ -415,7 +425,7 @@ class TeamMemberListView(generics.ListCreateAPIView):
                     pass
 
         team_member = serializer.save()
-        print(f"Team member created successfully: {team_member.id}")
+        logger.info(f"Team member created successfully: {team_member.id}")
         
         # Update manager if provided
         manager_id = self.request.data.get('manager')
@@ -425,7 +435,7 @@ class TeamMemberListView(generics.ListCreateAPIView):
                 team_member.manager = manager
                 team_member.save()
             except TeamMember.DoesNotExist:
-                print(f"Manager with ID {manager_id} not found")
+                logger.warning(f"Manager with ID {manager_id} not found")
                 pass
         
         # Log activity
@@ -446,17 +456,15 @@ class TeamMemberCreateView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         """Override create method to add debugging and better error handling."""
         try:
-            print(f"Creating team member with data: {request.data}")
+            logger.info(f"Creating team member with data: {request.data}")
             return super().create(request, *args, **kwargs)
         except Exception as e:
-            print(f"Error creating team member: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error creating team member: {e}", exc_info=True)
             raise
 
     def perform_create(self, serializer):
         user = self.request.user
-        print(f"Performing create for user: {user.username}, role: {user.role}")
+        logger.info(f"Performing create for user: {user.username}, role: {user.role}")
 
         # Restrict manager to only create certain roles
         if user.role == 'manager':
@@ -474,7 +482,7 @@ class TeamMemberCreateView(generics.CreateAPIView):
                     pass
 
         team_member = serializer.save()
-        print(f"Team member created successfully: {team_member.id}")
+        logger.info(f"Team member created successfully: {team_member.id}")
         
         # Update manager if provided
         manager_id = self.request.data.get('manager')
@@ -484,7 +492,7 @@ class TeamMemberCreateView(generics.CreateAPIView):
                 team_member.manager = manager
                 team_member.save()
             except TeamMember.DoesNotExist:
-                print(f"Manager with ID {manager_id} not found")
+                logger.warning(f"Manager with ID {manager_id} not found")
                 pass
 
 
@@ -550,16 +558,16 @@ class TeamMemberUpdateView(generics.UpdateAPIView):
     def update(self, request, *args, **kwargs):
         """Override update method to return proper response."""
         try:
-            print(f"Update request data: {request.data}")
+            logger.info(f"Update request data: {request.data}")
             partial = kwargs.pop('partial', False)
             instance = self.get_object()
-            print(f"Updating team member: {instance.id}, user: {instance.user.id}")
+            logger.info(f"Updating team member: {instance.id}, user: {instance.user.id}")
             
             serializer = self.get_serializer(instance, data=request.data, partial=partial)
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
             
-            print(f"Update successful for team member: {instance.id}")
+            logger.info(f"Update successful for team member: {instance.id}")
             
             return Response({
                 'success': True,
@@ -567,7 +575,7 @@ class TeamMemberUpdateView(generics.UpdateAPIView):
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
         except Exception as e:
-            print(f"Update error: {e}")
+            logger.error(f"Update error: {e}", exc_info=True)
             return Response({
                 'success': False,
                 'message': str(e)
@@ -691,7 +699,7 @@ class TeamMemberDetailView(generics.RetrieveUpdateDestroyAPIView):
         try:
             return super().update(request, *args, **kwargs)
         except Exception as e:
-            print(f"Update error: {e}")
+            logger.error(f"Update error: {e}", exc_info=True)
             raise
 
     def perform_destroy(self, instance):
@@ -896,23 +904,23 @@ class MessagingUsersView(generics.ListAPIView):
     
     def get_queryset(self):
         user = self.request.user
-        print(f"[MessagingUsersView] Current user: {user.username}, tenant: {user.tenant}")
+        logger.debug(f"[MessagingUsersView] Current user: {user.username}, tenant: {user.tenant}")
         
         queryset = User.objects.filter(is_active=True)
-        print(f"[MessagingUsersView] Initial queryset count: {queryset.count()}")
+        logger.debug(f"[MessagingUsersView] Initial queryset count: {queryset.count()}")
         
         # Filter by tenant
         if user.tenant:
             queryset = queryset.filter(tenant=user.tenant)
-            print(f"[MessagingUsersView] After tenant filter count: {queryset.count()}")
+            logger.debug(f"[MessagingUsersView] After tenant filter count: {queryset.count()}")
         
         # Exclude the current user from the list
         queryset = queryset.exclude(id=user.id)
-        print(f"[MessagingUsersView] After excluding current user count: {queryset.count()}")
+        logger.debug(f"[MessagingUsersView] After excluding current user count: {queryset.count()}")
         
-        # Print some sample users
+        # Log some sample users
         sample_users = list(queryset[:3].values('username', 'first_name', 'last_name', 'role'))
-        print(f"[MessagingUsersView] Sample users: {sample_users}")
+        logger.debug(f"[MessagingUsersView] Sample users: {sample_users}")
         
         return queryset
     
@@ -1035,10 +1043,13 @@ def login_view(request):
     """
     Login view that works with existing users.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     username = request.data.get('username')
     password = request.data.get('password')
     
-    print(f"Login attempt - Username: {username}, Password: {password}")
+    logger.info(f"Login attempt - Username: {username}")
     
     if not username or not password:
         return Response({
@@ -1047,29 +1058,37 @@ def login_view(request):
     
     # Try to authenticate with Django's built-in authentication
     user = authenticate(username=username, password=password)
-    print(f"Authenticate result: {user}")
+    logger.info(f"Authenticate result: {user is not None}")
     
     if user is None:
         # If authentication fails, check if user exists and provide helpful error
         try:
             user = User.objects.get(username=username)
-            print(f"User exists but password is incorrect: {user.username}")
+            logger.warning(f"User exists but password is incorrect: {user.username}")
             return Response({
                 'error': 'Invalid password. Please check your password and try again.'
             }, status=status.HTTP_401_UNAUTHORIZED)
         except User.DoesNotExist:
-            print(f"User not found: {username}")
+            logger.warning(f"User not found: {username}")
             return Response({
                 'error': 'User not found. Please check your username and try again.'
             }, status=status.HTTP_401_UNAUTHORIZED)
     
     if not user.is_active:
-        print(f"User is inactive: {user.username}")
+        logger.warning(f"User is inactive: {user.username}")
         return Response({
             'error': 'User account is disabled'
         }, status=status.HTTP_401_UNAUTHORIZED)
     
-    print(f"Login successful for user: {user.username}")
+    # Check if tenant is active (for non-platform admin users)
+    if user.role != 'platform_admin' and user.tenant:
+        if user.tenant.subscription_status != 'active':
+            logger.warning(f"Tenant is inactive: {user.tenant.name} (status: {user.tenant.subscription_status})")
+            return Response({
+                'error': 'Your organization account is currently inactive. Please contact your administrator.'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+    
+    logger.info(f"Login successful for user: {user.username}")
     # Generate tokens
     refresh = RefreshToken.for_user(user)
     
@@ -1195,31 +1214,31 @@ def team_members_list(request):
     from .serializers import TeamMemberListSerializer
     user = request.user
     
-    print(f"team_members_list - User: {user.username}, Role: {user.role}, Tenant: {user.tenant}, Store: {user.store}")
+    logger.info(f"team_members_list - User: {user.username}, Role: {user.role}, Tenant: {user.tenant}, Store: {user.store}")
     
     # Filter team members based on user's role, tenant, and store
     if user.is_platform_admin:
         # Platform admin can see all team members
-        print("User is platform admin - showing all team members")
+        logger.debug("User is platform admin - showing all team members")
         team_members = TeamMember.objects.filter(user__is_active=True)
     elif user.is_business_admin and user.tenant:
         # Business admin can only see team members from their tenant
-        print(f"User is business admin - filtering by tenant: {user.tenant}")
+        logger.debug(f"User is business admin - filtering by tenant: {user.tenant}")
         team_members = TeamMember.objects.filter(user__is_active=True, user__tenant=user.tenant)
     elif user.is_manager and user.tenant and user.store:
         # Manager can see all team members in their store
-        print(f"User is manager - filtering by tenant: {user.tenant} and store: {user.store}")
+        logger.debug(f"User is manager - filtering by tenant: {user.tenant} and store: {user.store}")
         team_members = TeamMember.objects.filter(user__is_active=True, user__tenant=user.tenant, user__store=user.store)
     elif user.is_manager and user.tenant:
         # Manager without specific store can see all team members in their tenant
-        print(f"User is manager without store - filtering by tenant: {user.tenant}")
+        logger.debug(f"User is manager without store - filtering by tenant: {user.tenant}")
         team_members = TeamMember.objects.filter(user__is_active=True, user__tenant=user.tenant)
     else:
         # Other users can only see themselves
-        print(f"User is other role - showing only self")
+        logger.debug(f"User is other role - showing only self")
         team_members = TeamMember.objects.filter(user__is_active=True, user=user)
     
-    print(f"Found {team_members.count()} team members")
+    logger.debug(f"Found {team_members.count()} team members")
     serializer = TeamMemberListSerializer(team_members, many=True)
     return Response(serializer.data)
 
@@ -1746,12 +1765,12 @@ class TeamMembersView(APIView):
                 
                 # Get subordinates from TeamMember model using the manager field
                 from .models import TeamMember
-                print(f"Querying TeamMember objects for manager user_id={manager_id}")
+                logger.debug(f"Querying TeamMember objects for manager user_id={manager_id}")
                 
                 # First, find the TeamMember record for the manager
                 try:
                     manager_team_member = TeamMember.objects.get(user_id=manager_id)
-                    print(f"Found manager TeamMember: {manager_team_member}")
+                    logger.debug(f"Found manager TeamMember: {manager_team_member}")
                     
                     # Now find subordinates where manager points to this TeamMember
                     team_member_objects = TeamMember.objects.filter(
@@ -1759,10 +1778,10 @@ class TeamMembersView(APIView):
                         user__role__in=['inhouse_sales', 'tele_calling'],
                         user__is_active=True
                     ).order_by('user').distinct('user')  # Ensure unique users
-                    print(f"Found {team_member_objects.count()} TeamMember objects")
+                    logger.debug(f"Found {team_member_objects.count()} TeamMember objects")
                     team_members = [tm.user for tm in team_member_objects]
                 except TeamMember.DoesNotExist:
-                    print(f"No TeamMember record found for manager user_id={manager_id}")
+                    logger.warning(f"No TeamMember record found for manager user_id={manager_id}")
                     team_members = []
                 
             elif current_user.role == 'business_admin':
@@ -1807,8 +1826,8 @@ class TeamMembersView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
             
-            print(f"Found {len(team_members)} team members for manager {manager_id}")
-            print(f"Team members: {[(tm.id, tm.username, tm.role) for tm in team_members]}")
+            logger.debug(f"Found {len(team_members)} team members for manager {manager_id}")
+            logger.debug(f"Team members: {[(tm.id, tm.username, tm.role) for tm in team_members]}")
             
             # Return only necessary user data for salesperson assignment
             users = [{

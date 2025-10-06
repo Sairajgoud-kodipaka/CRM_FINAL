@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiService, Client } from "@/lib/api-service";
 import { useAuth } from "@/hooks/useAuth";
+import { useCustomerRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { Calendar, Phone, Mail, MapPin, User, Clock, Edit, Trash2, X as XIcon, ArrowUpRight } from "lucide-react";
 
 interface CustomerDetailModalProps {
@@ -34,6 +35,17 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
 
   // Check if user can delete customers (managers and higher roles)
   const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
+
+  // Real-time updates for this specific customer
+  useCustomerRealtimeUpdates(
+    undefined, // No need to refresh customer list from detail modal
+    (updatedCustomerId) => {
+      if (updatedCustomerId === customerId) {
+        console.log('🔄 Customer details updated, refreshing modal data');
+        fetchCustomerDetails();
+      }
+    }
+  );
 
   useEffect(() => {
     if (open && customerId) {
@@ -151,7 +163,14 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          className="max-h-[95vh] overflow-y-auto"
+          style={{ 
+            maxWidth: '98vw', 
+            width: '98vw',
+            margin: '1vh auto'
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Customer Details</DialogTitle>
             <DialogDescription>Loading customer information...</DialogDescription>
@@ -169,7 +188,14 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   if (!customer) {
     return (
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          className="max-h-[95vh] overflow-y-auto"
+          style={{ 
+            maxWidth: '98vw', 
+            width: '98vw',
+            margin: '1vh auto'
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Customer Details</DialogTitle>
             <DialogDescription>Customer not found</DialogDescription>
@@ -265,66 +291,70 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             <TabsTrigger value="audit">Audit Log</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="details" className="space-y-6">
+          <TabsContent value="details" className="space-y-8">
             {/* Basic Information */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 text-blue-600" />
+            <Card className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="w-8 h-8 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold">
+                    <h3 className="text-2xl font-semibold">
                       {customer.first_name} {customer.last_name}
                     </h3>
-                    <Badge variant={getStatusBadgeVariant(customer.status || '')} className="capitalize">
-                      {customer.status || 'unknown'}
-                    </Badge>
+                    <div className="flex items-center gap-3 mt-2">
+                      <Badge variant={getStatusBadgeVariant(customer.status || '')} className="capitalize text-sm">
+                        {customer.status || 'unknown'}
+                      </Badge>
+                      <span className="text-sm text-gray-500">ID: {customer.id}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="text-sm text-gray-500">
-                  ID: {customer.id}
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Customer Type</p>
+                  <p className="font-medium">{customer.customer_type || 'Individual'}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-sm text-gray-500">Email</p>
-                      <p className="font-medium">{customer.email || 'Not provided'}</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                <div className="space-y-8">
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Email</p>
+                      <p className="font-medium break-all">{customer.email || 'Not provided'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-sm text-gray-500">Phone</p>
+                  <div className="flex items-start gap-3">
+                    <Phone className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Phone</p>
                       <p className="font-medium">{customer.phone || 'Not provided'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-sm text-gray-500">Date of Birth</p>
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Date of Birth</p>
                       <p className="font-medium">
                         {customer.date_of_birth ? formatDate(customer.date_of_birth) : 'Not provided'}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-sm text-gray-500">Anniversary</p>
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Anniversary</p>
                       <p className="font-medium">
                         {customer.anniversary_date ? formatDate(customer.anniversary_date) : 'Not provided'}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-sm text-gray-500">Created By</p>
+                  <div className="flex items-start gap-3">
+                    <User className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Created By</p>
                       <p className="font-medium">
                         {customer.created_by ? 
                           `${customer.created_by.first_name || ''} ${customer.created_by.last_name || ''}`.trim() || customer.created_by.username || 'Unknown User'
@@ -335,27 +365,71 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-sm text-gray-500">Address</p>
-                      <p className="font-medium">
+                <div className="space-y-8">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Address</p>
+                      <p className="font-medium break-words">
                         {customer.address ? `${customer.address}, ${customer.city || ''}, ${customer.state || ''}` : 'Not provided'}
                       </p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Community</p>
-                    <p className="font-medium">{customer.community || 'Not specified'}</p>
+                  <div className="flex items-start gap-3">
+                    <User className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Community</p>
+                      <p className="font-medium">{customer.community || 'Not specified'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Mother Tongue</p>
-                    <p className="font-medium">{customer.mother_tongue || 'Not specified'}</p>
+                  <div className="flex items-start gap-3">
+                    <User className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Mother Tongue</p>
+                      <p className="font-medium">{customer.mother_tongue || 'Not specified'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Catchment Area</p>
-                    <p className="font-medium">{customer.catchment_area || 'Not specified'}</p>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Catchment Area</p>
+                      <p className="font-medium">{customer.catchment_area || 'Not specified'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-8">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Created At</p>
+                      <p className="font-medium">
+                        {customer.created_at ? new Date(customer.created_at).toLocaleDateString() : 'Not available'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Last Updated</p>
+                      <p className="font-medium">
+                        {customer.updated_at ? new Date(customer.updated_at).toLocaleDateString() : 'Not available'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <User className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">Customer Type</p>
+                      <p className="font-medium">{customer.customer_type || 'Individual'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-500 mb-1">City</p>
+                      <p className="font-medium">{customer.city || 'Not specified'}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -406,7 +480,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                 });
                 
                 return customer.customer_interests && customer.customer_interests.length > 0 ? (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {customer.customer_interests.map((interest, index) => {
                       // Parse the interest if it's a JSON string
                       let parsedInterest;
@@ -471,7 +545,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                             </div>
                           )}
                           
-                          <div className="space-y-4">
+                          <div className="space-y-8">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-gray-500">Category</p>

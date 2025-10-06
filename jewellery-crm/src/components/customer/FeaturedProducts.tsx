@@ -12,7 +12,7 @@ interface FeaturedProductsProps {
 
 export default function FeaturedProducts({ products }: FeaturedProductsProps) {
   const params = useParams();
-  const tenant = params.tenant as string;
+  const tenant = params?.tenant as string;
   const [currentSlide, setCurrentSlide] = useState(0);
   const [wishlist, setWishlist] = useState<number[]>([]);
 

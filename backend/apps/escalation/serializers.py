@@ -71,7 +71,9 @@ class EscalationNoteCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['author'] = self.context['request'].user
-        validated_data['escalation_id'] = self.context['escalation_id']
+        escalation_id = self.context['escalation_id']
+        escalation = Escalation.objects.get(id=escalation_id)
+        validated_data['escalation'] = escalation
         return super().create(validated_data)
 
 

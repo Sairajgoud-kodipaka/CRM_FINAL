@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { 
   MessageSquare, 
   Send, 
@@ -193,13 +194,11 @@ export default function ManagerWhatsAppPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+1234567890"
+                <PhoneInputComponent
                   value={singleMessage.phone}
-                  onChange={(e) => setSingleMessage(prev => ({ ...prev, phone: e.target.value }))}
-                  required
+                  onChange={(value) => setSingleMessage(prev => ({ ...prev, phone: value }))}
+                  placeholder="9876543210"
+                  required={true}
                 />
               </div>
             </div>

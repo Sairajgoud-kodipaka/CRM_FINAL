@@ -44,6 +44,32 @@ module.exports = {
         'chart-5': 'hsl(var(--chart-5))',
         // Gold color for jewellery theme
         'gold': 'hsl(var(--gold))',
+        // HubSpot-inspired colors
+        'primary': {
+          50: '#FFF4F1',
+          100: '#FFE8E1',
+          500: '#FF7A59',
+          600: '#E85A3A',
+          700: '#C14A2F',
+        },
+        'navy': {
+          50: '#F0F4F8',
+          100: '#D9E2EC',
+          200: '#BCCCDC',
+          500: '#0091AE',
+          700: '#1B2A4E',
+          900: '#0F1419',
+        },
+        'sidebar': '#1B2A4E',
+        'accent': '#FFB84D',
+        'success': '#00BDA5',
+        'warning': '#F5A623',
+        'error': '#E74C3C',
+        'info': '#4A90E2',
+        // Text colors for better visibility
+        'text-primary': '#33475B',
+        'text-secondary': '#5E6C84',
+        'text-muted': '#8B9BAB',
       },
       fontFamily: {
         sans: ['var(--font-lexend)', 'Lexend', 'Avenir Next', 'system-ui', 'sans-serif'],

@@ -6,7 +6,7 @@ import { Facebook, Twitter, Instagram, Youtube, Mail, Phone, MapPin } from 'luci
 
 export default function CustomerFooter() {
   const params = useParams();
-  const tenant = params.tenant as string;
+  const tenant = params?.tenant as string;
 
   return (
     <footer className="bg-gray-900 text-white">

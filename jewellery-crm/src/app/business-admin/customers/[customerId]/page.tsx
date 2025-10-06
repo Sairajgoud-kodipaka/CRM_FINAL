@@ -73,7 +73,7 @@ export default function CustomerDetailPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  const customerId = params.customerId as string;
+  const customerId = params?.customerId as string;
 
   React.useEffect(() => {
     if (customerId) {

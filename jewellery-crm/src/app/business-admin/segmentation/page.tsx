@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 import { 
   Users, 
   TrendingUp, 
@@ -24,222 +23,329 @@ import {
   PieChart,
   ArrowUpRight,
   ArrowDownRight,
-  Minus
+  Minus,
+  Plus,
+  Eye,
+  AlertTriangle,
+  CheckCircle,
+  Search,
+  Settings,
+  MoreHorizontal,
+  RefreshCw,
+  Zap,
+  Activity,
+  Layers,
+  Sparkles,
+  ChevronRight,
+  Info,
+  Star,
+  Clock,
+  Mail,
+  Phone,
+  MapPin as LocationIcon,
+  Grid3X3,
+  List,
+  Tag
 } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
+import SegmentDetailsModal from '@/components/segmentation/SegmentDetailsModal';
 
-interface CustomerTag {
-  id: number;
+interface CustomerSegment {
+  id: string;
   name: string;
-  slug: string;
-  category: string;
-  description?: string;
-}
-
-interface SegmentData {
-  name: string;
-  count: number;
+  description: string;
+  customerCount: number;
   percentage: number;
   growth: number;
-  value?: number;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
+  tags: string[];
+  category: 'demographic' | 'behavioral' | 'transactional' | 'engagement';
+  lastUpdated: string;
 }
 
-interface SegmentAnalytics {
+interface SegmentationData {
+  segments: CustomerSegment[];
   totalCustomers: number;
   activeCustomers: number;
-  newThisMonth: number;
-  segments: {
-    [key: string]: SegmentData[];
-  };
+  viewType: 'table' | 'cards';
 }
 
-const categoryIcons = {
-  intent: Target,
-  product: ShoppingBag,
-  revenue: DollarSign,
-  demographic: Users,
-  source: MapPin,
-  status: UserCheck,
-  community: Heart,
-  event: Calendar,
-  custom: Wand2,
-};
-
-const categoryColors = {
-  intent: 'bg-blue-100 text-blue-800 border-blue-200',
-  product: 'bg-green-100 text-green-800 border-green-200',
-  revenue: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  demographic: 'bg-purple-100 text-purple-800 border-purple-200',
-  source: 'bg-orange-100 text-orange-800 border-orange-200',
-  status: 'bg-red-100 text-red-800 border-red-200',
-  community: 'bg-pink-100 text-pink-800 border-pink-200',
-  event: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  custom: 'bg-gray-100 text-gray-800 border-gray-200',
-};
+// Backend API response structure
+interface BackendAnalytics {
+  total_customers: number;
+  active_customers: number;
+  segment_counts: { [key: string]: number };
+  segment_growth: { [key: string]: number };
+  insights: {
+    top_growing_segment: {
+      name: string;
+      count: number;
+      growth: number;
+    };
+    conversion_opportunity: {
+      leads: number;
+      conversion_rate: number;
+    };
+    at_risk_customers: {
+      count: number;
+      percentage: number;
+    };
+  };
+}
 
 export default function CustomerSegmentationPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [tagsByCategory, setTagsByCategory] = useState<{ [key: string]: CustomerTag[] }>({});
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [segmentationData, setSegmentationData] = useState<SegmentationData | null>(null);
+  const [viewType, setViewType] = useState<'table' | 'cards'>('table');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [analytics, setAnalytics] = useState<SegmentAnalytics | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+  const [showSegmentModal, setShowSegmentModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchSegmentationData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchSegmentationData = async () => {
     try {
       setLoading(true);
       
-      // Fetch all data in parallel
-      const [categoriesRes, tagsRes, customersRes] = await Promise.all([
-        apiService.getCustomerTagCategories(),
-        apiService.getCustomerTagsByCategory(),
-        apiService.getClients({ page: 1 })
-      ]);
-
-      if (categoriesRes.success) {
-        setCategories(categoriesRes.data || []);
-      }
-
-      if (tagsRes.success) {
-        setTagsByCategory(tagsRes.data || {});
-      }
-
-      if (customersRes.success) {
-        const customerData = Array.isArray(customersRes.data) ? customersRes.data : (customersRes.data && typeof customersRes.data === 'object' && 'results' in customersRes.data ? (customersRes.data as any).results : []);
-        setCustomers(customerData);
-        generateAnalytics(customerData, tagsRes.data || {});
+      // Fetch real segmentation data from API
+      const response = await apiService.getSegmentationAnalytics();
+      
+      if (response.success && response.data) {
+        const analytics: BackendAnalytics = response.data.analytics;
+        
+        // Transform backend data to frontend format
+        const segments: CustomerSegment[] = Object.entries(analytics.segment_counts).map(([segmentName, count]) => {
+          const percentage = analytics.total_customers > 0 ? (count / analytics.total_customers) * 100 : 0;
+          const growth = analytics.segment_growth[segmentName] || 0;
+          
+          // Map segment names to categories and tags
+          const segmentMapping = {
+            'High-Value Buyer': { category: 'transactional' as const, tags: ['VIP', 'Premium', 'High-Spend'] },
+            'Mid-Tier Buyer': { category: 'transactional' as const, tags: ['Regular', 'Mid-Spend'] },
+            'Budget Buyer': { category: 'transactional' as const, tags: ['Budget', 'Price-Conscious'] },
+            'Frequent Buyer': { category: 'behavioral' as const, tags: ['Loyal', 'Regular', 'Repeat'] },
+            'At-Risk Customer': { category: 'behavioral' as const, tags: ['Churn-Risk', 'Inactive', 'Re-engagement'] },
+            'Occasion Shopper': { category: 'demographic' as const, tags: ['Wedding', 'Occasion', 'Event'] },
+            'Diamond Lover': { category: 'behavioral' as const, tags: ['Diamond', 'Luxury', 'Premium'] },
+            'Gold Investor': { category: 'behavioral' as const, tags: ['Gold', 'Investment', 'Traditional'] },
+            'Online Buyer': { category: 'behavioral' as const, tags: ['Online', 'Digital', 'E-commerce'] },
+            'Walk-in Buyer': { category: 'behavioral' as const, tags: ['Store', 'Physical', 'In-person'] },
+            'New Customer': { category: 'demographic' as const, tags: ['New', 'Recent', 'Onboarding'] },
+            'Loyal Patron': { category: 'behavioral' as const, tags: ['Loyal', 'VIP', 'Long-term'] }
+          };
+          
+          const mapping = segmentMapping[segmentName as keyof typeof segmentMapping] || {
+            category: 'behavioral' as const,
+            tags: ['General']
+          };
+          
+          return {
+            id: segmentName.toLowerCase().replace(/\s+/g, '-'),
+            name: segmentName,
+            description: getSegmentDescription(segmentName),
+            customerCount: count,
+            percentage,
+            growth,
+            tags: mapping.tags,
+            category: mapping.category,
+            lastUpdated: new Date().toISOString().split('T')[0]
+          };
+        });
+        
+        const transformedData: SegmentationData = {
+          segments,
+          totalCustomers: analytics.total_customers,
+          activeCustomers: analytics.active_customers,
+          viewType: 'table'
+        };
+        
+        setSegmentationData(transformedData);
+      } else {
+        console.error('Failed to fetch segmentation data:', response);
+        // Set empty data if API fails
+        setSegmentationData({
+          segments: [],
+          totalCustomers: 0,
+          activeCustomers: 0,
+          viewType: 'table'
+        });
       }
     } catch (error) {
       console.error('Failed to fetch segmentation data:', error);
+      // Set empty data on error
+      setSegmentationData({
+        segments: [],
+        totalCustomers: 0,
+        activeCustomers: 0,
+        viewType: 'table'
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const generateAnalytics = (customerData: any[], tagsData: { [key: string]: CustomerTag[] }) => {
-    const totalCustomers = customerData.length;
-    const activeCustomers = customerData.filter(c => c.status === 'customer').length;
-    const thisMonth = new Date();
-    thisMonth.setDate(1);
-    const newThisMonth = customerData.filter(c => 
-      new Date(c.created_at) >= thisMonth
-    ).length;
+  const getSegmentDescription = (segmentName: string): string => {
+    const descriptions = {
+      'High-Value Buyer': 'Customers with total spend > ₹1,00,000',
+      'Mid-Tier Buyer': 'Customers with total spend ₹25,000 - ₹1,00,000',
+      'Budget Buyer': 'Customers with total spend < ₹25,000',
+      'Frequent Buyer': 'Customers with 3+ purchases in last 6 months',
+      'At-Risk Customer': 'No purchase in last 12 months',
+      'Occasion Shopper': 'Customers purchasing for special occasions',
+      'Diamond Lover': 'Customers who prefer diamond jewelry',
+      'Gold Investor': 'Customers who prefer gold jewelry',
+      'Online Buyer': 'Customers who primarily shop online',
+      'Walk-in Buyer': 'Customers who primarily shop in-store',
+      'New Customer': 'Customers acquired in last 3 months',
+      'Loyal Patron': 'Long-term customers with high loyalty'
+    };
+    
+    return descriptions[segmentName as keyof typeof descriptions] || 'Customer segment';
+  };
 
-    const segments: { [key: string]: SegmentData[] } = {};
+  const getCategoryIcon = (category: string) => {
+    const iconMap = {
+      demographic: Users,
+      behavioral: Target,
+      transactional: DollarSign,
+      engagement: Activity
+    };
+    return iconMap[category as keyof typeof iconMap] || Users;
+  };
 
-    // Generate segment data for each category
-    Object.keys(tagsData).forEach(category => {
-      const categoryTags = tagsData[category] || [];
-      const categorySegments: SegmentData[] = [];
+  const getCategoryColor = (category: string) => {
+    const colorMap = {
+      demographic: 'bg-blue-100 text-blue-800',
+      behavioral: 'bg-green-100 text-green-800',
+      transactional: 'bg-purple-100 text-purple-800',
+      engagement: 'bg-orange-100 text-orange-800'
+    };
+    return colorMap[category as keyof typeof colorMap] || 'bg-gray-100 text-gray-800';
+  };
 
-      categoryTags.forEach(tag => {
-        // Count customers with this tag (simulated for demo)
-        const taggedCustomers = Math.floor(Math.random() * totalCustomers * 0.3);
-        const percentage = totalCustomers > 0 ? (taggedCustomers / totalCustomers) * 100 : 0;
-        const growth = Math.floor(Math.random() * 20) - 10; // Random growth between -10% and 10%
-
-        categorySegments.push({
-          name: tag.name,
-          count: taggedCustomers,
-          percentage,
-          growth,
-          value: category === 'revenue' ? taggedCustomers * 1000 + Math.floor(Math.random() * 5000) : undefined,
-          icon: categoryIcons[category as keyof typeof categoryIcons] || Users,
-          color: categoryColors[category as keyof typeof categoryColors] || 'bg-gray-100 text-gray-800'
-        });
-      });
-
-      // Sort by count descending
-      categorySegments.sort((a, b) => b.count - a.count);
-      segments[category] = categorySegments;
-    });
-
-    // Add status-based segments if not already present
-    if (!segments.status) {
-      const statusCounts = {
-        customer: customerData.filter(c => c.status === 'customer').length,
-        lead: customerData.filter(c => c.status === 'lead').length,
-        prospect: customerData.filter(c => c.status === 'prospect').length,
-        inactive: customerData.filter(c => c.status === 'inactive').length,
-        exhibition: customerData.filter(c => c.status === 'exhibition').length,
-      };
-
-      segments.status = Object.entries(statusCounts).map(([status, count]) => ({
-        name: status.charAt(0).toUpperCase() + status.slice(1),
-        count,
-        percentage: totalCustomers > 0 ? (count / totalCustomers) * 100 : 0,
-        growth: Math.floor(Math.random() * 20) - 10,
-        icon: UserCheck,
-        color: categoryColors.status
-      }));
+  // Action handlers
+  const handleViewSegment = async (segmentName: string) => {
+    try {
+      setSelectedSegment(segmentName);
+      setShowSegmentModal(true);
+    } catch (error) {
+      console.error('Error viewing segment:', error);
     }
-
-    setAnalytics({
-      totalCustomers,
-      activeCustomers,
-      newThisMonth,
-      segments
-    });
   };
 
-  const renderSegmentCard = (segment: SegmentData, categoryKey: string) => {
-    const Icon = segment.icon;
-    const growthIcon = segment.growth > 0 ? ArrowUpRight : segment.growth < 0 ? ArrowDownRight : Minus;
-    const growthColor = segment.growth > 0 ? 'text-green-600' : segment.growth < 0 ? 'text-red-600' : 'text-gray-600';
+  const handleExportSegments = async () => {
+    try {
+      setExporting(true);
+      
+      // Create CSV data
+      const csvData = [];
+      csvData.push(['Segment Name', 'Customer Count', 'Percentage', 'Growth %', 'Category', 'Tags', 'Last Updated']);
+      
+      if (segmentationData?.segments) {
+        segmentationData.segments.forEach(segment => {
+          csvData.push([
+            segment.name,
+            segment.customerCount.toString(),
+            segment.percentage.toFixed(1),
+            segment.growth.toFixed(1),
+            segment.category,
+            segment.tags.join('; '),
+            segment.lastUpdated
+          ]);
+        });
+      }
 
-    return (
-      <Card key={segment.name} className="hover:shadow-md transition-shadow">
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <div className={`p-2 rounded-lg ${segment.color.split(' ')[0]} ${segment.color.split(' ')[0]}/10`}>
-                <Icon className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="font-medium text-sm text-text-primary">{segment.name}</h4>
-                <p className="text-xs text-text-secondary capitalize">{categoryKey.replace('_', ' ')}</p>
-              </div>
-            </div>
-            <Badge variant="outline" className={segment.color}>
-              {segment.percentage.toFixed(1)}%
-            </Badge>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-text-primary">{segment.count.toLocaleString()}</span>
-              <div className={`flex items-center space-x-1 ${growthColor}`}>
-                {React.createElement(growthIcon, { className: 'w-3 h-3' })}
-                <span className="text-xs font-medium">{Math.abs(segment.growth)}%</span>
-              </div>
-            </div>
-            
-            <Progress value={segment.percentage} className="h-2" />
-            
-            {segment.value && (
-              <p className="text-xs text-text-secondary">
-                Avg. Value: ${segment.value.toLocaleString()}
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
+      // Convert to CSV string
+      const csvContent = csvData.map(row => row.join(',')).join('\n');
+      
+      // Download file
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `customer-segments-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('Segments exported successfully');
+    } catch (error) {
+      console.error('Error exporting segments:', error);
+    } finally {
+      setExporting(false);
+    }
   };
+
+  const handleCreateSegment = () => {
+    setShowSegmentModal(true);
+  };
+
+  const handleCloseSegmentModal = () => {
+    setShowSegmentModal(false);
+    setSelectedSegment(null);
+  };
+
+  const filteredSegments = segmentationData?.segments.filter(segment => {
+    const matchesSearch = segment.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         segment.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         segment.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory = selectedCategory === 'all' || segment.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  }) || [];
 
   if (loading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-12">
-          <div className="text-text-secondary">Loading customer segmentation data...</div>
+          <div className="flex items-center gap-3">
+            <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
+            <div className="text-gray-600">Loading customer segments...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!segmentationData || segmentationData.segments.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Customer Segmentation</h1>
+            <p className="text-gray-600 mt-1">Manage and analyze customer segments</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={fetchSegmentationData}>
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </Button>
+            <Button size="sm" className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Create Segment
+            </Button>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <div className="text-gray-600 mb-2">No segmentation data available</div>
+            <div className="text-sm text-gray-500 mb-4">
+              {segmentationData?.totalCustomers === 0 
+                ? "No customers found in the system" 
+                : "Segmentation data is being processed"}
+            </div>
+            <Button variant="outline" onClick={fetchSegmentationData}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -250,200 +356,335 @@ export default function CustomerSegmentationPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary tracking-tight">Customer Segmentation</h1>
-          <p className="text-text-secondary mt-1">Analyze customer segments and behavior patterns</p>
+          <h1 className="text-2xl font-bold text-gray-900">Customer Segmentation</h1>
+          <p className="text-gray-600 mt-1">Manage and analyze customer segments</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Advanced Filters
+          <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={fetchSegmentationData}>
+            <RefreshCw className="w-4 h-4" />
+            Refresh
           </Button>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2"
+            onClick={handleExportSegments}
+            disabled={exporting}
+          >
             <Download className="w-4 h-4" />
-            Export Report
+            {exporting ? 'Exporting...' : 'Export'}
           </Button>
-          <Button size="sm" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
+          <Button 
+            size="sm" 
+            className="flex items-center gap-2"
+            onClick={handleCreateSegment}
+          >
+            <Plus className="w-4 h-4" />
             Create Segment
           </Button>
         </div>
       </div>
 
       {/* Overview Stats */}
-      {analytics && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-text-secondary">Total Customers</p>
-                  <p className="text-2xl font-bold text-text-primary">{analytics.totalCustomers.toLocaleString()}</p>
-                </div>
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Users className="w-4 h-4 text-blue-600" />
-                </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Customers</p>
+                <p className="text-2xl font-bold text-gray-900">{segmentationData.totalCustomers.toLocaleString()}</p>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-text-secondary">Active Customers</p>
-                  <p className="text-2xl font-bold text-text-primary">{analytics.activeCustomers.toLocaleString()}</p>
-                </div>
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <UserCheck className="w-4 h-4 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-text-secondary">New This Month</p>
-                  <p className="text-2xl font-bold text-text-primary">{analytics.newThisMonth.toLocaleString()}</p>
-                </div>
-                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-text-secondary">Conversion Rate</p>
-                  <p className="text-2xl font-bold text-text-primary">
-                    {analytics.totalCustomers > 0 ? ((analytics.activeCustomers / analytics.totalCustomers) * 100).toFixed(1) : 0}%
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                  <Target className="w-4 h-4 text-orange-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Segmentation Analysis */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Category Filter */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Segment Categories</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button
-              variant={selectedCategory === 'all' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setSelectedCategory('all')}
-            >
-              <PieChart className="w-4 h-4 mr-2" />
-              All Categories
-            </Button>
-            {categories.map((cat) => {
-              const Icon = categoryIcons[cat.value as keyof typeof categoryIcons] || Users;
-              return (
-                <Button
-                  key={cat.value}
-                  variant={selectedCategory === cat.value ? 'default' : 'ghost'}
-                  className="w-full justify-start"
-                  onClick={() => setSelectedCategory(cat.value)}
-                >
-                  <Icon className="w-4 h-4 mr-2" />
-                  {cat.label}
-                </Button>
-              );
-            })}
+              <Users className="w-8 h-8 text-blue-600" />
+            </div>
           </CardContent>
         </Card>
-
-        {/* Segments Grid */}
-        <div className="lg:col-span-3">
-          <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-            <TabsList className="grid grid-cols-3 lg:grid-cols-5 mb-6">
-              <TabsTrigger value="all">All</TabsTrigger>
-              {categories.slice(0, 4).map((cat) => (
-                <TabsTrigger key={cat.value} value={cat.value} className="text-xs">
-                  {cat.label.split(' ')[0]}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            <TabsContent value="all" className="mt-0">
-              <div className="space-y-6">
-                {Object.entries(analytics?.segments || {}).map(([categoryKey, segments]) => (
-                  <div key={categoryKey}>
-                    <h3 className="text-lg font-semibold text-text-primary mb-3 capitalize">
-                      {categoryKey.replace('_', ' ')} Segments
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {segments.slice(0, 6).map((segment) => renderSegmentCard(segment, categoryKey))}
-                    </div>
-                  </div>
-                ))}
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Active Customers</p>
+                <p className="text-2xl font-bold text-gray-900">{segmentationData.activeCustomers.toLocaleString()}</p>
               </div>
-            </TabsContent>
-
-            {Object.entries(analytics?.segments || {}).map(([categoryKey, segments]) => (
-              <TabsContent key={categoryKey} value={categoryKey} className="mt-0">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-text-primary capitalize">
-                      {categoryKey.replace('_', ' ')} Segments
-                    </h3>
-                    <Badge variant="secondary" className="text-xs">
-                      {segments.length} segments
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {segments.map((segment) => renderSegmentCard(segment, categoryKey))}
-                  </div>
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        </div>
+              <UserCheck className="w-8 h-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Segments</p>
+                <p className="text-2xl font-bold text-gray-900">{segmentationData.segments.length}</p>
+              </div>
+              <BarChart3 className="w-8 h-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Insights Section */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5" />
-            Segmentation Insights
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h4 className="font-semibold text-blue-800 mb-2">Top Growing Segment</h4>
-              <p className="text-sm text-blue-700">
-                High-value customers show 15% growth this month, driven by premium product interest.
-              </p>
+      {/* Filters and Controls */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search segments..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <h4 className="font-semibold text-green-800 mb-2">Conversion Opportunity</h4>
-              <p className="text-sm text-green-700">
-                35% of leads show strong purchase intent - ideal for targeted campaigns.
-              </p>
-            </div>
-            <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-              <h4 className="font-semibold text-orange-800 mb-2">At-Risk Segment</h4>
-              <p className="text-sm text-orange-700">
-                Inactive customers (12%) need re-engagement campaigns to prevent churn.
-              </p>
+            
+            <div className="flex items-center gap-3">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="demographic">Demographic</SelectItem>
+                  <SelectItem value="behavioral">Behavioral</SelectItem>
+                  <SelectItem value="transactional">Transactional</SelectItem>
+                  <SelectItem value="engagement">Engagement</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <Button
+                  variant={viewType === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewType('table')}
+                  className="h-8 px-3"
+                >
+                  <List className="w-4 h-4 mr-1" />
+                  Table
+                </Button>
+                <Button
+                  variant={viewType === 'cards' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewType('cards')}
+                  className="h-8 px-3"
+                >
+                  <Grid3X3 className="w-4 h-4 mr-1" />
+                  Cards
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Segments Display */}
+      {viewType === 'table' ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Segment</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Category</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Customers</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Percentage</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Growth</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Tags</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Last Updated</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSegments.map((segment) => {
+                    const CategoryIcon = getCategoryIcon(segment.category);
+                    const categoryColor = getCategoryColor(segment.category);
+                    const growthIcon = segment.growth > 0 ? ArrowUpRight : segment.growth < 0 ? ArrowDownRight : Minus;
+                    const growthColor = segment.growth > 0 ? 'text-green-600' : segment.growth < 0 ? 'text-red-600' : 'text-gray-600';
+                    
+                    return (
+                      <tr key={segment.id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4">
+                          <div>
+                            <div className="font-medium text-gray-900">{segment.name}</div>
+                            <div className="text-sm text-gray-600">{segment.description}</div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <CategoryIcon className="w-4 h-4 text-gray-600" />
+                            <Badge variant="secondary" className={categoryColor}>
+                              {segment.category}
+                            </Badge>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-gray-900">{segment.customerCount.toLocaleString()}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full" 
+                                style={{ width: `${segment.percentage}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm text-gray-600">{segment.percentage.toFixed(1)}%</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className={`flex items-center gap-1 ${growthColor}`}>
+                            {React.createElement(growthIcon, { className: 'w-4 h-4' })}
+                            <span className="text-sm font-medium">{Math.abs(segment.growth).toFixed(1)}%</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-wrap gap-1">
+                            {segment.tags.map((tag, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                <Tag className="w-3 h-3 mr-1" />
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm text-gray-600">{segment.lastUpdated}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleViewSegment(segment.name)}
+                              title="View segment details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleExportSegments()}
+                              title="Export segment data"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" title="More actions">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredSegments.map((segment) => {
+            const CategoryIcon = getCategoryIcon(segment.category);
+            const categoryColor = getCategoryColor(segment.category);
+            const growthIcon = segment.growth > 0 ? ArrowUpRight : segment.growth < 0 ? ArrowDownRight : Minus;
+            const growthColor = segment.growth > 0 ? 'text-green-600' : segment.growth < 0 ? 'text-red-600' : 'text-gray-600';
+            
+            return (
+              <Card key={segment.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg ${categoryColor}`}>
+                        <CategoryIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">{segment.name}</h4>
+                        <p className="text-xs text-gray-600">{segment.category}</p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className={categoryColor}>
+                      {segment.percentage.toFixed(1)}%
+                    </Badge>
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 mb-3">{segment.description}</p>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-bold text-gray-900">{segment.customerCount.toLocaleString()}</span>
+                      <div className={`flex items-center gap-1 ${growthColor}`}>
+                        {React.createElement(growthIcon, { className: 'w-3 h-3' })}
+                        <span className="text-xs font-medium">{Math.abs(segment.growth).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full" 
+                        style={{ width: `${segment.percentage}%` }}
+                      ></div>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-1">
+                      {segment.tags.map((tag, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          <Tag className="w-3 h-3 mr-1" />
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-xs text-gray-500">Updated: {segment.lastUpdated}</span>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2"
+                          onClick={() => handleViewSegment(segment.name)}
+                          title="View segment details"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          View
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2"
+                          onClick={() => handleExportSegments()}
+                          title="Export segment data"
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          Export
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2"
+                          title="More actions"
+                        >
+                          <MoreHorizontal className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      
+      {/* Segment Details Modal */}
+      <SegmentDetailsModal
+        open={showSegmentModal}
+        onClose={handleCloseSegmentModal}
+        segmentName={selectedSegment}
+        segmentData={segmentationData?.segments.find(s => s.name === selectedSegment)}
+      />
     </div>
   );
 }
