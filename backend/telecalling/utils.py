@@ -93,7 +93,7 @@ def get_recording_url(call_log_id, user):
         call_log = CallRequest.objects.get(id=call_log_id)
         
         # Check permissions
-        if user.role == 'telecaller' and call_log.telecaller != user:
+        if user.role == 'tele_calling' and call_log.telecaller != user:
             raise PermissionDenied("Access denied to this recording")
         
         # Check consent

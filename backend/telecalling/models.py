@@ -226,6 +226,30 @@ class Lead(models.Model):
         return f"{self.name} ({self.phone})"
 
 
+class LeadTransfer(models.Model):
+    """Model to track lead transfers from telecallers to sales personnel"""
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='transfers')
+    from_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='transfers_sent')
+    to_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='transfers_received')
+    transfer_reason = models.TextField(blank=True, help_text="Reason for transfer")
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+        ('completed', 'Completed'),
+    ], default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Lead Transfer'
+        verbose_name_plural = 'Lead Transfers'
+    
+    def __str__(self):
+        return f"Transfer {self.lead.name} from {self.from_user.get_full_name()} to {self.to_user.get_full_name()}"
+
+
 class LeadStatusHistory(models.Model):
     """Track status changes and notes for leads"""
     assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='status_history')
@@ -286,7 +310,7 @@ class CallRequest(models.Model):
     
     # Exotel integration
     exotel_call_id = models.CharField(max_length=100, blank=True)
-    bridge_url = models.URLField(blank=True)
+    bridge_url = models.URLField(blank=True, null=True)
     recording_url = models.URLField(blank=True)
     
     # Call metrics
@@ -380,7 +404,7 @@ class WebhookLog(models.Model):
         ('failed', 'Failed'),
     ], default='received')
     
-    error_message = models.TextField(blank=True)
+    error_message = models.TextField(blank=True, null=True)
     processed_at = models.DateTimeField(null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)

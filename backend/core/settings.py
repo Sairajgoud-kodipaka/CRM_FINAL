@@ -4,7 +4,7 @@ Django settings for Jewelry CRM project.
 
 import os
 from pathlib import Path
-from decouple import config
+from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,7 +18,7 @@ SECRET_KEY = config('SECRET_KEY', default='jewelry-crm-2024-production-secure-ke
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)  # Changed to True for development
 
-ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',') if host.strip()]
+ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1,testserver').split(',') if host.strip()]
 
 # Google Sheets Configuration
 GOOGLE_SHEETS_ID = config('GOOGLE_SHEETS_ID', default='16pJPUtjKmCTEntCwP4lzJf849pLiN38y4pmFHjQkefk')
@@ -427,7 +427,18 @@ EXOTEL_CONFIG = {
     'api_token': config('EXOTEL_API_TOKEN', default=''),
     'agent_number': config('EXOTEL_AGENT_NUMBER', default=''),
     'caller_id': config('EXOTEL_CALLER_ID', default=''),
+    'subdomain': config('EXOTEL_SUBDOMAIN', default='api.exotel.com'),  # api.exotel.com for Singapore or api.in.exotel.com for Mumbai
     'webhook_url': config('EXOTEL_WEBHOOK_URL', default=''),
     'webhook_secret': config('EXOTEL_WEBHOOK_SECRET', default=''),
     'record_calls': config('EXOTEL_RECORD_CALLS', default=True, cast=bool),
+    
+    # WebRTC Configuration for direct browser-to-phone calling
+    'webrtc_client_id': config('EXOTEL_WEBRTC_CLIENT_ID', default=''),
+    'webrtc_client_secret': config('EXOTEL_WEBRTC_CLIENT_SECRET', default=''),
+    'webrtc_customer_id': config('EXOTEL_WEBRTC_CUSTOMER_ID', default=''),
+    'webrtc_app_id': config('EXOTEL_WEBRTC_APP_ID', default=''),
+    'webrtc_user_id': config('EXOTEL_WEBRTC_USER_ID', default=''),
+    'webrtc_sip_username': config('EXOTEL_WEBRTC_SIP_USERNAME', default=''),
+    'webrtc_sip_password': config('EXOTEL_WEBRTC_SIP_PASSWORD', default=''),
+    'webrtc_enabled': config('EXOTEL_WEBRTC_ENABLED', default=False, cast=bool),
 }

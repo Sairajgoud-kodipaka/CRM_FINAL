@@ -5,14 +5,18 @@ from rest_framework.views import APIView
 from django.db.models import Q, Count, Avg, F
 from django.utils import timezone
 from datetime import datetime, timedelta
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from .models import (
     CustomerVisit, Assignment, CallLog, FollowUp, 
-    CustomerProfile, Notification, Analytics
+    CustomerProfile, Notification, Analytics, Lead, LeadTransfer
 )
 from .serializers import (
     CustomerVisitSerializer, AssignmentSerializer, CallLogSerializer, FollowUpSerializer,
     CustomerProfileSerializer, NotificationSerializer, AnalyticsSerializer,
-    BulkAssignmentSerializer, AssignmentStatsSerializer, DashboardDataSerializer
+    BulkAssignmentSerializer, AssignmentStatsSerializer, DashboardDataSerializer,
+    LeadSerializer, LeadDetailSerializer, LeadTransferSerializer, LeadTransferCreateSerializer
 )
 
 class CustomerVisitViewSet(viewsets.ModelViewSet):
@@ -629,3 +633,230 @@ class TelecallerDashboardLegacyView(APIView):
         }
         
         return Response(data)
+
+
+class LeadTransferViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing lead transfers from telecallers to sales personnel"""
+    queryset = LeadTransfer.objects.all()
+    serializer_class = LeadTransferSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'manager':
+            # Managers can see all transfers in their tenant
+            return LeadTransfer.objects.filter(
+                lead__assigned_to__tenant=user.tenant
+            )
+        elif user.role == 'tele_calling':
+            # Telecallers can see transfers they sent or received
+            return LeadTransfer.objects.filter(
+                Q(from_user=user) | Q(to_user=user)
+            )
+        elif user.role == 'inhouse_sales':
+            # Sales people can see transfers sent to them
+            return LeadTransfer.objects.filter(to_user=user)
+        return LeadTransfer.objects.none()
+
+    @action(detail=False, methods=['post'])
+    def transfer_lead(self, request):
+        """Transfer a lead to a sales person"""
+        serializer = LeadTransferCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            lead_id = serializer.validated_data['lead_id']
+            to_user_id = serializer.validated_data['to_user_id']
+            transfer_reason = serializer.validated_data.get('transfer_reason', '')
+            
+            try:
+                lead = Lead.objects.get(id=lead_id)
+                to_user = User.objects.get(id=to_user_id)
+                
+                # Check if user has permission to transfer this lead
+                if request.user.role not in ['tele_calling', 'manager']:
+                    return Response(
+                        {'error': 'Only telecallers and managers can transfer leads'}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                
+                # Check if lead belongs to the same tenant
+                if lead.assigned_to and lead.assigned_to.tenant != to_user.tenant:
+                    return Response(
+                        {'error': 'Cannot transfer lead to user from different tenant'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Create transfer record
+                transfer = LeadTransfer.objects.create(
+                    lead=lead,
+                    from_user=request.user,
+                    to_user=to_user,
+                    transfer_reason=transfer_reason
+                )
+                
+                # Update lead assignment
+                lead.assigned_to = to_user
+                lead.assigned_at = timezone.now()
+                lead.status = 'qualified'  # Mark as qualified when transferred to sales
+                lead.save()
+                
+                # Create a Client record for the sales person to see
+                from apps.clients.models import Client
+                from apps.tenants.models import Tenant
+                
+                # Check if client already exists for this lead
+                existing_client = Client.objects.filter(
+                    phone=lead.phone,
+                    tenant=to_user.tenant
+                ).first()
+                
+                if not existing_client:
+                    # Create new client from lead data
+                    client_data = {
+                        'first_name': lead.name.split(' ')[0] if lead.name else '',
+                        'last_name': ' '.join(lead.name.split(' ')[1:]) if lead.name and len(lead.name.split(' ')) > 1 else '',
+                        'email': lead.email or f"{lead.phone}@example.com",  # Use phone as email if no email
+                        'phone': lead.phone,
+                        'lead_source': lead.source,
+                        'assigned_to': to_user,
+                        'created_by': request.user,
+                        'tenant': to_user.tenant,
+                        'store': to_user.store,
+                        'status': 'GENERAL',
+                        'notes': f"Transferred from telecalling lead. Original source: {lead.source}",
+                    }
+                    
+                    # Add city if available
+                    if lead.city:
+                        client_data['catchment_area'] = lead.city
+                    
+                    # Add tags if available
+                    if lead.tags:
+                        client_data['notes'] += f"\nOriginal tags: {', '.join(lead.tags)}"
+                    
+                    client = Client.objects.create(**client_data)
+                    print(f"✅ Created client {client.id} for transferred lead {lead.name}")
+                else:
+                    # Update existing client assignment
+                    existing_client.assigned_to = to_user
+                    existing_client.save()
+                    print(f"✅ Updated existing client {existing_client.id} assignment for transferred lead {lead.name}")
+                
+                return Response({
+                    'message': 'Lead transferred successfully',
+                    'transfer_id': transfer.id
+                }, status=status.HTTP_201_CREATED)
+                
+            except Lead.DoesNotExist:
+                return Response(
+                    {'error': 'Lead not found'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            except User.DoesNotExist:
+                return Response(
+                    {'error': 'Target user not found'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
+    def accept_transfer(self, request, pk=None):
+        """Accept a lead transfer"""
+        transfer = self.get_object()
+        
+        if transfer.to_user != request.user:
+            return Response(
+                {'error': 'You can only accept transfers sent to you'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if transfer.status != 'pending':
+            return Response(
+                {'error': 'Transfer is not pending'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        transfer.status = 'accepted'
+        transfer.save()
+        
+        # Create notification for the sender
+        Notification.objects.create(
+            recipient=transfer.from_user,
+            title="Transfer Accepted",
+            message=f"Your transfer of {transfer.lead.name} has been accepted",
+            notification_type='transfer_accepted',
+            related_transfer=transfer
+        )
+        
+        return Response({'message': 'Transfer accepted successfully'})
+
+    @action(detail=True, methods=['post'])
+    def reject_transfer(self, request, pk=None):
+        """Reject a lead transfer"""
+        transfer = self.get_object()
+        
+        if transfer.to_user != request.user:
+            return Response(
+                {'error': 'You can only reject transfers sent to you'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if transfer.status != 'pending':
+            return Response(
+                {'error': 'Transfer is not pending'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        transfer.status = 'rejected'
+        transfer.save()
+        
+        # Revert lead assignment
+        lead = transfer.lead
+        lead.assigned_to = transfer.from_user
+        lead.status = 'contacted'  # Revert to contacted status
+        lead.save()
+        
+        # Create notification for the sender
+        Notification.objects.create(
+            recipient=transfer.from_user,
+            title="Transfer Rejected",
+            message=f"Your transfer of {transfer.lead.name} has been rejected",
+            notification_type='transfer_rejected',
+            related_transfer=transfer
+        )
+        
+        return Response({'message': 'Transfer rejected successfully'})
+
+
+class SalesPersonListView(APIView):
+    """API view to get list of sales persons for transfer dropdown"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        user = request.user
+        
+        # Only telecallers and managers can see sales persons
+        if user.role not in ['tele_calling', 'manager']:
+            return Response(
+                {'error': 'Access denied'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get sales persons from the same tenant
+        sales_persons = User.objects.filter(
+            role=User.Role.INHOUSE_SALES,
+            tenant=user.tenant,
+            is_active=True
+        ).values('id', 'first_name', 'last_name', 'email', 'username')
+        
+        # Format the response
+        sales_list = []
+        for person in sales_persons:
+            sales_list.append({
+                'id': person['id'],
+                'name': f"{person['first_name']} {person['last_name']}".strip() or person['username'],
+                'email': person['email'],
+                'username': person['username']
+            })
+        
+        return Response(sales_list)

@@ -1034,27 +1034,20 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           console.log(`✅ Loaded ${options.length} sales users globally`);
         }
       } else if (['inhouse_sales', 'tele_calling'].includes(user.role)) {
-        // Sales Users: Load all sales users in their tenant or globally
-        console.log(`👤 ${user.role}: Loading sales users...`);
+        // Sales Users: They don't have permission to access any sales users APIs
+        console.log(`👤 ${user.role}: Sales users cannot access sales users APIs - using fallback`);
         
-        // Try to get tenant sales users first
-        if (user.tenant) {
-          console.log('🏢 Trying tenant sales users first...');
-          apiResponse = await safeApiCall(() => apiService.getTenantSalesUsers(user.tenant || 0));
-          if (apiResponse?.success && apiResponse.data?.users) {
-            options = apiResponse.data.users;
-            console.log(`✅ Loaded ${options.length} sales users from tenant`);
-          }
-        }
-        
-        // If no tenant data or no tenant, try global sales users
-        if (options.length === 0) {
-          console.log('🌐 Trying global sales users...');
-          apiResponse = await safeApiCall(() => apiService.getAllSalesUsers());
-          if (apiResponse?.success && apiResponse.data?.users) {
-            options = apiResponse.data.users;
-            console.log(`✅ Loaded ${options.length} sales users globally`);
-          }
+        // Sales users can only assign customers to themselves (no access to other sales users)
+        if (user) {
+          options = [{
+            id: user.id,
+            username: user.username,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            role: user.role,
+            name: `${user.first_name} ${user.last_name}`.trim() || user.username
+          }];
+          console.log('🔄 Using current user as salesperson option (sales users can only assign to themselves)');
         }
       }
       

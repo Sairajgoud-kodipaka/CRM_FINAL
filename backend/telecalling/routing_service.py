@@ -109,7 +109,7 @@ class AdvancedCallRouter:
         ).values_list('telecaller_id', flat=True)
         
         available_agents = User.objects.filter(
-            role='telecaller',
+            role='tele_calling',
             is_active=True
         ).exclude(
             id__in=active_calls
@@ -497,3 +497,4 @@ class CallDistributionService:
 # Initialize services
 call_router = AdvancedCallRouter()
 distribution_service = CallDistributionService()
+

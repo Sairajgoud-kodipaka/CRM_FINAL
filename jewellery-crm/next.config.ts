@@ -13,6 +13,34 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   
+  // Webpack configuration for WebRTC SDK
+  webpack: (config, { isServer }) => {
+    // Handle audio files from WebRTC SDK
+    config.module.rules.push({
+      test: /\.(wav|mp3|ogg|m4a)$/,
+      type: 'asset/resource',
+      generator: {
+        filename: 'static/audio/[name].[hash][ext]',
+      },
+    });
+
+    // Handle WebRTC SDK modules
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+      crypto: false,
+    };
+
+    // Exclude problematic modules from server-side rendering
+    if (isServer) {
+      config.externals = [...(config.externals || []), '@exotel-npm-dev/webrtc-core-sdk'];
+    }
+
+    return config;
+  },
+  
   // Security headers
   async headers() {
     return [
