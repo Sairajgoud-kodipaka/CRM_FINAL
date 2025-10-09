@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { apiService } from '@/lib/api-service';
 import { Bell, Plus, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/useAuth';
 
 interface AddAnnouncementModalProps {
@@ -29,6 +29,7 @@ interface AnnouncementFormData {
 }
 
 export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModalProps) {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<AnnouncementFormData>({
@@ -72,7 +73,11 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
       console.log('Create announcement response:', response);
 
       if (response.success) {
-        toast.success('Announcement created successfully!');
+        toast({
+          title: "Success",
+          description: "Announcement created successfully!",
+          variant: "success",
+        });
         setOpen(false);
         setFormData({
           title: '',

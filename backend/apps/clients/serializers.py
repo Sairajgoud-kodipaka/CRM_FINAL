@@ -349,9 +349,9 @@ class ClientSerializer(serializers.ModelSerializer):
             else:
                 print("User has no store, store will be null")
             
-            # ALWAYS assign created_by in create method
-            validated_data['created_by'] = request.user
-            print(f"Assigned created_by in create: {request.user}")
+            # Don't assign created_by here - let the view's perform_create handle it
+            # This allows the view to set the correct salesperson
+            print(f"Not setting created_by in serializer - will be handled by view's perform_create")
         else:
             print("No authenticated user, creating default tenant in create")
             from apps.tenants.models import Tenant

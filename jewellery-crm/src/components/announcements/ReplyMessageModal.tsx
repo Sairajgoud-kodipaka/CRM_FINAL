@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { apiService } from '@/lib/api-service';
 import { MessageSquare, Reply, Send } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 
 interface ReplyMessageModalProps {
   message: {
@@ -29,6 +29,7 @@ interface ReplyFormData {
 }
 
 export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageModalProps) {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<ReplyFormData>({
@@ -55,7 +56,11 @@ export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageMo
       });
 
       if (response.success) {
-        toast.success('Reply sent successfully!');
+        toast({
+          title: "Success",
+          description: "Reply sent successfully!",
+          variant: "success",
+        });
         setOpen(false);
         setFormData({
           content: '',

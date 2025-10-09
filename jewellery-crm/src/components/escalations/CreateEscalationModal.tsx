@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { apiService } from '@/lib/api-service';
 import { AlertTriangle, Plus, User, Clock } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 
 interface CreateEscalationModalProps {
   onSuccess?: () => void;
@@ -32,6 +32,7 @@ interface Client {
 }
 
 export default function CreateEscalationModal({ onSuccess }: CreateEscalationModalProps) {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
@@ -78,7 +79,11 @@ export default function CreateEscalationModal({ onSuccess }: CreateEscalationMod
       });
 
       if (response.success) {
-        toast.success('Escalation created successfully!');
+        toast({
+          title: "Success",
+          description: "Escalation created successfully!",
+          variant: "success",
+        });
         setOpen(false);
         setFormData({
           title: '',

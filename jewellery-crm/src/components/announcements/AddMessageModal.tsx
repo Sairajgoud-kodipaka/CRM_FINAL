@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { apiService } from '@/lib/api-service';
 import { MessageSquare, Plus, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 
 interface AddMessageModalProps {
   onSuccess?: () => void;
@@ -25,6 +25,7 @@ interface MessageFormData {
 }
 
 export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<MessageFormData>({
@@ -52,7 +53,11 @@ export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
       });
 
       if (response.success) {
-        toast.success('Message sent successfully!');
+        toast({
+          title: "Success",
+          description: "Message sent successfully!",
+          variant: "success",
+        });
         setOpen(false);
         setFormData({
           subject: '',

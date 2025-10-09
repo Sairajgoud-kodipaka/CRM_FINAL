@@ -894,7 +894,7 @@ class ApiService {
   }
 
   async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    const response = await this.request('/clients/clients/', {
+    const response = await this.request<Client>('/clients/clients/', {
       method: 'POST',
       body: JSON.stringify(clientData),
     });
@@ -916,7 +916,7 @@ class ApiService {
   }
 
   async updateClient(id: string, clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    const response = await this.request(`/clients/clients/${id}/`, {
+    const response = await this.request<Client>(`/clients/clients/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(clientData),
     });
@@ -938,7 +938,7 @@ class ApiService {
   }
 
   async deleteClient(id: string): Promise<ApiResponse<void>> {
-    const response = await this.request(`/clients/clients/${id}/`, {
+    const response = await this.request<void>(`/clients/clients/${id}/`, {
       method: 'DELETE',
     });
     
@@ -2250,6 +2250,11 @@ class ApiService {
   // Get all sales users (platform admin only)
   async getAllSalesUsers(): Promise<ApiResponse<User[]>> {
     return this.request('/users/sales-users/');
+  }
+
+  // Get salespersons for current user's tenant and store context
+  async getSalesPersonsForContext(): Promise<ApiResponse<User[]>> {
+    return this.request('/users/salespersons/context/');
   }
   
   // Log assignment override for audit trail

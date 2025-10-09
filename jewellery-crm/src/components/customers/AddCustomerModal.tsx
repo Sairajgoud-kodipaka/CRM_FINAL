@@ -194,6 +194,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   
   // State for API data
   const [salesPersons, setSalesPersons] = useState<string[]>([]);
+  const [salesPersonOptions, setSalesPersonOptions] = useState<Array<{id: number, name: string, username: string}>>([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -651,6 +652,23 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         catchment_area: formData.catchmentArea,
         pincode: formData.pincode,
         sales_person: formData.salesPerson,
+        sales_person_id: (() => {
+          // Find the selected salesperson's ID from the options
+          console.log('🔍 DEBUG: Calculating sales_person_id');
+          console.log('🔍 DEBUG: formData.salesPerson:', formData.salesPerson);
+          console.log('🔍 DEBUG: salesPersonOptions:', salesPersonOptions);
+          
+          const selectedOption = salesPersonOptions.find(option => {
+            console.log(`🔍 DEBUG: Comparing "${option.name}" with "${formData.salesPerson}"`);
+            return option.name === formData.salesPerson;
+          });
+          console.log('🔍 DEBUG: selectedOption:', selectedOption);
+          
+          const salesPersonId = selectedOption ? selectedOption.id : null;
+          console.log('🔍 DEBUG: sales_person_id result:', salesPersonId);
+          
+          return salesPersonId;
+        })(),
         reason_for_visit: formData.reasonForVisit,
         customer_status: formData.customerStatus,
         lead_source: formData.leadSource,
@@ -689,10 +707,18 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         assignment_audit: assignmentAudit, // Include assignment audit
       };
 
+      console.log('🔍 DEBUG: Final customerData being sent:', customerData);
+      console.log('🔍 DEBUG: sales_person_id in customerData:', customerData.sales_person_id);
+      console.log('🔍 DEBUG: sales_person in customerData:', customerData.sales_person);
+
       // Remove undefined values to avoid sending them to API
       const cleanedCustomerData = Object.fromEntries(
         Object.entries(customerData).filter(([_, value]) => value !== undefined)
       );
+
+      console.log('🔍 DEBUG: cleanedCustomerData being sent to API:', cleanedCustomerData);
+      console.log('🔍 DEBUG: sales_person_id in cleaned data:', cleanedCustomerData.sales_person_id);
+      console.log('🔍 DEBUG: sales_person in cleaned data:', cleanedCustomerData.sales_person);
 
               // Sending customer data to API
       
@@ -954,182 +980,146 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     }
     
     try {
-      let options: any[] = [];
-      let apiResponse: any = null;
-      
       console.log('🔍 DEBUG: Starting loadSalesPersonOptions');
       console.log('🔍 DEBUG: User:', user);
       console.log('🔍 DEBUG: User ID:', user.id);
       console.log('🔍 DEBUG: User Role:', user.role);
-      console.log('🔍 DEBUG: User object keys:', Object.keys(user));
+      console.log('🔍 DEBUG: User Tenant:', user.tenant);
+      console.log('🔍 DEBUG: User Store:', user.store);
       
-      // Implement deterministic dropdown logic based on role
-      if (user.role === 'manager') {
-        // Manager: Only their specific team members
-        console.log('👥 Manager: Loading specific team members...');
-        console.log('🔍 DEBUG: Calling apiService.getTeamMembers with manager ID:', user.id);
+      // Use the new context-aware API method
+      console.log('🎯 Using context-aware salespersons API...');
+      const apiResponse = await apiService.getSalesPersonsForContext();
+      
+      console.log('🔍 DEBUG: API Response:', apiResponse);
+      
+      if (apiResponse?.success && apiResponse.data) {
+        let options: any[] = [];
         
-        console.log('🔍 DEBUG: About to call apiService.getTeamMembers()');
-        try {
-          apiResponse = await apiService.getTeamMembers(user.id || 0);
-          console.log('🔍 DEBUG: API call completed successfully');
-        } catch (error) {
-          console.error('🔍 DEBUG: API call failed with error:', error);
-          apiResponse = null;
+        // Handle different response formats
+        if (Array.isArray(apiResponse.data)) {
+          options = apiResponse.data;
+        } else if (apiResponse.data && typeof apiResponse.data === 'object' && 'users' in apiResponse.data && Array.isArray((apiResponse.data as any).users)) {
+          options = (apiResponse.data as any).users;
+        } else if (apiResponse.data && typeof apiResponse.data === 'object' && 'results' in apiResponse.data && Array.isArray((apiResponse.data as any).results)) {
+          options = (apiResponse.data as any).results;
         }
         
-        console.log('🔍 DEBUG: Raw API Response:', apiResponse);
-        console.log('🔍 DEBUG: API Response success:', apiResponse?.success);
-        console.log('🔍 DEBUG: API Response data:', apiResponse?.data);
-        console.log('🔍 DEBUG: API Response data type:', typeof apiResponse?.data);
-        console.log('🔍 DEBUG: API Response data is array:', Array.isArray(apiResponse?.data));
+        console.log(`✅ Loaded ${options.length} salespersons for current context`);
+        console.log('🔍 DEBUG: Salespersons:', options);
         
-        if (apiResponse?.success && apiResponse.data) {
-          // Handle manager-specific team members response
-          if (apiResponse.data.users && Array.isArray(apiResponse.data.users)) {
-            options = apiResponse.data.users;
-            console.log(`✅ Loaded ${options.length} specific team members for manager`);
-            console.log('🔍 DEBUG: Manager-specific team members:', options);
-            console.log('🔍 DEBUG: Manager name:', apiResponse.data.manager_name);
-            console.log('🔍 DEBUG: Access level:', apiResponse.data.access_level);
-          } else {
-            console.log('❌ Manager-specific API response format unexpected');
-            console.log('❌ Data structure:', apiResponse.data);
-          }
-        } else {
-          console.log('❌ Manager-specific API Response validation failed');
-          console.log('❌ Success:', apiResponse?.success);
-          console.log('❌ Data:', apiResponse?.data);
+        if (options.length > 0) {
+          // Filter to only include inhouse_sales role users (exclude tele_calling)
+          const salesRoleUsers = options.filter((u: any) => 
+            u.role === 'inhouse_sales'
+          );
           
-          // Fallback to general team members list if manager-specific fails
-          console.log('🔄 Falling back to general team members list...');
-          try {
-            const fallbackResponse = await apiService.listTeamMembers();
-            if (fallbackResponse?.success && fallbackResponse.data) {
-              if (Array.isArray(fallbackResponse.data)) {
-                options = fallbackResponse.data;
-              } else if (typeof fallbackResponse.data === 'object' && fallbackResponse.data !== null && 'results' in fallbackResponse.data && Array.isArray((fallbackResponse.data as any).results)) {
-                options = (fallbackResponse.data as any).results;
-              }
-              console.log(`✅ Fallback loaded ${options.length} team members`);
+          console.log(`✅ Filtered to ${salesRoleUsers.length} sales role users`);
+          
+          // Create display names with context information and store user data
+          const names = salesRoleUsers.map((u: any) => {
+            const fullName = `${u.first_name || ''} ${u.last_name || ''}`.trim();
+            const displayName = fullName || u.username || u.name || `User ${u.id}`;
+            
+            // Add context information for managers and admins
+            if (['manager', 'business_admin', 'platform_admin'].includes(user.role)) {
+              const storeInfo = u.store ? ` (${u.store})` : '';
+              const tenantInfo = u.tenant ? ` [${u.tenant}]` : '';
+              return `${displayName}${storeInfo}${tenantInfo}`;
             }
-          } catch (fallbackError) {
-            console.error('❌ Fallback also failed:', fallbackError);
-          }
-        }
-      } else if (user.role === 'business_admin' && user.tenant) {
-        // Business Admin: All sales users in their tenant
-        console.log('🏢 Business Admin: Loading tenant sales users...');
-        apiResponse = await safeApiCall(() => apiService.getTenantSalesUsers(user.tenant || 0));
-        if (apiResponse?.success && apiResponse.data?.users) {
-          options = apiResponse.data.users;
-          console.log(`✅ Loaded ${options.length} sales users in tenant`);
-        }
-      } else if (user.role === 'platform_admin') {
-        // Platform Admin: All sales users globally
-        console.log('🌐 Platform Admin: Loading all sales users...');
-        apiResponse = await safeApiCall(() => apiService.getAllSalesUsers());
-        if (apiResponse?.success && apiResponse.data?.users) {
-          options = apiResponse.data.users;
-          console.log(`✅ Loaded ${options.length} sales users globally`);
-        }
-      } else if (['inhouse_sales', 'tele_calling'].includes(user.role)) {
-        // Sales Users: They don't have permission to access any sales users APIs
-        console.log(`👤 ${user.role}: Sales users cannot access sales users APIs - using fallback`);
-        
-        // Sales users can only assign customers to themselves (no access to other sales users)
-        if (user) {
-          options = [{
-            id: user.id,
-            username: user.username,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            role: user.role,
-            name: `${user.first_name} ${user.last_name}`.trim() || user.username
-          }];
-          console.log('🔄 Using current user as salesperson option (sales users can only assign to themselves)');
-        }
-      }
-      
-      // For managers, use all team members (not just sales users)
-      let finalOptions = options;
-      
-      if (user.role === 'manager') {
-        // For managers, use all team members as they are the manager's team
-        console.log('👥 Manager: Using all team members as salesperson options');
-        finalOptions = options;
-      } else {
-        // For other roles, filter to only include sales users
-        finalOptions = options.filter((u: any) => 
-          ['inhouse_sales', 'tele_calling'].includes(u.role)
-        );
-      }
-      
-      console.log('🔍 DEBUG: Final options after filtering:', finalOptions);
-      
-      if (finalOptions.length > 0) {
-        // Use real API options
-        let names: string[];
-        if (user.role === 'manager') {
-          // Manager-specific endpoint returns users with 'name' field
-          names = finalOptions.map((u: any) => u.name || u.username || `User ${u.id}`);
-        } else {
-          // Other endpoints return users with 'first_name' and 'last_name' fields
-          names = finalOptions.map((u: any) => u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || `User ${u.id}`);
-        }
-        console.log('🔍 DEBUG: About to set salesPersons with names:', names);
-        setSalesPersons(names);
-        console.log(`✅ Set ${finalOptions.length} salesperson options:`, names);
-        console.log('🔍 DEBUG: salesPersons state should now be updated');
-      } else {
-        // If no sales users found from API, provide fallback options
-        if (['inhouse_sales', 'tele_calling'].includes(user.role)) {
-          // For sales users, include themselves and some default options
-          const fallbackOptions = [
-            user.name || 'Current User',
-            'Sales Person 1',
-            'Sales Person 2', 
-            'Sales Person 3'
-          ];
-          setSalesPersons(fallbackOptions);
-          console.log('✅ Added fallback options for sales user:', fallbackOptions);
-        } else {
-          // No sales users found - show appropriate message
-          setSalesPersons([]);
-          console.log('⚠️ No sales users found for the current role/scope');
+            
+            return displayName;
+          });
           
-          // Show user-friendly message based on role
-          if (user.role === 'manager') {
-            toast({
-              title: "No Team Members",
-              description: "You don't have any sales team members assigned yet. Please contact your administrator.",
-              variant: "warning",
-            });
+          // Store both display names and user data
+          setSalesPersons(names);
+          setSalesPersonOptions(salesRoleUsers.map((u: any) => ({
+            id: u.id,
+            name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || `User ${u.id}`,
+            username: u.username
+          })));
+          console.log(`✅ Set ${names.length} salesperson options:`, names);
+          console.log(`✅ Stored salesperson data:`, salesRoleUsers.map(u => ({id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), username: u.username})));
+          
+          // Show context info to user based on their role
+          let contextMessage = '';
+          if (user.role === 'platform_admin') {
+            contextMessage = `Found ${names.length} salespersons across all tenants`;
           } else if (user.role === 'business_admin') {
-            toast({
-              title: "No Sales Users",
-              description: "No sales users found in your tenant. Please add sales users first.",
-              variant: "warning",
-            });
+            contextMessage = `Found ${names.length} salespersons in your tenant${user.tenant ? ` (${user.tenant})` : ''}`;
+          } else if (user.role === 'manager') {
+            contextMessage = `Found ${names.length} salespersons in your ${user.store ? `store (${user.store})` : 'tenant'}`;
+          } else if (['inhouse_sales', 'tele_calling', 'sales'].includes(user.role)) {
+            contextMessage = `Found ${names.length} salespersons in your ${user.store ? `store (${user.store})` : 'tenant'}`;
           }
+          
+          toast({
+            title: "Sales Team Loaded",
+            description: contextMessage,
+            variant: "default",
+          });
+        } else {
+          // No salespersons found
+          setSalesPersons([]);
+          console.log('⚠️ No salespersons found for current context');
+          
+          let noSalesMessage = '';
+          if (user.role === 'platform_admin') {
+            noSalesMessage = 'No salespersons found across all tenants.';
+          } else if (user.role === 'business_admin') {
+            noSalesMessage = `No salespersons found in your tenant${user.tenant ? ` (${user.tenant})` : ''}.`;
+          } else if (user.role === 'manager') {
+            noSalesMessage = `No salespersons found in your ${user.store ? `store (${user.store})` : 'tenant'}.`;
+          } else {
+            noSalesMessage = 'No salespersons available for assignment.';
+          }
+          
+          toast({
+            title: "No Sales Team",
+            description: `${noSalesMessage} Please contact your administrator.`,
+            variant: "warning",
+          });
+        }
+      } else {
+        console.log('❌ API Response validation failed');
+        console.log('❌ Success:', apiResponse?.success);
+        console.log('❌ Data:', apiResponse?.data);
+        
+        // Fallback for sales users - they can see all salespersons in their store
+        if (['inhouse_sales', 'tele_calling', 'sales'].includes(user.role)) {
+          const selfOption = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Current User';
+          setSalesPersons([selfOption]);
+          console.log('🔄 Using fallback for sales user:', selfOption);
+        } else {
+          setSalesPersons([]);
+          console.log('⚠️ No fallback available for current role');
+          
+          toast({
+            title: "Failed to Load Sales Team",
+            description: "Unable to load salesperson data. Please check your connection and try again.",
+            variant: "destructive",
+          });
         }
       }
-      
-      // Log the role-based assignment scope
-      console.log(`🎯 Role-based assignment scope: ${user.role}`);
-      console.log(`📊 Available options: ${finalOptions.length} sales users`);
       
     } catch (error) {
       console.error('Salesperson options loading failed:', error);
-      // Don't set hardcoded options - keep empty array
-      setSalesPersons([]);
       
-      // Show error message to user
-      toast({
-        title: "Failed to Load Sales Team",
-        description: "Unable to load salesperson data. Please check your connection and try again.",
-        variant: "destructive",
-      });
+      // Fallback for sales users
+      if (['inhouse_sales', 'tele_calling', 'sales'].includes(user.role)) {
+        const selfOption = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Current User';
+        setSalesPersons([selfOption]);
+        console.log('🔄 Using fallback for sales user:', selfOption);
+      } else {
+        setSalesPersons([]);
+        console.log('❌ No fallback available');
+        
+        toast({
+          title: "Failed to Load Sales Team",
+          description: "Unable to load salesperson data. Please check your connection and try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -1454,9 +1444,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </SelectContent>
               </Select>
               <div className="mt-1 text-xs text-gray-500">
-                {user?.role === 'manager' ? '👥 Your team members only' :
-                 user?.role === 'business_admin' ? '🏢 Tenant sales team' :
-                 user?.role === 'platform_admin' ? '🌐 All sales users' :
+                {user?.role === 'platform_admin' ? '🌐 All salespersons across all tenants' :
+                 user?.role === 'business_admin' ? '🏢 All salespersons in your tenant' :
+                 user?.role === 'manager' ? '👥 Salespersons in your store/tenant' :
+                 user?.role === 'inhouse_sales' || user?.role === 'tele_calling' || user?.role === 'sales' ? '👥 All salespersons in your store' :
                  '👤 Available sales team'}
               </div>
             </div>
