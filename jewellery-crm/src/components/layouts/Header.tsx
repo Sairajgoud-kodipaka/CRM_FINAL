@@ -7,7 +7,6 @@
  * Key Features:
  * - Global search functionality
  * - Notification center
- * - Quick actions menu
  * - User profile dropdown
  * - Mobile-responsive design
  */
@@ -16,15 +15,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { 
   Search,
   Menu,
-  Plus,
-  MessageSquare,
-  Calendar,
-  Users,
-  Package,
   Settings,
   HelpCircle,
   Sun,
@@ -51,38 +46,6 @@ interface HeaderProps {
 }
 
 /**
- * Quick action items for the plus menu
- */
-const quickActions = [
-  {
-    title: 'Add Customer',
-    href: '/customers/new',
-    icon: Users,
-    description: 'Create a new customer profile',
-  },
-  {
-    title: 'Book Appointment',
-    href: '/appointments/new',
-    icon: Calendar,
-    description: 'Schedule an appointment',
-  },
-  {
-    title: 'Add Product',
-    href: '/products/new',
-    icon: Package,
-    description: 'Add new product to catalog',
-  },
-  {
-    title: 'Send WhatsApp',
-    href: '/whatsapp/compose',
-    icon: MessageSquare,
-    description: 'Send WhatsApp message',
-  },
-];
-
-
-
-/**
  * Header Component
  * 
  * Renders the top navigation bar with search, actions, and user menu.
@@ -93,9 +56,16 @@ export function Header({
   className 
 }: HeaderProps) {
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { user, logout } = useAuth();
+
+  // Prevent hydration mismatch by only rendering theme-dependent content after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
 
 
@@ -125,6 +95,7 @@ export function Header({
   };
 
   const handleSidebarToggle = () => {
+    console.log('🔥 SIDEBAR TOGGLE CLICKED!', { onSidebarToggle });
     if (onSidebarToggle) {
       onSidebarToggle();
     }
@@ -136,31 +107,30 @@ export function Header({
       'border-b border-border',
       className
     )}>
-      <div className="flex h-16 items-center justify-between px-6">
+      <div className="flex h-16 items-center justify-between px-3 sm:px-4 lg:px-6">
         {/* Left Section */}
-        <div className="flex items-center space-x-4">
-                     {/* Mobile Sidebar Toggle */}
-           {showSidebarToggle && (
-             <Button
-               id="sidebar-toggle"
-               variant="ghost"
-               size="icon"
-               onClick={handleSidebarToggle}
-                               className="lg:hidden"
-             >
-               <Menu className="h-5 w-5" />
-               <span className="sr-only">Toggle sidebar</span>
-             </Button>
-           )}
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+          {/* Mobile/Tablet Sidebar Toggle */}
+          {showSidebarToggle && (
+            <Button
+              id="sidebar-toggle"
+              variant="ghost"
+              size="icon"
+              onClick={handleSidebarToggle}
+              className="h-9 w-9 touch-manipulation flex-shrink-0"
+            >
+              <Menu className="h-4 w-4" />
+              <span className="sr-only">Toggle sidebar</span>
+            </Button>
+          )}
 
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="relative">
+          {/* Search Bar - Responsive sizing with proper constraints */}
+          <form onSubmit={handleSearch} className="relative flex-1 min-w-0 max-w-sm sm:max-w-md lg:max-w-lg">
             <div className={cn(
-              'relative flex items-center',
-              'w-64 lg:w-80 xl:w-96',
+              'relative flex items-center w-full',
               isSearchFocused && 'z-50'
             )}>
-              <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2 sm:left-3 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Search customers, products, orders..."
@@ -169,9 +139,10 @@ export function Header({
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setIsSearchFocused(false)}
                 className={cn(
-                  'pl-10 pr-4 py-2 w-full',
+                  'pl-6 sm:pl-10 pr-3 sm:pr-4 py-2 w-full',
                   'focus:ring-2 focus:ring-primary/20 focus:border-primary',
-                  'transition-all duration-200'
+                  'transition-all duration-200',
+                  'text-xs sm:text-sm'
                 )}
               />
             </div>
@@ -200,95 +171,76 @@ export function Header({
           </form>
         </div>
 
-        {/* Right Section */}
-        <div className="flex items-center space-x-2">
-          {/* Quick Actions Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="relative">
-                <Plus className="h-4 w-4" />
-                <span className="sr-only">Quick actions</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {quickActions.map((action) => (
-                <DropdownMenuItem key={action.href} asChild>
-                  <a href={action.href} className="flex items-start space-x-3 p-3">
-                    <action.icon className="h-5 w-5 mt-0.5 text-muted-foreground" />
-                    <div className="space-y-1">
-                      <div className="font-medium">{action.title}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {action.description}
-                      </div>
-                    </div>
-                  </a>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
+        {/* Right Section - Responsive controls with proper spacing */}
+        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
           {/* Notifications */}
           <NotificationBell />
 
           {/* Theme Toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9">
+                {mounted ? (
+                  <>
+                    <Sun className="h-3 w-3 sm:h-4 sm:w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-3 w-3 sm:h-4 sm:w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  </>
+                ) : (
+                  <Sun className="h-3 w-3 sm:h-4 sm:w-4" />
+                )}
                 <span className="sr-only">Toggle theme</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('light')}>
                 <Sun className="mr-2 h-4 w-4" />
                 Light
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('dark')}>
                 <Moon className="mr-2 h-4 w-4" />
                 Dark
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('system')}>
                 <Settings className="mr-2 h-4 w-4" />
                 System
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Help Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <HelpCircle className="h-4 w-4" />
-                <span className="sr-only">Help</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                Help Center
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                Keyboard Shortcuts
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                Contact Support
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                Report a Bug
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Help Menu - Hidden on small screens */}
+          <div className="hidden sm:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9">
+                  <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="sr-only">Help</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  Help Center
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  Keyboard Shortcuts
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  Contact Support
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  Report a Bug
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
+              <Button variant="ghost" className="relative h-7 w-7 sm:h-8 sm:w-8 rounded-full">
+                <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
                   <AvatarImage src={undefined} />
-                  <AvatarFallback className="bg-primary text-primary-foreground">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
                     {user?.name?.split(' ').map(n => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
@@ -329,3 +281,5 @@ export function Header({
     </header>
   );
 }
+
+

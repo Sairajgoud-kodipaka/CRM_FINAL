@@ -16,7 +16,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Sidebar } from './Sidebar';
+import { Sidebar, useSidebarState } from './Sidebar';
 import { Header } from './Header';
 import { MobileNav } from './MobileNav';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -38,82 +38,48 @@ interface AppLayoutProps {
  */
 export function AppLayout({ children, className }: AppLayoutProps) {
   const pathname = usePathname();
-  const isMobile = useMediaQuery('(max-width: 1023px)');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
+  const { sidebarOpen, toggleSidebar, isDesktop } = useSidebarState();
+  const [mounted, setMounted] = useState(false);
 
-  // Close sidebar when route changes on mobile
   useEffect(() => {
-    if (isMobile) {
-      setSidebarOpen(false);
-    }
-  }, [pathname, isMobile]);
+    setMounted(true);
+  }, []);
 
-  // Close sidebar when clicking outside on mobile
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isMobile && sidebarOpen) {
-        const sidebar = document.getElementById('app-sidebar');
-        const toggleButton = document.getElementById('sidebar-toggle');
-        
-        if (
-          sidebar && 
-          !sidebar.contains(event.target as Node) &&
-          toggleButton &&
-          !toggleButton.contains(event.target as Node)
-        ) {
-          setSidebarOpen(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isMobile, sidebarOpen]);
 
   return (
     <div className={cn('h-screen bg-background overflow-hidden', className)}>
-      {/* Overlay for mobile sidebar */}
-      {isMobile && sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar - Desktop: Fixed, Mobile: Overlay */}
+      {/* Sidebar */}
       <Sidebar 
         isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        className={cn(
-          'transition-transform duration-300 ease-in-out',
-          isMobile ? 'fixed z-50' : 'fixed'
-        )}
+        onToggle={toggleSidebar}
       />
 
       {/* Main Content Area */}
       <div className={cn(
         'transition-all duration-300 ease-in-out h-full flex flex-col',
-        isMobile ? 'ml-0' : 'ml-60' // 60 = 240px (sidebar width)
+        'lg:ml-60' // Desktop: margin for fixed sidebar
       )}>
         {/* Header */}
         <Header 
-          onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
-          showSidebarToggle={isMobile}
+          onSidebarToggle={toggleSidebar}
+          showSidebarToggle={isMobile || isTablet}
         />
 
         {/* Main Content */}
         <main className={cn(
           'flex-1 overflow-y-auto overflow-x-hidden',
-          'p-6 pb-20 lg:pb-6', // Extra bottom padding for mobile nav
+          'p-4 sm:p-6 pb-20 sm:pb-6', // Responsive padding with extra bottom padding for mobile nav
           'scrollbar-hide' // Hide scrollbar using Tailwind utility
         )}>
           {children}
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      {isMobile && (
-        <MobileNav className="fixed bottom-0 left-0 right-0 z-30" />
+      {/* Mobile Navigation */}
+      {mounted && isMobile && (
+        <MobileNav />
       )}
 
       {/* Performance Dashboard - Development Only */}
@@ -146,24 +112,26 @@ export function DashboardLayout({
     <div className={cn('space-y-6', className)}>
       {/* Page Header */}
       {(title || subtitle || actions) && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="space-y-1">
-            {title && (
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                {title}
-              </h1>
-            )}
-            {subtitle && (
-              <p className="text-muted-foreground">
-                {subtitle}
-              </p>
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1 min-w-0 flex-1">
+              {title && (
+                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground truncate">
+                  {title}
+                </h1>
+              )}
+              {subtitle && (
+                <p className="text-muted-foreground text-sm sm:text-base">
+                  {subtitle}
+                </p>
+              )}
+            </div>
+            {actions && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {actions}
+              </div>
             )}
           </div>
-          {actions && (
-            <div className="flex items-center gap-2">
-              {actions}
-            </div>
-          )}
         </div>
       )}
 

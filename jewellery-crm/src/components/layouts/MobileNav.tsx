@@ -24,46 +24,238 @@ import {
   TrendingUp,
   Calendar,
   Menu,
+  BarChart3,
+  Store,
+  Package,
+  Phone,
+  CreditCard,
+  Settings,
+  User,
+  MessageSquare,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
 
 interface MobileNavProps {
   className?: string;
 }
 
 /**
- * Mobile navigation items
- * Limited to 5 items for optimal mobile UX
+ * Get mobile navigation items based on user role
  */
-const mobileNavItems = [
-  {
-    title: 'Dashboard',
-    href: '/dashboard',
-    icon: Home,
-  },
-  {
-    title: 'Customers',
-    href: '/customers',
-    icon: Users,
-  },
-  {
-    title: 'Sales',
-    href: '/sales',
-    icon: TrendingUp,
-    badge: '12',
-  },
-  {
-    title: 'Calendar',
-    href: '/appointments',
-    icon: Calendar,
-    badge: '3',
-  },
-  {
-    title: 'More',
-    href: '/menu',
-    icon: Menu,
-  },
-];
+const getMobileNavItems = (role: string) => {
+  switch (role) {
+    case 'business_admin':
+      return [
+        {
+          title: 'Dashboard',
+          href: '/business-admin/dashboard',
+          icon: Home,
+        },
+        {
+          title: 'Customers',
+          href: '/business-admin/customers',
+          icon: Users,
+        },
+        {
+          title: 'Pipeline',
+          href: '/business-admin/pipeline',
+          icon: TrendingUp,
+          badge: '12',
+        },
+        {
+          title: 'Analytics',
+          href: '/business-admin/analytics',
+          icon: BarChart3,
+        },
+        {
+          title: 'Settings',
+          href: '/business-admin/settings',
+          icon: Settings,
+        },
+      ];
+    
+    case 'manager':
+      return [
+        {
+          title: 'Dashboard',
+          href: '/manager/dashboard',
+          icon: Home,
+        },
+        {
+          title: 'Customers',
+          href: '/manager/customers',
+          icon: Users,
+        },
+        {
+          title: 'Pipeline',
+          href: '/manager/pipeline',
+          icon: TrendingUp,
+          badge: '8',
+        },
+        {
+          title: 'Appointments',
+          href: '/manager/appointments',
+          icon: Calendar,
+          badge: '3',
+        },
+        {
+          title: 'Profile',
+          href: '/manager/profile',
+          icon: User,
+        },
+      ];
+    
+    case 'sales':
+    case 'inhouse_sales':
+      return [
+        {
+          title: 'Dashboard',
+          href: '/sales/dashboard',
+          icon: Home,
+        },
+        {
+          title: 'Customers',
+          href: '/sales/customers',
+          icon: Users,
+        },
+        {
+          title: 'Pipeline',
+          href: '/sales/pipeline',
+          icon: TrendingUp,
+          badge: '12',
+        },
+        {
+          title: 'Appointments',
+          href: '/sales/appointments',
+          icon: Calendar,
+          badge: '3',
+        },
+        {
+          title: 'Profile',
+          href: '/sales/profile',
+          icon: User,
+        },
+      ];
+    
+    case 'telecaller':
+      return [
+        {
+          title: 'Dashboard',
+          href: '/telecaller/dashboard',
+          icon: Home,
+        },
+        {
+          title: 'Leads',
+          href: '/telecaller/customers',
+          icon: Users,
+        },
+        {
+          title: 'Call Center',
+          href: '/telecaller/call',
+          icon: Phone,
+        },
+        {
+          title: 'Pipeline',
+          href: '/telecaller/pipeline',
+          icon: TrendingUp,
+          badge: '5',
+        },
+        {
+          title: 'Profile',
+          href: '/telecaller/profile',
+          icon: User,
+        },
+      ];
+    
+    case 'marketing':
+      return [
+        {
+          title: 'Dashboard',
+          href: '/marketing/dashboard',
+          icon: Home,
+        },
+        {
+          title: 'Analytics',
+          href: '/marketing/analytics',
+          icon: BarChart3,
+        },
+        {
+          title: 'Store',
+          href: '/marketing/store',
+          icon: Store,
+        },
+        {
+          title: 'Products',
+          href: '/marketing/products',
+          icon: Package,
+        },
+        {
+          title: 'Support',
+          href: '/marketing/support',
+          icon: MessageSquare,
+        },
+      ];
+    
+    case 'platform_admin':
+      return [
+        {
+          title: 'Dashboard',
+          href: '/platform/dashboard',
+          icon: Home,
+        },
+        {
+          title: 'Tenants',
+          href: '/platform/tenants',
+          icon: Users,
+        },
+        {
+          title: 'Pipeline',
+          href: '/platform/pipeline',
+          icon: TrendingUp,
+        },
+        {
+          title: 'Billing',
+          href: '/platform/billing',
+          icon: CreditCard,
+        },
+        {
+          title: 'Settings',
+          href: '/platform/settings',
+          icon: Settings,
+        },
+      ];
+    
+    default:
+      return [
+        {
+          title: 'Dashboard',
+          href: '/sales/dashboard',
+          icon: Home,
+        },
+        {
+          title: 'Customers',
+          href: '/sales/customers',
+          icon: Users,
+        },
+        {
+          title: 'Pipeline',
+          href: '/sales/pipeline',
+          icon: TrendingUp,
+        },
+        {
+          title: 'Appointments',
+          href: '/sales/appointments',
+          icon: Calendar,
+        },
+        {
+          title: 'Profile',
+          href: '/sales/profile',
+          icon: User,
+        },
+      ];
+  }
+};
 
 /**
  * MobileNav Component
@@ -72,6 +264,10 @@ const mobileNavItems = [
  */
 export function MobileNav({ className }: MobileNavProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
+  
+  // Get role-based navigation items
+  const mobileNavItems = getMobileNavItems(user?.role || 'sales');
 
   /**
    * Check if the current route matches a nav item
@@ -80,22 +276,15 @@ export function MobileNav({ className }: MobileNavProps) {
     if (href === '/dashboard') {
       return pathname === '/dashboard' || pathname === '/';
     }
-    if (href === '/menu') {
-      // Menu is active for routes not covered by other nav items
-      const coveredRoutes = ['/dashboard', '/customers', '/sales', '/appointments'];
-      return !coveredRoutes.some(route => 
-        route === '/dashboard' 
-          ? (pathname === '/dashboard' || pathname === '/') 
-          : pathname?.startsWith(route)
-      );
-    }
-    return pathname?.startsWith(href);
+    return pathname?.startsWith(href) ?? false;
   };
 
   return (
     <nav className={cn(
+      'fixed bottom-0 left-0 right-0 z-50',
       'bg-background border-t border-border',
       'safe-area-bottom', // Handle devices with home indicator
+      'shadow-lg', // Add shadow to make it more visible
       className
     )}>
       <div className="flex items-center justify-around h-16 px-2">
@@ -171,15 +360,29 @@ interface MobileMenuOverlayProps {
 export function MobileMenuOverlay({ isOpen, onClose }: MobileMenuOverlayProps) {
   if (!isOpen) return null;
 
-  const menuItems = [
-    { title: 'Products', href: '/products', icon: '📦' },
+  const { user } = useAuth();
+  const userRole = user?.role || 'sales';
+  
+  // Get role-specific menu items
+  const getMenuItems = (role: string) => {
+    const basePath = role === 'business_admin' ? '/business-admin' :
+                    role === 'manager' ? '/manager' :
+                    role === 'sales' || role === 'inhouse_sales' ? '/sales' :
+                    role === 'telecaller' ? '/telecaller' :
+                    role === 'marketing' ? '/marketing' :
+                    role === 'platform_admin' ? '/platform' : '/sales';
 
-    { title: 'E-commerce', href: '/ecommerce', icon: '🌐' },
-    { title: 'Analytics', href: '/analytics', icon: '📊' },
-    { title: 'WhatsApp', href: '/whatsapp', icon: '💬' },
-    { title: 'Payments', href: '/payments', icon: '💳' },
-    { title: 'Settings', href: '/settings', icon: '⚙️' },
-  ];
+    return [
+      { title: 'Products', href: `${basePath}/products`, icon: '📦' },
+      { title: 'E-commerce', href: `${basePath}/ecommerce`, icon: '🌐' },
+      { title: 'Analytics', href: `${basePath}/analytics`, icon: '📊' },
+      { title: 'WhatsApp', href: `${basePath}/whatsapp`, icon: '💬' },
+      { title: 'Payments', href: `${basePath}/payments`, icon: '💳' },
+      { title: 'Settings', href: `${basePath}/settings`, icon: '⚙️' },
+    ];
+  };
+
+  const menuItems = getMenuItems(userRole);
 
   return (
     <div className="fixed inset-0 z-50 lg:hidden">

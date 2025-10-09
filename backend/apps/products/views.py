@@ -22,6 +22,29 @@ from apps.users.permissions import IsRoleAllowed
 from apps.tenants.models import Tenant
 
 
+def apply_product_visibility_filter(queryset, user):
+    """
+    Apply role-based visibility filtering for products.
+    Business admins see all products, others see their store products + global products.
+    """
+    if user.role == 'business_admin':
+        # Business admin sees all products (global + store-specific)
+        return queryset
+    elif user.role == 'manager':
+        # Store manager sees their store products + global products
+        if user.store:
+            return queryset.filter(Q(store=user.store) | Q(scope='global'))
+        else:
+            return queryset.filter(scope='global')
+    else:
+        # Other users (sales, telecaller, marketing) see their store products + global products
+        if user.store:
+            return queryset.filter(Q(store=user.store) | Q(scope='global'))
+        else:
+            # If user has no store assigned, show only global products
+            return queryset.filter(scope='global')
+
+
 class CustomProductPagination(PageNumberPagination):
     page_size = 50
     page_size_query_param = 'page_size'
@@ -49,19 +72,7 @@ class ProductListView(generics.ListAPIView):
             queryset = queryset.filter(scope='store')
         else:
             # Apply scoped visibility based on user role when no specific scope is requested
-            if user.role == 'business_admin':
-                # Business admin sees all products (global + store-specific)
-                pass
-            elif user.role == 'manager':
-                # Store manager sees their store products + global products
-                queryset = queryset.filter(
-                    Q(store=user.store) | Q(scope='global')
-                )
-            else:
-                # Other users see their store products + global products
-                queryset = queryset.filter(
-                    Q(store=user.store) | Q(scope='global')
-                )
+            queryset = apply_product_visibility_filter(queryset, user)
         
         # Filter by status
         status_filter = self.request.query_params.get('status')
@@ -111,10 +122,7 @@ class ProductDetailView(generics.RetrieveAPIView):
         queryset = Product.objects.filter(tenant=user.tenant)
         
         # Apply scoped visibility
-        if user.role != 'business_admin':
-            queryset = queryset.filter(
-                Q(store=user.store) | Q(scope='global')
-            )
+        queryset = apply_product_visibility_filter(queryset, user)
         
         return queryset
 

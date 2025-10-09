@@ -5,93 +5,117 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Phone, Loader2, AlertCircle, Users, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Phone, Loader2, AlertCircle, Users, Filter, Search, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { telecallingApiService, Lead, CallRequest, LeadListResponse } from '@/services/telecallingApi';
 import { useAuth } from '@/hooks/useAuth';
 import { CallPanel } from '@/components/telecalling/CallPanel';
 import { useRouter } from 'next/navigation';
+import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
 
-const LeadRow = ({ 
-  lead, 
-  onCall, 
-  onView 
-}: { 
-  lead: Lead; 
-  onCall: (lead: Lead) => void; 
-  onView: (lead: Lead) => void; 
-}) => (
-  <div className="flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50">
-    <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
-      <div>
-        <p className="font-medium text-gray-900">{lead.name}</p>
-      </div>
-      <div>
-        <p className="text-sm text-gray-600">{lead.masked_phone || lead.phone}</p>
-      </div>
-      <div>
+// Define columns for ResponsiveTable
+const getLeadColumns = (onCall: (lead: Lead) => void, onView: (lead: Lead) => void): ResponsiveColumn<Lead>[] => [
+  {
+    key: 'name',
+    title: 'Customer',
+    priority: 'high',
+    mobileLabel: 'Name',
+    render: (value) => (
+      <span className="font-medium text-gray-900">{value as string}</span>
+    ),
+  },
+  {
+    key: 'phone',
+    title: 'Phone',
+    priority: 'high',
+    mobileLabel: 'Phone',
+    render: (value, row) => (
+      <span className="text-sm text-gray-600">
+        {(row as Lead).masked_phone || (value as string)}
+      </span>
+    ),
+  },
+  {
+    key: 'status',
+    title: 'Status',
+    priority: 'high',
+    mobileLabel: 'Status',
+    render: (value) => {
+      const status = value as string;
+      const statusColors = {
+        'new': 'bg-blue-100 text-blue-800 border-blue-300',
+        'contacted': 'bg-green-100 text-green-800 border-green-300',
+        'qualified': 'bg-purple-100 text-purple-800 border-purple-300',
+        'appointment_set': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+        'not_interested': 'bg-red-100 text-red-800 border-red-300',
+        'converted': 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      };
+      return (
         <Badge 
           variant="outline" 
-          className={`${
-            lead.status === 'new' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-            lead.status === 'contacted' ? 'bg-green-100 text-green-800 border-green-300' :
-            lead.status === 'qualified' ? 'bg-purple-100 text-purple-800 border-purple-300' :
-            'bg-gray-100 text-gray-800 border-gray-300'
-          }`}
+          className={statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800 border-gray-300'}
         >
-          {lead.status}
+          {status}
         </Badge>
-        </div>
-      <div>
+      );
+    },
+  },
+  {
+    key: 'priority',
+    title: 'Priority',
+    priority: 'medium',
+    mobileLabel: 'Priority',
+    render: (value) => {
+      const priority = value as string;
+      const priorityColors = {
+        'high': 'bg-red-100 text-red-800 border-red-300',
+        'medium': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+        'low': 'bg-gray-100 text-gray-800 border-gray-300',
+      };
+      return (
         <Badge 
           variant="outline"
-          className={`${
-            lead.priority === 'high' ? 'bg-red-100 text-red-800 border-red-300' :
-            lead.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-            'bg-gray-100 text-gray-800 border-gray-300'
-          }`}
+          className={priorityColors[priority as keyof typeof priorityColors] || 'bg-gray-100 text-gray-800 border-gray-300'}
         >
-          {lead.priority}
+          {priority}
         </Badge>
-      </div>
-      <div>
-        <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
-          warm
-        </Badge>
-      </div>
-      <div>
+      );
+    },
+  },
+  {
+    key: 'quality',
+    title: 'Quality',
+    priority: 'low',
+    mobileLabel: 'Quality',
+    render: () => (
+      <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+        warm
+      </Badge>
+    ),
+  },
+  {
+    key: 'tags',
+    title: 'Interests',
+    priority: 'low',
+    mobileLabel: 'Tags',
+    render: (value) => {
+      const tags = value as string[] || [];
+      return (
         <div className="flex flex-wrap gap-1">
-          {lead.tags?.slice(0, 2).map((tag, index) => (
+          {tags.slice(0, 2).map((tag, index) => (
             <Badge key={index} variant="outline" className="text-xs">
               {tag}
             </Badge>
           ))}
-          {lead.tags && lead.tags.length > 2 && (
+          {tags.length > 2 && (
             <Badge variant="outline" className="text-xs">
-              +{lead.tags.length - 2}
+              +{tags.length - 2}
             </Badge>
           )}
         </div>
-      </div>
-    </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-        onClick={() => onCall(lead)}
-        className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-          >
-        <Phone className="w-4 h-4" />
-            Call
-          </Button>
-          <Button
-            size="sm"
-        variant="outline"
-        onClick={() => onView(lead)}
-          >
-            View
-          </Button>
-        </div>
-  </div>
-);
+      );
+    },
+  },
+];
 
 const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
   <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -309,102 +333,65 @@ export default function TelecallerCustomersPage() {
           </div>
         </Card>
 
-        {/* Leads Table */}
-        <Card>
-          <div className="overflow-hidden">
-            {/* Table Header */}
-            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-4 text-sm font-medium text-gray-700">
-                <div>Customer</div>
-                <div>Phone</div>
-                <div>Status</div>
-                <div>Priority</div>
-                <div>Quality</div>
-                <div>Interests</div>
-              </div>
-            </div>
-
-            {/* Table Body */}
-            {loading ? (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-600 mr-2" />
-                <span className="text-gray-600">Loading leads...</span>
-              </div>
-            ) : filteredLeads.length > 0 ? (
-              <div className="divide-y divide-gray-200">
-                {filteredLeads.map((lead) => (
-                  <LeadRow
-                    key={lead.id}
-                    lead={lead}
-                    onCall={handleCall}
-                    onView={handleView}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center p-8 text-center">
-                <Users className="w-12 h-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Leads Found</h3>
-                <p className="text-gray-600">
-                  {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all'
-                    ? 'Try adjusting your filters to see more leads.'
-                    : 'You don\'t have any assigned leads yet.'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalLeads)} of {totalLeads} leads
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="flex items-center gap-1"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Previous
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-                      if (pageNum > totalPages) return null;
-                      
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={pageNum === currentPage ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handlePageChange(pageNum)}
-                          className="w-8 h-8 p-0"
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="flex items-center gap-1"
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
+        {/* Responsive Leads Table */}
+        <ResponsiveTable
+          data={filteredLeads as unknown as Record<string, unknown>[]}
+          columns={getLeadColumns(handleCall, handleView) as unknown as ResponsiveColumn<Record<string, unknown>>[]}
+          loading={loading}
+          searchable={false} // We have our own search above
+          selectable={false}
+          onRowClick={(lead) => handleView(lead as unknown as Lead)}
+          onAction={(action, lead) => {
+            if (action === 'view') handleView(lead as unknown as Lead);
+            if (action === 'call') handleCall(lead as unknown as Lead);
+          }}
+          mobileCardTitle={(lead) => (lead as unknown as Lead).name}
+          mobileCardSubtitle={(lead) => (lead as unknown as Lead).masked_phone || (lead as unknown as Lead).phone}
+          mobileCardActions={(lead) => (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCall(lead as unknown as Lead);
+                }}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+              >
+                <Phone className="w-4 h-4" />
+                Call
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleView(lead as unknown as Lead);
+                }}
+              >
+                <Eye className="w-4 h-4" />
+              </Button>
             </div>
           )}
-        </Card>
+          emptyState={
+            <div className="flex flex-col items-center justify-center p-8 text-center">
+              <Users className="w-12 h-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Leads Found</h3>
+              <p className="text-gray-600">
+                {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all'
+                  ? 'Try adjusting your filters to see more leads.'
+                  : 'You don\'t have any assigned leads yet.'}
+              </p>
+            </div>
+          }
+          pagination={totalPages > 1 ? {
+            currentPage,
+            totalPages,
+            totalItems: totalLeads,
+            pageSize,
+            onPageChange: handlePageChange,
+          } : undefined}
+        />
+
       </div>
 
       {/* Call Panel */}

@@ -331,22 +331,31 @@ export default function SalesPurchasesPage() {
   }
 
   return (
-    <div className="w-full px-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Purchases & Closed Deals</h1>
-          <p className="text-gray-600 mt-2">
+    <div className="w-full px-4 sm:px-6 pb-20 sm:pb-6">
+      {/* Page Header - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">
+            Purchases & Closed Deals
+          </h1>
+          <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
             View all customer purchases and closed won deals
           </p>
         </div>
-        <Button onClick={exportToCSV} className="bg-green-600 hover:bg-green-700">
-          <Download className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex-shrink-0">
+          <Button 
+            onClick={exportToCSV} 
+            className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+            size="sm"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      {/* Stats Cards - Responsive Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Closed Won Deals</CardTitle>
@@ -369,7 +378,7 @@ export default function SalesPurchasesPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="sm:col-span-2 lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">My Customers</CardTitle>
             <User className="h-4 w-4 text-orange-500" />
@@ -385,10 +394,10 @@ export default function SalesPurchasesPage() {
         </Card>
       </div>
 
-      {/* Filters and Search */}
+      {/* Filters and Search - Responsive */}
       <Card className="mb-6">
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -401,32 +410,33 @@ export default function SalesPurchasesPage() {
               </div>
             </div>
 
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="purchases">Purchases Only</SelectItem>
-                <SelectItem value="deals">Closed Deals Only</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="purchases">Purchases Only</SelectItem>
+                  <SelectItem value="deals">Closed Deals Only</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-
-                <SelectItem value="amount">Sort by Amount</SelectItem>
-                <SelectItem value="name">Sort by Name</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="amount">Sort by Amount</SelectItem>
+                  <SelectItem value="name">Sort by Name</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Purchases and Deals List */}
+      {/* Purchases and Deals List - Responsive */}
       <div className="space-y-4">
         {sortedData.length === 0 ? (
           <Card>
@@ -448,50 +458,59 @@ export default function SalesPurchasesPage() {
                 className={`${isCurrentUserCustomer ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
               >
                 <CardContent className="pt-6">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {item.client.full_name}
-                        </h3>
-                        {isCurrentUserCustomer && (
-                          <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">
-                            My Customer
-                          </Badge>
-                        )}
-                        <Badge variant={getStatusBadgeVariant("product_name" in item ? "purchase" : (item as SalesPipeline).stage)}>
-                          {"product_name" in item ? "Purchase" : getStatusDisplay((item as SalesPipeline).stage)}
-                        </Badge>
-                      </div>
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900 truncate">
+                            {item.client.full_name}
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {isCurrentUserCustomer && (
+                              <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">
+                                My Customer
+                              </Badge>
+                            )}
+                            <Badge variant={getStatusBadgeVariant("product_name" in item ? "purchase" : (item as SalesPipeline).stage)}>
+                              {"product_name" in item ? "Purchase" : getStatusDisplay((item as SalesPipeline).stage)}
+                            </Badge>
+                          </div>
+                        </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Product/Deal:</span>{" "}
-                          {"product_name" in item ? (item as any).product_name : (item as SalesPipeline).title}
-                        </div>
-                        <div>
-                          <span className="font-medium">Amount:</span>{" "}
-                          {formatCurrency(
-                            "product_name" in item ? (item as any).amount : (item as SalesPipeline).expected_value
-                          )}
-                        </div>
-                        <div>
-                          <span className="font-medium">Created By:</span>{" "}
-                          {item.client.created_by ? (
-                            <span className={isCurrentUserCustomer ? 'font-semibold text-orange-600' : ''}>
-                              {item.client.created_by.first_name} {item.client.created_by.last_name}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-600">
+                          <div className="min-w-0">
+                            <span className="font-medium">Product/Deal:</span>{" "}
+                            <span className="break-words">
+                              {"product_name" in item ? (item as any).product_name : (item as SalesPipeline).title}
                             </span>
-                          ) : (
-                            "N/A"
-                          )}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-medium">Amount:</span>{" "}
+                            <span className="break-words">
+                              {formatCurrency(
+                                "product_name" in item ? (item as any).amount : (item as SalesPipeline).expected_value
+                              )}
+                            </span>
+                          </div>
+                          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+                            <span className="font-medium">Created By:</span>{" "}
+                            {item.client.created_by ? (
+                              <span className={isCurrentUserCustomer ? 'font-semibold text-orange-600' : ''}>
+                                {item.client.created_by.first_name} {item.client.created_by.last_name}
+                              </span>
+                            ) : (
+                              "N/A"
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      {item.notes && (
-                        <div className="mt-3 text-sm text-gray-600">
-                          <span className="font-medium">Notes:</span> {item.notes}
-                        </div>
-                      )}
+                        {item.notes && (
+                          <div className="mt-3 text-sm text-gray-600">
+                            <span className="font-medium">Notes:</span> 
+                            <span className="break-words"> {item.notes}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardContent>

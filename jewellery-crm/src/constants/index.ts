@@ -391,7 +391,7 @@ export const API_ENDPOINTS = {
   CUSTOMER_SEARCH: '/api/clients/clients',
   
   // Products
-  PRODUCTS: '/api/products',
+  PRODUCTS: '/api/products/list',
   PRODUCT_CATEGORIES: '/api/products/categories',
   
   // Orders

@@ -22,7 +22,7 @@ export default function SalesProductsPage() {
     loading, 
     error, 
     refetch 
-  } = useOptimizedGet<Product[]>('/products/', {
+  } = useOptimizedGet<Product[]>('/products/list/', {
     cacheKey: 'sales-products',
     cacheTTL: 5 * 60 * 1000, // 5 minutes
   });
