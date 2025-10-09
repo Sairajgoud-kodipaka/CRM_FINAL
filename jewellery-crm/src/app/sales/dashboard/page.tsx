@@ -1,10 +1,12 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { BarChart2, PieChart, TrendingUp, Users, Percent, Activity, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, ShoppingBag, Calendar, Target } from 'lucide-react';
+import { BarChart2, PieChart, TrendingUp, Users, Percent, Activity, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, ShoppingBag, Calendar, Target, Plus, RefreshCw } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardSkeleton, KPICardSkeleton } from '@/components/ui/skeleton';
+import { MobileDashboard, DashboardSection, KPIMetric } from '@/components/dashboard/MobileDashboard';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 
 interface SalesStats {
   monthly_revenue: number;
@@ -17,6 +19,8 @@ interface SalesStats {
 
 export default function SalesDashboardPage() {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [stats, setStats] = useState<SalesStats>({
     monthly_revenue: 0,
     total_sales: 0,
@@ -198,6 +202,117 @@ export default function SalesDashboardPage() {
     return `${value.toFixed(1)}%`;
   };
 
+  // Create responsive dashboard sections
+  const dashboardSections: DashboardSection[] = [
+    {
+      id: 'sales-overview',
+      title: 'Sales Overview',
+      description: 'Key sales performance metrics',
+      priority: 'high',
+      icon: TrendingUp,
+      collapsible: true,
+      defaultExpanded: true,
+      metrics: [
+        {
+          id: 'monthly-revenue',
+          title: 'Monthly Revenue',
+          value: stats.monthly_revenue,
+          format: 'currency',
+          priority: 'high',
+          icon: DollarSign,
+          color: 'primary',
+        },
+        {
+          id: 'total-sales',
+          title: 'Total Sales',
+          value: stats.total_sales,
+          format: 'number',
+          priority: 'high',
+          icon: ShoppingBag,
+          color: 'success',
+        },
+        {
+          id: 'customers',
+          title: 'Customers',
+          value: stats.customers,
+          format: 'number',
+          priority: 'high',
+          icon: Users,
+          color: 'secondary',
+        },
+        {
+          id: 'conversion-rate',
+          title: 'Conversion Rate',
+          value: stats.conversion_rate,
+          format: 'percentage',
+          priority: 'medium',
+          icon: Percent,
+          color: 'warning',
+        },
+      ],
+    },
+    {
+      id: 'recent-activity',
+      title: 'Recent Activity',
+      description: 'Latest appointments and sales',
+      priority: 'medium',
+      icon: Activity,
+      collapsible: true,
+      defaultExpanded: false,
+      metrics: stats.recent_activities.slice(0, 3).map((activity, index) => ({
+        id: `activity-${index}`,
+        title: activity.title,
+        value: activity.date,
+        format: 'text',
+        priority: 'medium',
+        icon: Calendar,
+        color: 'primary',
+      })),
+    },
+    {
+      id: 'top-products',
+      title: 'Top Products',
+      description: 'Most popular products by customer interest',
+      priority: 'low',
+      icon: TrendingUp,
+      collapsible: true,
+      defaultExpanded: false,
+      metrics: stats.top_products.slice(0, 3).map((product, index) => ({
+        id: `product-${index}`,
+        title: product.name,
+        value: product.sales,
+        format: 'number',
+        priority: 'low',
+        icon: ShoppingBag,
+        color: 'success',
+      })),
+    },
+  ];
+
+  const quickActions = [
+    {
+      id: 'add-customer',
+      label: 'Add Customer',
+      icon: Plus,
+      onClick: () => window.location.href = '/sales/customers/new',
+      color: 'primary' as const,
+    },
+    {
+      id: 'view-pipeline',
+      label: 'View Pipeline',
+      icon: TrendingUp,
+      onClick: () => window.location.href = '/sales/pipeline',
+      color: 'secondary' as const,
+    },
+    {
+      id: 'schedule-appointment',
+      label: 'Schedule Appointment',
+      icon: Calendar,
+      onClick: () => window.location.href = '/sales/appointments/new',
+      color: 'success' as const,
+    },
+  ];
+
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'appointment':
@@ -289,6 +404,21 @@ export default function SalesDashboardPage() {
     );
   }
 
+  // Use responsive dashboard for mobile/tablet, desktop layout for larger screens
+  if (isMobile || isTablet) {
+    return (
+      <MobileDashboard
+        sections={dashboardSections}
+        loading={loading}
+        onRefresh={fetchSalesData}
+        quickActions={quickActions}
+        showProgress={true}
+        className="p-4"
+      />
+    );
+  }
+
+  // Desktop layout
   return (
     <div className="flex flex-col gap-8">
       {/* Header Section */}
@@ -309,7 +439,7 @@ export default function SalesDashboardPage() {
           onClick={fetchSalesData}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
-          <BarChart2 className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" />
           Refresh Data
         </button>
       </div>
@@ -324,8 +454,8 @@ export default function SalesDashboardPage() {
               <p className="text-xs text-text-muted mt-1">Current month earnings</p>
             </div>
             <div className="p-3 bg-blue-50 rounded-full">
-            <DollarSign className="w-6 h-6 text-blue-600" />
-          </div>
+              <DollarSign className="w-6 h-6 text-blue-600" />
+            </div>
           </div>
         </Card>
         
@@ -337,8 +467,8 @@ export default function SalesDashboardPage() {
               <p className="text-xs text-text-muted mt-1">Sales + Closed deals</p>
             </div>
             <div className="p-3 bg-green-50 rounded-full">
-            <ShoppingBag className="w-6 h-6 text-green-600" />
-          </div>
+              <ShoppingBag className="w-6 h-6 text-green-600" />
+            </div>
           </div>
         </Card>
         
@@ -350,8 +480,8 @@ export default function SalesDashboardPage() {
               <p className="text-xs text-text-muted mt-1">Total customer base</p>
             </div>
             <div className="p-3 bg-purple-50 rounded-full">
-            <Users className="w-6 h-6 text-purple-600" />
-          </div>
+              <Users className="w-6 h-6 text-purple-600" />
+            </div>
           </div>
         </Card>
         
@@ -363,8 +493,8 @@ export default function SalesDashboardPage() {
               <p className="text-xs text-text-muted mt-1">Deals per customer</p>
             </div>
             <div className="p-3 bg-orange-50 rounded-full">
-            <Percent className="w-6 h-6 text-orange-600" />
-          </div>
+              <Percent className="w-6 h-6 text-orange-600" />
+            </div>
           </div>
         </Card>
       </div>

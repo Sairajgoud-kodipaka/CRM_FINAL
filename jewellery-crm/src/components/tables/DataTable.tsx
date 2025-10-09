@@ -34,13 +34,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 
 export interface Column<T> {
   key: string;
   title: string;
   sortable?: boolean;
   width?: string;
+  priority?: 'high' | 'medium' | 'low'; // For responsive display
+  mobileLabel?: string; // Custom label for mobile cards
   render?: (value: unknown, row: T) => React.ReactNode;
+  mobileRender?: (value: unknown, row: T) => React.ReactNode; // Custom mobile rendering
 }
 
 export interface DataTableProps<T> {
@@ -51,15 +56,196 @@ export interface DataTableProps<T> {
   selectable?: boolean;
   onRowSelect?: (selectedRows: T[]) => void;
   onRowClick?: (row: T) => void;
+  onAction?: (action: string, row: T) => void;
   actions?: React.ReactNode;
   emptyState?: React.ReactNode;
   className?: string;
+  // Mobile-specific props
+  mobileCardTitle?: (row: T) => string;
+  mobileCardSubtitle?: (row: T) => string;
+  mobileCardActions?: (row: T) => React.ReactNode;
+}
+
+// Mobile Card View Component
+function MobileCardView<T extends Record<string, unknown>>({
+  data,
+  columns,
+  loading,
+  selectable,
+  onRowSelect,
+  onRowClick,
+  onAction,
+  mobileCardTitle,
+  mobileCardSubtitle,
+  mobileCardActions,
+  selectedRows,
+  onRowSelectChange,
+}: {
+  data: T[];
+  columns: Column<T>[];
+  loading: boolean;
+  selectable: boolean;
+  onRowSelect?: (selectedRows: T[]) => void;
+  onRowClick?: (row: T) => void;
+  onAction?: (action: string, row: T) => void;
+  mobileCardTitle?: (row: T) => string;
+  mobileCardSubtitle?: (row: T) => string;
+  mobileCardActions?: (row: T) => React.ReactNode;
+  selectedRows: Set<number>;
+  onRowSelectChange: (index: number, checked: boolean) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-4 p-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                <div className="h-4 bg-muted rounded w-3/4" />
+                <div className="h-3 bg-muted rounded w-1/2" />
+                <div className="flex gap-2">
+                  <div className="h-6 bg-muted rounded w-16" />
+                  <div className="h-6 bg-muted rounded w-20" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <div className="w-12 h-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">No Data Available</h3>
+        <p className="text-muted-foreground">No items found matching your criteria.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 p-4">
+      {data.map((row, index) => {
+        const isSelected = selectedRows.has(index);
+        const title = mobileCardTitle ? mobileCardTitle(row) : String(row[columns[0]?.key] || 'Untitled');
+        const subtitle = mobileCardSubtitle ? mobileCardSubtitle(row) : String(row[columns[1]?.key] || '');
+        
+        return (
+          <Card 
+            key={index}
+            className={cn(
+              'transition-all duration-200 hover:shadow-md cursor-pointer',
+              isSelected && 'ring-2 ring-primary bg-primary/5',
+              'touch-manipulation' // Optimize for touch
+            )}
+            onClick={() => onRowClick?.(row)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  {/* Selection checkbox */}
+                  {selectable && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => onRowSelectChange(index, checked as boolean)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Title and subtitle */}
+                  <div className="mb-3">
+                    <h3 className="font-semibold text-foreground text-base leading-tight mb-1">
+                      {title}
+                    </h3>
+                    {subtitle && (
+                      <p className="text-sm text-muted-foreground leading-tight">
+                        {subtitle}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Key data fields */}
+                  <div className="space-y-2">
+                    {columns
+                      .filter(col => col.priority === 'high' || col.priority === 'medium')
+                      .slice(0, 3) // Show max 3 key fields on mobile
+                      .map((column) => {
+                        const value = row[column.key];
+                        const displayValue = column.mobileRender 
+                          ? column.mobileRender(value, row)
+                          : column.render 
+                            ? column.render(value, row)
+                            : value;
+                        
+                        if (!displayValue) return null;
+                        
+                        return (
+                          <div key={column.key} className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground font-medium min-w-0 flex-shrink-0">
+                              {column.mobileLabel || column.title}:
+                            </span>
+                            <span className="text-foreground truncate">
+                              {displayValue}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+                
+                {/* Actions */}
+                <div className="flex flex-col items-end gap-2">
+                  {mobileCardActions ? (
+                    mobileCardActions(row)
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 touch-manipulation"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => onAction?.('view', row)}>
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAction?.('edit', row)}>
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => onAction?.('delete', row)}
+                          className="text-destructive"
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
 }
 
 /**
  * DataTable Component
  * 
  * Generic, reusable data table following HubSpot design patterns.
+ * Now includes responsive behavior for mobile and tablet devices.
  */
 export function DataTable<T extends Record<string, unknown>>({
   data,
@@ -69,9 +255,13 @@ export function DataTable<T extends Record<string, unknown>>({
   selectable = false,
   onRowSelect,
   onRowClick,
+  onAction,
   actions,
   emptyState,
   className,
+  mobileCardTitle,
+  mobileCardSubtitle,
+  mobileCardActions,
 }: DataTableProps<T>) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{
@@ -79,6 +269,10 @@ export function DataTable<T extends Record<string, unknown>>({
     direction: 'asc' | 'desc';
   } | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+
+  // Responsive breakpoints
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
 
   // Filter data based on search query
   const filteredData = useMemo(() => {
@@ -200,6 +394,60 @@ export function DataTable<T extends Record<string, unknown>>({
             <div key={i} className="h-12 bg-muted animate-pulse rounded" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  // Render mobile card view for mobile devices
+  if (isMobile) {
+    return (
+      <div className={cn('w-full', className)}>
+        {/* Header with search and actions */}
+        {(searchable || actions || selectedRows.size > 0) && (
+          <div className="mb-4 p-4 bg-card border border-border rounded-lg">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* Search */}
+              {searchable && (
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedRows.size > 0 && (
+                  <Badge variant="secondary" className="text-sm">
+                    {selectedRows.size} selected
+                  </Badge>
+                )}
+                
+                {actions}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Card View */}
+        <MobileCardView
+          data={sortedData}
+          columns={columns}
+          loading={loading}
+          selectable={selectable}
+          onRowSelect={onRowSelect}
+          onRowClick={onRowClick}
+          onAction={onAction}
+          mobileCardTitle={mobileCardTitle}
+          mobileCardSubtitle={mobileCardSubtitle}
+          mobileCardActions={mobileCardActions}
+          selectedRows={selectedRows}
+          onRowSelectChange={handleRowSelect}
+        />
       </div>
     );
   }

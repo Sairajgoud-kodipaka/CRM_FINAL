@@ -14,10 +14,11 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { 
   BarChart3,
   Users,
@@ -60,10 +61,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
 interface SidebarProps {
-  isOpen?: boolean;
-  onClose?: () => void;
   className?: string;
-  role?: string; // Add this prop
+  role?: string;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }
 
 /**
@@ -449,62 +450,62 @@ const navigationItems: NavItem[] = [
     title: 'Dashboard',
     href: '/sales/dashboard',
     icon: Home,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
   {
     title: 'Customers',
     href: '/sales/customers',
     icon: Users,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
   {
     title: 'Sales Pipeline',
     href: '/sales/pipeline',
     icon: TrendingUp,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
   {
     title: 'Purchases',
     href: '/sales/purchases',
     icon: ShoppingBag,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
   {
     title: 'Appointments',
     href: '/sales/appointments',
     icon: Calendar,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
 
   {
     title: 'Products',
     href: '/sales/products',
     icon: Package,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
   {
     title: 'Announcements',
     href: '/sales/announcements',
     icon: MessageSquare,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
   {
     title: 'Escalations',
     href: '/sales/escalations',
     icon: AlertTriangle,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
   {
     title: 'Exhibition Leads',
     href: '/sales/exhibition',
     icon: Gift,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
   {
     title: 'Profile',
     href: '/sales/profile',
     icon: User,
-    roles: ['sales'],
+    roles: ['sales', 'inhouse_sales'],
   },
   // Telecaller Navigation
   {
@@ -582,14 +583,88 @@ const getProfileRoute = (userRole: string): string | null => {
 /**
  * Sidebar Component
  * 
- * Renders the main navigation sidebar with role-based menu items
- * and HubSpot-inspired styling.
+ * Comprehensive responsive sidebar that handles all device types:
+ * - Desktop: Fixed sidebar always visible
+ * - Tablet: Collapsible sidebar with smooth animations
+ * - Mobile: Collapsible sidebar with overlay
  */
-export function Sidebar({ isOpen = true, onClose, className, role }: SidebarProps) {
+export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  
   const { user, logout } = useAuth();
   const router = useRouter();
+  
+  // Responsive breakpoints
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  
+  // Sidebar state - use external state if provided, otherwise use internal state
+  const [internalSidebarOpen, setInternalSidebarOpen] = useState(isDesktop);
+  const sidebarOpen = externalIsOpen !== undefined ? externalIsOpen : internalSidebarOpen;
+  
+  const setSidebarOpen = (open: boolean) => {
+    if (externalIsOpen !== undefined && onToggle) {
+      // External state management - call the toggle function
+      if (open !== externalIsOpen) {
+        onToggle();
+      }
+    } else {
+      // Internal state management
+      setInternalSidebarOpen(open);
+    }
+  };
+
+  // Update sidebar state when screen size changes (only for internal state)
+  useEffect(() => {
+    if (externalIsOpen === undefined) {
+      if (isDesktop) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    }
+  }, [isDesktop, externalIsOpen]);
+
+  // Close sidebar when route changes on mobile/tablet (only for internal state)
+  useEffect(() => {
+    if (externalIsOpen === undefined && (isMobile || isTablet)) {
+      setSidebarOpen(false);
+    }
+  }, [pathname, isMobile, isTablet, externalIsOpen]);
+
+  // Handle click outside to close sidebar on mobile/tablet
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if ((isMobile || isTablet) && sidebarOpen) {
+        const sidebar = document.getElementById('app-sidebar');
+        const toggleButton = document.getElementById('sidebar-toggle');
+        
+        if (
+          sidebar && 
+          !sidebar.contains(event.target as Node) &&
+          toggleButton &&
+          !toggleButton.contains(event.target as Node)
+        ) {
+          setSidebarOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobile, isTablet, sidebarOpen, setSidebarOpen]);
+
+  // Handle escape key to close sidebar
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && sidebarOpen && (isMobile || isTablet)) {
+        setSidebarOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [sidebarOpen, isMobile, isTablet, setSidebarOpen]);
 
   // Use the passed role prop if provided, otherwise use user.role
   const currentRole = role || (user && user.role);
@@ -675,7 +750,7 @@ export function Sidebar({ isOpen = true, onClose, className, role }: SidebarProp
     }
 
     return (
-      <Link href={item.href} onClick={onClose}>
+      <Link href={item.href} onClick={() => setSidebarOpen(false)}>
         <div className={itemClasses}>
           <div className="flex items-center">
             <item.icon className={iconClasses} />
@@ -692,14 +767,31 @@ export function Sidebar({ isOpen = true, onClose, className, role }: SidebarProp
   };
 
   return (
-    <div
-      id="app-sidebar"
-      className={cn(
-        'w-60 bg-sidebar text-sidebar-foreground h-full overflow-y-auto flex flex-col scrollbar-hide',
-        !isOpen && 'transform -translate-x-full lg:translate-x-0',
-        className
+    <>
+      {/* Overlay for mobile/tablet */}
+      {(isMobile || isTablet) && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-[55]"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
       )}
-    >
+
+      {/* Sidebar */}
+      <div
+        id="app-sidebar"
+        className={cn(
+          'w-60 bg-sidebar text-sidebar-foreground h-full overflow-y-auto flex flex-col scrollbar-hide',
+          // Desktop: fixed positioning, always visible
+          'lg:fixed lg:top-0 lg:left-0 lg:h-full lg:z-30 lg:translate-x-0',
+          // Mobile/Tablet: fixed positioning with smooth animations - higher z-index than mobile nav
+          'fixed top-0 left-0 z-[60]',
+          // Smooth animations for mobile/tablet
+          !sidebarOpen && 'transform -translate-x-full transition-transform duration-300 ease-in-out',
+          sidebarOpen && 'transform translate-x-0 transition-transform duration-300 ease-in-out',
+          className
+        )}
+      >
       {/* Logo and Business Name */}
       <div className="flex items-center px-4 py-6 border-b border-sidebar-border">
         <div className="flex items-center space-x-3">
@@ -784,6 +876,40 @@ export function Sidebar({ isOpen = true, onClose, className, role }: SidebarProp
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div>
+      </div>
+    </>
   );
+}
+
+/**
+ * Hook to manage sidebar state across components
+ */
+export function useSidebarState() {
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  
+  const [sidebarOpen, setSidebarOpen] = useState(isDesktop);
+
+  useEffect(() => {
+    if (isDesktop) {
+      setSidebarOpen(true);
+    } else {
+      setSidebarOpen(false);
+    }
+  }, [isDesktop]);
+
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const closeSidebar = () => setSidebarOpen(false);
+  const openSidebar = () => setSidebarOpen(true);
+
+  return {
+    sidebarOpen,
+    toggleSidebar,
+    closeSidebar,
+    openSidebar,
+    isMobile,
+    isTablet,
+    isDesktop,
+  };
 }

@@ -15,6 +15,7 @@ import { AddCustomerModal } from '@/components/customers/AddCustomerModal';
 import { ImportModal } from '@/components/customers/ImportModal';
 import { ExportModal } from '@/components/customers/ExportModal';
 import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal';
+import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
 
 export default function CustomersPage() {
   const { user } = useAuth();
@@ -127,6 +128,96 @@ export default function CustomersPage() {
       return 'Invalid Date';
     }
   };
+
+  // Define columns for ResponsiveTable
+  const getCustomerColumns = (): ResponsiveColumn<Client>[] => [
+    {
+      key: 'name',
+      title: 'Name',
+      priority: 'high',
+      mobileLabel: 'Name',
+      render: (value, row) => {
+        const client = row as Client;
+        return (
+          <div>
+            <div className="font-medium text-text-primary">
+              {client.first_name || ''} {client.last_name || ''}
+            </div>
+            {client.preferred_metal && (
+              <div className="text-sm text-text-secondary">
+                Prefers: {client.preferred_metal}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'contact',
+      title: 'Contact',
+      priority: 'high',
+      mobileLabel: 'Contact',
+      render: (value, row) => {
+        const client = row as Client;
+        return (
+          <div>
+            <div className="text-text-primary">{client.email || 'N/A'}</div>
+            <div className="text-sm text-text-secondary">{client.phone || 'N/A'}</div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'status',
+      title: 'Status',
+      priority: 'high',
+      mobileLabel: 'Status',
+      render: (value, row) => {
+        const client = row as Client;
+        return (
+          <Badge variant={getStatusBadgeVariant(client.status)}>
+            {client.status 
+              ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
+              : 'Unknown'
+            }
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'lead_source',
+      title: 'Source',
+      priority: 'medium',
+      mobileLabel: 'Source',
+      render: (value) => (
+        <span className="text-text-secondary">{value as string || 'N/A'}</span>
+      ),
+    },
+    {
+      key: 'created_by',
+      title: 'Created By',
+      priority: 'medium',
+      mobileLabel: 'Created By',
+      render: (value, row) => {
+        const client = row as Client;
+        const createdBy = client.created_by 
+          ? `${client.created_by.first_name} ${client.created_by.last_name}` 
+          : client.assigned_to 
+            ? `User ID: ${client.assigned_to}` 
+            : 'System';
+        return <span className="text-text-secondary">{createdBy}</span>;
+      },
+    },
+    {
+      key: 'created_at',
+      title: 'Created',
+      priority: 'low',
+      mobileLabel: 'Created',
+      render: (value) => (
+        <span className="text-text-secondary">{formatDate(value as string)}</span>
+      ),
+    },
+  ];
 
   const handleViewCustomer = (client: Client) => {
     // Open customer detail modal
@@ -303,87 +394,72 @@ export default function CustomersPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-text-secondary">Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-text-secondary">Contact</th>
-                    <th className="text-left py-3 px-4 font-medium text-text-secondary">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-text-secondary">Source</th>
-                    <th className="text-left py-3 px-4 font-medium text-text-secondary">Created By</th>
-                    <th className="text-left py-3 px-4 font-medium text-text-secondary">Created</th>
-                    <th className="text-left py-3 px-4 font-medium text-text-secondary">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clients.map((client) => (
-                    <tr key={client.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <div>
-                          <div className="font-medium text-text-primary">
-                            {client.first_name || ''} {client.last_name || ''}
-                          </div>
-                          {client.preferred_metal && (
-                            <div className="text-sm text-text-secondary">
-                              Prefers: {client.preferred_metal}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <div className="text-text-primary">{client.email || 'N/A'}</div>
-                          <div className="text-sm text-text-secondary">{client.phone || 'N/A'}</div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={getStatusBadgeVariant(client.status)}>
-                          {client.status 
-                            ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
-                            : 'Unknown'
-                          }
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-text-secondary">
-                        {client.lead_source || 'N/A'}
-                      </td>
-                      <td className="py-3 px-4 text-text-secondary">
-                        {client.created_by ? `${client.created_by.first_name} ${client.created_by.last_name}` : 
-                         client.assigned_to ? `User ID: ${client.assigned_to}` : 'System'}
-                      </td>
-                      <td className="py-3 px-4 text-text-secondary">
-                        {formatDate(client.created_at)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => handleViewCustomer(client)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            {canDeleteCustomers && (
-                              <DropdownMenuItem 
-                                onClick={() => handleDeleteCustomer(client)}
-                                className="text-red-600 focus:text-red-600"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete Customer
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ResponsiveTable
+              data={clients as unknown as Record<string, unknown>[]}
+              columns={getCustomerColumns() as unknown as ResponsiveColumn<Record<string, unknown>>[]}
+              loading={loading}
+              searchable={false} // We have our own search above
+              selectable={false}
+              onRowClick={(client) => handleViewCustomer(client as unknown as Client)}
+              onAction={(action, client) => {
+                const clientData = client as unknown as Client;
+                switch (action) {
+                  case 'view':
+                    handleViewCustomer(clientData);
+                    break;
+                  case 'delete':
+                    handleDeleteCustomer(clientData);
+                    break;
+                }
+              }}
+              mobileCardTitle={(client) => {
+                const clientData = client as unknown as Client;
+                return `${clientData.first_name || ''} ${clientData.last_name || ''}`;
+              }}
+              mobileCardSubtitle={(client) => {
+                const clientData = client as unknown as Client;
+                return clientData.email || 'N/A';
+              }}
+              mobileCardActions={(client) => {
+                const clientData = client as unknown as Client;
+                return (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewCustomer(clientData);
+                      }}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    {canDeleteCustomers && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCustomer(clientData);
+                        }}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              }}
+              emptyState={
+                <div className="text-center py-8">
+                  <div className="text-text-secondary mb-2">No customers found</div>
+                  <Button onClick={() => setShowAddModal(true)} variant="outline">
+                    Add your first customer
+                  </Button>
+                </div>
+              }
+            />
           )}
         </CardContent>
       </Card>

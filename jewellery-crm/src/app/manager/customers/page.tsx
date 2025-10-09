@@ -13,6 +13,7 @@ import { ImportModal } from '@/components/customers/ImportModal';
 import { apiService, Client } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { Search, Download, Plus, Eye, Edit, Trash2, Archive, Upload } from 'lucide-react';
+import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
 
 export default function ManagerCustomersPage() {
   const { user } = useAuth();
@@ -139,6 +140,82 @@ export default function ManagerCustomersPage() {
         return 'outline';
     }
   };
+
+  // Define columns for ResponsiveTable
+  const getCustomerColumns = (): ResponsiveColumn<Client>[] => [
+    {
+      key: 'name',
+      title: 'Customer',
+      priority: 'high',
+      mobileLabel: 'Name',
+      render: (value, row) => (
+        <span className="font-medium text-text-primary">
+          {(row as Client).first_name} {(row as Client).last_name}
+        </span>
+      ),
+    },
+    {
+      key: 'email',
+      title: 'Email',
+      priority: 'high',
+      mobileLabel: 'Email',
+      render: (value) => (
+        <span className="text-text-primary">{value as string}</span>
+      ),
+    },
+    {
+      key: 'phone',
+      title: 'Phone',
+      priority: 'medium',
+      mobileLabel: 'Phone',
+      render: (value) => (
+        <span className="text-text-primary">{value as string || '-'}</span>
+      ),
+    },
+    {
+      key: 'salesperson',
+      title: 'Salesperson',
+      priority: 'medium',
+      mobileLabel: 'Salesperson',
+      render: (value, row) => {
+        const customer = row as Client;
+        const salespersonName = customer.created_by 
+          ? `${customer.created_by.first_name} ${customer.created_by.last_name}`
+          : customer.assigned_to 
+            ? `User ID: ${customer.assigned_to}`
+            : '-';
+        return <span className="text-text-primary">{salespersonName}</span>;
+      },
+    },
+    {
+      key: 'status',
+      title: 'Status',
+      priority: 'high',
+      mobileLabel: 'Status',
+      render: (value) => {
+        const status = value as string || 'unknown';
+        return (
+          <Badge 
+            variant={getStatusBadgeVariant(status)} 
+            className="capitalize text-xs"
+          >
+            {status}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'created_at',
+      title: 'Created',
+      priority: 'low',
+      mobileLabel: 'Created',
+      render: (value) => (
+        <span className="text-text-secondary">
+          {value ? formatDate(value as string) : '-'}
+        </span>
+      ),
+    },
+  ];
 
   const exportCustomers = async (format: 'csv' | 'json') => {
     try {
@@ -276,87 +353,89 @@ export default function ManagerCustomersPage() {
         </div>
         
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Customer</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Email</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Phone</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Salesperson</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Status</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Created</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCustomers.length > 0 ? (
-                filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="border-t border-border hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-text-primary">
-                      {customer.first_name} {customer.last_name}
-                    </td>
-                    <td className="px-4 py-3 text-text-primary">{customer.email}</td>
-                    <td className="px-4 py-3 text-text-primary">{customer.phone || '-'}</td>
-                    <td className="px-4 py-3 text-text-primary">
-                      {customer.created_by ? `${customer.created_by.first_name} ${customer.created_by.last_name}` : 
-                       customer.assigned_to ? `User ID: ${customer.assigned_to}` : '-'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={getStatusBadgeVariant(customer.status || '')} className="capitalize text-xs">
-                        {customer.status || 'unknown'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary">
-                      {customer.created_at ? formatDate(customer.created_at) : '-'}
-                    </td>
-                    <td className="px-4 py-3">
+          <ResponsiveTable
+            data={filteredCustomers as unknown as Record<string, unknown>[]}
+            columns={getCustomerColumns() as unknown as ResponsiveColumn<Record<string, unknown>>[]}
+            loading={loading}
+            searchable={false} // We have our own search above
+            selectable={false}
+            onRowClick={(customer) => handleViewCustomer((customer as unknown as Client).id.toString())}
+            onAction={(action, customer) => {
+              const client = customer as unknown as Client;
+              switch (action) {
+                case 'view':
+                  handleViewCustomer(client.id.toString());
+                  break;
+                case 'edit':
+                  handleEditCustomer(client);
+                  break;
+                case 'delete':
+                  if (window.confirm(`Are you sure you want to move ${client.first_name} ${client.last_name} to trash? You can restore them later from the Trash section.`)) {
+                    handleDeleteCustomer(client.id.toString());
+                  }
+                  break;
+              }
+            }}
+            mobileCardTitle={(customer) => {
+              const client = customer as unknown as Client;
+              return `${client.first_name} ${client.last_name}`;
+            }}
+            mobileCardSubtitle={(customer) => {
+              const client = customer as unknown as Client;
+              return client.email;
+            }}
+            mobileCardActions={(customer) => {
+              const client = customer as unknown as Client;
+              return (
                       <div className="flex gap-2">
                         <Button 
                           variant="ghost" 
                           size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewCustomer(client.id.toString());
+                    }}
                           className="text-blue-600 hover:text-blue-800"
-                          onClick={() => handleViewCustomer(customer.id.toString())}
                         >
-                          <Eye className="w-4 h-4 mr-1" />
-                          View
+                    <Eye className="w-4 h-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditCustomer(client);
+                    }}
                           className="text-green-600 hover:text-green-800"
-                          onClick={() => handleEditCustomer(customer)}
                         >
-                          <Edit className="w-4 h-4 mr-1" />
-                          Edit
+                    <Edit className="w-4 h-4" />
                         </Button>
                         {canDeleteCustomers && (
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="text-red-600 hover:text-red-800"
-                            onClick={() => {
-                              if (window.confirm(`Are you sure you want to move ${customer.first_name} ${customer.last_name} to trash? You can restore them later from the Trash section.`)) {
-                                handleDeleteCustomer(customer.id.toString());
-                              }
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Move to Trash
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Are you sure you want to move ${client.first_name} ${client.last_name} to trash? You can restore them later from the Trash section.`)) {
+                          handleDeleteCustomer(client.id.toString());
+                        }
+                      }}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
                       </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-text-secondary">
+              );
+            }}
+            emptyState={
+              <div className="text-center py-8">
+                <p className="text-text-secondary">
                     {customers.length === 0 ? 'No customers found' : 'No customers match your search criteria'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                </p>
+              </div>
+            }
+          />
         </div>
         
         {filteredCustomers.length > 0 && (
