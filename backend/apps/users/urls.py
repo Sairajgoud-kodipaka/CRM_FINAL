@@ -31,5 +31,6 @@ urlpatterns = [
     path('users/team-members/<int:pk>/delete/', views.TeamMemberDeleteView.as_view(), name='team_member_delete'),
     path('users/tenant/<int:tenant_id>/sales-users/', views.TenantSalesUsersView.as_view(), name='tenant_sales_users'),
     path('users/sales-users/', views.AllSalesUsersView.as_view(), name='all_sales_users'),
+    path('users/salespersons/context/', views.SalesPersonsContextView.as_view(), name='salespersons_context'),
     path('audit/assignment-override/', views.AssignmentOverrideAuditView.as_view(), name='assignment_override_audit'),
 ] 

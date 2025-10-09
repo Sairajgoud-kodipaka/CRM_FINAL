@@ -2125,4 +2125,119 @@ class AssignmentOverrideAuditView(APIView):
         return ip
 
 
+class SalesPersonsContextView(APIView):
+    """
+    Get salespersons for current user's context (tenant and store).
+    
+    This endpoint provides salespersons based on the current user's role and context:
+    - Platform Admin: All salespersons across all tenants
+    - Business Admin: All salespersons in their tenant
+    - Manager: Salespersons in their store/tenant
+    - Sales Users: Only themselves (for self-assignment)
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        current_user = request.user
+        
+        try:
+            # Get sales users based on role and context
+            if current_user.role == 'platform_admin':
+                # Platform admin can see all sales users
+                sales_users = User.objects.filter(
+                    role='inhouse_sales',  # Only inhouse_sales, not tele_calling
+                    is_active=True
+                ).select_related('tenant', 'store')
+                
+            elif current_user.role == 'business_admin':
+                # Business admin can see sales users in their tenant
+                if not current_user.tenant:
+                    return Response(
+                        {'detail': 'No tenant associated with user'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                sales_users = User.objects.filter(
+                    tenant=current_user.tenant,
+                    role='inhouse_sales',  # Only inhouse_sales, not tele_calling
+                    is_active=True
+                ).select_related('tenant', 'store')
+                
+            elif current_user.role == 'manager':
+                # Manager can see sales users in their store/tenant
+                if not current_user.tenant:
+                    return Response(
+                        {'detail': 'No tenant associated with user'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # If manager has a specific store, show users from that store
+                if current_user.store:
+                    sales_users = User.objects.filter(
+                        tenant=current_user.tenant,
+                        store=current_user.store,
+                        role='inhouse_sales',  # Only inhouse_sales, not tele_calling
+                        is_active=True
+                    ).select_related('tenant', 'store')
+                else:
+                    # If no specific store, show all sales users in tenant
+                    sales_users = User.objects.filter(
+                        tenant=current_user.tenant,
+                        role='inhouse_sales',  # Only inhouse_sales, not tele_calling
+                        is_active=True
+                    ).select_related('tenant', 'store')
+                    
+            elif current_user.role in ['inhouse_sales', 'tele_calling', 'sales']:
+                # Sales users can see all salespersons in their store
+                if not current_user.tenant:
+                    return Response(
+                        {'detail': 'No tenant associated with user'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # If sales user has a specific store, show all sales users from that store
+                if current_user.store:
+                    sales_users = User.objects.filter(
+                        tenant=current_user.tenant,
+                        store=current_user.store,
+                        role='inhouse_sales',  # Only inhouse_sales, not tele_calling
+                        is_active=True
+                    ).select_related('tenant', 'store')
+                else:
+                    # If no specific store, show all sales users in tenant
+                    sales_users = User.objects.filter(
+                        tenant=current_user.tenant,
+                        role='inhouse_sales',  # Only inhouse_sales, not tele_calling
+                        is_active=True
+                    ).select_related('tenant', 'store')
+                
+            else:
+                return Response(
+                    {'detail': 'Access denied - insufficient permissions'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Serialize the users
+            serializer = UserSerializer(sales_users, many=True)
+            
+            return Response({
+                'success': True,
+                'data': serializer.data,
+                'count': sales_users.count(),
+                'context': {
+                    'user_role': current_user.role,
+                    'tenant_id': current_user.tenant_id,
+                    'store_id': current_user.store_id,
+                    'tenant_name': current_user.tenant.name if current_user.tenant else None,
+                    'store_name': current_user.store.name if current_user.store else None
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching salespersons context: {str(e)}")
+            return Response(
+                {'detail': f'Error fetching salespersons: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 

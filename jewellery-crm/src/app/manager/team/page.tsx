@@ -9,6 +9,7 @@ import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { apiService, User } from '@/lib/api-service';
 import { useRouter } from 'next/navigation';
+import { useToast } from "@/hooks/use-toast";
 
 interface InviteMemberData {
   username: string;
@@ -24,6 +25,7 @@ interface InviteMemberData {
 
 export default function ManagerTeamPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [team, setTeam] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,7 +36,6 @@ export default function ManagerTeamPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<User | null>(null);
-  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<User | null>(null);
   const [inviteData, setInviteData] = useState<InviteMemberData>({
@@ -102,15 +103,6 @@ export default function ManagerTeamPage() {
     fetchCurrentUser();
   }, [router]);
 
-  // Auto-dismiss notifications after 5 seconds
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => {
-        setNotification(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -174,7 +166,11 @@ export default function ManagerTeamPage() {
       
       if (missingFields.length > 0) {
         console.error('Missing required fields:', missingFields);
-        setNotification({type: 'error', message: `Missing required fields: ${missingFields.join(', ')}`});
+        toast({
+          title: "Error",
+          description: `Missing required fields: ${missingFields.join(', ')}`,
+          variant: "destructive",
+        });
         return;
       }
       
@@ -192,13 +188,21 @@ export default function ManagerTeamPage() {
           password: generateStrongPassword(),
           role: 'inhouse_sales'
         });
-        setNotification({type: 'success', message: 'Team member added successfully!'});
+        toast({
+          title: "Success",
+          description: "Team member added successfully!",
+          variant: "success",
+        });
         // Refresh team members
         await fetchTeam();
       } else {
         console.error('Failed to invite member:', response);
         const errorMessage = typeof response.errors === 'string' ? response.errors : response.message || 'Failed to add member. Please try again.';
-        setNotification({type: 'error', message: errorMessage});
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
       console.error('Error inviting member:', error);
@@ -212,7 +216,11 @@ export default function ManagerTeamPage() {
         errorMessage = error.response.data.error;
       }
       
-      setNotification({type: 'error', message: errorMessage});
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setInviteLoading(false);
     }
@@ -253,16 +261,28 @@ export default function ManagerTeamPage() {
           phone: '',
           address: ''
         });
-        setNotification({type: 'success', message: 'Team member updated successfully!'});
+        toast({
+          title: "Success",
+          description: "Team member updated successfully!",
+          variant: "success",
+        });
         // Refresh team members
         await fetchTeam();
       } else {
         console.error('Failed to update member:', response);
-        setNotification({type: 'error', message: 'Failed to update member. Please try again.'});
+        toast({
+          title: "Error",
+          description: "Failed to update member. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error updating member:', error);
-      setNotification({type: 'error', message: 'Error updating member. Please try again.'});
+      toast({
+        title: "Error",
+        description: "Error updating member. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setEditLoading(false);
     }
@@ -286,16 +306,28 @@ export default function ManagerTeamPage() {
       
       if (response.success) {
         console.log('Member deleted successfully');
-        setNotification({type: 'success', message: 'Team member deleted successfully!'});
+        toast({
+          title: "Success",
+          description: "Team member deleted successfully!",
+          variant: "success",
+        });
         // Refresh team members
         await fetchTeam();
       } else {
         console.error('Failed to delete member:', response);
-        setNotification({type: 'error', message: 'Failed to delete member. Please try again.'});
+        toast({
+          title: "Error",
+          description: "Failed to delete member. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error deleting member:', error);
-      setNotification({type: 'error', message: 'Error deleting member. Please try again.'});
+      toast({
+        title: "Error",
+        description: "Error deleting member. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setDeleteLoading(null);
       setMemberToDelete(null);
@@ -318,26 +350,6 @@ export default function ManagerTeamPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Notification */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-          notification.type === 'success' 
-            ? 'bg-green-500 text-white' 
-            : 'bg-red-500 text-white'
-        }`}>
-          <div className="flex items-center gap-2">
-            <span>{notification.message}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setNotification(null)}
-              className="text-white hover:text-white/80"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      )}
       <div className="mb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">Team</h1>
@@ -704,5 +716,5 @@ export default function ManagerTeamPage() {
          </div>
        )}
      </div>
-   );
+  );
 }

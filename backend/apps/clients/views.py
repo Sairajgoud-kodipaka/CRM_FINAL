@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q, Count
+from django.contrib.auth import get_user_model
 from .models import Client, ClientInteraction, Appointment, FollowUp, Task, Announcement, Purchase, AuditLog, CustomerTag
 from .serializers import (
     ClientSerializer, ClientInteractionSerializer, AppointmentSerializer, FollowUpSerializer, 
@@ -21,6 +22,8 @@ from django.db import transaction
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 # import openpyxl
 # from openpyxl import Workbook
+
+User = get_user_model()
 
 
 class IsAdminOrManager(permissions.BasePermission):
@@ -79,10 +82,13 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         print("=== DJANGO VIEW - CREATE METHOD START ===")
         print(f"Request method: {request.method}")
         print(f"Request URL: {request.path}")
-        print(f"Request headers: {dict(request.headers)}")
-        print(f"Request data: {request.data}")
         print(f"Request user: {request.user}")
         print(f"Request authenticated: {request.user.is_authenticated}")
+        print(f"Request data keys: {list(request.data.keys())}")
+        print(f"Sales person ID from request: {request.data.get('sales_person_id')}")
+        print(f"Sales person name from request: {request.data.get('sales_person')}")
+        print(f"Request data type: {type(request.data)}")
+        print(f"Request data: {request.data}")
         
         try:
             # Validate the data first
@@ -98,8 +104,78 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
             if request.user.store:
                 request.data['store'] = request.user.store.id
             
-            # Set created_by automatically
-            request.data['created_by'] = request.user.id
+            # Set created_by to the selected salesperson, not the logged-in user
+            # This allows multiple salespersons to use the same login account but be tracked individually
+            selected_salesperson_id = request.data.get('sales_person_id')
+            selected_salesperson_name = request.data.get('sales_person')
+            
+            print(f"=== SALESPERSON ASSIGNMENT DEBUG ===")
+            print(f"Selected salesperson ID: {selected_salesperson_id} (type: {type(selected_salesperson_id)})")
+            print(f"Selected salesperson name: {selected_salesperson_name}")
+            print(f"Request user tenant: {request.user.tenant}")
+            print(f"Request user store: {request.user.store}")
+            
+            # Store the selected salesperson for use in perform_create
+            self.selected_salesperson = None
+            
+            if selected_salesperson_id:
+                # Use the provided salesperson ID
+                try:
+                    selected_user = User.objects.filter(
+                        id=selected_salesperson_id,
+                        role='inhouse_sales',
+                        tenant=request.user.tenant,
+                        is_active=True
+                    ).first()
+                    
+                    if selected_user:
+                        self.selected_salesperson = selected_user
+                        print(f"=== ASSIGNED TO SELECTED SALESPERSON BY ID: {selected_user.first_name} {selected_user.last_name} ({selected_user.username}) ===")
+                    else:
+                        # Fallback to logged-in user if salesperson not found
+                        self.selected_salesperson = request.user
+                        print(f"=== SALESPERSON ID NOT FOUND, USING LOGGED-IN USER: {request.user.username} ===")
+                except Exception as e:
+                    print(f"=== ERROR FINDING SALESPERSON BY ID: {e}, USING LOGGED-IN USER ===")
+                    self.selected_salesperson = request.user
+            elif selected_salesperson_name:
+                # Fallback: Try to find user by name (for backward compatibility)
+                try:
+                    # Try to find user by first_name and last_name combination
+                    name_parts = selected_salesperson_name.split()
+                    if len(name_parts) >= 2:
+                        first_name = name_parts[0]
+                        last_name = ' '.join(name_parts[1:])
+                        selected_user = User.objects.filter(
+                            first_name__iexact=first_name,
+                            last_name__iexact=last_name,
+                            role='inhouse_sales',
+                            tenant=request.user.tenant,
+                            is_active=True
+                        ).first()
+                    else:
+                        # Try to find by username or first_name only
+                        selected_user = User.objects.filter(
+                            Q(username__iexact=selected_salesperson_name) |
+                            Q(first_name__iexact=selected_salesperson_name),
+                            role='inhouse_sales',
+                            tenant=request.user.tenant,
+                            is_active=True
+                        ).first()
+                    
+                    if selected_user:
+                        self.selected_salesperson = selected_user
+                        print(f"=== ASSIGNED TO SELECTED SALESPERSON BY NAME: {selected_user.first_name} {selected_user.last_name} ({selected_user.username}) ===")
+                    else:
+                        # Fallback to logged-in user if salesperson not found
+                        self.selected_salesperson = request.user
+                        print(f"=== SALESPERSON NOT FOUND BY NAME, USING LOGGED-IN USER: {request.user.username} ===")
+                except Exception as e:
+                    print(f"=== ERROR FINDING SALESPERSON BY NAME: {e}, USING LOGGED-IN USER ===")
+                    self.selected_salesperson = request.user
+            else:
+                # No salesperson selected, use logged-in user
+                self.selected_salesperson = request.user
             
             response = super().create(request, *args, **kwargs)
             print("=== DJANGO VIEW - CREATE SUCCESS ===")
@@ -128,6 +204,15 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                         # Debug statements removed for production
                         
                         # Create appointment for the follow-up
+                        # Use the same salesperson for appointment assignment
+                        appointment_created_by = request.user
+                        appointment_assigned_to = request.user
+                        
+                        # If we found a selected salesperson, use them for the appointment too
+                        if selected_salesperson_id and 'selected_user' in locals() and selected_user:
+                            appointment_created_by = selected_user
+                            appointment_assigned_to = selected_user
+                        
                         appointment_data = {
                             'client_id': client_data['id'],
                             'tenant': request.user.tenant,
@@ -136,8 +221,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                             'purpose': f"Follow-up for {client_data.get('first_name', '')} {client_data.get('last_name', '')}",
                             'notes': f"Follow-up appointment created automatically when customer was added. Summary: {request.data.get('summary_notes', 'No notes provided')}",
                             'status': 'scheduled',
-                            'created_by': request.user,
-                            'assigned_to': request.user,
+                            'created_by': appointment_created_by,
+                            'assigned_to': appointment_assigned_to,
                             'duration': 60,  # Default 1 hour
                             'requires_follow_up': False,  # This is the follow-up itself
                         }
@@ -161,6 +246,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                 {"error": str(e), "detail": "Internal server error"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
     
     @action(detail=False, methods=['post'])
     def test(self, request):
@@ -197,11 +283,27 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         return result
 
     def perform_create(self, serializer):
-        """Automatically set tenant and store when creating a client."""
-        user = self.request.user
-        instance = serializer.save()
+        """Override to set the correct created_by user and handle tenant/store assignment"""
+        print(f"=== PERFORM_CREATE DEBUG ===")
+        print(f"Has selected_salesperson attribute: {hasattr(self, 'selected_salesperson')}")
+        if hasattr(self, 'selected_salesperson'):
+            print(f"Selected salesperson value: {self.selected_salesperson}")
+            if self.selected_salesperson:
+                print(f"Selected salesperson details: {self.selected_salesperson.username} (ID: {self.selected_salesperson.id})")
+        
+        # Use the selected salesperson if available, otherwise use logged-in user
+        if hasattr(self, 'selected_salesperson') and self.selected_salesperson:
+            created_by_user = self.selected_salesperson
+            print(f"=== PERFORM_CREATE: Using selected salesperson {created_by_user.first_name} {created_by_user.last_name} ===")
+        else:
+            created_by_user = self.request.user
+            print(f"=== PERFORM_CREATE: Using logged-in user {created_by_user.username} ===")
+        
+        # Save the instance with the correct created_by user
+        instance = serializer.save(created_by=created_by_user)
         
         # Set tenant and store if not already set
+        user = self.request.user
         if user.tenant and not instance.tenant:
             instance.tenant = user.tenant
         if user.store and not instance.store:
@@ -211,10 +313,10 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
             instance.save()
         
         # Set audit log user for tracking
-        instance._auditlog_user = user
+        instance._auditlog_user = created_by_user
         
-        # Create notifications for new customer
-        self.create_customer_notifications(instance, user)
+        # Create notifications for new customer using the actual creator
+        self.create_customer_notifications(instance, created_by_user)
         
         return instance
     

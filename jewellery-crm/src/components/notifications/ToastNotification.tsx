@@ -18,15 +18,15 @@ const getNotificationIcon = (type: NotificationType, priority: NotificationPrior
   
   switch (type) {
     case 'appointment_reminder':
-      return <Calendar className={`${iconClass} text-blue-500`} />;
+      return <Calendar className={`${iconClass} text-[#4A90E2]`} />;
     case 'deal_update':
-      return <TrendingUp className={`${iconClass} text-green-500`} />;
+      return <TrendingUp className={`${iconClass} text-[#00BDA5]`} />;
     case 'inventory_alert':
-      return <Package className={`${iconClass} text-orange-500`} />;
+      return <Package className={`${iconClass} text-[#F5A623]`} />;
     case 'task_due':
-      return <AlertTriangle className={`${iconClass} text-red-500`} />;
+      return <AlertTriangle className={`${iconClass} text-[#E74C3C]`} />;
     case 'announcement':
-      return <Bell className={`${iconClass} text-purple-500`} />;
+      return <Bell className={`${iconClass} text-[#4A90E2]`} />;
     default:
       return <Info className={`${iconClass} text-gray-500`} />;
   }
@@ -36,38 +36,38 @@ const getPriorityStyles = (priority: NotificationPriority) => {
   switch (priority) {
     case 'urgent':
       return {
-        container: 'bg-red-50 border-red-200',
-        title: 'text-red-900',
-        message: 'text-red-700',
-        icon: 'text-red-500'
+        container: 'bg-[#E74C3C]/10 border-[#E74C3C]',
+        title: 'text-[#E74C3C]',
+        message: 'text-[#E74C3C]/80',
+        icon: 'text-[#E74C3C]'
       };
     case 'high':
       return {
-        container: 'bg-orange-50 border-orange-200',
-        title: 'text-orange-900',
-        message: 'text-orange-700',
-        icon: 'text-orange-500'
+        container: 'bg-[#F5A623]/10 border-[#F5A623]',
+        title: 'text-[#F5A623]',
+        message: 'text-[#F5A623]/80',
+        icon: 'text-[#F5A623]'
       };
     case 'medium':
       return {
-        container: 'bg-yellow-50 border-yellow-200',
-        title: 'text-yellow-900',
-        message: 'text-yellow-700',
-        icon: 'text-yellow-500'
+        container: 'bg-[#F5A623]/10 border-[#F5A623]',
+        title: 'text-[#F5A623]',
+        message: 'text-[#F5A623]/80',
+        icon: 'text-[#F5A623]'
       };
     case 'low':
       return {
-        container: 'bg-green-50 border-green-200',
-        title: 'text-green-900',
-        message: 'text-green-700',
-        icon: 'text-green-500'
+        container: 'bg-[#00BDA5]/10 border-[#00BDA5]',
+        title: 'text-[#00BDA5]',
+        message: 'text-[#00BDA5]/80',
+        icon: 'text-[#00BDA5]'
       };
     default:
       return {
-        container: 'bg-blue-50 border-blue-200',
-        title: 'text-blue-900',
-        message: 'text-blue-700',
-        icon: 'text-blue-500'
+        container: 'bg-[#4A90E2]/10 border-[#4A90E2]',
+        title: 'text-[#4A90E2]',
+        message: 'text-[#4A90E2]/80',
+        icon: 'text-[#4A90E2]'
       };
   }
 };

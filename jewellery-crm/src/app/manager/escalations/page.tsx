@@ -10,7 +10,7 @@ import { AlertTriangle, Clock, User, CheckCircle, XCircle, Eye, MessageSquare, P
 import { useAuth } from '@/hooks/useAuth';
 import CreateEscalationModal from '@/components/escalations/CreateEscalationModal';
 import AddNoteModal from '@/components/escalations/AddNoteModal';
-import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 
 interface Escalation {
   id: number;
@@ -46,6 +46,7 @@ interface Escalation {
 
 export default function ManagerEscalationsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [escalations, setEscalations] = useState<Escalation[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{
@@ -119,15 +120,27 @@ export default function ManagerEscalationsPage() {
     try {
       const response = await apiService.changeEscalationStatus(escalationId, newStatus);
       if (response.success) {
-        toast.success('Escalation status updated successfully');
+        toast({
+          title: "Success",
+          description: "Escalation status updated successfully",
+          variant: "success",
+        });
         fetchEscalations();
         fetchStats();
       } else {
-        toast.error('Failed to update escalation status');
+        toast({
+          title: "Error",
+          description: "Failed to update escalation status",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error updating escalation status:', error);
-      toast.error('Failed to update escalation status');
+      toast({
+        title: "Error",
+        description: "Failed to update escalation status",
+        variant: "destructive",
+      });
     }
   };
 
@@ -135,15 +148,27 @@ export default function ManagerEscalationsPage() {
     try {
       const response = await apiService.assignEscalation(escalationId, user?.id || 0);
       if (response.success) {
-        toast.success('Escalation assigned to you successfully');
+        toast({
+          title: "Success",
+          description: "Escalation assigned to you successfully",
+          variant: "success",
+        });
         fetchEscalations();
         fetchStats();
       } else {
-        toast.error('Failed to assign escalation');
+        toast({
+          title: "Error",
+          description: "Failed to assign escalation",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error assigning escalation:', error);
-      toast.error('Failed to assign escalation');
+      toast({
+        title: "Error",
+        description: "Failed to assign escalation",
+        variant: "destructive",
+      });
     }
   };
 

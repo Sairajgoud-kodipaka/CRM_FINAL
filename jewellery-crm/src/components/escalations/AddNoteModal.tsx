@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { apiService } from '@/lib/api-service';
 import { MessageSquare, Plus, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 
 interface AddNoteModalProps {
   escalationId: string;
@@ -22,6 +22,7 @@ interface NoteFormData {
 }
 
 export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChange }: AddNoteModalProps) {
+  const { toast } = useToast();
   const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<NoteFormData>({
@@ -36,7 +37,11 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
     e.preventDefault();
     
     if (!formData.content.trim()) {
-      toast.error('Please enter a note');
+      toast({
+        title: "Error",
+        description: "Please enter a note",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -49,7 +54,11 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
       });
 
       if (response.success) {
-        toast.success('Note added successfully!');
+        toast({
+          title: "Success",
+          description: "Note added successfully!",
+          variant: "success",
+        });
         setIsOpen(false);
         setFormData({
           content: '',
