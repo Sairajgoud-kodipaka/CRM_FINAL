@@ -1,31 +1,64 @@
 #!/bin/bash
 
-# Startup script for production deployment
+# Exit on any error
 set -e
 
-echo "🚀 Starting Jewellery CRM Backend..."
+echo "Starting Django application..."
 
 # Wait for database to be ready
-echo "⏳ Waiting for database connection..."
-python manage.py check --database default --deploy
+echo "Waiting for database connection..."
+python -c "
+import os
+import sys
+import django
+from django.conf import settings
+from django.db import connection
+from django.core.management import execute_from_command_line
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+django.setup()
+
+# Test database connection
+try:
+    connection.ensure_connection()
+    print('Database connection successful!')
+except Exception as e:
+    print(f'Database connection failed: {e}')
+    sys.exit(1)
+"
 
 # Run migrations
-echo "🔄 Running database migrations..."
+echo "Running database migrations..."
 python manage.py migrate --noinput
 
-# Collect static files if needed
-echo "📁 Collecting static files..."
-python manage.py collectstatic --noinput || echo "Static files collection completed"
+# Create superuser if it doesn't exist
+echo "Creating superuser if needed..."
+python manage.py shell << EOF
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+if not User.objects.filter(username='admin').exists():
+    User.objects.create_superuser(
+        username='admin',
+        email='admin@jewelrycrm.com',
+        password='admin123'
+    )
+    print('Superuser created: admin/admin123')
+else:
+    print('Superuser already exists')
+EOF
+
+# Collect static files
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
 
 # Start the application
-echo "🌟 Starting Gunicorn server..."
+echo "Starting Gunicorn server..."
 exec gunicorn core.wsgi:application \
-    --bind 0.0.0.0:${PORT:-8000} \
+    --bind 0.0.0.0:$PORT \
     --workers 2 \
     --timeout 300 \
     --max-requests 1000 \
     --max-requests-jitter 100 \
     --preload \
-    --worker-class sync \
-    --access-logfile - \
-    --error-logfile -
+    --worker-class sync
