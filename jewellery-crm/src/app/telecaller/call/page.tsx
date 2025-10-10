@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,6 +38,8 @@ import {
 import { telecallingApiService, CallLog as ApiCallLog } from '@/services/telecallingApi';
 import { apiService } from '@/lib/api-service';
 import { exotelWebRTCService } from '@/services/exotelWebRTC';
+import { useAuth } from '@/hooks/useAuth';
+import { Skeleton } from '@/components/ui/skeleton';
 import { WebRTCConfig, CallStatus as WebRTCCallStatus } from '@/types/webrtc';
 
 interface LocalCallLog {
@@ -69,7 +71,7 @@ interface CallNotes {
   disposition?: string;
 }
 
-export default function CallPage() {
+function CallPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCallActive, setIsCallActive] = useState(false);
@@ -1173,7 +1175,7 @@ export default function CallPage() {
             {/* Connection Status */}
             {isConnecting && (
               <div className="text-center py-8">
-                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <Skeleton className="w-8 h-8 mx-auto mb-4 rounded-full" />
                 <p className="text-lg font-medium text-gray-700">
                   Connecting your call to {phoneNumber}
                 </p>
@@ -1482,7 +1484,7 @@ export default function CallPage() {
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {isLoadingNotes ? (
                   <div className="text-center py-8 text-gray-500">
-                    <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                    <Skeleton className="w-6 h-6 mx-auto mb-2 rounded-full" />
                     <p>Loading notes...</p>
                   </div>
                 ) : callNotes.length > 0 ? (
@@ -1746,3 +1748,14 @@ export default function CallPage() {
     </div>
   );
 }
+
+export default function CallPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CallPageContent />
+    </Suspense>
+  );
+}
+
+export const dynamic = 'force-dynamic';
+

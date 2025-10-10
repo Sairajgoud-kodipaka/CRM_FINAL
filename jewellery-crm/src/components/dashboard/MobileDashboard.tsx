@@ -443,7 +443,7 @@ export function MobileDashboard({
             >
               <RefreshCw className={cn(
                 'h-4 w-4',
-                isRefreshing && 'animate-spin'
+                isRefreshing && 'opacity-50'
               )} />
             </Button>
           )}

@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { useModal } from '@/contexts/ModalContext';
 
 interface MobileNavProps {
   className?: string;
@@ -265,6 +266,7 @@ const getMobileNavItems = (role: string) => {
 export function MobileNav({ className }: MobileNavProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { isAnyModalOpen } = useModal();
   
   // Get role-based navigation items
   const mobileNavItems = getMobileNavItems(user?.role || 'sales');
@@ -285,6 +287,8 @@ export function MobileNav({ className }: MobileNavProps) {
       'bg-background border-t border-border',
       'safe-area-bottom', // Handle devices with home indicator
       'shadow-lg', // Add shadow to make it more visible
+      'transition-transform duration-300 ease-in-out', // Smooth animation
+      isAnyModalOpen ? 'translate-y-full' : 'translate-y-0', // Hide/show animation
       className
     )}>
       <div className="flex items-center justify-around h-16 px-2">

@@ -13,6 +13,7 @@ import { Package, ArrowRight, Clock, CheckCircle, XCircle, AlertTriangle, Search
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import type { ProductInventory } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface StockTransfer {
   id: number;
@@ -389,7 +390,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <Skeleton className="h-8 w-8 mx-auto mb-2 rounded-full" />
                 <p className="text-muted-foreground">Loading transfers...</p>
               </div>
             </div>

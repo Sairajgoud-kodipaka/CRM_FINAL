@@ -47,6 +47,6 @@
     }
   ],
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://crm-final-mfe4.onrender.com"
+    "NEXT_PUBLIC_API_URL": "https://crm-final-tj4n.onrender.com"
   }
 }

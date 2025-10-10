@@ -14,6 +14,7 @@ import { apiService, Client } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { Search, Download, Plus, Eye, Edit, Trash2, Archive, Upload } from 'lucide-react';
 import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
+import { TableSkeleton } from '@/components/ui/skeleton';
 
 export default function ManagerCustomersPage() {
   const { user } = useAuth();
@@ -246,8 +247,24 @@ export default function ManagerCustomersPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col gap-8">
+        <div className="mb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="h-8 w-32 bg-muted animate-pulse rounded mb-2" />
+            <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-10 w-24 bg-muted animate-pulse rounded" />
+            <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+        <Card className="p-4">
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="h-10 w-80 bg-muted animate-pulse rounded" />
+            <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+          </div>
+          <TableSkeleton rows={8} columns={6} />
+        </Card>
       </div>
     );
   }

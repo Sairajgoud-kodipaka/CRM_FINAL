@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,7 +68,7 @@ interface CallNotes {
   disposition?: string;
 }
 
-export default function CallPage() {
+function CallPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCallActive, setIsCallActive] = useState(false);
@@ -525,7 +525,7 @@ export default function CallPage() {
                 {/* Connection Message */}
                 {isConnecting && (
                   <div className="text-center py-8">
-                    <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                    <div className="opacity-50 w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
                     <p className="text-lg font-medium text-gray-700">
                       Connecting your call to {phoneNumber}
                     </p>
@@ -739,7 +739,7 @@ export default function CallPage() {
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {isLoadingNotes ? (
                   <div className="text-center py-8 text-gray-500">
-                    <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                    <div className="opacity-50 w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
                     <p>Loading notes...</p>
                   </div>
                 ) : callNotes.length > 0 ? (
@@ -872,3 +872,13 @@ export default function CallPage() {
     </div>
   );
 }
+
+export default function CallPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CallPageContent />
+    </Suspense>
+  );
+}
+
+export const dynamic = 'force-dynamic';

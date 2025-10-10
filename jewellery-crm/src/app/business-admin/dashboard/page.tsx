@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/lib/api-service';
-import { Users, TrendingUp, Package, DollarSign, Calendar, ShoppingBag, Target, Store, Award, Filter, X, CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
-import { DashboardSkeleton, KPICardSkeleton } from '@/components/ui/skeleton';
+import { Users, TrendingUp, Package, DollarSign, Calendar, ShoppingBag, Target, Store, Award, Filter, X, CheckCircle, ArrowRight } from 'lucide-react';
+import { DashboardSkeleton, KPICardSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 import { NotificationBell } from '@/components/notifications';
 
@@ -401,7 +401,7 @@ export default function BusinessAdminDashboard() {
             {/* Data Loading Indicator */}
             {loading && (
               <Badge variant="outline" className="text-xs">
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                <Skeleton className="w-3 h-3 mr-1 rounded" />
                 Loading...
               </Badge>
             )}

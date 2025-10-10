@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { BarChart2, PieChart, TrendingUp, Users, Percent, Loader2 } from 'lucide-react';
+import { BarChart2, PieChart, TrendingUp, Users, Percent } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AnalyticsData {
   total_sales: {
@@ -84,7 +85,7 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Skeleton className="h-6 w-6 rounded" />
           <span>Loading analytics...</span>
         </div>
       </div>

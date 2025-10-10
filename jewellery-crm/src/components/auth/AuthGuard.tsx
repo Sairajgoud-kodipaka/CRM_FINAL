@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -56,7 +57,7 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   if (!isHydrated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <Skeleton className="h-8 w-8 rounded-full" />
       </div>
     );
   }

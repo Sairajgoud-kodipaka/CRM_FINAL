@@ -8,10 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Building, Mail, Phone, MapPin, Globe, User, Lock } from 'lucide-react';
+import { Building, Mail, Phone, MapPin, Globe, User, Lock } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TenantFormData {
   name: string;
@@ -344,7 +345,7 @@ export default function NewTenantPage() {
         >
           {submitting ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Skeleton className="h-4 w-4 mr-2 rounded" />
               Creating Tenant...
             </>
           ) : (

@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Phone, Loader2, AlertCircle, Play, Download, Filter, Search, Calendar } from 'lucide-react';
+import { Phone, AlertCircle, Play, Download, Filter, Search, Calendar } from 'lucide-react';
 import { telecallingLegacyApiService, CallLog } from '@/services/telecallingLegacyApi';
 import { useAuth } from '@/hooks/useAuth';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const CallLogRow = ({ 
   callLog, 
@@ -257,7 +258,7 @@ export default function TelecallerCallLogsPage() {
 
         {loading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <Skeleton className="w-8 h-8 rounded-full" />
           </div>
         ) : filteredCallLogs.length === 0 ? (
           <EmptyState />

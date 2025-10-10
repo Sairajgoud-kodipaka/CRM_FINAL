@@ -11,7 +11,6 @@ import { Separator } from '@/components/ui/separator';
 import { 
   ArrowLeft, 
   Send, 
-  Loader2, 
   Clock, 
   User, 
   MessageSquare, 
@@ -30,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface SupportTicket {
   id: number;
@@ -211,7 +211,7 @@ export default function PlatformSupportTicketDetailPage() {
         borderColor: 'border-blue-200'
       },
       'in_progress': { 
-        icon: Loader2, 
+        icon: Clock, 
         color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
         textColor: 'text-yellow-700',
         bgColor: 'bg-yellow-50',
@@ -279,7 +279,7 @@ export default function PlatformSupportTicketDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Skeleton className="h-8 w-8 rounded-full" />
           <span className="text-lg font-medium">Loading ticket details...</span>
         </div>
       </div>
@@ -529,7 +529,7 @@ export default function PlatformSupportTicketDetailPage() {
                   className="self-end bg-primary hover:bg-primary/90 px-6"
                 >
                   {sending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Skeleton className="w-4 h-4 rounded" />
                   ) : (
                     <Send className="w-4 h-4" />
                   )}

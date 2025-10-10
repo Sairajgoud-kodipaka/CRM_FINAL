@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { ResponsiveDialog } from '@/components/ui/ResponsiveDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,8 +12,10 @@ import { DimensionsInput } from '@/components/ui/dimensions-input';
 import { WeightDropdown } from '@/components/ui/weight-dropdown';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, X } from 'lucide-react';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
+import { X } from 'lucide-react';
 import ImageUpload from './ImageUpload';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -49,6 +52,8 @@ interface ProductFormData {
 
 export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProductModalProps) {
   const { user, isAuthenticated, isLoading: authLoading, isHydrated } = useAuth();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [categories, setCategories] = useState<Category[]>([]);
   
   // Predefined options for dropdowns
@@ -249,27 +254,37 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[95vh] overflow-hidden">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Add New Product</h2>
-              <p className="text-gray-600 mt-1">
-                {!isHydrated ? 'Loading...' : 
+    <ResponsiveDialog
+      open={isOpen}
+      onOpenChange={onClose}
+      title="Add New Product"
+      description={!isHydrated ? 'Loading...' : 
                  authLoading ? 'Loading user information...' : 
                  'Create a new jewelry product for your inventory'}
-              </p>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose} className="text-gray-500 hover:text-gray-700">
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+      size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+      showCloseButton={true}
+      actions={
+        <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={loading || !formData.name || !formData.category}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {loading ? (
+              <>
+                <Skeleton className="w-4 h-4 mr-2 rounded" />
+                Creating...
+              </>
+            ) : (
+              'Create Product'
+            )}
+          </Button>
         </div>
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(95vh-120px)]">
+      }
+    >
           <form onSubmit={handleSubmit} className="space-y-8" style={{ pointerEvents: (!isHydrated || authLoading) ? 'none' : 'auto', opacity: (!isHydrated || authLoading) ? 0.6 : 1 }}>
             {error && (
               <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
@@ -554,36 +569,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
                 </div>
               </div>
             </div>
-
-            {/* Form Actions */}
-            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="h-10 px-6"
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="h-10 px-6"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Product...
-                  </>
-                ) : (
-                  'Create Product'
-                )}
-              </Button>
-            </div>
           </form>
-        </div>
-      </div>
-    </div>
+    </ResponsiveDialog>
   );
 }

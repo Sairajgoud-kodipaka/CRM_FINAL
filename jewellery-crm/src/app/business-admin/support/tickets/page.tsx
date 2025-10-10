@@ -9,10 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
-import { Plus, Download, Eye, Loader2, Search, X } from 'lucide-react';
+import { Plus, Download, Eye, Search, X } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface SupportTicket {
   id: number;
@@ -200,7 +201,7 @@ export default function SupportTicketsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Skeleton className="h-6 w-6 rounded" />
           <span>Loading support tickets...</span>
         </div>
       </div>
@@ -340,7 +341,7 @@ export default function SupportTicketsPage() {
                 >
                   {creatingTicket ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Skeleton className="w-4 h-4 mr-2 rounded" />
                       Creating...
                     </>
                   ) : (

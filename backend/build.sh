@@ -104,6 +104,12 @@ python manage.py check --deploy --settings=core.settings || {
     warning "Production deployment check had issues, but continuing..."
 }
 
+# Create production superuser
+log "👤 Creating production users..."
+python manage.py create_production_users || {
+    warning "Production user creation failed, but continuing..."
+}
+
 # Create logs directory
 log "📝 Setting up logging..."
 mkdir -p logs

@@ -27,7 +27,6 @@ import {
   DollarSign,
   ShoppingBag,
   ArrowLeft,
-  Loader2,
   CheckCircle,
   XCircle,
   AlertCircle
@@ -52,6 +51,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Store {
   id: number;
@@ -284,7 +284,7 @@ export default function StoreDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Skeleton className="h-6 w-6 rounded-full" />
           <span>Loading store details...</span>
         </div>
       </div>

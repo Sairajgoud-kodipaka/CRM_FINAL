@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface SupportTicket {
   id: number;
@@ -201,7 +202,7 @@ export default function PlatformSupportTicketsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          <Skeleton className="h-6 w-6 rounded-full" />
           <span>Loading...</span>
         </div>
       </div>
@@ -217,7 +218,7 @@ export default function PlatformSupportTicketsPage() {
           <p className="text-gray-600 mt-1">Manage and track support requests across all tenants</p>
         </div>
         <Button onClick={fetchTickets} disabled={loading} className="flex items-center gap-2 w-full sm:w-auto">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${loading ? 'opacity-50' : ''}`} />
           {loading ? 'Refreshing...' : 'Refresh'}
         </Button>
       </div>
@@ -369,7 +370,7 @@ export default function PlatformSupportTicketsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <Skeleton className="h-6 w-6 rounded-full" />
             <span>Loading tickets...</span>
           </div>
         </div>

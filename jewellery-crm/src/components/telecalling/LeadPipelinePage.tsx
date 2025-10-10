@@ -31,6 +31,7 @@ import { PIPELINE_STATUSES, PIPELINE_LANES, NOTE_TEMPLATES, getStatusById, canTr
 import { StatusHoverNotes, PipelineStatusWithNotes } from './StatusHoverNotes';
 import { AddNoteModal } from './AddNoteModal';
 import { useRouter } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface LeadPipelinePageProps {
   assignmentId: string;
@@ -544,7 +545,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <Skeleton className="h-8 w-8 mx-auto mb-4 rounded-full" />
           <p className="text-text-secondary">Loading lead pipeline...</p>
         </div>
       </div>

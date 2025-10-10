@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, X, Plus, Edit, Trash2 } from 'lucide-react';
+import { X, Plus, Edit, Trash2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface CategoriesModalProps {
   isOpen: boolean;
@@ -187,7 +188,7 @@ export default function CategoriesModal({ isOpen, onClose, onSuccess }: Categori
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Skeleton className="mr-2 h-4 w-4 rounded" />
                       {editingCategory ? 'Updating...' : 'Creating...'}
                     </>
                   ) : (
@@ -226,7 +227,7 @@ export default function CategoriesModal({ isOpen, onClose, onSuccess }: Categori
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="flex items-center gap-2">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Skeleton className="h-6 w-6 rounded-full" />
                 <span>Loading categories...</span>
               </div>
             </div>

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Upload, Download, X, FileText, AlertCircle } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -381,7 +382,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
               >
                 {uploading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Skeleton className="w-4 h-4 rounded-full" />
                     Uploading...
                   </>
                 ) : (

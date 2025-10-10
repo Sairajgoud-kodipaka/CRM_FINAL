@@ -18,7 +18,6 @@ import {
   Smartphone,
   CheckCircle,
   XCircle,
-  Loader2,
   PlayCircle,
   MessageCircle,
   Zap,
@@ -28,6 +27,7 @@ import {
   Building2
 } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ManagerWhatsAppPage() {
   const [whatsappStatus, setWhatsappStatus] = useState<{
@@ -72,7 +72,7 @@ export default function ManagerWhatsAppPage() {
       case 'connected':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>;
       case 'connecting':
-        return <Badge className="bg-yellow-100 text-yellow-800"><Loader2 className="w-3 h-3 mr-1 animate-spin" />Connecting</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800"><Skeleton className="w-3 h-3 mr-1 rounded" />Connecting</Badge>;
       case 'disconnected':
         return <Badge className="bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Disconnected</Badge>;
       default:
@@ -137,7 +137,7 @@ export default function ManagerWhatsAppPage() {
           </p>
         </div>
         <Button onClick={startWhatsAppSession} disabled={loading}>
-          {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlayCircle className="w-4 h-4 mr-2" />}
+          {loading ? <Skeleton className="w-4 h-4 mr-2 rounded" /> : <PlayCircle className="w-4 h-4 mr-2" />}
           Start Session
         </Button>
       </div>
@@ -216,7 +216,7 @@ export default function ManagerWhatsAppPage() {
             </div>
 
             <Button type="submit" disabled={sendLoading}>
-              {sendLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+              {sendLoading ? <Skeleton className="w-4 h-4 mr-2 rounded" /> : <Send className="w-4 h-4 mr-2" />}
               Send Message
             </Button>
           </form>

@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, ArrowLeft, Target, Loader2, Edit, User } from 'lucide-react';
+import { Search, ArrowLeft, Target, Edit, User } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useRouter, useParams } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface CustomerInStage {
   id: number;
@@ -268,7 +269,7 @@ export default function ManagerPipelineStagePage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <Skeleton className="w-8 h-8 mx-auto mb-4 rounded-full" />
           <div className="text-muted-foreground">Loading customers...</div>
         </div>
       </div>
@@ -345,7 +346,7 @@ export default function ManagerPipelineStagePage() {
           onClick={fetchCustomersInStage}
           className="flex items-center gap-2"
         >
-          <Loader2 className="w-4 h-4" />
+          <Skeleton className="w-4 h-4 rounded" />
           Refresh
         </Button>
         <Badge variant="outline" className={stageInfo?.color}>
@@ -648,7 +649,7 @@ export default function ManagerPipelineStagePage() {
                 >
                   {transitionLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Skeleton className="w-4 h-4 mr-2 rounded" />
                       Moving...
                     </>
                   ) : (

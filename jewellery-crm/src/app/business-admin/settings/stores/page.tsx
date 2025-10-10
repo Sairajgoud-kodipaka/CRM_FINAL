@@ -4,7 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Save, Plus, Loader2, MoreHorizontal, Trash2, Users } from 'lucide-react';
+import { Edit, Save, Plus, MoreHorizontal, Trash2, Users } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { apiService } from '@/lib/api-service';
 import { 
   DropdownMenu,
@@ -184,7 +185,7 @@ export default function StoreSettingsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Skeleton className="h-6 w-6 rounded" />
           <span>Loading stores...</span>
         </div>
       </div>

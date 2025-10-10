@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Loader2, AlertTriangle, Trash2, Eye, Search, Plus, Building2, Users, Calendar, Edit } from 'lucide-react';
+import { AlertTriangle, Trash2, Eye, Search, Plus, Building2, Users, Calendar, Edit } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout, CardContainer } from '@/components/layouts/AppLayout';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -188,7 +189,7 @@ export default function TenantsListPage() {
       >
         <div className="flex items-center justify-center h-64">
           <div className="flex items-center space-x-2">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <Skeleton className="h-6 w-6 rounded" />
             <span>Loading tenants...</span>
           </div>
         </div>
@@ -386,7 +387,7 @@ export default function TenantsListPage() {
                         title={`Toggle status to ${tenant.subscription_status === 'active' ? 'Inactive' : 'Active'}`}
                       >
                         {toggling === tenant.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Skeleton className="w-4 h-4 rounded" />
                         ) : (
                           <Edit className="w-4 h-4" />
                         )}
@@ -459,7 +460,7 @@ export default function TenantsListPage() {
                     title={`Toggle status to ${tenant.subscription_status === 'active' ? 'Inactive' : 'Active'}`}
                   >
                     {toggling === tenant.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Skeleton className="w-4 h-4 rounded" />
                     ) : (
                       <Edit className="w-4 h-4" />
                     )}
@@ -517,7 +518,7 @@ export default function TenantsListPage() {
             >
               {deleting ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Skeleton className="h-4 w-4 mr-2 rounded" />
                   Deleting...
                 </>
               ) : (

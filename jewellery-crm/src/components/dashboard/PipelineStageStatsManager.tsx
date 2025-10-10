@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Phone, Mail, MapPin, Calendar, User, DollarSign, Target, Edit, Loader2 } from 'lucide-react';
+import { Search, Phone, Mail, MapPin, Calendar, User, DollarSign, Target, Edit } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { 
   CUSTOMER_INTERESTS,
@@ -953,7 +954,7 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
                 >
                   {transitionLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Skeleton className="w-4 h-4 mr-2 rounded" />
                       Moving...
                     </>
                   ) : (

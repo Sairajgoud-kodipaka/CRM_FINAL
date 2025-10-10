@@ -56,6 +56,7 @@ interface Client {
   state?: string;
   country?: string;
   postal_code?: string;
+  pincode?: string;
   date_of_birth?: string;
   anniversary_date?: string;
   preferred_metal?: string;
@@ -99,6 +100,25 @@ interface Client {
   weight_range?: string;
   customer_preference?: string;
   design_number?: string;
+  
+  // Additional fields from AddCustomerModal
+  sales_person?: string;
+  sales_person_id?: number;
+  customer_status?: string;
+  material_type?: string;
+  material_weight?: number;
+  material_value?: number;
+  material_unit?: string;
+  product_subtype?: string;
+  gold_range?: string;
+  diamond_range?: string;
+  customer_preferences?: string;
+  design_selected?: string;
+  wants_more_discount?: string;
+  checking_other_jewellers?: string;
+  let_him_visit?: string;
+  add_to_pipeline?: boolean;
+  
   tenant?: number;
   store?: number;
   tags: number[];

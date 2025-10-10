@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Eye, EyeOff, Shield, Check } from 'lucide-react';
+import { Eye, EyeOff, Shield, Check } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PasswordFormProps {
   onSuccess?: () => void;
@@ -347,7 +348,7 @@ export function PasswordForm({ onSuccess, onError }: PasswordFormProps) {
             disabled={loading || !formData.oldPassword || !formData.newPassword || !formData.confirmPassword}
             className="w-full"
           >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {loading && <Skeleton className="mr-2 h-4 w-4 rounded" />}
             {loading ? 'Changing Password...' : 'Change Password'}
           </Button>
         </form>

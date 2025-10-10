@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { ResponsiveDialog } from '@/components/ui/ResponsiveDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,10 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 import { Package, ArrowRight, Clock, CheckCircle, XCircle, AlertTriangle, Search, X } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import type { ProductInventory } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface StockTransfer {
   id: number;
@@ -62,6 +65,8 @@ interface StockTransferModalProps {
 
 export default function StockTransferModal({ isOpen, onClose, onSuccess }: StockTransferModalProps) {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [transfers, setTransfers] = useState<StockTransfer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -359,19 +364,33 @@ export default function StockTransferModal({ isOpen, onClose, onSuccess }: Stock
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              Stock Transfers
-            </DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={isOpen}
+        onOpenChange={onClose}
+        title="Stock Transfers"
+        description="Manage inventory transfers between stores"
+        size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+        showCloseButton={true}
+        actions={
+          <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+            <Button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Package className="w-4 h-4 mr-2" />
+              New Transfer
+            </Button>
+          </div>
+        }
+      >
 
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <Skeleton className="h-8 w-8 mx-auto mb-2 rounded-full" />
                 <p className="text-muted-foreground">Loading transfers...</p>
               </div>
             </div>
@@ -482,8 +501,7 @@ export default function StockTransferModal({ isOpen, onClose, onSuccess }: Stock
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
       {/* Create Transfer Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>

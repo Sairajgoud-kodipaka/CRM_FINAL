@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Loader2, Search, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, X } from 'lucide-react';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TeamMember {
   id: number; // Team member ID
@@ -291,7 +292,7 @@ export default function TeamSettingsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Skeleton className="h-6 w-6 rounded" />
           <span>Loading team members...</span>
         </div>
       </div>
@@ -453,7 +454,7 @@ export default function TeamSettingsPage() {
                 >
                   {creatingMember ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Skeleton className="w-4 h-4 mr-2 rounded" />
                       Creating...
                     </>
                   ) : (
@@ -580,7 +581,7 @@ export default function TeamSettingsPage() {
                 >
                   {creatingMember ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Skeleton className="w-4 h-4 mr-2 rounded" />
                       Updating...
                     </>
                   ) : (
@@ -685,7 +686,7 @@ export default function TeamSettingsPage() {
                         disabled={deletingMember === member.id}
                       >
                         {deletingMember === member.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Skeleton className="w-4 h-4 rounded" />
                         ) : (
                           <Trash2 className="w-4 h-4" />
                         )}

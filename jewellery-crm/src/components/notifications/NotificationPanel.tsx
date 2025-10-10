@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Notification, NotificationType, NotificationPriority } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { notificationSound } from '@/lib/notification-sound';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface NotificationPanelProps {
   onClose: () => void;
@@ -473,7 +474,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
         {state.isLoading ? (
           <div className="flex items-center justify-center p-8">
             <div className="flex items-center gap-2 text-gray-500">
-              <RefreshCw className="h-4 w-4 animate-spin" />
+              <Skeleton className="h-4 w-4 rounded-full" />
               <span>Loading notifications...</span>
             </div>
           </div>

@@ -18,7 +18,6 @@ import {
   Smartphone,
   CheckCircle,
   XCircle,
-  Loader2,
   PlayCircle,
   Settings,
   MessageCircle,
@@ -30,6 +29,7 @@ import {
   X
 } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface WhatsAppStatus {
   status: string;
@@ -543,7 +543,7 @@ Create memories that last forever! 💕
         <CardContent>
           {loading ? (
             <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Skeleton className="h-4 w-4 rounded" />
               <span>Checking WhatsApp status...</span>
             </div>
           ) : (
@@ -654,7 +654,7 @@ Create memories that last forever! 💕
                 <Button type="submit" disabled={sendLoading}>
                   {sendLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Skeleton className="w-4 h-4 mr-2 rounded" />
                       Sending...
                     </>
                   ) : (
@@ -757,7 +757,7 @@ Create memories that last forever! 💕
                 <Button type="submit" disabled={bulkLoading}>
                   {bulkLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Skeleton className="w-4 h-4 mr-2 rounded" />
                       Sending Bulk Messages...
                     </>
                   ) : (
@@ -908,7 +908,7 @@ Create memories that last forever! 💕
             <div className="overflow-y-auto max-h-96">
               {customersLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                  <Skeleton className="w-6 h-6 mr-2 rounded" />
                   Loading customers...
                 </div>
               ) : filteredCustomers.length === 0 ? (

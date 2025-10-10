@@ -9,11 +9,12 @@ import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal'
 import { EditCustomerModal } from '@/components/customers/EditCustomerModal';
 import { TrashModal } from '@/components/customers/TrashModal';
 import { apiService, Client } from '@/lib/api-service';
-import { Search, Filter, Download, Plus, Eye, Edit, Trash2, Archive, Loader2 } from 'lucide-react';
+import { Search, Filter, Download, Plus, Eye, Edit, Trash2, Archive } from 'lucide-react';
 import { useScopedVisibility } from '@/lib/scoped-visibility';
 import { useAuth } from '@/hooks/useAuth';
 import ScopeIndicator from '@/components/ui/ScopeIndicator';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SalesCustomersPage() {
   const { userScope } = useScopedVisibility();
@@ -473,7 +474,7 @@ export default function SalesCustomersPage() {
                             disabled={updatingCustomer === customer.id?.toString()}
                           >
                                                           {updatingCustomer === customer.id?.toString() ? (
-                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                              <Skeleton className="w-4 h-4 mr-1 rounded" />
                             ) : (
                               <Edit className="w-4 h-4 mr-1" />
                             )}
@@ -492,7 +493,7 @@ export default function SalesCustomersPage() {
                               disabled={deletingCustomer === customer.id?.toString()}
                             >
                               {deletingCustomer === customer.id?.toString() ? (
-                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                <Skeleton className="w-4 h-4 mr-1 rounded" />
                               ) : (
                                 <Trash2 className="w-4 h-4 mr-1" />
                               )}

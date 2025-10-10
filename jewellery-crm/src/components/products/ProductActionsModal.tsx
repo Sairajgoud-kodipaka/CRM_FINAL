@@ -12,8 +12,9 @@ import { DimensionsInput } from '@/components/ui/dimensions-input';
 import { WeightDropdown } from '@/components/ui/weight-dropdown';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, X, Edit, Trash2, Eye, Copy, Archive } from 'lucide-react';
+import { X, Edit, Trash2, Eye, Copy, Archive } from 'lucide-react';
 import ImageUpload from './ImageUpload';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProductActionsModalProps {
   isOpen: boolean;
@@ -797,7 +798,7 @@ export default function ProductActionsModal({
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Skeleton className="mr-2 h-4 w-4 rounded" />
                       Updating Product...
                     </>
                   ) : (
@@ -837,7 +838,7 @@ export default function ProductActionsModal({
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Skeleton className="mr-2 h-4 w-4 rounded" />
                       Deleting...
                     </>
                   ) : (

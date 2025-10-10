@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Users, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Users, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { telecallingApiService, Lead, SalesPerson, LeadTransferRequest } from '@/services/telecallingApi';
 
 interface TransferToSalesModalProps {
@@ -129,7 +130,7 @@ export function TransferToSalesModal({
             <Label htmlFor="sales-person">Select Sales Person</Label>
             {salesPersonsLoading ? (
               <div className="flex items-center justify-center p-4">
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <Skeleton className="w-4 h-4 mr-2 rounded" />
                 <span className="text-sm text-gray-600">Loading sales persons...</span>
               </div>
             ) : (
@@ -200,7 +201,7 @@ export function TransferToSalesModal({
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Skeleton className="w-4 h-4 mr-2 rounded" />
                   Transferring...
                 </>
               ) : (

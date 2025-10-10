@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { apiService } from '@/lib/api-service';
-import { Loader2, X, Download, Upload, FileText } from 'lucide-react';
+import { X, Download, Upload, FileText } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -255,7 +256,7 @@ Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,3000,5000,4500,15,3,
               >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Skeleton className="mr-2 h-4 w-4 rounded" />
                     Importing...
                   </>
                 ) : (

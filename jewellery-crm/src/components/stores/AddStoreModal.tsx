@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { apiService } from '@/lib/api-service';
-import { Loader2, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AddStoreModalProps {
   isOpen: boolean;
@@ -337,7 +338,7 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
             >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Skeleton className="mr-2 h-4 w-4 rounded" />
                   Creating...
                 </>
               ) : (

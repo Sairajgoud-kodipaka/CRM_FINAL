@@ -23,13 +23,13 @@ import {
   Save, 
   X, 
   CheckCircle,
-  Building2, 
+  Building2,
   Store,
   Crown,
-  Clock, 
-  Activity,
-  Loader2
+  Clock,
+  Activity
 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProfileData {
   id: number;
@@ -203,7 +203,7 @@ export default function SalesProfilePage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <Skeleton className="h-8 w-8 mx-auto mb-4 rounded-full" />
           <p className="text-gray-600">Loading your profile...</p>
         </div>
       </div>
@@ -475,7 +475,7 @@ export default function SalesProfilePage() {
                   >
                     {saving ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Skeleton className="w-4 h-4 rounded" />
                         Saving...
                       </>
                     ) : (

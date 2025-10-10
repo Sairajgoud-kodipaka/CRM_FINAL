@@ -500,7 +500,7 @@ export default function ManagerProductsPage() {
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <div className="opacity-50 rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
               <p className="text-muted-foreground">Loading products...</p>
             </div>
           </div>
