@@ -25,10 +25,11 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p /app/media /app/staticfiles /app/logs
+RUN mkdir -p /app/media /app/staticfiles /app/logs /etc/secrets
 
 # Set proper permissions
 RUN chmod -R 755 /app/media /app/staticfiles /app/logs
+RUN chmod -R 755 /etc/secrets
 
 # Collect static files (skip if not needed for faster builds)
 RUN python manage.py collectstatic --noinput || echo "Static files collection skipped"
