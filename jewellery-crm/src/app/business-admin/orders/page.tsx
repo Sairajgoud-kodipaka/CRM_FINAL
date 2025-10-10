@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Download, MoreVertical, Search, Filter, Loader2 } from 'lucide-react';
+import { Download, MoreVertical, Search, Filter } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { apiService } from '@/lib/api-service';
 
 interface Sale {
@@ -127,7 +128,7 @@ export default function OrdersPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Skeleton className="h-6 w-6 rounded" />
           <span>Loading orders...</span>
         </div>
       </div>

@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getWsUrl } from '@/lib/config';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Message {
   id: string;
@@ -318,7 +319,7 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <Skeleton className="h-8 w-8 rounded-full" />
       </div>
     );
   }
@@ -460,7 +461,7 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
                         </span>
                         {message.direction === 'outbound' && (
                           <div className="flex items-center space-x-1">
-                            {message.status === 'pending' && <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />}
+                            {message.status === 'pending' && <Skeleton className="w-3 h-3 rounded-full" />}
                             {message.status === 'sent' && <CheckCircle className="w-3 h-3" />}
                             {message.status === 'delivered' && <CheckCircle className="w-3 h-3" />}
                             {message.status === 'read' && <CheckCircle className="w-3 h-3 text-blue-400" />}

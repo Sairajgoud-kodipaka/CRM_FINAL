@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useParams } from 'next/navigation';
 import { apiService, Client } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ManagerCustomerDetailPage() {
   const { customerId } = useParams() as { customerId: string };
@@ -37,7 +38,7 @@ export default function ManagerCustomerDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <Skeleton className="h-8 w-8 rounded-full" />
       </div>
     );
   }

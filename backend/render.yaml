@@ -3,6 +3,7 @@ services:
     name: jewellery-crm-backend
     env: python
     plan: starter
+    rootDir: backend
     buildCommand: chmod +x ./build.sh && ./build.sh
     startCommand: chmod +x ./start.sh && ./start.sh
     envVars:
@@ -15,23 +16,23 @@ services:
       - key: SECRET_KEY
         value: f3Csh9SZNGRp84-xLGvEEYPhWqTt2_q6-5lXuXjiR5Y
       - key: ALLOWED_HOSTS
-        value: crm-final-mfe4.onrender.com
+        value: crm-final-tj4n.onrender.com,crm-final-mfe4.onrender.com
       - key: CORS_ALLOWED_ORIGINS
-        value: http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com
+        value: http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app
       - key: CORS_ALLOW_ALL_ORIGINS
         value: false
       - key: CSRF_TRUSTED_ORIGINS
-        value: http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com
+        value: http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app
       - key: DB_ENGINE
         value: django.db.backends.postgresql
       - key: DB_NAME
-        value: jewellery_crm_db_6lhq
+        value: crm_db_pyoz
       - key: DB_USER
-        value: jewellery_crm_db_6lhq_user
+        value: crm_db_pyoz_user
       - key: DB_PASSWORD
-        value: 00tT3WerKiPOn89oEfpzytXdcqRHnCJa
+        value: AHX6yNDH5S6MrdPxf7gsxJhKurS7Q0BO
       - key: DB_HOST
-        value: dpg-d27ekt0gjchc7384eov0-a.oregon-postgres.render.com
+        value: dpg-d3k73ss9c44c73a7q2d0-a
       - key: DB_PORT
         value: 5432
       - key: JWT_SECRET_KEY
@@ -79,6 +80,10 @@ services:
     buildFilter:
       paths:
         - backend/**
+        - backend/build.sh
+        - backend/start.sh
+        - backend/requirements.txt
+        - backend/manage.py
     routes:
       - type: rewrite
         source: /api/(.*)
@@ -95,7 +100,7 @@ services:
 
 databases:
   - name: jewellery-crm-db-managed
-    databaseName: jewellery_crm_db_6lhq
-    user: jewellery_crm_db_6lhq_user
+    databaseName: crm_db_pyoz
+    user: crm_db_pyoz_user
     plan: starter
     ipAllowList: []

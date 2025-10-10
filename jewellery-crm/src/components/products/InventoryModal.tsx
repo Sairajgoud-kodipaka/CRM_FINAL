@@ -1,14 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { ResponsiveDialog } from '@/components/ui/ResponsiveDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 import { Package, AlertTriangle, TrendingUp, TrendingDown, Plus, Minus } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProductInventory {
   id: number;
@@ -35,6 +38,8 @@ interface InventoryModalProps {
 }
 
 export default function InventoryModal({ isOpen, onClose, onSuccess }: InventoryModalProps) {
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [inventory, setInventory] = useState<ProductInventory[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ProductInventory | null>(null);
@@ -138,19 +143,26 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              Store Inventory Management
-            </DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={isOpen}
+        onOpenChange={onClose}
+        title="Store Inventory Management"
+        description="View and manage product inventory levels"
+        size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+        showCloseButton={true}
+        actions={
+          <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        }
+      >
 
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <Skeleton className="h-8 w-8 mx-auto mb-2 rounded-full" />
                 <p className="text-muted-foreground">Loading inventory...</p>
               </div>
             </div>
@@ -278,8 +290,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
       {/* Update Inventory Modal */}
       <Dialog open={isUpdateModalOpen} onOpenChange={setIsUpdateModalOpen}>

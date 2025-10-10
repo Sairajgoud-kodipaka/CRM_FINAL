@@ -304,7 +304,7 @@ export default function CustomerSegmentationPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center gap-3">
-            <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
+            <RefreshCw className="w-5 h-5 opacity-50 text-blue-600" />
             <div className="text-gray-600">Loading customer segments...</div>
           </div>
         </div>

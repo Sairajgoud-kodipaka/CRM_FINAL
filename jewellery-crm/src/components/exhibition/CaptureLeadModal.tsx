@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
-import { Gift, Loader2 } from 'lucide-react';
+import { Gift } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface CaptureLeadModalProps {
   isOpen: boolean;
@@ -246,7 +247,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
             <Button type="submit" disabled={isSubmitting} className="bg-orange-600 hover:bg-orange-700">
               {isSubmitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Skeleton className="w-4 h-4 mr-2 rounded" />
                   Capturing...
                 </>
               ) : (

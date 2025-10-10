@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Bell, BellOff, Loader2 } from 'lucide-react';
+import { Bell, BellOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/hooks/useNotifications';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { Notification } from '@/types';
 import { NotificationPanel } from './NotificationPanel';
@@ -125,7 +126,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
         aria-label="Notifications"
       >
         {state.isLoading ? (
-          <Loader2 className={`h-${getIconSize()} w-${getIconSize()} animate-spin`} />
+          <Skeleton className={`h-${getIconSize()} w-${getIconSize()} rounded`} />
         ) : state.isConnected ? (
           <Bell className={`h-${getIconSize()} w-${getIconSize()}`} />
         ) : (

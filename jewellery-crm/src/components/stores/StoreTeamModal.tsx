@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit, Trash2, Users, UserPlus, Loader2, X, User } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, UserPlus, X, User } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface StoreTeamModalProps {
   isOpen: boolean;
@@ -411,7 +412,7 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
                     className="flex-1"
                   >
                     {assigningMember ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Skeleton className="w-4 h-4 mr-2 rounded" />
                     ) : (
                       <Plus className="w-4 h-4 mr-2" />
                     )}

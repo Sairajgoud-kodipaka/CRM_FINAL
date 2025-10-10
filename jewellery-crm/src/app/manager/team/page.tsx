@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { apiService, User } from '@/lib/api-service';
@@ -342,8 +343,18 @@ export default function ManagerTeamPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col gap-8">
+        <div className="mb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="h-8 w-32 bg-muted animate-pulse rounded mb-2" />
+            <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+        </div>
+        <Card className="p-4">
+          <div className="h-10 w-80 bg-muted animate-pulse rounded mb-4" />
+          <TableSkeleton rows={5} columns={5} />
+        </Card>
       </div>
     );
   }
@@ -396,8 +407,7 @@ export default function ManagerTeamPage() {
                   <td colSpan={5} className="px-4 py-8 text-center text-text-muted">
                     {loading ? (
                       <div className="flex flex-col items-center gap-2">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                        <span>Loading team members...</span>
+                        <TableSkeleton rows={3} columns={5} />
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-2">
@@ -437,7 +447,7 @@ export default function ManagerTeamPage() {
                          title="Delete member"
                        >
                          {deleteLoading === member.id.toString() ? (
-                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                           <div className="h-4 w-4 bg-muted animate-pulse rounded" />
                          ) : (
                            <Trash2 className="w-4 h-4 text-red-500" />
                          )}

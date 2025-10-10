@@ -14,11 +14,11 @@ import {
   ArrowLeft,
   Download,
   Calendar,
-  AlertTriangle,
-  Loader2
+  AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface BillingData {
   total_revenue: number;
@@ -123,7 +123,7 @@ export default function PlatformBillingPage() {
       >
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+            <Skeleton className="h-12 w-12 text-muted-foreground mx-auto mb-4 rounded-full" />
             <p className="text-muted-foreground">Loading billing data...</p>
           </div>
         </div>
@@ -142,7 +142,7 @@ export default function PlatformBillingPage() {
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <p className="text-red-600 mb-4">{error || 'No billing data available'}</p>
             <Button onClick={fetchBillingData} variant="outline">
-              <Loader2 className="w-4 h-4 mr-2" />
+              <Skeleton className="w-4 h-4 mr-2 rounded" />
               Retry
             </Button>
           </div>
@@ -170,7 +170,7 @@ export default function PlatformBillingPage() {
             disabled={exporting}
           >
             {exporting ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Skeleton className="w-4 h-4 mr-2 rounded" />
             ) : (
               <Download className="w-4 h-4 mr-2" />
             )}

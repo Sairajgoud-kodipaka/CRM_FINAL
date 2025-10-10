@@ -9,7 +9,7 @@ from decouple import config, Csv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Get the port from environment (Render requirement)
+# Get the port from environment (Fly.io requirement)
 PORT = config('PORT', default=8000, cast=int)
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -117,10 +117,17 @@ DATABASES = {
     }
 }
 
-# Production configuration for Render managed database
+# Production configuration for Fly.io managed database
 if not DEBUG:
-    # Render automatically provides these environment variables for managed databases
-    # No need to configure SSL manually - Render handles it
+    # Fly.io automatically provides DATABASE_URL environment variable
+    import dj_database_url
+    DATABASES['default'] = dj_database_url.parse(
+        config('DATABASE_URL', default='sqlite:///db.sqlite3'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+    
+    # Additional Fly.io optimizations
     DATABASES['default']['OPTIONS'].update({
         'application_name': 'jewellery_crm_backend',
         'keepalives': 1,
@@ -129,10 +136,6 @@ if not DEBUG:
         'keepalives_count': 5,
         'connect_timeout': 60,
     })
-    
-    # Production connection pooling
-    DATABASES['default']['CONN_MAX_AGE'] = 600
-    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 
 # During collectstatic, use a dummy database config
 if 'collectstatic' in sys.argv:

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { apiService, Client, Product } from "@/lib/api-service";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInputComponent } from "@/components/ui/phone-input";
+import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 
 interface EditCustomerModalProps {
   open: boolean;
@@ -51,6 +52,8 @@ interface PipelineOpportunity {
 
 export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }: EditCustomerModalProps) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -62,8 +65,6 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     country: "India",
     date_of_birth: "",
     anniversary_date: "",
-    community: "",
-    mother_tongue: "",
     reason_for_visit: "",
     lead_source: "",
     age_of_end_user: "",
@@ -72,6 +73,25 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     next_follow_up: "",
     summary_notes: "",
     status: "",
+    // ADD MISSING FIELDS FROM AddCustomerModal:
+    pincode: "",
+    sales_person: "",
+    customer_status: "",
+    product_type: "",
+    style: "",
+    material_type: "",
+    material_weight: 0,
+    material_value: 0,
+    product_subtype: "",
+    gold_range: "",
+    diamond_range: "",
+    customer_preferences: "",
+    design_selected: "",
+    wants_more_discount: "",
+    checking_other_jewellers: "",
+    let_him_visit: "",
+    design_number: "",
+    add_to_pipeline: false,
   });
 
   const [interests, setInterests] = useState<ProductInterest[]>([
@@ -173,6 +193,22 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
       // Reset pipeline creation flag for new customer
       setPipelineCreated(false);
       
+      console.log('🔍 EditCustomerModal: Customer data received:', customer);
+      console.log('🔍 EditCustomerModal: Key fields check:');
+      console.log('  - sales_person:', customer.sales_person);
+      console.log('  - customer_status:', customer.customer_status);
+      console.log('  - product_type:', customer.product_type);
+      console.log('  - style:', customer.style);
+      console.log('  - material_type:', customer.material_type);
+      console.log('  - gold_range:', customer.gold_range);
+      console.log('  - diamond_range:', customer.diamond_range);
+      console.log('  - customer_preferences:', customer.customer_preferences);
+      console.log('  - design_selected:', customer.design_selected);
+      console.log('  - wants_more_discount:', customer.wants_more_discount);
+      console.log('  - checking_other_jewellers:', customer.checking_other_jewellers);
+      console.log('  - let_him_visit:', customer.let_him_visit);
+      console.log('  - design_number:', customer.design_number);
+      
       // Format dates properly for input fields - extract only the date part
       const formatDateForInput = (dateString: string | null | undefined) => {
         if (!dateString) return "";
@@ -206,8 +242,6 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         country: customer.country || "India",
         date_of_birth: formatDateForInput(customer.date_of_birth),
         anniversary_date: formatDateForInput(customer.anniversary_date),
-        community: customer.community || "",
-        mother_tongue: customer.mother_tongue || "",
         reason_for_visit: customer.reason_for_visit || "",
         lead_source: customer.lead_source || "",
         age_of_end_user: customer.age_of_end_user || "",
@@ -216,7 +250,27 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         next_follow_up: formatDateForInput(customer.next_follow_up),
         summary_notes: customer.summary_notes || "",
         status: customer.status || "",
+        // ADD MISSING FIELD MAPPINGS:
+        pincode: customer.pincode || "",
+        sales_person: customer.sales_person || "",
+        customer_status: customer.customer_status || "",
+        product_type: customer.product_type || "",
+        style: customer.style || "",
+        material_type: customer.material_type || "",
+        material_weight: customer.material_weight || 0,
+        material_value: customer.material_value || 0,
+        product_subtype: customer.product_subtype || "",
+        gold_range: customer.gold_range || "",
+        diamond_range: customer.diamond_range || "",
+        customer_preferences: customer.customer_preferences || "",
+        design_selected: customer.design_selected || "",
+        wants_more_discount: customer.wants_more_discount || "",
+        checking_other_jewellers: customer.checking_other_jewellers || "",
+        let_him_visit: customer.let_him_visit || "",
+        design_number: customer.design_number || "",
+        add_to_pipeline: customer.add_to_pipeline || false,
       });
+
 
       // Parse customer interests if they exist
       if (customer.customer_interests && Array.isArray(customer.customer_interests)) {
@@ -336,6 +390,26 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     });
   };
 
+  const removeInterest = (index: number) => {
+    setInterests(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const updateInterest = (index: number, field: string, value: string) => {
+    setInterests(prev => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  const updateProductInInterest = (interestIndex: number, productIndex: number, field: string, value: string) => {
+    setInterests(prev => {
+      const copy = [...prev];
+      copy[interestIndex].products[productIndex] = { ...copy[interestIndex].products[productIndex], [field]: value };
+      return copy;
+    });
+  };
+
   const createPipelineOpportunities = async (customerId: number) => {
     try {
       console.log('🚀 Creating pipeline opportunities...');
@@ -374,38 +448,33 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     }
   };
 
-  // Watch for design selection changes and update pipeline opportunities
+  // Consolidated pipeline generation logic - optimized to prevent unnecessary re-renders
   useEffect(() => {
     // Only run when modal is open and customer is loaded
     if (!open || !customer) {
       return;
     }
     
-    if (showPipelineSection && pipelineOpportunities.length > 0) {
-      // Only regenerate if we don't already have a consolidated opportunity
-      if (pipelineOpportunities.length !== 1) {
-        generatePipelineOpportunities();
-      }
-    }
-  }, [interests, open, customer, showPipelineSection, pipelineOpportunities.length, generatePipelineOpportunities]);
-
-  // Prevent pipeline regeneration if already created
-  useEffect(() => {
-    // Only run when modal is open and customer is loaded
-    if (!open || !customer) {
+    // Skip if pipeline already created
+    if (pipelineCreated) {
+      console.log('✅ Pipeline already created, skipping generation');
       return;
     }
     
-    if (pipelineCreated && pipelineOpportunities.length === 1) {
-      console.log('✅ Pipeline already created, preventing regeneration');
-      return;
-    }
+    // Generate pipeline if we have valid interests
+    const hasValidInterests = interests.some(interest => 
+      interest.mainCategory && interest.products.length > 0
+    );
     
-    // Only generate if we have valid interests and haven't created pipeline yet
-    if (interests.some(interest => interest.mainCategory && interest.products.length > 0) && !pipelineCreated) {
+    if (hasValidInterests) {
+      console.log('🔄 Generating pipeline opportunities...');
       generatePipelineOpportunities();
+    } else {
+      // Clear pipeline if no valid interests
+      setPipelineOpportunities([]);
+      setShowPipelineSection(false);
     }
-  }, [interests, pipelineCreated, open, customer, pipelineOpportunities.length, generatePipelineOpportunities]);
+  }, [interests, open, customer, pipelineCreated]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -420,20 +489,12 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     console.log('🚀 Starting customer update process...');
     console.log('📊 Current interests state:', interests);
 
-    // Validate required fields
+    // Minimal validation - only require first name for basic identification
+    // Phone can be added later through edit modal
     if (!formData.first_name.trim()) {
       toast({
         title: "Validation Error",
-        description: "Please enter the customer&apos;s first name.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!formData.phone.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter the customer&apos;s phone number.",
+        description: "Please enter the customer&apos;s first name for basic identification.",
         variant: "destructive",
       });
       return;
@@ -442,8 +503,8 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     try {
       setSaving(true);
       
-      // Validate interests before submission - only if user has added interests
-      console.log('🔍 Validating interests before submission...');
+      // Relaxed interests validation - allow partial data, can be completed later
+      console.log('🔍 Processing interests (relaxed validation)...');
       const hasInterests = interests.length > 0;
       const hasInterestData = interests.some(interest => 
         interest.mainCategory || 
@@ -452,68 +513,27 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
       
       console.log(`   Has interests array: ${hasInterests}, Has interest data: ${hasInterestData}`);
       
-      // Only validate interests if user has actually added some interest data
+      // Process all interests, even if incomplete - can be updated later
       let customerInterestsInput: string[] = [];
       
       if (hasInterestData) {
-        const validInterests = interests.filter(interest => {
-          const hasCategory = interest.mainCategory && 
-            (typeof interest.mainCategory === 'string' ? interest.mainCategory.trim() : String(interest.mainCategory));
-          const hasValidProducts = interest.products.some(p => {
-            const hasProduct = p.product && (typeof p.product === 'string' ? p.product.trim() : String(p.product));
-            const hasRevenue = p.revenue && (typeof p.revenue === 'string' ? p.revenue.trim() : String(p.revenue));
-            return hasProduct && hasRevenue;
-          });
+        // Include all interests, even if incomplete
+        customerInterestsInput = interests.map(interest => {
+          console.log(`🔄 Processing interest for API (relaxed):`, interest);
           
-          console.log(`   Interest validation:`, {
-            mainCategory: interest.mainCategory,
-            hasCategory,
-            productsCount: interest.products.length,
-            hasValidProducts,
-            products: interest.products
-          });
-          
-          return hasCategory && hasValidProducts;
-        });
-        
-        console.log(`✅ Valid interests found: ${validInterests.length}/${interests.length}`);
-        
-        if (validInterests.length === 0) {
-          toast({
-            title: "Validation Error",
-            description: "Please add at least one valid interest with category, product, and revenue, or remove all interests.",
-            variant: "destructive",
-          });
-          setSaving(false);
-          return;
-        }
-        
-        // Use valid interests for API
-        customerInterestsInput = validInterests.map(interest => {
-          console.log(`🔄 Processing validated interest for API:`, interest);
-          
-          // Only include products that have both name and revenue
-          const validProducts = interest.products.filter(p => {
-            const hasProduct = p.product && (typeof p.product === 'string' ? p.product.trim() : String(p.product));
-            const hasRevenue = p.revenue && (typeof p.revenue === 'string' ? p.revenue.trim() : String(p.revenue));
-            console.log(`   Product validation:`, {
-              product: p.product,
-              revenue: p.revenue,
-              hasProduct,
-              hasRevenue
-            });
-            return hasProduct && hasRevenue;
-          });
-          
-          console.log(`   Valid products found:`, validProducts.length);
+          // Include all products, even if incomplete
+          const allProducts = interest.products.map(p => ({
+            product: p.product || "",
+            revenue: p.revenue || ""
+          }));
           
           const interestData = {
-            category: interest.mainCategory,
-            products: validProducts,
+            category: interest.mainCategory || "",
+            products: allProducts,
             preferences: interest.preferences
           };
           
-          console.log(`   ✅ Creating interest data:`, interestData);
+          console.log(`   ✅ Creating interest data (relaxed):`, interestData);
           return JSON.stringify(interestData);
         });
       } else {
@@ -610,19 +630,33 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>Edit Customer</DialogTitle>
-          <DialogDescription>
-            Update customer information and details. Only First Name and Phone are required.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onClose}
+      title="Edit Customer"
+      description="Update customer information and details. Only First Name is required - other fields can be updated later."
+      size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+      showCloseButton={true}
+      actions={
+        <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={loading || !formData.first_name}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {loading ? 'Updating...' : 'Update Customer'}
+          </Button>
+        </div>
+      }
+    >
 
         <div className="space-y-6">
-          {/* Basic Information */}
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold mb-4">Basic Information</div>
+          {/* Basic Customer Information */}
+          <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4`}>
+            <div className={`font-semibold ${isMobile ? 'mb-2 text-base' : 'mb-3 text-lg'}`}>👤 Basic Information</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">First Name *</label>
@@ -676,9 +710,9 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             </div>
           </div>
 
-          {/* Address */}
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold mb-4">Address</div>
+          {/* Address Information */}
+          <div className="border rounded-lg p-4 mb-4">
+            <div className="font-semibold mb-3 text-lg">📍 Address</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Street Address</label>
@@ -711,12 +745,231 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                   disabled
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Pincode</label>
+                <Input 
+                  placeholder="e.g., 400001" 
+                  value={formData.pincode}
+                  onChange={(e) => handleInputChange('pincode', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Sales Information */}
+          <div className="border rounded-lg p-4 mb-4">
+            <div className="font-semibold mb-3 text-lg">💼 Sales Information</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Sales Person</label>
+                <Input 
+                  placeholder="Enter sales person" 
+                  value={formData.sales_person}
+                  onChange={(e) => handleInputChange('sales_person', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Customer Status</label>
+                <Input 
+                  placeholder="Enter customer status" 
+                  value={formData.customer_status}
+                  onChange={(e) => handleInputChange('customer_status', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Lead Source</label>
+                <Input 
+                  placeholder="Enter lead source" 
+                  value={formData.lead_source}
+                  onChange={(e) => handleInputChange('lead_source', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Catchment Area</label>
+                <Input 
+                  placeholder="Enter catchment area" 
+                  value={formData.catchment_area}
+                  onChange={(e) => handleInputChange('catchment_area', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Product Interest */}
+          <div className="border rounded-lg p-4 mb-4">
+            <div className="font-semibold mb-3 text-lg">💎 Product Interest</div>
+            
+            {/* Product Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Product Type</label>
+                <Input 
+                  placeholder="Enter product type" 
+                  value={formData.product_type}
+                  onChange={(e) => handleInputChange('product_type', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Style</label>
+                <Input 
+                  placeholder="Enter style" 
+                  value={formData.style}
+                  onChange={(e) => handleInputChange('style', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Material Type</label>
+                <Input 
+                  placeholder="Enter material type" 
+                  value={formData.material_type}
+                  onChange={(e) => handleInputChange('material_type', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Material Weight</label>
+                <Input 
+                  type="number"
+                  placeholder="Enter weight" 
+                  value={formData.material_weight}
+                  onChange={(e) => handleInputChange('material_weight', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Material Value</label>
+                <Input 
+                  type="number"
+                  placeholder="Enter value" 
+                  value={formData.material_value}
+                  onChange={(e) => handleInputChange('material_value', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Product Subtype</label>
+                <Input 
+                  placeholder="Enter product subtype" 
+                  value={formData.product_subtype}
+                  onChange={(e) => handleInputChange('product_subtype', e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Customer Interests */}
+            <div className="border rounded p-4 bg-gray-50">
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-medium">Customer Interests</div>
+                <Button variant="outline" size="sm" onClick={addInterest}>+ Add Interest</Button>
+              </div>
+              
+              {interests.map((interest, index) => (
+                <div key={index} className="border rounded-lg p-4 mb-3 bg-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-medium">Interest #{index + 1}</h5>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => removeInterest(index)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Category</label>
+                      <Select 
+                        value={interest.mainCategory} 
+                        onValueChange={(value) => updateInterest(index, 'mainCategory', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Products</label>
+                      <div className="space-y-2">
+                        {interest.products.map((product, pIndex) => (
+                          <div key={pIndex} className="flex gap-2">
+                            <Select 
+                              value={product.product} 
+                              onValueChange={(value) => updateProductInInterest(index, pIndex, 'product', value)}
+                            >
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Select Product" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products.map((prod) => (
+                                  <SelectItem key={prod.id} value={prod.id.toString()}>
+                                    {prod.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input 
+                              placeholder="Revenue" 
+                              value={product.revenue}
+                              onChange={(e) => updateProductInInterest(index, pIndex, 'revenue', e.target.value)}
+                              className="w-24"
+                            />
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => removeProductFromInterest(index, pIndex)}
+                              className="text-red-600"
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        ))}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => addProductToInterest(index)}
+                          className="w-full"
+                        >
+                          + Add Product
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sales Pipeline Section */}
+          <div className="border rounded-lg p-4 mb-4">
+            <div className="font-semibold mb-3 text-lg">🚀 Sales Pipeline</div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    checked={formData.add_to_pipeline}
+                    onChange={(e) => handleInputChange('add_to_pipeline', e.target.checked.toString())}
+                    className="w-4 h-4"
+                  />
+                </div>
+                <div>
+                  <div className="font-medium text-blue-900">Add to Sales Pipeline</div>
+                  <div className="text-sm text-blue-700">Track this customer's journey and follow-up progress</div>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Additional Information */}
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold mb-4">Additional Information</div>
+          <div className="border rounded-lg p-4 mb-4">
+            <div className="font-semibold mb-3 text-lg">📝 Additional Information</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Date of Birth</label>
@@ -735,35 +988,11 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Community</label>
-                <Input 
-                  placeholder="e.g., Hindu, Muslim, Christian" 
-                  value={formData.community}
-                  onChange={(e) => handleInputChange('community', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Mother Tongue</label>
-                <Input 
-                  placeholder="e.g., Hindi, Marathi, Gujarati" 
-                  value={formData.mother_tongue}
-                  onChange={(e) => handleInputChange('mother_tongue', e.target.value)}
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-medium mb-1">Reason for Visit</label>
                 <Input 
                   placeholder="e.g., Wedding, Birthday, Anniversary" 
                   value={formData.reason_for_visit}
                   onChange={(e) => handleInputChange('reason_for_visit', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Lead Source</label>
-                <Input 
-                  placeholder="e.g., Walk-in, Referral, Social Media" 
-                  value={formData.lead_source}
-                  onChange={(e) => handleInputChange('lead_source', e.target.value)}
                 />
               </div>
               <div>
@@ -783,246 +1012,72 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Catchment Area</label>
+                <label className="block text-sm font-medium mb-1">Gold Range</label>
                 <Input 
-                  placeholder="e.g., South Mumbai, Bandra West" 
-                  value={formData.catchment_area}
-                  onChange={(e) => handleInputChange('catchment_area', e.target.value)}
+                  placeholder="Enter gold range" 
+                  value={formData.gold_range}
+                  onChange={(e) => handleInputChange('gold_range', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Diamond Range</label>
+                <Input 
+                  placeholder="Enter diamond range" 
+                  value={formData.diamond_range}
+                  onChange={(e) => handleInputChange('diamond_range', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Customer Preferences</label>
+                <Input 
+                  placeholder="Enter customer preferences" 
+                  value={formData.customer_preferences}
+                  onChange={(e) => handleInputChange('customer_preferences', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Design Selected</label>
+                <Input 
+                  placeholder="Enter design selected" 
+                  value={formData.design_selected}
+                  onChange={(e) => handleInputChange('design_selected', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Wants More Discount</label>
+                <Input 
+                  placeholder="Enter discount preference" 
+                  value={formData.wants_more_discount}
+                  onChange={(e) => handleInputChange('wants_more_discount', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Checking Other Jewellers</label>
+                <Input 
+                  placeholder="Enter checking status" 
+                  value={formData.checking_other_jewellers}
+                  onChange={(e) => handleInputChange('checking_other_jewellers', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Visit Preference</label>
+                <Input 
+                  placeholder="Enter visit preference" 
+                  value={formData.let_him_visit}
+                  onChange={(e) => handleInputChange('let_him_visit', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Design Number</label>
+                <Input 
+                  placeholder="Enter design number" 
+                  value={formData.design_number}
+                  onChange={(e) => handleInputChange('design_number', e.target.value)}
                 />
               </div>
             </div>
           </div>
 
-          {/* Customer Interests */}
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold mb-4">Customer Interests</div>
-            <div className="space-y-4">
-              {interests.map((interest, interestIdx) => (
-                <div key={interestIdx} className="border rounded p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium">Interest {interestIdx + 1}</h4>
-                    {interests.length > 1 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setInterests(prev => prev.filter((_, idx) => idx !== interestIdx));
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Main Category</label>
-                      <Select 
-                        value={interest.mainCategory} 
-                        onValueChange={(value) => {
-                          setInterests(prev => {
-                            const copy = [...prev];
-                            copy[interestIdx].mainCategory = value;
-                            return copy;
-                          });
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Products */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-sm font-medium">Products</label>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addProductToInterest(interestIdx)}
-                      >
-                        Add Product
-                      </Button>
-                    </div>
-                    
-                    {interest.products.map((product, productIdx) => (
-                      <div key={productIdx} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Product Name</label>
-                          <Select 
-                            value={product.product} 
-                            onValueChange={(value) => {
-                              setInterests(prev => {
-                                const copy = [...prev];
-                                copy[interestIdx].products[productIdx].product = value;
-                                return copy;
-                              });
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Product" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {products.map((prod) => (
-                                <SelectItem key={prod.id} value={prod.id.toString()}>
-                                  {prod.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Expected Revenue</label>
-                          <Input 
-                            type="number"
-                            placeholder="e.g., 50000" 
-                            value={product.revenue}
-                            onChange={(e) => {
-                              setInterests(prev => {
-                                const copy = [...prev];
-                                copy[interestIdx].products[productIdx].revenue = e.target.value;
-                                return copy;
-                              });
-                            }}
-                          />
-                        </div>
-                        {interest.products.length > 1 && (
-                          <div className="md:col-span-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeProductFromInterest(interestIdx, productIdx)}
-                            >
-                              Remove Product
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Preferences */}
-                  <div className="mt-4 space-y-3">
-                    <label className="block text-sm font-medium">Preferences</label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`designSelected-${interestIdx}`}
-                          checked={interest.preferences.designSelected}
-                          onCheckedChange={(checked) => {
-                            setInterests(prev => {
-                              const copy = [...prev];
-                              copy[interestIdx].preferences.designSelected = checked as boolean;
-                              return copy;
-                            });
-                          }}
-                        />
-                        <label htmlFor={`designSelected-${interestIdx}`} className="text-sm">
-                          Design Selected
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`wantsDiscount-${interestIdx}`}
-                          checked={interest.preferences.wantsDiscount}
-                          onCheckedChange={(checked) => {
-                            setInterests(prev => {
-                              const copy = [...prev];
-                              copy[interestIdx].preferences.wantsDiscount = checked as boolean;
-                              return copy;
-                            });
-                          }}
-                        />
-                        <label htmlFor={`wantsDiscount-${interestIdx}`} className="text-sm">
-                          Wants Discount
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`checkingOthers-${interestIdx}`}
-                          checked={interest.preferences.checkingOthers}
-                          onCheckedChange={(checked) => {
-                            setInterests(prev => {
-                              const copy = [...prev];
-                              copy[interestIdx].preferences.checkingOthers = checked as boolean;
-                              return copy;
-                            });
-                          }}
-                        />
-                        <label htmlFor={`checkingOthers-${interestIdx}`} className="text-sm">
-                          Checking Others
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`lessVariety-${interestIdx}`}
-                          checked={interest.preferences.lessVariety}
-                          onCheckedChange={(checked) => {
-                            setInterests(prev => {
-                              const copy = [...prev];
-                              copy[interestIdx].preferences.lessVariety = checked as boolean;
-                              return copy;
-                            });
-                          }}
-                        />
-                        <label htmlFor={`lessVariety-${interestIdx}`} className="text-sm">
-                          Less Variety
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`purchased-${interestIdx}`}
-                          checked={interest.preferences.purchased}
-                          onCheckedChange={(checked) => {
-                            setInterests(prev => {
-                              const copy = [...prev];
-                              copy[interestIdx].preferences.purchased = checked as boolean;
-                              return copy;
-                            });
-                          }}
-                        />
-                        <label htmlFor={`purchased-${interestIdx}`} className="text-sm">
-                          Purchased
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Other Preferences</label>
-                      <Textarea 
-                        placeholder="Any other preferences or notes..." 
-                        rows={2}
-                        value={interest.preferences.other}
-                        onChange={(e) => {
-                          setInterests(prev => {
-                            const copy = [...prev];
-                            copy[interestIdx].preferences.other = e.target.value;
-                            return copy;
-                          });
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              <Button
-                variant="outline"
-                onClick={addInterest}
-                className="w-full"
-              >
-                Add Interest
-              </Button>
-            </div>
-          </div>
 
           {/* Sales Pipeline Section */}
           <div className="border rounded-lg p-4">
@@ -1119,17 +1174,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             </div>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   );
 }
 

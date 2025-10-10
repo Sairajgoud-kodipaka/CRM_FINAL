@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Download, X, FileText, AlertCircle } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -251,7 +252,7 @@ export function ExportModal({ isOpen, onClose, onSuccess }: ExportModalProps) {
             >
               {exporting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <Skeleton className="w-4 h-4 rounded-full" />
                   Exporting...
                 </>
               ) : (

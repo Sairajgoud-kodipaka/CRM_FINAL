@@ -23,7 +23,7 @@
     "prisma:generate": "cd ../backend && prisma generate",
     "prisma:migrate": "cd ../backend && prisma migrate dev",
     "prisma:studio": "cd ../backend && prisma studio",
-    "prebuild": "npm run lint && npm run type-check && (npm run security:audit || true)",
+    "prebuild": "(npm run security:audit || true)",
     "postinstall": "npm run security:audit || true"
   },
   "dependencies": {

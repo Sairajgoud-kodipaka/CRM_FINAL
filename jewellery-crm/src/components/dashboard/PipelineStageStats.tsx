@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Search, User, DollarSign, Target, Loader2 } from 'lucide-react';
+import { Search, User, DollarSign, Target } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PipelineStage {
   name: string;

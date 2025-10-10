@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { apiService, Client } from "@/lib/api-service";
+import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { Plus, Calendar, DollarSign, User, Building } from "lucide-react";
 
 interface AddDealModalProps {
@@ -29,6 +30,8 @@ interface DealFormData {
 }
 
 export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps) {
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [formData, setFormData] = useState<DealFormData>({
     title: '',
     client: '',
@@ -152,17 +155,28 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            Add New Deal
-          </DialogTitle>
-          <DialogDescription>
-            Create a new sales pipeline deal to track your opportunities
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onClose}
+      title="Add New Deal"
+      description="Create a new sales pipeline deal to track your opportunities"
+      size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+      showCloseButton={true}
+      actions={
+        <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={saving || !formData.title || !formData.client}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {saving ? 'Creating...' : 'Create Deal'}
+          </Button>
+        </div>
+      }
+    >
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
@@ -323,18 +337,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
               </div>
             </div>
           </Card>
-
-          {/* Form Actions */}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Creating...' : 'Create Deal'}
-            </Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   );
 } 

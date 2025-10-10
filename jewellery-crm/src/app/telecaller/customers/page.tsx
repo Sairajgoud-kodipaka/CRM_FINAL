@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Phone, Loader2, AlertCircle, Users, Filter, Search, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Phone, AlertCircle, Users, Filter, Search, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { telecallingApiService, Lead, CallRequest, LeadListResponse } from '@/services/telecallingApi';
 import { useAuth } from '@/hooks/useAuth';
 import { CallPanel } from '@/components/telecalling/CallPanel';

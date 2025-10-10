@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  TrendingUp, Users, Percent, Phone, Loader2, AlertCircle, 
+  TrendingUp, Users, Percent, Phone, AlertCircle, 
   Calendar, Clock, Target, BarChart3, Activity, CheckCircle,
   AlertTriangle, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { telecallingApiService, TelecallerDashboard } from '@/services/telecallingApi';
 import { useAuth } from '@/hooks/useAuth';
-import { ApiConnectionTest } from '@/components/debug/ApiConnectionTest';
 import { useRouter } from 'next/navigation';
 
 const StatCard = ({ 
@@ -64,14 +64,14 @@ const StatCard = ({
         <div className="flex items-center gap-4">
           <div className={`flex items-center justify-center w-12 h-12 rounded-full ${getColorClasses()}`}>
             {isLoading ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
+              <Skeleton className="w-6 h-6 rounded-full" />
             ) : (
               <Icon className="w-6 h-6" />
             )}
           </div>
           <div>
             <div className="text-2xl font-bold text-gray-900">
-              {isLoading ? '...' : value}
+              {isLoading ? <Skeleton className="h-8 w-16" /> : value}
             </div>
             <div className="text-sm font-medium text-gray-600">{label}</div>
             {subtitle && (
@@ -513,7 +513,7 @@ export default function TelecallerDashboardPage() {
                   >
                     {isSyncing ? (
                       <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        <Skeleton className="w-4 h-4 mr-2 rounded" />
                         Syncing...
                       </>
                     ) : (
@@ -615,7 +615,7 @@ export default function TelecallerDashboardPage() {
             >
               {isSyncing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  <Skeleton className="w-4 h-4 mr-1 rounded" />
                   Syncing...
                 </>
               ) : (

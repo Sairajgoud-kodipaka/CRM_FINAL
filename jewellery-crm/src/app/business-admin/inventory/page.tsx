@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter, Loader2 } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { apiService } from '@/lib/api-service';
 import AuthGuard from '@/components/auth/AuthGuard';
 
@@ -135,7 +136,7 @@ export default function InventoryPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Skeleton className="h-6 w-6 rounded" />
           <span>Loading inventory...</span>
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInputComponent } from "@/components/ui/phone-input";
 import { apiService } from "@/lib/api-service";
+import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { 
   INDIAN_CITIES, 
   INDIAN_STATES, 
@@ -40,7 +41,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { WeightRangeSlider } from "@/components/ui/weight-range-slider";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AddCustomerModalProps {
   open: boolean;
@@ -130,6 +131,8 @@ interface AutofillLog {
 export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustomerModalProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   
   // Form state with strict typing
   const [formData, setFormData] = useState<FormData>({
@@ -162,7 +165,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     weightUnit: "g",
     customerPreference: "",
     designNumber: "",
-    addToPipeline: false,
+    addToPipeline: true,
     nextFollowUpDate: "",
     nextFollowUpTime: "10:00",
     summaryNotes: "",
@@ -792,7 +795,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           weightUnit: "g",
           customerPreference: "",
           designNumber: "",
-          addToPipeline: false,
+          addToPipeline: true,
           nextFollowUpDate: "",
           nextFollowUpTime: "10:00",
           summaryNotes: "",
@@ -1053,11 +1056,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             contextMessage = `Found ${names.length} salespersons in your ${user.store ? `store (${user.store})` : 'tenant'}`;
           }
           
-          toast({
-            title: "Sales Team Loaded",
-            description: contextMessage,
-            variant: "default",
-          });
+          // Removed toast notification - no need to show this on every modal open
         } else {
           // No salespersons found
           setSalesPersons([]);
@@ -1074,11 +1073,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             noSalesMessage = 'No salespersons available for assignment.';
           }
           
-          toast({
-            title: "No Sales Team",
-            description: `${noSalesMessage} Please contact your administrator.`,
-            variant: "warning",
-          });
+          // Removed toast notification - no need to show this on every modal open
         }
       } else {
         console.log('❌ API Response validation failed');
@@ -1094,11 +1089,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           setSalesPersons([]);
           console.log('⚠️ No fallback available for current role');
           
-          toast({
-            title: "Failed to Load Sales Team",
-            description: "Unable to load salesperson data. Please check your connection and try again.",
-            variant: "destructive",
-          });
+          // Removed toast notification - no need to show this on every modal open
         }
       }
       
@@ -1114,11 +1105,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         setSalesPersons([]);
         console.log('❌ No fallback available');
         
-        toast({
-          title: "Failed to Load Sales Team",
-          description: "Unable to load salesperson data. Please check your connection and try again.",
-          variant: "destructive",
-        });
+        // Removed toast notification - no need to show this on every modal open
       }
     }
   };
@@ -1236,17 +1223,40 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]">
-        <DialogHeader>
-                      <DialogTitle>Add New Customer</DialogTitle>
-
-        </DialogHeader>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onClose}
+      title="Add New Customer"
+      description="Create a new customer profile with detailed information"
+      size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+      showCloseButton={true}
+      actions={
+        <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={loading || !formData.fullName || !formData.phone}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {loading ? (
+              <>
+                <Skeleton className="w-4 h-4 mr-2 rounded" />
+                Creating...
+              </>
+            ) : (
+              'Create Customer'
+            )}
+          </Button>
+        </div>
+      }
+    >
 
         {/* Basic Customer Information */}
-        <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-3 text-lg">👤 Basic Information</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4`}>
+          <div className={`font-semibold ${isMobile ? 'mb-2 text-base' : 'mb-3 text-lg'}`}>👤 Basic Information</div>
+          <div className={`grid grid-cols-1 ${isMobile ? 'gap-3' : isTablet ? 'md:grid-cols-2 gap-4' : 'md:grid-cols-2 gap-4'}`}>
             <div>
               <label className="block text-sm font-medium mb-1">Full Name *</label>
               <Input 
@@ -1553,11 +1563,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                         return copy;
                       });
                       
-                      toast({
-                        title: "Product Selected",
-                        description: `${selectedProduct.name} - ₹${selectedProduct.selling_price?.toLocaleString('en-IN') || 'Price not available'}`,
-                        variant: "default",
-                      });
+                      // Removed toast notification - no need to show this on every product selection
                     }
                   }}
                   disabled={productsLoading}
@@ -1728,10 +1734,12 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       </div>
               
           {/* Product Interests */}
-          <div className="border rounded p-4 bg-gray-50">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-medium">Product Interests</div>
-              <Button variant="outline" size="sm" onClick={addInterest}>+ Add Interest</Button>
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-medium text-base">Product Interests</div>
+              <Button variant="outline" size="sm" onClick={addInterest} className="text-sm">
+                + Add Interest
+              </Button>
             </div>
             
             {interests.map((interest, idx) => {
@@ -1740,14 +1748,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               }
               
               return (
-                <div key={idx} className="border rounded p-3 mb-3 bg-white">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="font-medium text-sm">Interest #{idx + 1}</div>
+                <div key={idx} className="border rounded-lg p-4 mb-4 bg-white shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="font-medium text-base">Interest #{idx + 1}</div>
                     {interests.length > 1 && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-500 hover:text-red-700 text-sm"
                         onClick={() => {
                           setInterests(prev => prev.filter((_, i) => i !== idx));
                         }}
@@ -1758,8 +1766,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   </div>
                   
                   {/* Product Selection for this interest */}
-                  <div className="mb-3">
-                    <label className="block text-sm font-medium mb-1">Product</label>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">Product</label>
                     <Select
                       value={interest.products[0]?.product || ''}
                       onValueChange={(value) => {
@@ -1780,7 +1788,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                         });
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select Product" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1794,8 +1802,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   </div>
                   
                   {/* Revenue for this interest */}
-                  <div className="mb-3">
-                    <label className="block text-sm font-medium mb-1">Expected Revenue (₹)</label>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">Expected Revenue (₹)</label>
                     <Input
                       placeholder="e.g., 50000" 
                       value={interest.products[0]?.revenue || ''}
@@ -1809,88 +1817,21 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                           return copy;
                         });
                       }}
-                      className="w-48"
+                      className="w-full"
                     />
                   </div>
                   
                   {/* Customer Preferences for this interest */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="flex items-center gap-2">
-                      <Checkbox 
-                        checked={interest.preferences?.designSelected || false}
-                        onCheckedChange={(checked) => {
-                          setInterests(prev => {
-                            const copy = [...prev];
-                            if (!copy[idx].preferences) {
-                            copy[idx].preferences = {
-                              designSelected: false,
-                              wantsDiscount: false,
-                              checkingOthers: false,
-                              lessVariety: false,
-                              purchased: false,
-                              other: "",
-                            };
-                            }
-                            copy[idx].preferences.designSelected = checked as boolean;
-                            return copy;
-                          });
-                        }}
-                      /> 
-                      Design Selected
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <Checkbox 
-                        checked={interest.preferences?.wantsDiscount || false}
-                        onCheckedChange={(checked) => {
-                          setInterests(prev => {
-                            const copy = [...prev];
-                            if (!copy[idx].preferences) {
-                            copy[idx].preferences = {
-                              designSelected: false,
-                              wantsDiscount: false,
-                              checkingOthers: false,
-                              lessVariety: false,
-                              purchased: false,
-                              other: "",
-                            };
-                            }
-                            copy[idx].preferences.wantsDiscount = checked as boolean;
-                            return copy;
-                          });
-                        }}
-                      /> 
-                      Wants Discount
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <Checkbox 
-                        checked={interest.preferences?.checkingOthers || false}
-                        onCheckedChange={(checked) => {
-                          setInterests(prev => {
-                            const copy = [...prev];
-                            if (!copy[idx].preferences) {
-                            copy[idx].preferences = {
-                              designSelected: false,
-                              wantsDiscount: false,
-                              checkingOthers: false,
-                              lessVariety: false,
-                              purchased: false,
-                              other: "",
-                            };
-                            }
-                            copy[idx].preferences.checkingOthers = checked as boolean;
-                            return copy;
-                          });
-                        }}
-                      /> 
-                      Checking Others
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <Checkbox 
-                        checked={interest.preferences?.lessVariety || false}
-                        onCheckedChange={(checked) => {
-                          setInterests(prev => {
-                            const copy = [...prev];
-                            if (!copy[idx].preferences) {
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium text-gray-700 mb-2">Customer Preferences:</div>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
+                        <Checkbox 
+                          checked={interest.preferences?.designSelected || false}
+                          onCheckedChange={(checked) => {
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              if (!copy[idx].preferences) {
                               copy[idx].preferences = {
                                 designSelected: false,
                                 wantsDiscount: false,
@@ -1899,21 +1840,21 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                                 purchased: false,
                                 other: "",
                               };
-                            }
-                            copy[idx].preferences.lessVariety = checked as boolean;
-                            return copy;
-                          });
-                        }}
-                      /> 
-                      Less Variety
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <Checkbox 
-                        checked={interest.preferences?.purchased || false}
-                        onCheckedChange={(checked) => {
-                          setInterests(prev => {
-                            const copy = [...prev];
-                            if (!copy[idx].preferences) {
+                              }
+                              copy[idx].preferences.designSelected = checked as boolean;
+                              return copy;
+                            });
+                          }}
+                        /> 
+                        <span className="text-sm">Design Selected</span>
+                      </label>
+                      <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
+                        <Checkbox 
+                          checked={interest.preferences?.wantsDiscount || false}
+                          onCheckedChange={(checked) => {
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              if (!copy[idx].preferences) {
                               copy[idx].preferences = {
                                 designSelected: false,
                                 wantsDiscount: false,
@@ -1922,24 +1863,96 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                                 purchased: false,
                                 other: "",
                               };
-                            }
-                            copy[idx].preferences.purchased = checked as boolean;
-                            return copy;
-                          });
-                        }}
-                      /> 
-                      Purchased
-                    </label>
+                              }
+                              copy[idx].preferences.wantsDiscount = checked as boolean;
+                              return copy;
+                            });
+                          }}
+                        /> 
+                        <span className="text-sm">Wants Discount</span>
+                      </label>
+                      <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
+                        <Checkbox 
+                          checked={interest.preferences?.checkingOthers || false}
+                          onCheckedChange={(checked) => {
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              if (!copy[idx].preferences) {
+                              copy[idx].preferences = {
+                                designSelected: false,
+                                wantsDiscount: false,
+                                checkingOthers: false,
+                                lessVariety: false,
+                                purchased: false,
+                                other: "",
+                              };
+                              }
+                              copy[idx].preferences.checkingOthers = checked as boolean;
+                              return copy;
+                            });
+                          }}
+                        /> 
+                        <span className="text-sm">Checking Others</span>
+                      </label>
+                      <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
+                        <Checkbox 
+                          checked={interest.preferences?.lessVariety || false}
+                          onCheckedChange={(checked) => {
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              if (!copy[idx].preferences) {
+                                copy[idx].preferences = {
+                                  designSelected: false,
+                                  wantsDiscount: false,
+                                  checkingOthers: false,
+                                  lessVariety: false,
+                                  purchased: false,
+                                  other: "",
+                                };
+                              }
+                              copy[idx].preferences.lessVariety = checked as boolean;
+                              return copy;
+                            });
+                          }}
+                        /> 
+                        <span className="text-sm">Less Variety</span>
+                      </label>
+                      <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
+                        <Checkbox 
+                          checked={interest.preferences?.purchased || false}
+                          onCheckedChange={(checked) => {
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              if (!copy[idx].preferences) {
+                                copy[idx].preferences = {
+                                  designSelected: false,
+                                  wantsDiscount: false,
+                                  checkingOthers: false,
+                                  lessVariety: false,
+                                  purchased: false,
+                                  other: "",
+                                };
+                              }
+                              copy[idx].preferences.purchased = checked as boolean;
+                              return copy;
+                            });
+                          }}
+                        /> 
+                        <span className="text-sm">Purchased</span>
+                      </label>
+                    </div>
                   </div>
                   
-                  <Input 
-                    placeholder="Other preferences for this interest..." 
-                    className="mt-2"
-                    value={interest.preferences?.other || ""}
-                    onChange={(e) => {
-                      setInterests(prev => {
-                        const copy = [...prev];
-                        if (!copy[idx].preferences) {
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium mb-2">Other Preferences</label>
+                    <Input 
+                      placeholder="Other preferences for this interest..." 
+                      className="w-full"
+                      value={interest.preferences?.other || ""}
+                      onChange={(e) => {
+                        setInterests(prev => {
+                          const copy = [...prev];
+                          if (!copy[idx].preferences) {
                             copy[idx].preferences = {
                               designSelected: false,
                               wantsDiscount: false,
@@ -1948,12 +1961,13 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                               purchased: false,
                               other: "",
                             };
-                        }
-                        copy[idx].preferences.other = e.target.value;
-                        return copy;
-                      });
-                    }}
-                  />
+                          }
+                          copy[idx].preferences.other = e.target.value;
+                          return copy;
+                        });
+                      }}
+                    />
+                  </div>
                 </div>
               );
             })}
@@ -1963,43 +1977,22 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         {/* Sales Pipeline Section */}
         <div className="border rounded-lg p-4 mb-4">
           <div className="font-semibold mb-3 text-lg">🚀 Sales Pipeline</div>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-blue-600 text-sm">📈</span>
-                </div>
-                <div>
-                  <div className="font-medium text-blue-900">Add to Sales Pipeline</div>
-                  <div className="text-sm text-blue-700">Track this customer's journey and follow-up progress</div>
-                </div>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                <span className="text-green-600 text-sm">📈</span>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setFormData(prev => ({
-                    ...prev,
-                    addToPipeline: !prev.addToPipeline
-                  }));
-                }}
-                className={`${
-                  formData.addToPipeline 
-                    ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
-                    : 'border-blue-300 text-blue-600 hover:bg-blue-50'
-                } transition-colors`}
-              >
-                {formData.addToPipeline ? '✓ Added to Pipeline' : '+ Add to Pipeline'}
-              </Button>
+              <div>
+                <div className="font-medium text-green-900">Automatic Pipeline Creation</div>
+                <div className="text-sm text-green-700">Customer will be automatically added to sales pipeline upon submission</div>
+              </div>
             </div>
-            {formData.addToPipeline && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
-                <div className="flex items-center gap-2 text-green-700">
-                  <span className="text-sm">✓</span>
-                  <span className="text-sm font-medium">Customer will be added to the sales pipeline for tracking and follow-up management</span>
-                </div>
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+              <div className="flex items-center gap-2 text-blue-700">
+                <span className="text-sm">✓</span>
+                <span className="text-sm font-medium">Pipeline entry will be created automatically based on customer data and interests</span>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
@@ -2012,13 +2005,69 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           <div className="font-semibold mb-3 text-lg">📝 Additional Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
+              <label className="block text-sm font-medium mb-1">Gold Range</label>
+              <Input 
+                placeholder="Enter gold range" 
+                value={formData.goldRange}
+                onChange={(e) => handleInputChange('goldRange', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Diamond Range</label>
+              <Input 
+                placeholder="Enter diamond range" 
+                value={formData.diamondRange}
+                onChange={(e) => handleInputChange('diamondRange', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Customer Preferences</label>
+              <Input 
+                placeholder="Enter customer preferences" 
+                value={formData.customerPreferences}
+                onChange={(e) => handleInputChange('customerPreferences', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Design Selected</label>
+              <Input 
+                placeholder="Enter design selected" 
+                value={formData.designSelected}
+                onChange={(e) => handleInputChange('designSelected', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Wants More Discount</label>
+              <Input 
+                placeholder="Enter discount preference" 
+                value={formData.wantsMoreDiscount}
+                onChange={(e) => handleInputChange('wantsMoreDiscount', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Checking Other Jewellers</label>
+              <Input 
+                placeholder="Enter checking status" 
+                value={formData.checkingOtherJewellers}
+                onChange={(e) => handleInputChange('checkingOtherJewellers', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Visit Preference</label>
+              <Input 
+                placeholder="Enter visit preference" 
+                value={formData.letHimVisit}
+                onChange={(e) => handleInputChange('letHimVisit', e.target.value)}
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium mb-1">Design Number</label>
               <Input 
                 placeholder="e.g., DES-2024-001" 
                 value={formData.designNumber}
                 onChange={(e) => handleInputChange('designNumber', e.target.value)}
               />
-              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
               <Input 
@@ -2059,28 +2108,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
           </div>
         )}
-
-        {/* Submit Button */}
-        <div className="mt-6 flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700" 
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating Customer...
-              </>
-            ) : (
-              'Add Customer'
-            )}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   );
 }

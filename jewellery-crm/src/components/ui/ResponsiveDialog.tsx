@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { useIsMobile, useIsTablet, useIsDesktop } from '@/hooks/useMediaQuery';
+import { useModal } from '@/contexts/ModalContext';
 
 export interface ResponsiveDialogProps {
   open: boolean;
@@ -151,8 +152,9 @@ export function ResponsiveDialog({
   const isTablet = useIsTablet();
   const isDesktop = useIsDesktop();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { openModal, closeModal } = useModal();
 
-  // Handle escape key
+  // Handle escape key and modal state
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && open) {
@@ -164,13 +166,22 @@ export function ResponsiveDialog({
       document.addEventListener('keydown', handleEscape);
       // Prevent body scroll
       document.body.style.overflow = 'hidden';
+      // Notify that a modal is open
+      openModal();
+    } else {
+      // Notify that modal is closed
+      closeModal();
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
+      // Clean up modal state when component unmounts
+      if (open) {
+        closeModal();
+      }
     };
-  }, [open, onOpenChange]);
+  }, [open, onOpenChange, openModal, closeModal]);
 
   // Handle backdrop click
   const handleBackdropClick = () => {
@@ -214,7 +225,7 @@ export function ResponsiveDialog({
           'relative z-50 flex flex-col',
           shouldBeFullScreen 
             ? 'w-full h-full' 
-            : 'max-h-[90vh] overflow-hidden',
+            : 'max-h-[90vh]',
           className
         )}
         role="dialog"
@@ -229,7 +240,7 @@ export function ResponsiveDialog({
           isDesktop={isDesktop}
           className={cn(
             'flex flex-col',
-            shouldBeFullScreen ? 'h-full' : 'max-h-full'
+            shouldBeFullScreen ? 'h-full' : 'max-h-full overflow-hidden'
           )}
         >
           {/* Header */}
@@ -279,17 +290,22 @@ export function ResponsiveDialog({
 
           {/* Content */}
           <div className={cn(
-            'flex-1 overflow-y-auto',
-            shouldBeFullScreen ? 'p-6' : 'p-4'
+            'flex-1 overflow-y-auto overflow-x-hidden',
+            shouldBeFullScreen ? 'p-6' : 'p-4',
+            // Add bottom padding to ensure content doesn't hide behind sticky buttons
+            'pb-20'
           )}>
             {children}
           </div>
 
-          {/* Actions */}
+          {/* Actions - Sticky at Bottom */}
           {(actions || onConfirm || onCancel) && (
             <div className={cn(
-              'flex items-center justify-end gap-3 p-4 border-t border-border',
-              shouldBeFullScreen && 'p-6'
+              'sticky bottom-0 bg-background border-t border-border',
+              'flex items-center justify-end gap-3 p-4',
+              shouldBeFullScreen ? 'p-6' : 'p-4',
+              // Ensure buttons are always visible
+              'z-10 shadow-lg'
             )}>
               {actions || (
                 <>

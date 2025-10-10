@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationSettings, NotificationType } from '@/types';
 import { Bell, Mail, Smartphone, Clock, Save, RefreshCw } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function NotificationSettingsPage() {
   const { state, actions } = useNotifications();
@@ -84,7 +85,7 @@ export default function NotificationSettingsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
-          <RefreshCw className="h-6 w-6 animate-spin" />
+          <Skeleton className="h-6 w-6 rounded-full" />
           <span>Loading notification settings...</span>
         </div>
       </div>
@@ -108,7 +109,7 @@ export default function NotificationSettingsPage() {
             onClick={handleRefresh}
             disabled={isLoading}
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'opacity-50' : ''}`} />
             Refresh
           </Button>
           <Button

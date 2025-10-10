@@ -22,7 +22,6 @@ import {
   FileText,
   Target,
   Activity,
-  Loader2,
   Database,
   ExternalLink,
   Copy,
@@ -36,6 +35,7 @@ import {
 import { telecallingApiService, Lead } from '@/services/telecallingApi';
 import { useAuth } from '@/hooks/useAuth';
 import { TransferToSalesModal } from '@/components/telecalling/TransferToSalesModal';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface LeadDetail extends Lead {
   raw_data?: Record<string, any>;
@@ -155,7 +155,7 @@ export default function LeadViewPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <Skeleton className="w-8 h-8 mx-auto mb-4 rounded-full" />
           <p className="text-gray-600">Loading lead details...</p>
         </div>
       </div>

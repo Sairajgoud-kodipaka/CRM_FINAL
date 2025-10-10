@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { apiService, SalesPipeline, Client } from "@/lib/api-service";
 import { Edit, Calendar, DollarSign, User, Building, ArrowRight, CheckCircle, XCircle } from "lucide-react";
 import { useScopedVisibility } from '@/lib/scoped-visibility';
@@ -22,6 +23,8 @@ interface DealDetailModalProps {
 }
 
 export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDetailModalProps) {
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [deal, setDeal] = useState<SalesPipeline | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,6 +32,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<{
     title: string;
+    client: string;
     expected_value: string;
     probability: string;
     stage: string;
@@ -38,6 +42,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
     next_action_date: string;
   }>({
     title: '',
+    client: '',
     expected_value: '',
     probability: '',
     stage: '',
@@ -90,6 +95,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
         setDeal(response.data);
         setFormData({
           title: response.data.title,
+          client: response.data.client?.toString() || '',
           expected_value: response.data.expected_value.toString(),
           probability: response.data.probability.toString(),
           stage: response.data.stage,
@@ -163,6 +169,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
       
       const pipelineData = {
         title: formData.title,
+        client: formData.client || undefined,
         expected_value: parseFloat(formData.expected_value),
         probability: parseInt(formData.probability),
         stage: formData.stage,
@@ -253,19 +260,20 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
 
   if (loading) {
     return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Deal Details</DialogTitle>
-            <DialogDescription>Loading deal information...</DialogDescription>
-          </DialogHeader>
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={onClose}
+        title="Deal Details"
+        description="Loading deal information..."
+        size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+        showCloseButton={true}
+      >
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded"></div>
+          <div className="h-32 bg-gray-200 rounded"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+        </div>
+      </ResponsiveDialog>
     );
   }
 
@@ -368,6 +376,16 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
                     required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="client">Client ID</Label>
+                  <Input
+                    id="client"
+                    value={formData.client}
+                    onChange={(e) => handleInputChange('client', e.target.value)}
+                    placeholder="Enter client ID"
                   />
                 </div>
                 

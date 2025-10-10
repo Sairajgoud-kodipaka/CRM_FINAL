@@ -131,6 +131,28 @@ class Client(models.Model):
     next_follow_up_time = models.CharField(max_length=10, blank=True, null=True, help_text="Time for next follow-up (HH:MM format)")
     summary_notes = models.TextField(blank=True, null=True, default='')
 
+    # Additional fields from AddCustomerModal
+    pincode = models.CharField(max_length=10, blank=True, null=True)
+    sales_person = models.CharField(max_length=100, blank=True, null=True)
+    sales_person_id = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='sales_clients')
+    customer_status = models.CharField(max_length=50, blank=True, null=True)
+    product_type = models.CharField(max_length=100, blank=True, null=True)
+    style = models.CharField(max_length=100, blank=True, null=True)
+    material_type = models.CharField(max_length=100, blank=True, null=True)
+    material_weight = models.DecimalField(max_digits=10, decimal_places=3, blank=True, null=True)
+    material_value = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    material_unit = models.CharField(max_length=10, blank=True, null=True, default='g')
+    product_subtype = models.CharField(max_length=100, blank=True, null=True)
+    gold_range = models.CharField(max_length=100, blank=True, null=True)
+    diamond_range = models.CharField(max_length=100, blank=True, null=True)
+    customer_preferences = models.TextField(blank=True, null=True)
+    design_selected = models.CharField(max_length=100, blank=True, null=True)
+    wants_more_discount = models.CharField(max_length=100, blank=True, null=True)
+    checking_other_jewellers = models.CharField(max_length=100, blank=True, null=True)
+    let_him_visit = models.CharField(max_length=100, blank=True, null=True)
+    design_number = models.CharField(max_length=100, blank=True, null=True)
+    add_to_pipeline = models.BooleanField(default=False)
+
     # Tenant relationship
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='clients', null=True, blank=True)
     

@@ -8,6 +8,7 @@ const lexend = Lexend({
   subsets: ["latin"],
   variable: "--font-lexend",
   display: 'swap',
+  fallback: ['system-ui', 'arial'],
 });
 
 export const metadata: Metadata = {

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/ui/ResponsiveDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 
 import { Upload, Download, FileText, AlertCircle, CheckCircle, X } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
@@ -24,6 +25,8 @@ interface ImportResult {
 }
 
 export default function ImportProductsModal({ isOpen, onClose, onSuccess }: ImportProductsModalProps) {
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -127,14 +130,28 @@ Sample Product,SKU001,Product description,Category Name,1000.00,1500.00,10,5,100
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Upload className="w-5 h-5" />
-            Import Products
-          </DialogTitle>
-        </DialogHeader>
+    <ResponsiveDialog
+      open={isOpen}
+      onOpenChange={handleClose}
+      title="Import Products"
+      description="Upload a CSV file to import products into your inventory"
+      size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+      showCloseButton={true}
+      actions={
+        <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
+          <Button variant="outline" onClick={handleClose} disabled={uploading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleImport} 
+            disabled={!file || uploading}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {uploading ? 'Importing...' : 'Import Products'}
+          </Button>
+        </div>
+      }
+    >
 
         <div className="space-y-4">
           {/* Template Download */}
@@ -240,30 +257,6 @@ Sample Product,SKU001,Product description,Category Name,1000.00,1500.00,10,5,100
             </ul>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleUpload} 
-            disabled={!file || uploading}
-            className="min-w-[100px]"
-          >
-            {uploading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Importing...
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4 mr-2" />
-                Import
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialog>
   );
 } 

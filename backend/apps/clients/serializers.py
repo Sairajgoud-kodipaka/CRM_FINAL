@@ -259,12 +259,29 @@ class ClientSerializer(serializers.ModelSerializer):
             'customer_interests', 'customer_interests_display', 'customer_interests_input',
             # Soft delete fields
             'is_deleted', 'deleted_at',
+            # Additional fields from AddCustomerModal
+            'pincode', 'sales_person', 'sales_person_id', 'customer_status',
+            'product_type', 'style', 'material_type', 'material_weight', 'material_value', 'material_unit',
+            'product_subtype', 'gold_range', 'diamond_range', 'customer_preferences',
+            'design_selected', 'wants_more_discount', 'checking_other_jewellers',
+            'let_him_visit', 'design_number', 'add_to_pipeline',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'tags', 'is_deleted', 'deleted_at', 'created_by']
     
     def create(self, validated_data):
         print("=== BACKEND SERIALIZER - CREATE METHOD START ===")
         print(f"Initial validated_data: {validated_data}")
+        print(f"Fields being processed:")
+        print(f"  - sales_person: {validated_data.get('sales_person')}")
+        print(f"  - product_type: {validated_data.get('product_type')}")
+        print(f"  - gold_range: {validated_data.get('gold_range')}")
+        print(f"  - diamond_range: {validated_data.get('diamond_range')}")
+        print(f"  - customer_preferences: {validated_data.get('customer_preferences')}")
+        print(f"  - design_selected: {validated_data.get('design_selected')}")
+        print(f"  - wants_more_discount: {validated_data.get('wants_more_discount')}")
+        print(f"  - checking_other_jewellers: {validated_data.get('checking_other_jewellers')}")
+        print(f"  - let_him_visit: {validated_data.get('let_him_visit')}")
+        print(f"  - design_number: {validated_data.get('design_number')}")
         
         # Handle name field mapping
         if 'name' in validated_data:

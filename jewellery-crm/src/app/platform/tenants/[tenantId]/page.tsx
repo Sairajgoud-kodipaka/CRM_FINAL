@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, AlertTriangle, Edit, Save, X, MapPin, Phone, Mail, Globe, Users, Calendar, Building } from 'lucide-react';
+import { AlertTriangle, Edit, Save, X, MapPin, Phone, Mail, Globe, Users, Calendar, Building } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { apiService } from '@/lib/api-service';
 import Link from 'next/link';
 
@@ -113,7 +114,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
         </div>
         <div className="flex items-center justify-center h-64">
           <div className="flex items-center space-x-2">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <Skeleton className="h-6 w-6 rounded" />
             <span>Loading tenant details...</span>
           </div>
         </div>
