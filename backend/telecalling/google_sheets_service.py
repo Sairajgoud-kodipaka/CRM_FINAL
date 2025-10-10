@@ -29,8 +29,14 @@ class GoogleSheetsService:
     def _initialize_service(self):
         """Initialize Google Sheets service"""
         try:
-            # Path to the service account key file
-            key_file_path = os.path.join(settings.BASE_DIR.parent, 'jewellery-crm', 'mangatrai-6bc45a711bae.json')
+            # Try Render secret files first (production)
+            render_secret_path = '/etc/secrets/mangatrai-6bc45a711bae.json'
+            
+            if os.path.exists(render_secret_path):
+                key_file_path = render_secret_path
+            else:
+                # Fallback to local development path
+                key_file_path = os.path.join(settings.BASE_DIR.parent, 'jewellery-crm', 'mangatrai-6bc45a711bae.json')
             
             if not os.path.exists(key_file_path):
                 logger.error(f"Google Sheets credentials file not found: {key_file_path}")
