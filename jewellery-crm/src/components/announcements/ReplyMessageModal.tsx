@@ -42,7 +42,11 @@ export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageMo
     e.preventDefault();
     
     if (!formData.content.trim()) {
-      toast.error('Please enter a reply message');
+      toast({
+        title: "Error",
+        description: "Please enter a reply message",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -69,11 +73,19 @@ export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageMo
         });
         onSuccess?.();
       } else {
-        toast.error('Failed to send reply');
+        toast({
+          title: "Error",
+          description: "Failed to send reply",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error sending reply:', error);
-      toast.error('Failed to send reply');
+      toast({
+        title: "Error",
+        description: "Failed to send reply",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

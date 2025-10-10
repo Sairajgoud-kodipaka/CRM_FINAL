@@ -291,22 +291,4 @@ export interface FormAction<T> {
 // EXPORT ALL INTERFACES
 // ============================================================================
 
-export type {
-  CustomerCoreFields,
-  ProductCoreFields,
-  PipelineCoreFields,
-  AppointmentCoreFields,
-  AnnouncementCoreFields,
-  EscalationCoreFields,
-  CustomerFormData,
-  ProductFormData,
-  DealFormData,
-  AppointmentFormData,
-  ProductInterest,
-  FormFieldMapping,
-  FormSyncConfig,
-  FormValidationRule,
-  FormValidationConfig,
-  FormState,
-  FormAction
-};
+// All exports are done individually above

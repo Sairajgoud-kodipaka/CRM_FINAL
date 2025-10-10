@@ -5,7 +5,7 @@ import { BarChart2, PieChart, TrendingUp, Users, Percent, Activity, TrendingDown
 import { apiService } from '@/lib/api-service';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardSkeleton, KPICardSkeleton } from '@/components/ui/skeleton';
-import { MobileDashboard, DashboardSection, KPIMetric } from '@/components/dashboard/MobileDashboard';
+import { MobileDashboard, DashboardSection, DashboardMetric } from '@/components/dashboard/MobileDashboard';
 import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 
 interface SalesStats {
@@ -209,7 +209,6 @@ export default function SalesDashboardPage() {
       title: 'Sales Overview',
       description: 'Key sales performance metrics',
       priority: 'high',
-      icon: TrendingUp,
       collapsible: true,
       defaultExpanded: true,
       metrics: [
@@ -220,7 +219,6 @@ export default function SalesDashboardPage() {
           format: 'currency',
           priority: 'high',
           icon: DollarSign,
-          color: 'primary',
         },
         {
           id: 'total-sales',
@@ -229,7 +227,6 @@ export default function SalesDashboardPage() {
           format: 'number',
           priority: 'high',
           icon: ShoppingBag,
-          color: 'success',
         },
         {
           id: 'customers',
@@ -238,7 +235,6 @@ export default function SalesDashboardPage() {
           format: 'number',
           priority: 'high',
           icon: Users,
-          color: 'secondary',
         },
         {
           id: 'conversion-rate',
@@ -247,7 +243,6 @@ export default function SalesDashboardPage() {
           format: 'percentage',
           priority: 'medium',
           icon: Percent,
-          color: 'warning',
         },
       ],
     },
@@ -256,17 +251,14 @@ export default function SalesDashboardPage() {
       title: 'Recent Activity',
       description: 'Latest appointments and sales',
       priority: 'medium',
-      icon: Activity,
       collapsible: true,
       defaultExpanded: false,
       metrics: stats.recent_activities.slice(0, 3).map((activity, index) => ({
         id: `activity-${index}`,
         title: activity.title,
         value: activity.date,
-        format: 'text',
         priority: 'medium',
         icon: Calendar,
-        color: 'primary',
       })),
     },
     {
@@ -274,7 +266,6 @@ export default function SalesDashboardPage() {
       title: 'Top Products',
       description: 'Most popular products by customer interest',
       priority: 'low',
-      icon: TrendingUp,
       collapsible: true,
       defaultExpanded: false,
       metrics: stats.top_products.slice(0, 3).map((product, index) => ({
@@ -284,7 +275,6 @@ export default function SalesDashboardPage() {
         format: 'number',
         priority: 'low',
         icon: ShoppingBag,
-        color: 'success',
       })),
     },
   ];

@@ -16,7 +16,7 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -343,7 +343,7 @@ export function MobileDashboard({
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
-  const refreshTimeoutRef = useRef<NodeJS.Timeout>();
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize expanded sections
   useEffect(() => {
