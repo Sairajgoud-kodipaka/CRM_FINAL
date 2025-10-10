@@ -119,23 +119,40 @@ DATABASES = {
 
 # Production configuration for Render managed database
 if not DEBUG:
-    # Render automatically provides DATABASE_URL environment variable
-    import dj_database_url
-    DATABASES['default'] = dj_database_url.parse(
-        config('DATABASE_URL', default='sqlite:///db.sqlite3'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    # Check if DATABASE_URL is provided (preferred method)
+    database_url = config('DATABASE_URL', default=None)
     
-    # Additional Render optimizations
-    if 'OPTIONS' not in DATABASES['default']:
-        DATABASES['default']['OPTIONS'] = {}
+    if database_url:
+        # Use DATABASE_URL if provided
+        import dj_database_url
+        DATABASES['default'] = dj_database_url.parse(
+            database_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    else:
+        # Fallback to individual database environment variables
+        DATABASES['default'] = {
+            'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
+            'NAME': config('DB_NAME', default='crm_db'),
+            'USER': config('DB_USER', default='crm_user'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': 600,
+            'CONN_HEALTH_CHECKS': True,
+        }
     
-    DATABASES['default']['OPTIONS'].update({
-        'application_name': 'jewellery_crm_backend',
-        'connect_timeout': 60,
-        'sslmode': 'require',
-    })
+    # Additional Render optimizations (only for PostgreSQL)
+    if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+        if 'OPTIONS' not in DATABASES['default']:
+            DATABASES['default']['OPTIONS'] = {}
+        
+        DATABASES['default']['OPTIONS'].update({
+            'application_name': 'jewellery_crm_backend',
+            'connect_timeout': 60,
+            'sslmode': 'require',
+        })
 
 # During collectstatic, use a dummy database config
 if 'collectstatic' in sys.argv:
