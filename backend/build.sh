@@ -5,6 +5,11 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
+# Docker build configuration
+DOCKERFILE_PATH="Dockerfile"
+IMAGE_NAME="jewellery-crm-backend"
+BUILD_CONTEXT="."
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -38,6 +43,22 @@ log "🚀 Starting production build process for Jewellery CRM Backend..."
 if [[ ! -f "manage.py" ]]; then
     error "manage.py not found. Please run this script from the backend directory."
     exit 1
+fi
+
+# Check if Dockerfile exists
+if [[ ! -f "$DOCKERFILE_PATH" ]]; then
+    error "Dockerfile not found at $DOCKERFILE_PATH"
+    exit 1
+fi
+
+# Docker build (if Docker is available)
+if command -v docker &> /dev/null; then
+    log "🐳 Building Docker image..."
+    docker build -f "$DOCKERFILE_PATH" -t "$IMAGE_NAME" "$BUILD_CONTEXT" || {
+        warning "Docker build failed, but continuing with regular build..."
+    }
+else
+    log "🐳 Docker not available, skipping Docker build..."
 fi
 
 # Check Python version compatibility
