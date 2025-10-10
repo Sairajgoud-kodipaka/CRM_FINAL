@@ -12,8 +12,10 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Button, ButtonProps } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { useIsMobile, useIsTablet, useIsDesktop } from '@/hooks/useMediaQuery';
+
+type ButtonProps = React.ComponentProps<typeof Button>;
 
 export interface TouchOptimizedButtonProps extends Omit<ButtonProps, 'size'> {
   // Touch-specific props

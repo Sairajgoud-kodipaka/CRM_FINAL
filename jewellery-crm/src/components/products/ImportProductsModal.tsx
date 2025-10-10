@@ -143,7 +143,7 @@ Sample Product,SKU001,Product description,Category Name,1000.00,1500.00,10,5,100
             Cancel
           </Button>
           <Button 
-            onClick={handleImport} 
+            onClick={handleUpload} 
             disabled={!file || uploading}
             className="bg-blue-600 hover:bg-blue-700"
           >

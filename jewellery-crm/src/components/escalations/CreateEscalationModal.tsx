@@ -66,7 +66,11 @@ export default function CreateEscalationModal({ onSuccess }: CreateEscalationMod
     e.preventDefault();
     
     if (!formData.title.trim() || !formData.description.trim() || !formData.client) {
-      toast.error('Please fill in all required fields');
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -95,11 +99,19 @@ export default function CreateEscalationModal({ onSuccess }: CreateEscalationMod
         });
         onSuccess?.();
       } else {
-        toast.error('Failed to create escalation');
+        toast({
+          title: "Error",
+          description: "Failed to create escalation",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error creating escalation:', error);
-      toast.error('Failed to create escalation');
+      toast({
+        title: "Error",
+        description: "Failed to create escalation",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

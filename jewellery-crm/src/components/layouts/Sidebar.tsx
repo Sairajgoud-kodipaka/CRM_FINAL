@@ -688,7 +688,7 @@ export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: S
     if (href === '/dashboard') {
       return pathname === '/dashboard' || pathname === '/';
     }
-    return pathname?.startsWith(href);
+    return pathname?.startsWith(href) ?? false;
   };
 
   /**

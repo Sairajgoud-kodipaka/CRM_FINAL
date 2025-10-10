@@ -41,7 +41,11 @@ export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
     e.preventDefault();
     
     if (!formData.subject.trim() || !formData.content.trim()) {
-      toast.error('Please fill in all required fields');
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -69,11 +73,19 @@ export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
         });
         onSuccess?.();
       } else {
-        toast.error('Failed to send message');
+        toast({
+          title: "Error",
+          description: "Failed to send message",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error('Failed to send message');
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

@@ -66,11 +66,19 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
         });
         onSuccess?.();
       } else {
-        toast.error('Failed to add note');
+        toast({
+          title: "Error",
+          description: "Failed to add note",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error adding note:', error);
-      toast.error('Failed to add note');
+      toast({
+        title: "Error",
+        description: "Failed to add note",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

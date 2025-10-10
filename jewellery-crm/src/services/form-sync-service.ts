@@ -336,9 +336,4 @@ export const FORM_TRANSFORMERS = {
 
 export const formSyncService = FormSyncService.getInstance();
 
-export {
-  FormSyncService,
-  FORM_SYNC_CONFIGS,
-  FORM_VALIDATION_RULES,
-  FORM_TRANSFORMERS
-};
+// All exports are done individually above

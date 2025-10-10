@@ -57,7 +57,11 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
     console.log('Submitting announcement with data:', formData);
     
     if (!formData.title.trim() || !formData.content.trim()) {
-      toast.error('Please fill in all required fields');
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -93,11 +97,19 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
         onSuccess?.();
       } else {
         console.error('Failed to create announcement:', response);
-        toast.error(response.message || 'Failed to create announcement');
+        toast({
+          title: "Error",
+          description: response.message || 'Failed to create announcement',
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error creating announcement:', error);
-      toast.error('Failed to create announcement');
+      toast({
+        title: "Error",
+        description: "Failed to create announcement",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
