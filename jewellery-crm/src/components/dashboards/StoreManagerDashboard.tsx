@@ -1,16 +1,17 @@
 /**
  * Store Manager Dashboard Component
  * 
- * Store-specific overview for jewellery store managers.
+ * Store-specific overview for jewellery store managers with scoped visibility.
  * Features store analytics, team performance, local operations, and customer management.
  * 
  * Key Features:
- * - Store-specific revenue and sales metrics
- * - Sales team performance tracking
- * - Local customer management
- * - Appointment scheduling overview
- * - Store inventory management
- * - Daily operations tracking
+ * - Store-specific revenue and sales metrics (scoped to manager's store)
+ * - Sales team performance tracking (store-scoped)
+ * - Local customer management (store-scoped)
+ * - Appointment scheduling overview (store-scoped)
+ * - Store inventory management (store-scoped)
+ * - Daily operations tracking (store-scoped)
+ * - Scoped visibility indicators and controls
  */
 
 'use client';
@@ -42,13 +43,21 @@ import {
   AlertCircle,
   CheckCircle,
   DollarSign,
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { apiService, User, Client, Product, Sale, Appointment } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
+import { useScopedVisibility } from '@/lib/scoped-visibility';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStoreDashboard, useStoreMetrics, useTeamPerformance } from '@/hooks/useDashboardData';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { DateRange } from 'react-day-picker';
+import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 import { DashboardSkeleton, KPICardSkeleton } from '@/components/ui/skeleton';
+import ScopeIndicator from '@/components/ui/ScopeIndicator';
 
 /**
  * Store metrics interface
@@ -121,9 +130,15 @@ interface StoreActivity {
 }
 
 /**
- * Store Manager Dashboard Component
+ * Store Manager Dashboard Component with Scoped Visibility
  */
 export const StoreManagerDashboard = React.memo(function StoreManagerDashboard() {
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>(() => getCurrentMonthDateRange());
+  const [currentMonth, setCurrentMonth] = React.useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+  
   const [storeMetrics, setStoreMetrics] = React.useState<StoreMetrics>({
     store: {
       name: 'Loading...',
@@ -139,12 +154,51 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
   const [loading, setLoading] = React.useState(true);
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   
-  // Business Admin Dashboard Data
+  // Manager Dashboard Data with scoped visibility
   const [dashboardData, setDashboardData] = React.useState<any>(null);
   const [dashboardError, setDashboardError] = React.useState<string | null>(null);
   
   const { user, isAuthenticated, login } = useAuth();
+  const { userScope, canAccessStoreData } = useScopedVisibility();
   const router = useRouter();
+
+  // Month navigation functions (following business admin pattern)
+  const getCurrentMonthRange = () => {
+    const startOfMonth = new Date(currentMonth.year, currentMonth.month, 1);
+    const endOfMonth = new Date(currentMonth.year, currentMonth.month + 1, 0, 23, 59, 59, 999);
+    return { start: startOfMonth, end: endOfMonth };
+  };
+
+  const formatMonth = () => {
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return `${monthNames[currentMonth.month]} ${currentMonth.year}`;
+  };
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth(prev => {
+      if (prev.month === 0) {
+        return { year: prev.year - 1, month: 11 };
+      }
+      return { year: prev.year, month: prev.month - 1 };
+    });
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(prev => {
+      if (prev.month === 11) {
+        return { year: prev.year + 1, month: 0 };
+      }
+      return { year: prev.year, month: prev.month + 1 };
+    });
+  };
+
+  const goToCurrentMonth = () => {
+    const now = new Date();
+    setCurrentMonth({ year: now.getFullYear(), month: now.getMonth() });
+  };
 
   // Navigation functions for CTA buttons
   const navigateToCustomers = () => {
@@ -179,7 +233,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
     router.push('/manager/pipeline');
   };
 
-  // Utility functions for business admin dashboard
+  // Utility functions with scoped visibility
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -207,17 +261,18 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
 
   const getScopeDescription = () => {
     if (!user) return 'Store-specific data';
-    return `Store: ${user.store_name || 'Your Store'}`;
+    return `Store: ${user.store_name || 'Your Store'} (${userScope.description})`;
   };
 
   React.useEffect(() => {
     checkAuthAndFetchData();
-  }, []);
+  }, [dateRange, currentMonth, userScope]);
 
   const checkAuthAndFetchData = async () => {
     try {
       console.log('🔐 Checking authentication...');
       console.log('Auth state:', { isAuthenticated, user });
+      console.log('🔍 User scope:', userScope);
       
       if (!isAuthenticated || !user) {
         console.log('⚠️ User not authenticated, attempting auto-login...');
@@ -230,8 +285,12 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
           router.push('/');
           return;
         }
+      } else if (!canAccessStoreData) {
+        console.log('❌ User does not have store access permissions');
+        router.push('/unauthorized');
+        return;
       } else {
-        console.log('✅ User is authenticated, fetching data...');
+        console.log('✅ User is authenticated with store access, fetching data...');
         fetchDashboardData();
       }
     } catch (error) {
@@ -243,10 +302,49 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Starting to fetch dashboard data...');
+      console.log('🔄 Starting to fetch dashboard data with scoped visibility...');
       console.log('🔐 Auth token check:', !!localStorage.getItem('auth-storage'));
+      console.log('🔍 User scope:', userScope);
       
-      // Initialize variables
+      // Get current month range for API calls
+      const monthRange = getCurrentMonthRange();
+      
+      // Use authenticated user from auth hook
+      const authenticatedUser = user;
+      console.log('👤 Using authenticated user:', authenticatedUser);
+      if (authenticatedUser) {
+        setCurrentUser(authenticatedUser as User);
+        console.log('✅ Current user set:', authenticatedUser);
+      } else {
+        console.log('❌ No authenticated user available');
+        return;
+      }
+
+      // Fetch manager dashboard data with scoped parameters
+      console.log('📊 Fetching manager dashboard data...');
+      const managerDashboardResponse = await apiService.getManagerDashboard({
+        start_date: monthRange.start.toISOString(),
+        end_date: monthRange.end.toISOString(),
+        filter_type: 'monthly',
+        year: currentMonth.year,
+        month: currentMonth.month,
+        month_name: formatMonth(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        // Add scoped parameters
+        store_id: userScope.filters.store_id || user?.store,
+        user_id: userScope.filters.user_id || user?.id
+      });
+
+      if (managerDashboardResponse.success) {
+        setDashboardData(managerDashboardResponse.data);
+        console.log('✅ Manager dashboard data loaded successfully');
+        console.log('📊 Manager dashboard data:', managerDashboardResponse.data);
+      } else {
+        console.log('❌ Failed to load manager dashboard data');
+        setDashboardError('Failed to load dashboard data');
+      }
+
+      // Initialize variables for legacy data (keeping for backward compatibility)
       let totalCustomers = 0;
       let newTodayCustomers = 0;
       let totalProducts = 0;
@@ -264,21 +362,16 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
       let salesResponse: any = null;
       let appointmentsResponse: any = null;
 
-      // Use authenticated user from auth hook
-      const authenticatedUser = user;
-      console.log('👤 Using authenticated user:', authenticatedUser);
-      if (authenticatedUser) {
-        setCurrentUser(authenticatedUser as User);
-        console.log('✅ Current user set:', authenticatedUser);
-      } else {
-        console.log('❌ No authenticated user available');
-        return;
-      }
-
-      // Fetch team members
-      console.log('👥 Fetching team members...');
+      // Fetch team members with scoped parameters
+      console.log('👥 Fetching team members with store scope...');
       try {
-        teamResponse = await apiService.listTeamMembers();
+        // Add store filter for team members
+        const teamParams: any = {};
+        if (userScope.filters.store_id) {
+          teamParams.store_id = userScope.filters.store_id;
+        }
+        
+        teamResponse = await apiService.listTeamMembers(teamParams);
         console.log('Team response:', teamResponse);
         if (teamResponse.success && teamResponse.data) {
           const teamMembers = Array.isArray(teamResponse.data) ? teamResponse.data : [];
@@ -302,10 +395,20 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
         console.error('❌ Error fetching team members:', error);
       }
 
-      // Fetch customers
-      console.log('👥 Fetching customers...');
+      // Fetch customers with scoped parameters
+      console.log('👥 Fetching customers with store scope...');
       try {
-        customersResponse = await apiService.getClients();
+        // Add store filter for customers
+        const customerParams: any = {};
+        if (userScope.filters.store_id) {
+          customerParams.store_id = userScope.filters.store_id;
+        }
+        
+        customersResponse = await apiService.getClients({
+          ...customerParams,
+          start_date: dateRange?.from?.toISOString(),
+          end_date: dateRange?.to?.toISOString(),
+        });
         console.log('Customers response:', customersResponse);
         if (customersResponse.success && customersResponse.data) {
           const customers = Array.isArray(customersResponse.data) ? customersResponse.data : [];
@@ -385,8 +488,12 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
       // Fetch sales
       console.log('💰 Fetching sales...');
       try {
-        // Use the new manager dashboard API that includes purchased pipelines
-        const dashboardResponse = await apiService.getManagerDashboard();
+        // Use the new manager dashboard API that includes purchased pipelines with date parameters
+        const dashboardResponse = await apiService.getManagerDashboard({
+          start_date: dateRange?.from?.toISOString(),
+          end_date: dateRange?.to?.toISOString(),
+          filter_type: 'custom'
+        });
         console.log('Manager Dashboard response:', dashboardResponse);
         
         if (dashboardResponse.success && dashboardResponse.data) {
@@ -564,23 +671,70 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
   return (
     <DashboardLayout
       title={`${user?.store_name || 'Store'} Dashboard`}
-      subtitle={`${user?.store_name || 'Your Store'} - Daily operations and team performance`}
+      subtitle={`${getScopeDescription()} - Monthly performance overview`}
       actions={
         <div className="flex items-center space-x-2">
+          {/* Scope Indicator */}
+          <ScopeIndicator showDetails={false} />
+          
+          {/* Month Navigation */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToPreviousMonth}
+            className="flex items-center gap-1"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Previous
+          </Button>
+          
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
+            <CalendarIcon className="w-4 h-4 text-blue-600" />
+            <span className="font-medium text-blue-800">{formatMonth()}</span>
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToNextMonth}
+            className="flex items-center gap-1"
+          >
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToCurrentMonth}
+            className="text-blue-600 hover:text-blue-800"
+          >
+            Current Month
+          </Button>
+          
+          <DateRangeFilter
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            placeholder="Filter by date range"
+          />
+          
           <div className="flex items-center space-x-2 px-3 py-1 bg-blue-50 rounded-lg border">
             <Store className="w-4 h-4 text-blue-600" />
             <span className="text-sm font-medium text-blue-700">
               {user?.store_name || 'Your Store'}
             </span>
           </div>
+          
           <Button variant="outline" size="sm" onClick={() => fetchDashboardData()}>
             <TrendingUp className="w-4 h-4 mr-2" />
             Refresh Data
           </Button>
+          
           <Button variant="outline" size="sm" onClick={navigateToAppointments}>
             <Calendar className="w-4 h-4 mr-2" />
             Schedule Appointment
           </Button>
+          
           <Button size="sm" onClick={navigateToCustomers}>
             <UserPlus className="w-4 h-4 mr-2" />
             Add Customer
@@ -588,6 +742,23 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
         </div>
       }
     >
+      {/* Date Filter Indicator */}
+      <Card className="shadow-sm border-blue-200 bg-blue-50 mb-6">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-700">Current Date Filter</p>
+                      <p className="text-sm font-bold text-blue-800">
+                        {formatDateRange(dateRange)}
+                      </p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 text-sm font-semibold">📅</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Business Admin Dashboard Cards - Store Specific */}
       {dashboardData && (
         <>
@@ -599,7 +770,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
                 {user?.store_name || 'Your Store'} - Key Performance Indicators
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
               {/* Total Sales */}
               <Card className="shadow-sm">
                 <CardContent className="p-4">
@@ -607,37 +778,18 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
                     <div>
                       <p className="text-sm font-medium text-text-secondary">Total Sales</p>
                       <p className="text-lg font-bold text-text-primary">
-                        {formatCurrency(dashboardData.total_sales?.month || 0)}
+                        {dashboardData.total_sales?.month_count || 0}
                       </p>
                       <p className="text-xs text-text-secondary">
-                        Today: {formatCurrency(dashboardData.total_sales?.today || 0)} | 
-                        Week: {formatCurrency(dashboardData.total_sales?.week || 0)}
+                        Today: {dashboardData.total_sales?.today_count || 0} | 
+                        Week: {dashboardData.total_sales?.week_count || 0}
                       </p>
                       <p className="text-xs text-green-600 font-medium">
-                        {dashboardData.total_sales?.month_count || 0} sales (includes purchased)
+                        sales (includes purchased)
                       </p>
                     </div>
                     <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                       <DollarSign className="w-4 h-4 text-green-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* Revenue in Pipeline */}
-              <Card className="shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-text-secondary">Revenue in Pipeline</p>
-                      <p className="text-lg font-bold text-text-primary">
-                        {formatCurrency(dashboardData.pipeline_revenue || 0)}
-                      </p>
-                      <p className="text-xs text-text-secondary">Potential revenue</p>
-                      <p className="text-xs text-blue-600 font-medium">Store pending deals - revenue</p>
-                    </div>
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Target className="w-4 h-4 text-blue-600" />
                     </div>
                   </div>
                 </CardContent>

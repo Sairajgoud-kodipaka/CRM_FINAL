@@ -1,6 +1,510 @@
-import { StoreManagerDashboard } from '@/components/dashboards/StoreManagerDashboard';
+'use client';
 
-export default function ManagerDashboardPage() {
-  return <StoreManagerDashboard />;
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
+import { useScopedVisibility } from '@/lib/scoped-visibility';
+import { apiService } from '@/lib/api-service';
+import { Users, TrendingUp, Calendar as CalendarIcon, Store, Award, CheckCircle, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { NotificationBell } from '@/components/notifications';
+import ScopeIndicator from '@/components/ui/ScopeIndicator';
+
+interface ManagerDashboardData {
+  // Monthly KPI Metrics (Store-scoped)
+  monthly_sales: {
+    count: number;
+    revenue: number;
+  };
+  monthly_customers: {
+    new: number;
+    total: number;
+  };
+  monthly_pipeline: {
+    active: number;
+    closed: number;
+    revenue: number;
+  };
+  
+  // Store Performance for current month (Manager's store only)
+  store_performance: {
+    id: number;
+    name: string;
+    revenue: number;
+    sales_count: number;
+    closed_deals: number;
+  };
+  
+  // Team Performance for current month (Store-scoped)
+  team_performance: Array<{
+    id: number;
+    name: string;
+    revenue: number;
+    deals_closed: number;
+    role: string;
+    target: number;
+    achievement_percentage: number;
+  }>;
 }
- 
+
+// Main dashboard component focused on monthly data with scoped visibility
+function ManagerDashboardContent() {
+  const { user } = useAuth();
+  const { userScope, canAccessStoreData } = useScopedVisibility();
+  const router = useRouter();
+  const [dashboardData, setDashboardData] = useState<ManagerDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+
+  // Get current month date range
+  const getCurrentMonthRange = () => {
+    const startOfMonth = new Date(currentMonth.year, currentMonth.month, 1);
+    const endOfMonth = new Date(currentMonth.year, currentMonth.month + 1, 0, 23, 59, 59, 999);
+    return { start: startOfMonth, end: endOfMonth };
+  };
+
+  // Format month for display
+  const formatMonth = () => {
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return `${monthNames[currentMonth.month]} ${currentMonth.year}`;
+  };
+
+  // Navigate to previous month
+  const goToPreviousMonth = () => {
+    setCurrentMonth(prev => {
+      if (prev.month === 0) {
+        return { year: prev.year - 1, month: 11 };
+      }
+      return { year: prev.year, month: prev.month - 1 };
+    });
+  };
+
+  // Navigate to next month
+  const goToNextMonth = () => {
+    setCurrentMonth(prev => {
+      const now = new Date();
+      const currentDate = { year: now.getFullYear(), month: now.getMonth() };
+      
+      // Prevent navigation to future months
+      if (prev.year > currentDate.year || 
+          (prev.year === currentDate.year && prev.month >= currentDate.month)) {
+        console.log('⚠️ Cannot navigate to future months');
+        return prev; // Stay on current month
+      }
+      
+      if (prev.month === 11) {
+        return { year: prev.year + 1, month: 0 };
+      }
+      return { year: prev.year, month: prev.month + 1 };
+    });
+  };
+
+  // Go to current month
+  const goToCurrentMonth = () => {
+    const now = new Date();
+    setCurrentMonth({ year: now.getFullYear(), month: now.getMonth() });
+  };
+
+  // Fetch dashboard data for current month with scoped visibility
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const monthRange = getCurrentMonthRange();
+      
+      // CRITICAL: Force fresh data by clearing any cached data first
+      setDashboardData(null);
+      
+      // Add a small delay to ensure state is cleared
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Use manager dashboard API with scoped parameters
+      const response = await apiService.getManagerDashboard({
+        start_date: monthRange.start.toISOString(),
+        end_date: monthRange.end.toISOString(),
+        filter_type: 'monthly',
+        year: currentMonth.year,
+        month: currentMonth.month,
+        month_name: formatMonth(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        // Add scoped parameters
+        store_id: userScope.filters.store_id || user?.store,
+        user_id: userScope.filters.user_id || user?.id
+      });
+      
+      console.log('📡 [MANAGER DASHBOARD] API Response:', response);
+      
+      if (response.success) {
+        setDashboardData(response.data);
+        console.log('✅ [MANAGER DASHBOARD] Monthly data loaded successfully');
+        console.log('📊 [MANAGER DASHBOARD] Data structure:', response.data);
+      } else {
+        setError(`Failed to load dashboard data: ${response.error || 'Unknown error'}`);
+        console.error('❌ [MANAGER DASHBOARD] API Error:', response.error);
+      }
+    } catch (err) {
+      console.error('❌ [MANAGER DASHBOARD] Fetch Error:', err);
+      setError(`Failed to load dashboard data: ${err.message || 'Network error'}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentMonth.year, currentMonth.month, user?.id, user?.store]);
+
+  useEffect(() => {
+    if (user && canAccessStoreData) {
+      fetchDashboardData();
+    }
+  }, [fetchDashboardData, user, canAccessStoreData]);
+
+
+  // Navigation functions
+  const navigateToCustomers = () => router.push('/manager/customers');
+  const navigateToAppointments = () => router.push('/manager/appointments');
+  const navigateToTeam = () => router.push('/manager/team');
+  const navigateToAnalytics = () => router.push('/manager/analytics');
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={fetchDashboardData}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboardData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">No data available</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Month Navigation and Scope Indicator */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary tracking-tight">
+            {user?.store_name || 'Store'} Dashboard
+          </h1>
+          <p className="text-text-secondary mt-1">Monthly performance overview - {userScope.description}</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Scope Indicator */}
+          <ScopeIndicator showDetails={false} />
+          
+          {/* Month Navigation */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToPreviousMonth}
+            className="flex items-center gap-1"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Previous
+          </Button>
+          
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
+            <CalendarIcon className="w-4 h-4 text-blue-600" />
+            <span className="font-medium text-blue-800">{formatMonth()}</span>
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToNextMonth}
+            className="flex items-center gap-1"
+            disabled={currentMonth.year > new Date().getFullYear() || 
+                     (currentMonth.year === new Date().getFullYear() && currentMonth.month >= new Date().getMonth())}
+          >
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToCurrentMonth}
+            className="text-blue-600 hover:text-blue-800"
+          >
+            Current Month
+          </Button>
+        </div>
+      </div>
+
+      {/* Monthly KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Monthly Sales */}
+        <Card className="shadow-sm border-blue-200 bg-blue-50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-blue-800">Monthly Sales</CardTitle>
+            <TrendingUp className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-700">
+              {dashboardData.monthly_sales?.count || 0}
+            </div>
+            <p className="text-xs text-blue-600">
+              ₹{(dashboardData.monthly_sales?.revenue || 0).toLocaleString('en-IN')} revenue
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* New Customers */}
+        <Card className="shadow-sm border-green-200 bg-green-50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-green-800">New Customers</CardTitle>
+            <Users className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-700">
+              {dashboardData.monthly_customers?.new || 0}
+            </div>
+            <p className="text-xs text-green-600">
+              {dashboardData.monthly_customers?.total || 0} total customers
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Active Pipeline */}
+        <Card className="shadow-sm border-orange-200 bg-orange-50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-orange-800">Active Pipeline</CardTitle>
+            <TrendingUp className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-700">
+              {dashboardData.monthly_pipeline?.active || 0}
+            </div>
+            <p className="text-xs text-orange-600">
+              ₹{(dashboardData.monthly_pipeline?.revenue || 0).toLocaleString('en-IN')} potential
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Closed Deals */}
+        <Card className="shadow-sm border-purple-200 bg-purple-50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-purple-800">Closed Deals</CardTitle>
+            <CheckCircle className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-700">
+              {dashboardData.monthly_pipeline?.closed || 0}
+            </div>
+            <p className="text-xs text-purple-600">
+              deals closed this month
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Store Performance (Manager's Store Only) */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Store className="w-5 h-5" />
+            Store Performance - {formatMonth()}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {dashboardData.store_performance && dashboardData.store_performance.length > 0 ? (
+            <div className="space-y-4">
+              {dashboardData.store_performance.map((store: any) => (
+                <div key={store.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Store className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-text-primary">{store.name}</h3>
+                      <p className="text-sm text-text-secondary">Store #{store.id}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-blue-600">
+                        ₹{(store.revenue || 0).toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-xs text-text-secondary">Revenue</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-green-600">
+                        {store.sales_count || 0}
+                      </div>
+                      <div className="text-xs text-text-secondary">Sales</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-purple-600">
+                        {store.closed_deals || 0}
+                      </div>
+                      <div className="text-xs text-text-secondary">Closed</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Store className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p>No store performance data available for this period</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Store: {user?.store_name || 'Your Store'}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Team Performance (Store-scoped) */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Award className="w-5 h-5" />
+            Team Performance - {formatMonth()}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {(dashboardData.team_performance || []).map((member: any, index: number) => (
+              <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                    {index + 1}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-text-primary">{member.name}</h3>
+                    <p className="text-sm text-text-secondary">
+                      Team Member
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-6">
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-blue-600">
+                      ₹{(member.revenue || 0).toLocaleString('en-IN')}
+                    </div>
+                    <div className="text-xs text-text-secondary">Revenue</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-green-600">
+                      {member.deals_closed || 0}
+                    </div>
+                    <div className="text-xs text-text-secondary">Deals</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-purple-600">
+                      {member.target || 0}%
+                    </div>
+                    <div className="text-xs text-text-secondary">Target</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {(!dashboardData.team_performance || dashboardData.team_performance.length === 0) && (
+              <div className="text-center py-8 text-gray-500">
+                <Award className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No team performance data available for this period</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ArrowRight className="w-5 h-5" />
+            Quick Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center gap-2"
+              onClick={navigateToCustomers}
+            >
+              <Users className="w-6 h-6" />
+              <span className="text-sm">Manage Customers</span>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center gap-2"
+              onClick={navigateToAppointments}
+            >
+              <CalendarIcon className="w-6 h-6" />
+              <span className="text-sm">Schedule Appointments</span>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center gap-2"
+              onClick={navigateToTeam}
+            >
+              <Award className="w-6 h-6" />
+              <span className="text-sm">Team Management</span>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center gap-2"
+              onClick={navigateToAnalytics}
+            >
+              <TrendingUp className="w-6 h-6" />
+              <span className="text-sm">View Analytics</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Main export component
+export default function ManagerDashboard() {
+  return <ManagerDashboardContent />;
+}

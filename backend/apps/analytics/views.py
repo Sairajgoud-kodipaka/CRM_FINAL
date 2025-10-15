@@ -293,22 +293,67 @@ def business_admin_dashboard(request):
             'error': 'No tenant found'
         }, status=400)
     
-    # Date ranges
-    end_date = timezone.now()
-    start_date = end_date - timedelta(days=30)
-    previous_start = start_date - timedelta(days=30)
+    # Get date parameters from request
+    start_date_param = request.GET.get('start_date')
+    end_date_param = request.GET.get('end_date')
     
-    # Revenue metrics
-    current_revenue = Sale.objects.filter(
+    # Parse dates or use defaults
+    if start_date_param and end_date_param:
+        try:
+            # Handle ISO datetime strings by extracting just the date part
+            if 'T' in start_date_param:
+                start_date_param = start_date_param.split('T')[0]
+            if 'T' in end_date_param:
+                end_date_param = end_date_param.split('T')[0]
+            
+            start_date = datetime.strptime(start_date_param, '%Y-%m-%d').replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = datetime.strptime(end_date_param, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            print(f"🔍 [DASHBOARD API] Using custom date range: {start_date.date()} to {end_date.date()}")
+        except ValueError as e:
+            print(f"❌ [DASHBOARD API] Invalid date format: {e}")
+            # Fallback to default
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=30)
+    else:
+        # Default to last 30 days
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=30)
+        print(f"🔍 [DASHBOARD API] Using default date range: {start_date.date()} to {end_date.date()}")
+    
+    # Calculate previous period for comparison
+    period_duration = end_date - start_date
+    previous_end = start_date
+    previous_start = previous_end - period_duration
+    
+    # Revenue metrics - include both sales and closed won pipelines
+    sales_revenue = Sale.objects.filter(
         created_at__gte=start_date,
+        created_at__lte=end_date,
         status__in=['confirmed', 'delivered']
     ).aggregate(total=Sum('total_amount'))['total'] or 0
     
-    previous_revenue = Sale.objects.filter(
+    closed_won_revenue = SalesPipeline.objects.filter(
+        created_at__gte=start_date,
+        created_at__lte=end_date,
+        stage='closed_won'
+    ).aggregate(total=Sum('expected_value'))['total'] or 0
+    
+    current_revenue = closed_won_revenue  # Only closed won revenue counts as sales
+    
+    previous_sales_revenue = Sale.objects.filter(
         created_at__gte=previous_start,
-        created_at__lt=start_date,
+        created_at__lt=previous_end,
         status__in=['confirmed', 'delivered']
     ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    previous_closed_won_revenue = SalesPipeline.objects.filter(
+        created_at__gte=previous_start,
+        created_at__lt=previous_end,
+        stage='closed_won'
+    ).aggregate(total=Sum('expected_value'))['total'] or 0
+    
+    previous_revenue = previous_closed_won_revenue  # Only closed won revenue counts as sales
     
     revenue_growth = 0
     if previous_revenue > 0:
@@ -319,14 +364,17 @@ def business_admin_dashboard(request):
     store_performance = []
     
     for store in stores:
-        store_sales = Sale.objects.filter(
+        store_closed_won = SalesPipeline.objects.filter(
             created_at__gte=start_date,
-            status__in=['confirmed', 'delivered']
+            created_at__lte=end_date,
+            stage='closed_won',
+            client__store=store
         )
         
-        store_revenue = store_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+        store_revenue = store_closed_won.aggregate(total=Sum('expected_value'))['total'] or 0
         store_customers = Client.objects.filter(
             created_at__gte=start_date,
+            created_at__lte=end_date,
             is_deleted=False
         ).count()
         
@@ -345,16 +393,18 @@ def business_admin_dashboard(request):
     team_performance = []
     
     for member in team_members:
-        member_sales = Sale.objects.filter(
+        member_closed_won = SalesPipeline.objects.filter(
             sales_representative=member.id,
             created_at__gte=start_date,
-            status__in=['confirmed', 'delivered']
+            created_at__lte=end_date,
+            stage='closed_won'
         )
         
-        member_revenue = member_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+        member_revenue = member_closed_won.aggregate(total=Sum('expected_value'))['total'] or 0
         member_customers = Client.objects.filter(
             assigned_to=member.id,
             created_at__gte=start_date,
+            created_at__lte=end_date,
             is_deleted=False
         ).count()
         
@@ -364,7 +414,7 @@ def business_admin_dashboard(request):
             'role': member.role,
             'revenue': float(member_revenue),
             'customers': member_customers,
-            'sales_count': member_sales.count(),
+            'sales_count': member_closed_won.count(),
             'avatar': None,
         })
     
@@ -393,23 +443,71 @@ def business_admin_dashboard(request):
         'retention_rate': 78.5,  # Mock retention rate
     }
     
+    # Count sales for the period - only closed won pipelines count as sales
+    sales_count = SalesPipeline.objects.filter(
+        created_at__gte=start_date,
+        created_at__lte=end_date,
+        stage='closed_won'
+    ).count()
+    
+    # Count today's sales - only closed won pipelines count as sales
+    today = timezone.now().date()
+    today_sales = SalesPipeline.objects.filter(
+        created_at__date=today,
+        stage='closed_won'
+    ).count()
+    
+    # Count this month's sales - only closed won pipelines count as sales
+    current_month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    this_month_sales = SalesPipeline.objects.filter(
+        created_at__gte=current_month_start,
+        stage='closed_won'
+    ).count()
+    
+    # Count pipeline deals
+    pipeline_deals = SalesPipeline.objects.filter(
+        created_at__gte=start_date,
+        created_at__lte=end_date
+    ).count()
+    
+    # Count closed deals
+    closed_deals = SalesPipeline.objects.filter(
+        created_at__gte=start_date,
+        created_at__lte=end_date,
+        stage='purchased'
+    ).count()
+    
     return Response({
-        'revenue': {
-            'total': float(current_revenue),
-            'growth': revenue_growth,
-            'this_month': float(current_revenue),
-            'target': 600000,
+        'success': True,
+        'data': {
+            'monthly_sales': {
+                'count': sales_count,
+                'revenue': float(current_revenue),
+            },
+            'monthly_customers': {
+                'new': customer_metrics['new_this_month'],
+                'total': customer_metrics['total'],
+            },
+            'monthly_pipeline': {
+                'active': pipeline_deals,
+                'closed': closed_deals,
+                'revenue': float(current_revenue),
+            },
+            'store_performance': store_performance,
+            'top_performers': team_performance,
         },
-        'stores': {
-            'total': stores.count(),
-            'active': stores.count(),
-            'top_performing': store_performance[0]['name'] if store_performance else 'No stores',
+        'date_range': {
+            'start_date': start_date.isoformat(),
+            'end_date': end_date.isoformat(),
+            'period': f"{start_date.date()} to {end_date.date()}",
         },
-        'customers': customer_metrics,
-        'ecommerce': ecommerce_metrics,
-        'inventory': inventory_metrics,
-        'store_performance': store_performance,
-        'team_performance': team_performance,
+        'debug_info': {
+            'sales_count': sales_count,
+            'today_sales': today_sales,
+            'this_month_sales': this_month_sales,
+            'pipeline_deals': pipeline_deals,
+            'closed_deals': closed_deals,
+        }
     })
 
 

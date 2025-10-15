@@ -72,7 +72,7 @@ export default function BusinessAdminPurchasesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterStore, setFilterStore] = useState("all");
-  const [sortBy, setSortBy] = useState("amount");
+  const [sortBy, setSortBy] = useState("name");
   const [stores, setStores] = useState<any[]>([]);
 
   useEffect(() => {
@@ -432,8 +432,6 @@ export default function BusinessAdminPurchasesPage() {
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-
-                <SelectItem value="amount">Sort by Amount</SelectItem>
                 <SelectItem value="name">Sort by Name</SelectItem>
                 <SelectItem value="store">Sort by Store</SelectItem>
               </SelectContent>
@@ -474,16 +472,10 @@ export default function BusinessAdminPurchasesPage() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div className="grid grid-cols-1 gap-4 text-sm text-gray-600">
                       <div>
                         <span className="font-medium">Product/Deal:</span>{" "}
                         {"product_name" in item ? item.product_name : (item as SalesPipeline).title}
-                      </div>
-                      <div>
-                        <span className="font-medium">Amount:</span>{" "}
-                        {formatCurrency(
-                          "product_name" in item ? item.amount : (item as SalesPipeline).expected_value
-                        )}
                       </div>
 
                       <div>

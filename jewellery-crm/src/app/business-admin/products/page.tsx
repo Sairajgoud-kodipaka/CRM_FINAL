@@ -484,26 +484,14 @@ export default function ProductsPage() {
                     </p>
                   )}
 
-                  <div className="flex justify-between items-center">
-                        <div>
-                      <p className="text-lg font-bold">
-                        {formatCurrency(product.current_price || product.selling_price)}
-                      </p>
-                      {product.discount_price && product.discount_price !== product.selling_price && (
-                        <p className="text-sm text-muted-foreground line-through">
-                          {formatCurrency(product.selling_price)}
-                        </p>
-                          )}
-                        </div>
+                  <div className="flex items-center justify-end">
                     <div className="text-right">
-                      <p className="text-sm font-medium">
-                        Stock: {product.quantity}
-                      </p>
+                      <p className="text-sm font-medium">Stock: {product.quantity}</p>
                       {product.is_low_stock && (
                         <p className="text-xs text-yellow-600">Low Stock</p>
                       )}
-                          </div>
-                        </div>
+                    </div>
+                  </div>
 
                   <div className="flex justify-between items-center pt-2">
                     <div className="flex gap-1">

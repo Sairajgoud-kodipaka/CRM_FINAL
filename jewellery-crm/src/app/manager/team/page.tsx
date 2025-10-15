@@ -309,7 +309,7 @@ export default function ManagerTeamPage() {
         console.log('Member deleted successfully');
         toast({
           title: "Success",
-          description: "Team member deleted successfully!",
+          description: "Team member permanently deleted from database!",
           variant: "success",
         });
         // Refresh team members

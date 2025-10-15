@@ -170,10 +170,7 @@ export default function InventoryPage() {
             <div className="text-xl font-bold text-text-primary">{stats.out_of_stock}</div>
             <div className="text-sm text-text-secondary font-medium">Out of Stock</div>
           </Card>
-          <Card className="flex flex-col gap-1 p-5">
-            <div className="text-xl font-bold text-text-primary">{formatCurrency(stats.inventory_value)}</div>
-            <div className="text-sm text-text-secondary font-medium">Inventory Value</div>
-          </Card>
+        
         </div>
 
         {/* Table Controls */}
@@ -210,14 +207,13 @@ export default function InventoryPage() {
                   <th className="px-4 py-2 text-left font-semibold text-text-secondary">SKU</th>
                   <th className="px-4 py-2 text-left font-semibold text-text-secondary">Stock</th>
                   <th className="px-4 py-2 text-left font-semibold text-text-secondary">Status</th>
-                  <th className="px-4 py-2 text-left font-semibold text-text-secondary">Value</th>
                   <th className="px-4 py-2 text-left font-semibold text-text-secondary">Last Updated</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-text-secondary">
+                    <td colSpan={5} className="px-4 py-8 text-center text-text-secondary">
                       No inventory items found
                     </td>
                   </tr>
@@ -233,9 +229,6 @@ export default function InventoryPage() {
                           <Badge className={stockStatus.color}>
                             {stockStatus.status}
                           </Badge>
-                        </td>
-                        <td className="px-4 py-2 text-text-primary">
-                          {formatCurrency(product.cost_price * product.quantity)}
                         </td>
                         <td className="px-4 py-2 text-text-secondary">{formatDate(product.updated_at)}</td>
                       </tr>

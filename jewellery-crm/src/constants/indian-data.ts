@@ -260,7 +260,7 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'interested',
     'store_walkin',
     'negotiation',
-    'purchased',
+    'closed_won',
     'closed_lost',
     'future_prospect',
     'not_qualified',

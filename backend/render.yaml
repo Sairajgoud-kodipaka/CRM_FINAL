@@ -65,6 +65,10 @@ services:
         value: core.settings
       - key: GUNICORN_CMD_ARGS
         value: "--timeout=300 --workers=2 --preload"
+      - key: REDIS_HOST
+        value: 127.0.0.1
+      - key: REDIS_PORT
+        value: 6379
     healthCheckPath: /api/health/
     autoDeploy: true
     buildFilter:

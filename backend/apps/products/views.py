@@ -27,22 +27,40 @@ def apply_product_visibility_filter(queryset, user):
     Apply role-based visibility filtering for products.
     Business admins see all products, others see their store products + global products.
     """
+    print(f"🔍 apply_product_visibility_filter:")
+    print(f"  User role: {user.role}")
+    print(f"  User store: {user.store}")
+    print(f"  Input queryset count: {queryset.count()}")
+    
     if user.role == 'business_admin':
         # Business admin sees all products (global + store-specific)
+        print(f"  Business admin - returning all products")
         return queryset
     elif user.role == 'manager':
         # Store manager sees their store products + global products
         if user.store:
-            return queryset.filter(Q(store=user.store) | Q(scope='global'))
+            filtered = queryset.filter(Q(store=user.store) | Q(scope='global'))
+            print(f"  Manager with store - filtering by store {user.store} or global scope")
+            print(f"  Filtered count: {filtered.count()}")
+            return filtered
         else:
-            return queryset.filter(scope='global')
+            filtered = queryset.filter(scope='global')
+            print(f"  Manager without store - showing only global products")
+            print(f"  Filtered count: {filtered.count()}")
+            return filtered
     else:
         # Other users (sales, telecaller, marketing) see their store products + global products
         if user.store:
-            return queryset.filter(Q(store=user.store) | Q(scope='global'))
+            filtered = queryset.filter(Q(store=user.store) | Q(scope='global'))
+            print(f"  Sales user with store - filtering by store {user.store} or global scope")
+            print(f"  Filtered count: {filtered.count()}")
+            return filtered
         else:
             # If user has no store assigned, show only global products
-            return queryset.filter(scope='global')
+            filtered = queryset.filter(scope='global')
+            print(f"  Sales user without store - showing only global products")
+            print(f"  Filtered count: {filtered.count()}")
+            return filtered
 
 
 class CustomProductPagination(PageNumberPagination):
@@ -61,18 +79,30 @@ class ProductListView(generics.ListAPIView):
         user = self.request.user
         queryset = Product.objects.filter(tenant=user.tenant)
         
+        # Debug logging
+        print(f"🔍 ProductListView Debug:")
+        print(f"  User: {user.username} (Role: {user.role})")
+        print(f"  Store: {user.store}")
+        print(f"  Tenant: {user.tenant}")
+        print(f"  Total products in tenant: {queryset.count()}")
+        
         # Filter by scope first - this overrides role-based filtering
         scope_filter = self.request.query_params.get('scope')
         if scope_filter == 'all':
             # When scope='all' is requested, show all products regardless of role
+            print(f"  Scope filter: 'all' - showing all products")
             pass
         elif scope_filter == 'global':
             queryset = queryset.filter(scope='global')
+            print(f"  Scope filter: 'global' - showing only global products")
         elif scope_filter == 'store':
             queryset = queryset.filter(scope='store')
+            print(f"  Scope filter: 'store' - showing only store products")
         else:
             # Apply scoped visibility based on user role when no specific scope is requested
+            print(f"  No scope filter - applying role-based visibility")
             queryset = apply_product_visibility_filter(queryset, user)
+            print(f"  After role-based filtering: {queryset.count()} products")
         
         # Filter by status
         status_filter = self.request.query_params.get('status')

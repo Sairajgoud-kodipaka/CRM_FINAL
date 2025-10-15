@@ -52,13 +52,10 @@ EOF
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-# Start the application
-echo "Starting Gunicorn server..."
-exec gunicorn core.wsgi:application \
-    --bind 0.0.0.0:$PORT \
+# Start the application (ASGI for Channels/WebSockets)
+echo "Starting Uvicorn (ASGI) server..."
+exec uvicorn core.asgi:application \
+    --host 0.0.0.0 \
+    --port $PORT \
     --workers 2 \
-    --timeout 300 \
-    --max-requests 1000 \
-    --max-requests-jitter 100 \
-    --preload \
-    --worker-class sync
+    --proxy-headers

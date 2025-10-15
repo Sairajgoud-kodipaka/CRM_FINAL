@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -15,6 +15,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Search, Download, Plus, Eye, Edit, Trash2, Archive, Upload } from 'lucide-react';
 import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
 import { TableSkeleton } from '@/components/ui/skeleton';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { DateRange } from 'react-day-picker';
+import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 
 export default function ManagerCustomersPage() {
   const { user } = useAuth();
@@ -30,13 +33,14 @@ export default function ManagerCustomersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Client | null>(null);
   const [filteredCustomers, setFilteredCustomers] = useState<Client[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
 
   // Check if user can delete customers (managers and higher roles)
   const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [dateRange]);
 
   useEffect(() => {
     // Filter customers based on search term and status
@@ -61,8 +65,20 @@ export default function ManagerCustomersPage() {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getClients();
+      console.log('🔍 [MANAGER] Fetching customers with params:', {
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      
+      const response = await apiService.getClients({
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      
+      console.log('📊 [MANAGER] API Response:', response);
+      
       if (response.success && response.data && Array.isArray(response.data)) {
+        console.log(`✅ [MANAGER] Loaded ${response.data.length} customers`);
         setCustomers(response.data);
       } else {
         console.warn('Customers response is not an array:', response.data);
@@ -91,7 +107,7 @@ export default function ManagerCustomersPage() {
       const response = await apiService.deleteClient(customerId);
       if (response.success) {
         console.log('Customer deleted successfully');
-        alert('Customer moved to trash successfully!');
+        alert('Customer permanently deleted from database!');
         fetchCustomers(); // Refresh the list
       } else {
         console.error('Failed to delete customer:', response);
@@ -101,10 +117,10 @@ export default function ManagerCustomersPage() {
       console.error('Error deleting customer:', error);
       
       // Handle specific permission errors
-      if (error.message && error.message.includes('House sales persons cannot delete customers')) {
-        alert('You do not have permission to delete customers. Only managers can delete customers. Please contact your store manager.');
-      } else if (error.message && error.message.includes('You do not have permission to delete this customer')) {
-        alert('You do not have permission to delete this customer. You can only delete customers from your own store.');
+      if (error.message && error.message.includes('You do not have permission to delete customers')) {
+        alert('You do not have permission to delete customers. Only business admins can delete customers.');
+      } else if (error.message && error.message.includes('Only business admins can delete customers')) {
+        alert('Only business admins can delete customers. Please contact your business administrator.');
       } else {
         alert('Failed to delete customer. Please try again.');
       }
@@ -316,6 +332,11 @@ export default function ManagerCustomersPage() {
           <p className="text-text-secondary mt-1">View and manage your store's customers</p>
         </div>
         <div className="flex gap-2 items-center">
+          <DateRangeFilter
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            placeholder="Filter by date range"
+          />
           <Button 
             variant="outline" 
             size="sm" 
@@ -343,6 +364,24 @@ export default function ManagerCustomersPage() {
           </Button>
         </div>
       </div>
+
+      {/* Date Filter Indicator */}
+      <Card className="shadow-sm border-blue-200 bg-blue-50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-700">Current Date Filter</p>
+                      <p className="text-sm font-bold text-blue-800">
+                        {formatDateRange(dateRange)}
+                      </p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 text-sm font-semibold">📅</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
           <div className="flex flex-col sm:flex-row gap-2 flex-1">

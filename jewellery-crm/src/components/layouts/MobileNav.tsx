@@ -64,11 +64,7 @@ const getMobileNavItems = (role: string) => {
           icon: TrendingUp,
           badge: '12',
         },
-        {
-          title: 'Analytics',
-          href: '/business-admin/analytics',
-          icon: BarChart3,
-        },
+        // Analytics removed from mobile nav for Business Admin
         {
           title: 'Settings',
           href: '/business-admin/settings',
@@ -176,11 +172,7 @@ const getMobileNavItems = (role: string) => {
           href: '/marketing/dashboard',
           icon: Home,
         },
-        {
-          title: 'Analytics',
-          href: '/marketing/analytics',
-          icon: BarChart3,
-        },
+        // Analytics removed from mobile nav for Marketing
         {
           title: 'Store',
           href: '/marketing/store',
@@ -379,7 +371,7 @@ export function MobileMenuOverlay({ isOpen, onClose }: MobileMenuOverlayProps) {
     return [
       { title: 'Products', href: `${basePath}/products`, icon: '📦' },
       { title: 'E-commerce', href: `${basePath}/ecommerce`, icon: '🌐' },
-      { title: 'Analytics', href: `${basePath}/analytics`, icon: '📊' },
+      // Analytics removed from mobile menu overlay
       { title: 'WhatsApp', href: `${basePath}/whatsapp`, icon: '💬' },
       { title: 'Payments', href: `${basePath}/payments`, icon: '💳' },
       { title: 'Settings', href: `${basePath}/settings`, icon: '⚙️' },

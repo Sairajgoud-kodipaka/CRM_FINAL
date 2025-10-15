@@ -140,12 +140,7 @@ const navigationItems: NavItem[] = [
     icon: BarChart3,
     roles: ['business_admin'],
   },
-  {
-    title: 'Analytics',
-    href: '/business-admin/analytics',
-    icon: BarChart3,
-    roles: ['business_admin'],
-  },
+
   {
     title: 'Support',
     href: '/business-admin/support',
@@ -166,27 +161,14 @@ const navigationItems: NavItem[] = [
     icon: Gift,
     roles: ['business_admin'],
   },
-  {
-    title: 'WhatsApp',
-    href: '/business-admin/whatsapp',
-    icon: MessageCircle,
-    roles: ['business_admin'],
-  },
+
   {
     title: 'Profile',
     href: '/business-admin/profile',
     icon: User,
     roles: ['business_admin'],
   },
-  {
-    title: 'Double Tick',
-    href: '/business-admin/doubletick',
-    icon: MessageCircle,
-    roles: ['business_admin'],
-    children: [
-      
-    ],
-  },
+
   {
     title: 'Settings',
     href: '/business-admin/settings',
@@ -340,19 +322,6 @@ const navigationItems: NavItem[] = [
     roles: ['manager'],
   },
   {
-    title: 'Purchases',
-    href: '/manager/purchases',
-    icon: ShoppingBag,
-    roles: ['manager'],
-  },
-
-  {
-    title: 'Analytics',
-    href: '/manager/analytics',
-    icon: BarChart3,
-    roles: ['manager'],
-  },
-  {
     title: 'Escalations',
     href: '/manager/escalations',
     icon: AlertTriangle,
@@ -362,12 +331,6 @@ const navigationItems: NavItem[] = [
     title: 'Exhibition Leads',
     href: '/manager/exhibition',
     icon: Gift,
-    roles: ['manager'],
-  },
-  {
-    title: 'WhatsApp',
-    href: '/manager/whatsapp',
-    icon: MessageCircle,
     roles: ['manager'],
   },
   {

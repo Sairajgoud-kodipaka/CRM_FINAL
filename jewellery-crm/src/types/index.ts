@@ -187,7 +187,7 @@ export type AppointmentStatus = 'scheduled' | 'confirmed' | 'in_progress' | 'com
 /**
  * Sales pipeline stages
  */
-export type SalesPipelineStage = 'exhibition' | 'social_media' | 'interested' | 'store_walkin' | 'negotiation' | 'purchased' | 'closed_lost' | 'future_prospect' | 'not_qualified';
+export type SalesPipelineStage = 'exhibition' | 'social_media' | 'interested' | 'store_walkin' | 'negotiation' | 'closed_won' | 'closed_lost' | 'future_prospect' | 'not_qualified';
 
 /**
  * Deal/Opportunity in the sales pipeline

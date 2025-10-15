@@ -16,7 +16,7 @@ PORT = config('PORT', default=8000, cast=int)
 SECRET_KEY = config('SECRET_KEY', default='jewelry-crm-2024-production-secure-key-8f7e6d5c4b3a2918-7f6e5d4c3b2a1909-8f7e6d5c4b3a2918-7f6e5d4c3b2a1909')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)  # Default to False for production
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1,testserver').split(',') if host.strip()]
 
@@ -72,12 +72,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apps.users.middleware.ScopedVisibilityMiddleware',
+    'apps.core.middleware.GlobalDateFilterMiddleware',  # Global date filtering
 ]
 
 # Debug toolbar configuration for development
-if DEBUG:
-    INSTALLED_APPS += ['debug_toolbar']
-    MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
+# Temporarily disabled due to duplicate entry issue
+# if DEBUG:
+#     INSTALLED_APPS += ['debug_toolbar']
+#     MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
 
 ROOT_URLCONF = 'core.urls'
 
@@ -111,9 +113,11 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD', default='postgresql'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
-        'OPTIONS': {
-            'connect_timeout': 30,
-        },
+                'OPTIONS': {
+                    'connect_timeout': 30,
+                    'client_encoding': 'utf8',
+                    'sslmode': 'disable',
+                },
     }
 }
 
@@ -152,6 +156,7 @@ if not DEBUG:
             'application_name': 'jewellery_crm_backend',
             'connect_timeout': 60,
             'sslmode': 'require',
+            'client_encoding': 'utf8',
         })
 
 # During collectstatic, use a dummy database config
@@ -439,7 +444,10 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+            'hosts': [(
+                config('REDIS_HOST', default='127.0.0.1'),
+                config('REDIS_PORT', default=6379, cast=int)
+            )],
         },
     },
 }

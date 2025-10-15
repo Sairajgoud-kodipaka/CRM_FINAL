@@ -4,6 +4,8 @@ import { Card } from '@/components/ui/card';
 import { BarChart2, PieChart, TrendingUp, Users, Percent, Activity, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useToast } from '@/hooks/use-toast';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { DateRange } from 'react-day-picker';
 
 interface AnalyticsStats {
   total_customers: number;
@@ -46,10 +48,14 @@ export default function ManagerAnalyticsPage() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    return { from: today, to: today };
+  });
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, []);
+  }, [dateRange]);
 
   const fetchAnalyticsData = async () => {
     try {
@@ -59,7 +65,14 @@ export default function ManagerAnalyticsPage() {
       console.log('Fetching analytics data...');
       console.log('API endpoint: /analytics/dashboard/');
       
-      const response = await apiService.getAnalytics();
+      // Get date range for filtering
+      const startDate = dateRange?.from || new Date();
+      const endDate = dateRange?.to || new Date();
+      
+      const response = await apiService.getAnalytics({
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
+      });
       console.log('Analytics response:', response);
       console.log('Response success:', response.success);
       console.log('Response data:', response.data);
@@ -193,13 +206,20 @@ export default function ManagerAnalyticsPage() {
             </div>
           )}
         </div>
-        <button
-          onClick={fetchAnalyticsData}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <BarChart2 className="w-4 h-4" />
-          Refresh Data
-        </button>
+        <div className="flex items-center gap-3">
+          <DateRangeFilter
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            placeholder="Select date range"
+          />
+          <button
+            onClick={fetchAnalyticsData}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <BarChart2 className="w-4 h-4" />
+            Refresh Data
+          </button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

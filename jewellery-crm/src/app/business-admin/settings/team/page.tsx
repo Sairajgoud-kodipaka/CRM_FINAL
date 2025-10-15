@@ -239,6 +239,7 @@ export default function TeamSettingsPage() {
       
       if (response.success) {
         setError(null);
+        alert('Team member permanently deleted from database!');
         await fetchTeamMembers(); // Refresh the list
       } else {
         setError(response.message || 'Failed to delete team member');
