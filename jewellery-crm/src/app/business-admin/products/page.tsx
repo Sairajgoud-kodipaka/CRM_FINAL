@@ -70,6 +70,7 @@ interface Category {
 }
 
 export default function ProductsPage() {
+  const PLACEHOLDER_IMAGE = 'https://drive.google.com/uc?export=view&id=1xgY-7f23tCLyKWY2MF_Ekzw8hO9GZqcU';
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -433,18 +434,12 @@ export default function ProductsPage() {
                   {products.map((product) => (
             <Card key={product.id} className="overflow-hidden">
               <div className="relative">
-                          {product.main_image_url ? (
-                            <img
-                              src={product.main_image_url}
-                              alt={product.name}
-                    className="w-full h-48 object-cover cursor-pointer"
-                              onClick={() => handleImageClick(product.main_image_url!)}
-                            />
-                          ) : (
-                  <div className="w-full h-48 bg-muted flex items-center justify-center">
-                    <Package className="w-12 h-12 text-muted-foreground" />
-                            </div>
-                          )}
+                          <img
+                            src={product.main_image_url || PLACEHOLDER_IMAGE}
+                            alt={product.name}
+                            className="w-full h-48 object-cover cursor-pointer"
+                            onClick={() => handleImageClick(product.main_image_url || PLACEHOLDER_IMAGE)}
+                          />
                 
                 {/* Scope Badge */}
                 <div className="absolute top-2 left-2">
