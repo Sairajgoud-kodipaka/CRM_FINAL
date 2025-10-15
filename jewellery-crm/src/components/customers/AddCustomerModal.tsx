@@ -27,7 +27,6 @@ import {
   APPOINTMENT_TYPES,
   CUSTOMER_TYPES,
   AGE_RANGES,
-  PRODUCT_SUBTYPES,
   GOLD_RANGES,
   DIAMOND_RANGES,
   MATERIAL_TYPES,
@@ -462,13 +461,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       errors.push("Product Type is required");
     }
     
-    if (!formData.style) {
-      errors.push("Style is required");
-    }
-    
-    if (!formData.materialType) {
-      errors.push("Material Type is required");
-    }
+    // Style and Material Type are optional
     
     // Validate material-specific fields
     if (formData.materialType) {
@@ -678,7 +671,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         
         // New Critical Fields
         age_of_end_user: formData.ageOfEndUser,
-        product_subtype: formData.productSubtype,
         ageing_percentage: cleanStringField(formData.ageingPercentage),
         
         // Material Selection Fields
@@ -764,12 +756,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           leadSource: "",
           savingScheme: "Inactive",
           customerInterests: [],
-    
-          customerPreferences: "",
-          designSelected: "",
-          wantsMoreDiscount: "",
-          checkingOtherJewellers: "",
-          letHimVisit: "",
           productType: "",
           style: "",
           selectedWeight: 3.5,
@@ -792,8 +778,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           // New Critical Fields
           ageOfEndUser: "",
           productSubtype: "",
-          goldRange: "",
-          diamondRange: "",
           ageingPercentage: "",
           
           // Material Selection Fields
@@ -803,6 +787,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           materialUnit: "g",
         });
         setInterests([{
+          mainCategory: "",
           products: [{ product: "", revenue: "" }],
           preferences: {
             designSelected: false,
@@ -1595,7 +1580,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </Select>
                 </div>
             <div>
-                <label className="block text-sm font-medium mb-1">Style *</label>
+                <label className="block text-sm font-medium mb-1">Style</label>
                 <Select 
                   value={formData.style} 
                   onValueChange={(value) => handleInputChange('style', value)}
@@ -1613,7 +1598,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </Select>
               </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Material Type *</label>
+              <label className="block text-sm font-medium mb-1">Material Type</label>
                 <Select 
                 value={formData.materialType} 
                 onValueChange={(value) => handleInputChange('materialType', value)}
@@ -1630,24 +1615,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   </SelectContent>
                 </Select>
                 </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Product Subtype</label>
-                <Select 
-                value={formData.productSubtype} 
-                onValueChange={(value) => handleInputChange('productSubtype', value)}
-                >
-                  <SelectTrigger>
-                  <SelectValue placeholder="Select Subtype" />
-                  </SelectTrigger>
-                  <SelectContent>
-                  {PRODUCT_SUBTYPES.map((subtype) => (
-                    <SelectItem key={subtype} value={subtype}>
-                      {subtype}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                </div>
+            {/* Product Subtype removed as per requirement */}
               </div>
 
           {/* Material Weight/Value */}
