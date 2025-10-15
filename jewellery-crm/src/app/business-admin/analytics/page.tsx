@@ -4,6 +4,9 @@ import { Card } from '@/components/ui/card';
 import { BarChart2, PieChart, TrendingUp, Users, Percent } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { DateRange } from 'react-day-picker';
+import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 
 interface AnalyticsData {
   total_sales: {
@@ -46,22 +49,36 @@ export default function AnalyticsPage() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, []);
+  }, [dateRange]);
 
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getBusinessAdminDashboard();
+      console.log('🔍 [ANALYTICS] Fetching analytics data with params:', {
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      
+      const response = await apiService.getBusinessAdminDashboard({
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      
+      console.log('📊 [ANALYTICS] API Response:', response);
+      
       if (response.success) {
+        console.log('✅ [ANALYTICS] Analytics data loaded successfully');
         setAnalyticsData(response.data);
       } else {
+        console.error('❌ [ANALYTICS] Failed to fetch analytics:', response);
         setError('Failed to load analytics data');
       }
     } catch (err) {
-      console.error('Error fetching analytics data:', err);
+      console.error('❌ [ANALYTICS] Error fetching analytics:', err);
       setError('Failed to load analytics data');
     } finally {
       setLoading(false);
@@ -131,10 +148,34 @@ export default function AnalyticsPage() {
   return (
     <div className="flex flex-col gap-8">
       {/* Header */}
-      <div className="mb-2">
-        <h1 className="text-2xl font-semibold text-text-primary">Business Analytics</h1>
-        <p className="text-text-secondary mt-1">Track your business performance and key metrics</p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+        <div>
+          <h1 className="text-2xl font-semibold text-text-primary">Business Analytics</h1>
+          <p className="text-text-secondary mt-1">Track your business performance and key metrics</p>
+        </div>
+        <DateRangeFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          placeholder="Filter by date range"
+        />
       </div>
+
+      {/* Date Filter Indicator */}
+      <Card className="shadow-sm border-blue-200 bg-blue-50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-700">Current Date Filter</p>
+                      <p className="text-sm font-bold text-blue-800">
+                        {formatDateRange(dateRange)}
+                      </p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 text-sm font-semibold">📅</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

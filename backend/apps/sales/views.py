@@ -9,9 +9,10 @@ from decimal import Decimal
 from .models import Sale, SaleItem, SalesPipeline
 from .serializers import SaleSerializer, SaleItemSerializer, SalesPipelineSerializer
 from apps.users.middleware import ScopedVisibilityMixin
+from apps.core.mixins import GlobalDateFilterMixin
 
 
-class SaleListView(generics.ListAPIView, ScopedVisibilityMixin):
+class SaleListView(generics.ListAPIView, ScopedVisibilityMixin, GlobalDateFilterMixin):
     queryset = Sale.objects.all()
     serializer_class = SaleSerializer
     permission_classes = [IsAuthenticated]
@@ -20,6 +21,9 @@ class SaleListView(generics.ListAPIView, ScopedVisibilityMixin):
         """Filter sales by user scope and add search/filtering"""
         # Use scoped visibility middleware
         queryset = self.get_scoped_queryset(Sale)
+        
+        # Apply global date filtering
+        queryset = self.get_date_filtered_queryset(queryset, 'created_at')
         
         # Search by order number or client name
         search = self.request.query_params.get('search', None)
@@ -34,14 +38,6 @@ class SaleListView(generics.ListAPIView, ScopedVisibilityMixin):
         status_filter = self.request.query_params.get('status', None)
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-        
-        # Filter by date range
-        start_date = self.request.query_params.get('start_date', None)
-        end_date = self.request.query_params.get('end_date', None)
-        if start_date and end_date:
-            queryset = queryset.filter(
-                created_at__date__range=[start_date, end_date]
-            )
         
         return queryset.order_by('-created_at')
 
@@ -86,7 +82,7 @@ class SaleDeleteView(generics.DestroyAPIView, ScopedVisibilityMixin):
         return self.get_scoped_queryset(Sale)
 
 
-class SalesPipelineListView(generics.ListAPIView, ScopedVisibilityMixin):
+class SalesPipelineListView(generics.ListAPIView, ScopedVisibilityMixin, GlobalDateFilterMixin):
     queryset = SalesPipeline.objects.all()
     serializer_class = SalesPipelineSerializer
     permission_classes = [IsAuthenticated]
@@ -99,6 +95,9 @@ class SalesPipelineListView(generics.ListAPIView, ScopedVisibilityMixin):
         # Use scoped visibility middleware
         queryset = self.get_scoped_queryset(SalesPipeline)
         print(f"After scoped filtering: {queryset.count()} pipelines")
+        
+        # Apply global date filtering
+        queryset = self.get_date_filtered_queryset(queryset, 'created_at')
         
         # Search by title or client name
         search = self.request.query_params.get('search', None)
@@ -118,14 +117,6 @@ class SalesPipelineListView(generics.ListAPIView, ScopedVisibilityMixin):
         rep_filter = self.request.query_params.get('sales_rep', None)
         if rep_filter:
             queryset = queryset.filter(sales_representative_id=rep_filter)
-        
-        # Filter by date range
-        start_date = self.request.query_params.get('start_date', None)
-        end_date = self.request.query_params.get('end_date', None)
-        if start_date and end_date:
-            queryset = queryset.filter(
-                created_at__date__range=[start_date, end_date]
-            )
         
         # Optimize queries by prefetching related data
         queryset = queryset.select_related('client', 'sales_representative').prefetch_related('client__interests__category', 'client__interests__product')
@@ -391,10 +382,25 @@ class SalesDashboardView(generics.GenericAPIView, ScopedVisibilityMixin):
             print(f"=== SalesDashboardView.get called ===")
             print(f"User: {user.username}, Role: {user.role}")
             
-            # Get date range for current month
-            today = timezone.now()
-            start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            end_of_month = (start_of_month + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+            # Get date range from query parameters
+            start_date_param = request.query_params.get('start_date')
+            end_date_param = request.query_params.get('end_date')
+            
+            if start_date_param and end_date_param:
+                try:
+                    from datetime import datetime
+                    start_date = datetime.fromisoformat(start_date_param.replace('Z', '+00:00'))
+                    end_date = datetime.fromisoformat(end_date_param.replace('Z', '+00:00'))
+                except ValueError:
+                    # Fallback to current month if parsing fails
+                    today = timezone.now()
+                    start_date = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    end_date = today
+            else:
+                # Default to current month if no date range provided
+                today = timezone.now()
+                start_date = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end_date = today
             
             # Base filters for user scope
             base_sales_filter = {'tenant': user.tenant}
@@ -406,33 +412,33 @@ class SalesDashboardView(generics.GenericAPIView, ScopedVisibilityMixin):
                 base_pipeline_filter['client__store'] = user.store
                 print(f"Filtering by store: {user.store.name}")
             
-            # Get sales data for current month
-            monthly_sales = Sale.objects.filter(
+            # Get sales data for the filtered period
+            period_sales = Sale.objects.filter(
                 **base_sales_filter,
-                created_at__gte=start_of_month,
-                created_at__lte=end_of_month
+                created_at__gte=start_date,
+                created_at__lte=end_date
             )
             
-            # Get closed won pipeline data for current month
-            # Include pipelines that are closed_won but don't have actual_close_date set
-            monthly_closed_won = SalesPipeline.objects.filter(
+            # Get closed won pipeline data for the filtered period
+            period_closed_won = SalesPipeline.objects.filter(
                 **base_pipeline_filter,
                 stage='closed_won'
             ).filter(
-                Q(actual_close_date__gte=start_of_month, actual_close_date__lte=end_of_month) |
+                Q(actual_close_date__gte=start_date, actual_close_date__lte=end_date) |
                 Q(actual_close_date__isnull=True)  # Include pipelines without close date
             )
             
-            # Calculate combined revenue
-            sales_revenue = monthly_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
-            closed_won_revenue = monthly_closed_won.aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
-            total_monthly_revenue = sales_revenue + closed_won_revenue
+            # Calculate revenue - only closed won pipelines count as sales
+            sales_revenue = period_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+            closed_won_revenue = period_closed_won.aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
+            # Total revenue should only be closed won revenue (since sales == closed won)
+            total_period_revenue = closed_won_revenue
             
-            # Get total deals (sales + closed won pipelines)
-            total_deals = monthly_sales.count() + monthly_closed_won.count()
+            # Sales count should equal closed won count (they are the same thing)
+            sales_count = period_closed_won.count()
             
-            # Sales count should include both actual sales and closed won pipelines
-            sales_count = monthly_sales.count() + monthly_closed_won.count()
+            # Total deals is just the closed won pipelines (since sales == closed won)
+            total_deals = period_closed_won.count()
             
             # Get total customers (unique clients from sales and pipelines)
             from apps.clients.models import Client
@@ -448,14 +454,14 @@ class SalesDashboardView(generics.GenericAPIView, ScopedVisibilityMixin):
             # Debug statements removed for production
             
             dashboard_data = {
-                'monthly_revenue': float(total_monthly_revenue),
-                'total_deals': total_deals,
-                'total_customers': total_customers,
+                'total_sales': float(total_period_revenue),  # Only closed won revenue
+                'total_deals': total_deals,  # Only closed won count
+                'customers': total_customers,
                 'conversion_rate': round(conversion_rate, 2),
-                'sales_revenue': float(sales_revenue),
-                'closed_won_revenue': float(closed_won_revenue),
-                'sales_count': sales_count,  # Now includes closed won pipelines
-                'closed_won_count': monthly_closed_won.count()
+                'sales_revenue': float(sales_revenue),  # Keep for reference
+                'closed_won_revenue': float(closed_won_revenue),  # This is the actual sales revenue
+                'sales_count': sales_count,  # Equals closed won count
+                'closed_won_count': period_closed_won.count()  # Same as sales_count
             }
             
             return Response({

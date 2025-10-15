@@ -124,7 +124,9 @@ class ClientSerializer(serializers.ModelSerializer):
                     'category': interest.category.name if interest.category else None,
                     'product': interest.product.name if interest.product else None,
                     'revenue': float(interest.revenue) if interest.revenue else 0,
-                    'notes': interest.notes
+                    'notes': interest.notes,
+                    'preferences': self._extract_preferences_from_notes(interest.notes),
+                    'status': self._determine_interest_status(interest.notes)
                 }
                 for interest in interests
             ]
@@ -148,13 +150,73 @@ class ClientSerializer(serializers.ModelSerializer):
                         'name': interest.product.name if interest.product else None
                     },
                     'revenue': float(interest.revenue) if interest.revenue else 0,
-                    'notes': interest.notes
+                    'notes': interest.notes,
+                    'preferences': self._extract_preferences_from_notes(interest.notes),
+                    'status': self._determine_interest_status(interest.notes)
                 }
                 for interest in interests
             ]
         except Exception as e:
             print(f"Error getting customer interests: {e}")
             return []
+    
+    def _extract_preferences_from_notes(self, notes):
+        """Extract preferences from notes field"""
+        if not notes:
+            return {
+                'designSelected': False,
+                'wantsDiscount': False,
+                'checkingOthers': False,
+                'lessVariety': False,
+                'purchased': False,
+                'other': ''
+            }
+        
+        preferences = {
+            'designSelected': 'Design Selected' in notes,
+            'wantsDiscount': 'Wants More Discount' in notes,
+            'checkingOthers': 'Checking Other Jewellers' in notes,
+            'lessVariety': 'Felt Less Variety' in notes,
+            'purchased': 'Purchased' in notes,
+            'other': ''
+        }
+        
+        # Extract other preferences
+        if 'Other:' in notes:
+            try:
+                other_part = notes.split('Other:')[1].strip()
+                if other_part and other_part != 'None':
+                    preferences['other'] = other_part
+            except:
+                pass
+        
+        return preferences
+    
+    def _determine_interest_status(self, notes):
+        """Determine interest status based on preferences"""
+        if not notes:
+            return 'interested'
+        
+        # Check for purchased first (highest priority)
+        if 'Purchased' in notes:
+            return 'closed_won'
+        
+        # Check for negotiation indicators
+        negotiation_indicators = [
+            'Wants More Discount',
+            'Checking Other Jewellers', 
+            'Felt Less Variety'
+        ]
+        
+        if any(indicator in notes for indicator in negotiation_indicators):
+            return 'negotiation'
+        
+        # Check for design selected (interested)
+        if 'Design Selected' in notes:
+            return 'interested'
+        
+        # Default to interested if no specific indicators
+        return 'interested'
 
     def validate_tag_slugs(self, value):
         """Validate that all tag slugs exist in the database"""
@@ -262,9 +324,7 @@ class ClientSerializer(serializers.ModelSerializer):
             # Additional fields from AddCustomerModal
             'pincode', 'sales_person', 'sales_person_id', 'customer_status',
             'product_type', 'style', 'material_type', 'material_weight', 'material_value', 'material_unit',
-            'product_subtype', 'gold_range', 'diamond_range', 'customer_preferences',
-            'design_selected', 'wants_more_discount', 'checking_other_jewellers',
-            'let_him_visit', 'design_number', 'add_to_pipeline',
+            'product_subtype', 'customer_preferences',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'tags', 'is_deleted', 'deleted_at', 'created_by']
     
@@ -274,12 +334,6 @@ class ClientSerializer(serializers.ModelSerializer):
         print(f"Fields being processed:")
         print(f"  - sales_person: {validated_data.get('sales_person')}")
         print(f"  - product_type: {validated_data.get('product_type')}")
-        print(f"  - gold_range: {validated_data.get('gold_range')}")
-        print(f"  - diamond_range: {validated_data.get('diamond_range')}")
-        print(f"  - customer_preferences: {validated_data.get('customer_preferences')}")
-        print(f"  - design_selected: {validated_data.get('design_selected')}")
-        print(f"  - wants_more_discount: {validated_data.get('wants_more_discount')}")
-        print(f"  - checking_other_jewellers: {validated_data.get('checking_other_jewellers')}")
         print(f"  - let_him_visit: {validated_data.get('let_him_visit')}")
         print(f"  - design_number: {validated_data.get('design_number')}")
         
@@ -397,7 +451,7 @@ class ClientSerializer(serializers.ModelSerializer):
                 
                 # Ensure we have a list
                 if not isinstance(customer_interests_data, list):
-                    print(f"⚠️ customer_interests_data is not a list: {type(customer_interests_data)}")
+                    print(f"WARNING: customer_interests_data is not a list: {type(customer_interests_data)}")
                     customer_interests_data = [customer_interests_data] if customer_interests_data else []
                 
                 from .models import CustomerInterest
@@ -485,9 +539,9 @@ class ClientSerializer(serializers.ModelSerializer):
                                                         id=int(category),
                                                         tenant=result.tenant
                                                     )
-                                                    print(f"✅ Found category by ID: {category_obj}")
+                                                    print(f"SUCCESS: Found category by ID: {category_obj}")
                                                 except Category.DoesNotExist:
-                                                    print(f"⚠️ Category ID {category} not found, will create by name")
+                                                    print(f"WARNING: Category ID {category} not found, will create by name")
                                                     category_obj = None
                                             
                                             if not category_obj:
@@ -497,27 +551,27 @@ class ClientSerializer(serializers.ModelSerializer):
                                                     tenant=result.tenant
                                                 ).first()
                                                 if category_obj:
-                                                    print(f"✅ Found category by name: {category_obj}")
+                                                    print(f"SUCCESS: Found category by name: {category_obj}")
                                             
                                             if not category_obj:
-                                                print(f"⚠️ Category '{category}' not found for tenant {result.tenant}, creating it")
+                                                print(f"WARNING: Category '{category}' not found for tenant {result.tenant}, creating it")
                                                 try:
                                                     category_obj = Category.objects.create(
                                                         name=category,
                                                         tenant=result.tenant,
                                                         scope='store' if result.store else 'global'
                                                     )
-                                                    print(f"✅ Created new category: {category_obj}")
+                                                    print(f"SUCCESS: Created new category: {category_obj}")
                                                 except Exception as cat_error:
-                                                    print(f"❌ Error creating category '{category}': {cat_error}")
+                                                    print(f"ERROR: Error creating category '{category}': {cat_error}")
                                                     import traceback
                                                     print(f"Category creation traceback: {traceback.format_exc()}")
                                                     # Try to find any existing category as fallback
                                                     category_obj = Category.objects.filter(tenant=result.tenant).first()
                                                     if not category_obj:
-                                                        print(f"❌ No fallback category available, skipping this interest")
+                                                        print(f"ERROR: No fallback category available, skipping this interest")
                                                         continue
-                                                    print(f"⚠️ Using fallback category: {category_obj}")
+                                                    print(f"WARNING: Using fallback category: {category_obj}")
                                             
                                             # Handle product - could be ID or name
                                             product_obj = None
@@ -528,9 +582,9 @@ class ClientSerializer(serializers.ModelSerializer):
                                                         id=int(product_name),
                                                         tenant=result.tenant
                                                     )
-                                                    print(f"✅ Found product by ID: {product_obj}")
+                                                    print(f"SUCCESS: Found product by ID: {product_obj}")
                                                 except Product.DoesNotExist:
-                                                    print(f"⚠️ Product ID {product_name} not found, will create by name")
+                                                    print(f"WARNING: Product ID {product_name} not found, will create by name")
                                                     product_obj = None
                                             
                                             if not product_obj:
@@ -540,10 +594,10 @@ class ClientSerializer(serializers.ModelSerializer):
                                                     tenant=result.tenant
                                                 ).first()
                                                 if product_obj:
-                                                    print(f"✅ Found product by name: {product_obj}")
+                                                    print(f"SUCCESS: Found product by name: {product_obj}")
                                             
                                             if not product_obj:
-                                                print(f"⚠️ Product '{product_name}' not found for tenant {result.tenant}, creating it")
+                                                print(f"WARNING: Product '{product_name}' not found for tenant {result.tenant}, creating it")
                                                 try:
                                                     # Generate unique SKU
                                                     base_sku = f"{category[:3].upper()}-{product_name[:3].upper()}"
@@ -572,17 +626,17 @@ class ClientSerializer(serializers.ModelSerializer):
                                                         store=result.store,
                                                         scope='store' if result.store else 'global'
                                                     )
-                                                    print(f"✅ Created new product: {product_obj}")
+                                                    print(f"SUCCESS: Created new product: {product_obj}")
                                                 except Exception as prod_error:
-                                                    print(f"❌ Error creating product '{product_name}': {prod_error}")
+                                                    print(f"ERROR: Error creating product '{product_name}': {prod_error}")
                                                     import traceback
                                                     print(f"Product creation traceback: {traceback.format_exc()}")
                                                     # Try to find any existing product as fallback
                                                     product_obj = Product.objects.filter(tenant=result.tenant).first()
                                                     if not product_obj:
-                                                        print(f"❌ No fallback product available, skipping this interest")
+                                                        print(f"ERROR: No fallback product available, skipping this interest")
                                                         continue
-                                                    print(f"⚠️ Using fallback product: {product_obj}")
+                                                    print(f"WARNING: Using fallback product: {product_obj}")
                                             
                                             # Create the customer interest
                                             try:
@@ -595,41 +649,41 @@ class ClientSerializer(serializers.ModelSerializer):
                                                     defaults={'notes': notes}
                                                 )
                                                 if created:
-                                                    print(f"✅ Successfully created new customer interest: {interest}")
+                                                    print(f"SUCCESS: Successfully created new customer interest: {interest}")
                                                     print(f"  - ID: {interest.id}")
                                                     print(f"  - Client: {interest.client.full_name}")
                                                     print(f"  - Category: {interest.category.name if interest.category else 'No Category'}")
                                                     print(f"  - Product: {interest.product.name if interest.product else 'No Product'}")
                                                     print(f"  - Revenue: {interest.revenue}")
                                                 else:
-                                                    print(f"ℹ️ Customer interest already exists: {interest}")
+                                                    print(f"INFO: Customer interest already exists: {interest}")
                                             except Exception as interest_error:
-                                                print(f"❌ Error creating customer interest: {interest_error}")
+                                                print(f"ERROR: Error creating customer interest: {interest_error}")
                                                 import traceback
                                                 print(f"CustomerInterest creation traceback: {traceback.format_exc()}")
                                                 continue
                                         except Exception as e:
-                                            print(f"❌ Error in main processing: {e}")
+                                            print(f"ERROR: Error in main processing: {e}")
                                             import traceback
                                             print(f"Main processing traceback: {traceback.format_exc()}")
                                             continue
                                     except (ValueError, TypeError) as e:
                                         print(f"Invalid revenue value '{revenue}' for product '{product_name}': {e}")
                                     except Exception as e:
-                                        print(f"❌ Error creating CustomerInterest: {e}")
+                                        print(f"ERROR: Error creating CustomerInterest: {e}")
                                         import traceback
                                         print(f"Traceback: {traceback.format_exc()}")
                                         continue
                                 else:
-                                    print(f"❌ Skipping product with missing name or revenue: {product_info}")
+                                    print(f"ERROR: Skipping product with missing name or revenue: {product_info}")
                                     print(f"  - product_name: '{product_name}' (truthy: {bool(product_name)})")
                                     print(f"  - revenue: '{revenue}' (truthy: {bool(revenue)})")
                         else:
-                            print(f"❌ Skipping interest with missing category or products: {interest_data}")
+                            print(f"ERROR: Skipping interest with missing category or products: {interest_data}")
                             print(f"  - category: '{category}' (truthy: {bool(category)})")
                             print(f"  - products: {products} (length: {len(products) if products else 0})")
                     except Exception as e:
-                        print(f"❌ Error processing customer interest {interest_data}: {e}")
+                        print(f"ERROR: Error processing customer interest {interest_data}: {e}")
                         import traceback
                         print(f"Traceback: {traceback.format_exc()}")
                         continue
@@ -670,55 +724,6 @@ class ClientSerializer(serializers.ModelSerializer):
             for tag in obj.tags.all()
         ]
     
-    def get_customer_interests(self, obj):
-        """Return customer interests in a structured format"""
-        print(f"=== DEBUG: get_customer_interests called for client {obj.id} ===")
-        print(f"Client: {obj.first_name} {obj.last_name}")
-        print(f"Client type: {type(obj)}")
-        print(f"Client model: {obj._meta.model}")
-        
-        try:
-            interests = obj.interests.all()
-            print(f"Found {interests.count()} interests")
-            print(f"Interests queryset: {interests}")
-            
-            if not interests:
-                print("No interests found, returning empty list")
-                return []
-            
-            interest_list = []
-            for interest in interests:
-                print(f"Processing interest: {interest}")
-                print(f"  - Interest type: {type(interest)}")
-                print(f"  - Interest model: {interest._meta.model}")
-                print(f"  - Category: {interest.category}")
-                print(f"  - Product: {interest.product}")
-                print(f"  - Revenue: {interest.revenue}")
-                
-                interest_data = {
-                    'id': interest.id,
-                    'category': {
-                        'id': interest.category.id,
-                        'name': interest.category.name
-                    } if interest.category else None,
-                    'product': {
-                        'id': interest.product.id,
-                        'name': interest.product.name
-                    } if interest.product else None,
-                    'revenue': float(interest.revenue) if interest.revenue else 0,
-                    'notes': interest.notes
-                }
-                interest_list.append(interest_data)
-                print(f"  - Processed interest data: {interest_data}")
-            
-            print(f"Returning {len(interest_list)} interests: {interest_list}")
-            return interest_list
-            
-        except Exception as e:
-            print(f"ERROR in get_customer_interests: {e}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
-            return []
 
     def update(self, instance, validated_data):
         """Override update method to handle tag updates and customer interests"""
@@ -737,9 +742,9 @@ class ClientSerializer(serializers.ModelSerializer):
         # Set the audit log user if available
         if user:
             instance._auditlog_user = user
-            print(f"✅ Set audit log user: {user}")
+            print(f"SUCCESS: Set audit log user: {user}")
         else:
-            print(f"⚠️ No user context available for audit log")
+            print(f"WARNING: No user context available for audit log")
         
         # Handle customer interests for updates
         customer_interests_data = None
@@ -807,7 +812,7 @@ class ClientSerializer(serializers.ModelSerializer):
             
             # Ensure we have a list
             if not isinstance(customer_interests_data, list):
-                print(f"⚠️ customer_interests_data is not a list: {type(customer_interests_data)}")
+                print(f"WARNING: customer_interests_data is not a list: {type(customer_interests_data)}")
                 customer_interests_data = [customer_interests_data] if customer_interests_data else []
             
             # Create a set of existing interest identifiers to avoid duplicates
@@ -894,9 +899,9 @@ class ClientSerializer(serializers.ModelSerializer):
                                                 id=int(category),
                                                 tenant=result.tenant
                                             )
-                                            print(f"✅ Found category by ID: {category_obj}")
+                                            print(f"SUCCESS: Found category by ID: {category_obj}")
                                         except Category.DoesNotExist:
-                                            print(f"⚠️ Category ID {category} not found, will create by name")
+                                            print(f"WARNING: Category ID {category} not found, will create by name")
                                             category_obj = None
                                     
                                     if not category_obj:
@@ -906,25 +911,25 @@ class ClientSerializer(serializers.ModelSerializer):
                                             tenant=result.tenant
                                         ).first()
                                         if category_obj:
-                                            print(f"✅ Found category by name: {category_obj}")
+                                            print(f"SUCCESS: Found category by name: {category_obj}")
                                     
                                     if not category_obj:
-                                        print(f"⚠️ Category '{category}' not found for tenant {result.tenant}, creating it")
+                                        print(f"WARNING: Category '{category}' not found for tenant {result.tenant}, creating it")
                                         try:
                                             category_obj = Category.objects.create(
                                                 name=category,
                                                 tenant=result.tenant,
                                                 scope='store' if result.store else 'global'
                                             )
-                                            print(f"✅ Created new category: {category_obj}")
+                                            print(f"SUCCESS: Created new category: {category_obj}")
                                         except Exception as cat_error:
-                                            print(f"❌ Error creating category '{category}': {cat_error}")
+                                            print(f"ERROR: Error creating category '{category}': {cat_error}")
                                             # Try to find any existing category as fallback
                                             category_obj = Category.objects.filter(tenant=result.tenant).first()
                                             if not category_obj:
-                                                print(f"❌ No fallback category available, skipping this interest")
+                                                print(f"ERROR: No fallback category available, skipping this interest")
                                                 continue
-                                            print(f"⚠️ Using fallback category: {category_obj}")
+                                            print(f"WARNING: Using fallback category: {category_obj}")
                                     
                                     # Handle product - could be ID or name
                                     product_obj = None
@@ -935,9 +940,9 @@ class ClientSerializer(serializers.ModelSerializer):
                                                 id=int(product_name),
                                                 tenant=result.tenant
                                             )
-                                            print(f"✅ Found product by ID: {product_obj}")
+                                            print(f"SUCCESS: Found product by ID: {product_obj}")
                                         except Product.DoesNotExist:
-                                            print(f"⚠️ Product ID {product_name} not found, will create by name")
+                                            print(f"WARNING: Product ID {product_name} not found, will create by name")
                                             product_obj = None
                                     
                                     if not product_obj:
@@ -947,10 +952,10 @@ class ClientSerializer(serializers.ModelSerializer):
                                             tenant=result.tenant
                                         ).first()
                                         if product_obj:
-                                            print(f"✅ Found product by name: {product_obj}")
+                                            print(f"SUCCESS: Found product by name: {product_obj}")
                                     
                                     if not product_obj:
-                                        print(f"⚠️ Product '{product_name}' not found for tenant {result.tenant}, creating it")
+                                        print(f"WARNING: Product '{product_name}' not found for tenant {result.tenant}, creating it")
                                         try:
                                             # Generate unique SKU
                                             base_sku = f"{category[:3].upper()}-{product_name[:3].upper()}"
@@ -979,22 +984,22 @@ class ClientSerializer(serializers.ModelSerializer):
                                                 store=result.store,
                                                 scope='store' if result.store else 'global'
                                             )
-                                            print(f"✅ Created new product: {product_obj}")
+                                            print(f"SUCCESS: Created new product: {product_obj}")
                                         except Exception as prod_error:
-                                            print(f"❌ Error creating product '{product_name}': {prod_error}")
+                                            print(f"ERROR: Error creating product '{product_name}': {prod_error}")
                                             # Try to find any existing product as fallback
                                             product_obj = Product.objects.filter(tenant=result.tenant).first()
                                             if not product_obj:
-                                                print(f"❌ No fallback product available, skipping this interest")
+                                                print(f"ERROR: No fallback product available, skipping this interest")
                                                 continue
-                                            print(f"⚠️ Using fallback product: {product_obj}")
+                                            print(f"WARNING: Using fallback product: {product_obj}")
                                     
                                     # Create the customer interest
                                     try:
                                         # Check if this interest already exists to avoid duplicates
                                         new_interest_identifier = f"{category_obj.name}_{product_obj.name}_{revenue_value}"
                                         if new_interest_identifier in existing_identifiers:
-                                            print(f"⚠️ Interest already exists, skipping: {category_obj.name} - {product_obj.name} (₹{revenue_value})")
+                                            print(f"WARNING: Interest already exists, skipping: {category_obj.name} - {product_obj.name} (₹{revenue_value})")
                                             continue
                                         
                                         interest = CustomerInterest.objects.create(
@@ -1006,27 +1011,27 @@ class ClientSerializer(serializers.ModelSerializer):
                                             notes=notes
                                         )
                                         new_interests_created += 1
-                                        print(f"✅ Successfully created customer interest: {interest}")
+                                        print(f"SUCCESS: Successfully created customer interest: {interest}")
                                         print(f"  - ID: {interest.id}")
                                         print(f"  - Client: {interest.client.full_name}")
                                         print(f"  - Category: {interest.category.name if interest.category else 'No Category'}")
                                         print(f"  - Product: {interest.product.name if interest.product else 'No Product'}")
                                         print(f"  - Revenue: {interest.revenue}")
                                     except Exception as interest_error:
-                                        print(f"❌ Error creating customer interest: {interest_error}")
+                                        print(f"ERROR: Error creating customer interest: {interest_error}")
                                         continue
                                 except Exception as e:
-                                    print(f"❌ Error processing product: {e}")
+                                    print(f"ERROR: Error processing product: {e}")
                                     continue
                         else:
-                            print(f"❌ Skipping interest with missing category or products: {interest_data}")
+                            print(f"ERROR: Skipping interest with missing category or products: {interest_data}")
                 except Exception as e:
-                    print(f"❌ Error processing customer interest {interest_data}: {e}")
+                    print(f"ERROR: Error processing customer interest {interest_data}: {e}")
                     continue
             
             # Log summary of interest processing
             final_interests = CustomerInterest.objects.filter(client=result)
-            print(f"🎯 Interest processing complete:")
+            print(f"TARGET: Interest processing complete:")
             print(f"   - Existing interests preserved: {existing_interests.count()}")
             print(f"   - New interests created: {new_interests_created}")
             print(f"   - Total interests after update: {final_interests.count()}")

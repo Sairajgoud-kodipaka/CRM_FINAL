@@ -1,0 +1,57 @@
+# Docker Development Environment
+# This creates a completely isolated development environment
+
+version: '3.8'
+
+services:
+  # Development Backend
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8001:8000"  # Different port from production
+    volumes:
+      - ./backend:/app
+      - /app/venv  # Exclude venv from volume
+    environment:
+      - DEBUG=True
+      - DJANGO_SETTINGS_MODULE=core.settings_dev
+    depends_on:
+      - db-dev
+      - redis-dev
+
+  # Development Frontend
+  frontend-dev:
+    build:
+      context: ./jewellery-crm
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3000"  # Different port from production
+    volumes:
+      - ./jewellery-crm:/app
+      - /app/node_modules  # Exclude node_modules from volume
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
+      - NODE_ENV=development
+
+  # Development Database
+  db-dev:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=jewellery_crm_dev
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+    ports:
+      - "5433:5432"  # Different port from production
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+  # Development Redis
+  redis-dev:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"  # Different port from production
+
+volumes:
+  postgres_dev_data:

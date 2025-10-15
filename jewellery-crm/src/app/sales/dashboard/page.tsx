@@ -1,16 +1,18 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { BarChart2, PieChart, TrendingUp, Users, Percent, Activity, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign, ShoppingBag, Calendar, Target, Plus, RefreshCw } from 'lucide-react';
+import { BarChart2, PieChart, TrendingUp, Users, Percent, Activity, TrendingDown, ArrowUpRight, ArrowDownRight, ShoppingBag, Calendar, Target, Plus, RefreshCw } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardSkeleton, KPICardSkeleton } from '@/components/ui/skeleton';
 import { MobileDashboard, DashboardSection, DashboardMetric } from '@/components/dashboard/MobileDashboard';
 import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { DateRange } from 'react-day-picker';
 
 interface SalesStats {
-  monthly_revenue: number;
-  total_sales: number;
+  total_sales: number;  // This will be the count of sales
+  total_revenue: number;  // This will be the revenue amount
   customers: number;
   conversion_rate: number;
   recent_activities: any[];
@@ -22,8 +24,8 @@ export default function SalesDashboardPage() {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const [stats, setStats] = useState<SalesStats>({
-    monthly_revenue: 0,
     total_sales: 0,
+    total_revenue: 0,
     customers: 0,
     conversion_rate: 0,
     recent_activities: [],
@@ -32,10 +34,14 @@ export default function SalesDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    return { from: today, to: today };
+  });
 
   useEffect(() => {
     fetchSalesData();
-  }, []);
+  }, [dateRange]);
 
   const fetchSalesData = async () => {
       try {
@@ -44,8 +50,15 @@ export default function SalesDashboardPage() {
       
       console.log('Fetching real sales dashboard data...');
         
-      // Fetch sales dashboard data
-        const dashboardResponse = await apiService.getSalesDashboard();
+      // Get date range for filtering
+      const startDate = dateRange?.from || new Date();
+      const endDate = dateRange?.to || new Date();
+      
+      // Fetch sales dashboard data with date range
+        const dashboardResponse = await apiService.getSalesDashboard({
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString()
+        });
       console.log('Sales Dashboard response:', dashboardResponse);
         
         if (dashboardResponse.success && dashboardResponse.data) {
@@ -157,8 +170,8 @@ export default function SalesDashboardPage() {
         }
         
         setStats({
-          monthly_revenue: dashboardData.monthly_revenue || 0,
           total_sales: dashboardData.sales_count || 0,
+          total_revenue: dashboardData.total_sales || 0,  // This is the revenue amount
           customers: dashboardData.total_customers || 0,
           conversion_rate: dashboardData.conversion_rate || 0,
           recent_activities: allActivities.slice(0, 6),
@@ -213,20 +226,20 @@ export default function SalesDashboardPage() {
       defaultExpanded: true,
       metrics: [
         {
-          id: 'monthly-revenue',
-          title: 'Monthly Revenue',
-          value: stats.monthly_revenue,
-          format: 'currency',
-          priority: 'high',
-          icon: DollarSign,
-        },
-        {
           id: 'total-sales',
           title: 'Total Sales',
           value: stats.total_sales,
           format: 'number',
           priority: 'high',
           icon: ShoppingBag,
+        },
+        {
+          id: 'total-revenue',
+          title: 'Total Revenue',
+          value: stats.total_revenue,
+          format: 'currency',
+          priority: 'high',
+          icon: TrendingUp,
         },
         {
           id: 'customers',
@@ -425,39 +438,46 @@ export default function SalesDashboardPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={fetchSalesData}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh Data
-        </button>
+        <div className="flex items-center gap-3">
+          <DateRangeFilter
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            placeholder="Select date range"
+          />
+          <button
+            onClick={fetchSalesData}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh Data
+          </button>
+        </div>
       </div>
       
       {/* Key Performance Indicators */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6 border-l-4 border-l-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-text-secondary mb-1">Monthly Revenue</p>
-              <p className="text-2xl font-bold text-text-primary">{formatCurrency(stats.monthly_revenue)}</p>
-              <p className="text-xs text-text-muted mt-1">Current month earnings</p>
-            </div>
-            <div className="p-3 bg-blue-50 rounded-full">
-              <DollarSign className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </Card>
-        
         <Card className="p-6 border-l-4 border-l-green-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-text-secondary mb-1">Total Sales</p>
               <p className="text-2xl font-bold text-text-primary">{stats.total_sales}</p>
-              <p className="text-xs text-text-muted mt-1">Sales + Closed deals</p>
+              <p className="text-xs text-text-muted mt-1">Closed won deals</p>
             </div>
             <div className="p-3 bg-green-50 rounded-full">
               <ShoppingBag className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-6 border-l-4 border-l-blue-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-text-secondary mb-1">Total Revenue</p>
+              <p className="text-2xl font-bold text-text-primary">{formatCurrency(stats.total_revenue)}</p>
+              <p className="text-xs text-text-muted mt-1">From closed deals</p>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-full">
+              <TrendingUp className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </Card>

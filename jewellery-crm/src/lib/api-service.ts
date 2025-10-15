@@ -1,6 +1,7 @@
 // API Service for connecting to Django backend
 import { config, getApiUrl } from './config'
 import { performanceMonitor } from './performance-monitor'
+import { globalDateParameterService } from './global-date-parameters'
 
 interface ApiResponse<T> {
   data: T;
@@ -92,6 +93,15 @@ interface Client {
     } | null;
     revenue: number;
     notes?: string;
+    preferences?: {
+      designSelected: boolean;
+      wantsDiscount: boolean;
+      checkingOthers: boolean;
+      lessVariety: boolean;
+      purchased: boolean;
+      other: string;
+    };
+    status?: 'interested' | 'negotiation' | 'closed_won';
   }>;
   // Add simple product preferences fields to match AddCustomerModal
   customer_interests_simple?: string[]; // Simple array of interest strings
@@ -546,7 +556,19 @@ class ApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = getApiUrl(endpoint);
+    // Add global date parameters to GET requests
+    let url = getApiUrl(endpoint);
+    if (!options.method || options.method === 'GET') {
+      const dateParams = globalDateParameterService.getDateParameters();
+      if (Object.keys(dateParams).length > 0) {
+        const urlObj = new URL(url);
+        Object.entries(dateParams).forEach(([key, value]) => {
+          urlObj.searchParams.set(key, value);
+        });
+        url = urlObj.toString();
+      }
+    }
+
     const cacheKey = this.getCacheKey(endpoint, options);
     
     // Start performance monitoring
@@ -867,13 +889,28 @@ class ApiService {
     start_date?: string;
     end_date?: string;
     filter_type?: string;
+    year?: number;
+    month?: number;
+    month_name?: string;
+    timezone?: string;
   }): Promise<ApiResponse<any>> {
     const queryParams = new URLSearchParams();
     if (params?.start_date) queryParams.append('start_date', params.start_date);
     if (params?.end_date) queryParams.append('end_date', params.end_date);
     if (params?.filter_type) queryParams.append('filter_type', params.filter_type);
+    if (params?.year) queryParams.append('year', params.year.toString());
+    if (params?.month) queryParams.append('month', params.month.toString());
+    if (params?.month_name) queryParams.append('month_name', params.month_name);
+    if (params?.timezone) queryParams.append('timezone', params.timezone);
     
-    const url = `/tenants/dashboard/${queryParams.toString() ? `?${queryParams}` : ''}`;
+    // Enhanced cache-busting with month-specific timestamp
+    const cacheKey = `${params?.year || 'current'}_${params?.month || 'current'}_${Date.now()}`;
+    queryParams.append('_cache', cacheKey);
+    queryParams.append('_t', Date.now().toString());
+    
+    const url = `/tenants/dashboard/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    console.log('🔍 [API] Dashboard URL:', url);
+    console.log('🔍 [API] Cache Key:', cacheKey);
     return this.request(url);
   }
 
@@ -881,8 +918,19 @@ class ApiService {
     return this.request('/tenants/platform-dashboard/');
   }
 
-  async getManagerDashboard(): Promise<ApiResponse<any>> {
-    return this.request('/tenants/manager-dashboard/');
+  async getManagerDashboard(params?: {
+    start_date?: string;
+    end_date?: string;
+    filter_type?: string;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
+    if (params?.filter_type) queryParams.append('filter_type', params.filter_type);
+    
+    const url = `/tenants/manager-dashboard/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    console.log('Manager Dashboard API URL:', url);
+    return this.request(url);
   }
 
   async getSalesDashboard(): Promise<ApiResponse<any>> {
@@ -895,12 +943,16 @@ class ApiService {
     search?: string;
     status?: string;
     assigned_to?: string;
+    start_date?: string;
+    end_date?: string;
   }): Promise<ApiResponse<Client[]>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.search) queryParams.append('search', params.search);
     if (params?.status) queryParams.append('status', params.status);
     if (params?.assigned_to) queryParams.append('assigned_to', params.assigned_to);
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
 
     return this.request(`/clients/clients/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
@@ -978,9 +1030,7 @@ class ApiService {
     return response;
   }
 
-  async getTrashedClients(): Promise<ApiResponse<Client[]>> {
-    return this.request('/clients/trash/');
-  }
+  // Note: Hard delete is now implemented, so trash functionality is removed
 
   async restoreClient(id: string): Promise<ApiResponse<void>> {
     return this.request(`/clients/${id}/restore/`, {
@@ -1517,12 +1567,16 @@ class ApiService {
     status?: string;
     date?: string;
     client?: string;
+    start_date?: string;
+    end_date?: string;
   }): Promise<ApiResponse<Appointment[]>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.status) queryParams.append('status', params.status);
     if (params?.date) queryParams.append('date', params.date);
     if (params?.client) queryParams.append('client', params.client);
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
 
     return this.request(`/clients/appointments/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
@@ -1664,48 +1718,48 @@ class ApiService {
     if (params?.category) queryParams.append('category', params.category);
     if (params?.search) queryParams.append('search', params.search);
 
-    return this.request(`/support/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    return this.request(`/support/tickets/${queryParams.toString() ? `?${queryParams}` : ''}`);
   }
 
   async getSupportTicket(id: string): Promise<ApiResponse<SupportTicket>> {
-    return this.request(`/support/${id}/`);
+    return this.request(`/support/tickets/${id}/`);
   }
 
   async createSupportTicket(ticketData: Partial<SupportTicket>): Promise<ApiResponse<SupportTicket>> {
-    return this.request('/support/', {
+    return this.request('/support/tickets/', {
       method: 'POST',
       body: JSON.stringify(ticketData),
     });
   }
 
   async updateSupportTicket(id: string, ticketData: Partial<SupportTicket>): Promise<ApiResponse<SupportTicket>> {
-    return this.request(`/support/${id}/`, {
+    return this.request(`/support/tickets/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(ticketData),
     });
   }
 
   async deleteSupportTicket(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/support/${id}/`, {
+    return this.request(`/support/tickets/${id}/`, {
       method: 'DELETE',
     });
   }
 
   // Ticket Actions
   async assignTicketToMe(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/support/${id}/assign_to_me/`, {
+    return this.request(`/support/tickets/${id}/assign_to_me/`, {
       method: 'POST',
     });
   }
 
   async resolveTicket(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/support/${id}/resolve/`, {
+    return this.request(`/support/tickets/${id}/resolve/`, {
       method: 'POST',
     });
   }
 
   async closeTicket(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/support/${id}/close/`, {
+    return this.request(`/support/tickets/${id}/close/`, {
       method: 'POST',
     });
   }

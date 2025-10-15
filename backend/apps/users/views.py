@@ -641,8 +641,31 @@ class TeamMemberDeleteView(generics.DestroyAPIView):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Business admins cannot delete other business admins.")
         
-        # Delete the team member (this will cascade to delete the user)
-        instance.delete()
+        # Log the deletion before performing it
+        logger.info(f"Deleting team member: {instance.id} (User: {user_name}, ID: {user_id})")
+        
+        # IMPORTANT: The TeamMember -> User relationship doesn't cascade delete the User
+        # We need to manually delete the User first, then the TeamMember will be deleted automatically
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        # Get the user object before deleting
+        user_to_delete = instance.user
+        
+        try:
+            # Delete the user first (this will cascade delete the TeamMember due to CASCADE relationship)
+            logger.info(f"Deleting user: {user_id} (this will cascade delete TeamMember)")
+            user_to_delete.delete()
+            logger.info(f"Successfully deleted user {user_id} and team member {instance.id}")
+        except Exception as e:
+            logger.error(f"Error deleting user {user_id}: {e}")
+            # If user deletion fails, we should still try to delete the team member
+            try:
+                instance.delete()
+                logger.info(f"Deleted team member {instance.id} after user deletion failed")
+            except Exception as tm_error:
+                logger.error(f"Error deleting team member {instance.id}: {tm_error}")
+                raise
     
     def destroy(self, request, *args, **kwargs):
         """Override destroy method to return proper response."""
@@ -1239,6 +1262,11 @@ def team_members_list(request):
         team_members = TeamMember.objects.filter(user__is_active=True, user=user)
     
     logger.debug(f"Found {team_members.count()} team members")
+    
+    # Log the team members being returned for debugging
+    for tm in team_members:
+        logger.debug(f"Team member: {tm.id} -> User: {tm.user.username} ({tm.user.first_name} {tm.user.last_name})")
+    
     serializer = TeamMemberListSerializer(team_members, many=True)
     return Response(serializer.data)
 

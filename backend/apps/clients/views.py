@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q, Count
 from django.contrib.auth import get_user_model
+import logging
 from .models import Client, ClientInteraction, Appointment, FollowUp, Task, Announcement, Purchase, AuditLog, CustomerTag
 from .serializers import (
     ClientSerializer, ClientInteractionSerializer, AppointmentSerializer, FollowUpSerializer, 
@@ -13,11 +14,14 @@ from .serializers import (
 )
 from apps.users.permissions import IsRoleAllowed, CanDeleteCustomer
 from apps.users.middleware import ScopedVisibilityMixin
+from apps.core.mixins import GlobalDateFilterMixin
 import csv
 import io
 import json
 from datetime import datetime
 from django.http import HttpResponse
+
+logger = logging.getLogger(__name__)
 from django.db import transaction
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 # import openpyxl
@@ -55,7 +59,7 @@ All customers are visible in the main customer system with appropriate
 status-based filtering and management capabilities.
 """
 
-class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
+class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilterMixin):
     serializer_class = ClientSerializer
     permission_classes = [IsRoleAllowed.for_roles(['inhouse_sales','manager','business_admin'])]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
@@ -69,12 +73,16 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         return super().get_permissions()
     
     def get_queryset(self):
-        """Filter clients by user scope and exclude soft-deleted clients"""
+        """Filter clients by user scope and date range"""
         # For restore and permanent_delete actions, include soft-deleted clients
         if hasattr(self, 'action') and self.action in ['restore', 'permanent_delete']:
             queryset = self.get_scoped_queryset(Client)
         else:
-            queryset = self.get_scoped_queryset(Client, is_deleted=False)
+            # Since we're doing hard delete, we don't need to filter by is_deleted
+            queryset = self.get_scoped_queryset(Client)
+        
+        # Apply global date filtering
+        queryset = self.get_date_filtered_queryset(queryset, 'created_at')
         
         return queryset
     
@@ -255,16 +263,54 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         return Response({"message": "Test endpoint working", "data": request.data})
     
     def list(self, request, *args, **kwargs):
-        """List clients"""
-        # Debug statements removed for production
-        
+        """List clients with filtering support"""
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        response_data = serializer.data
         
-        response = Response(response_data)
-        print("=== DJANGO VIEW - LIST METHOD END ===")
-        return response
+        # Apply search filter
+        search = request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search) |
+                Q(phone__icontains=search)
+            )
+        
+        # Apply status filter
+        status = request.query_params.get('status')
+        if status and status != 'all':
+            queryset = queryset.filter(status=status)
+        
+        # Apply date range filter
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        if start_date and end_date:
+            try:
+                from datetime import datetime
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                queryset = queryset.filter(
+                    created_at__gte=start_dt,
+                    created_at__lte=end_dt
+                )
+            except ValueError:
+                # If date parsing fails, ignore the filter
+                pass
+        
+        # Apply pagination if needed
+        page = request.query_params.get('page')
+        if page:
+            try:
+                page_num = int(page)
+                page_size = 50  # Default page size
+                start = (page_num - 1) * page_size
+                end = start + page_size
+                queryset = queryset[start:end]
+            except ValueError:
+                pass
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def perform_update(self, serializer):
         print(f"=== CLIENT VIEW PERFORM UPDATE ===")
@@ -460,12 +506,12 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
 
     def perform_destroy(self, instance):
         instance._auditlog_user = self.request.user
+        # Hard delete - completely remove from database
         instance.delete()
 
     def destroy(self, request, *args, **kwargs):
         """
-        Soft delete a client. Only managers and higher roles can delete customers.
-        House sales persons cannot delete customers.
+        Hard delete a client. Only business admins can delete customers.
         """
         try:
             instance = self.get_object()
@@ -473,25 +519,38 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
             # Check if user has permission to delete this customer
             permission = CanDeleteCustomer()
             if not permission.has_object_permission(request, self, instance):
-                if request.user.role == 'inhouse_sales':
-                    return Response({
-                        'error': 'House sales persons cannot delete customers. Only managers can delete customers.',
-                        'detail': 'Contact your store manager to delete this customer.'
-                    }, status=status.HTTP_403_FORBIDDEN)
-                else:
-                    return Response({
-                        'error': 'You do not have permission to delete this customer.',
-                        'detail': 'You can only delete customers from your own store.'
-                    }, status=status.HTTP_403_FORBIDDEN)
+                return Response({
+                    'error': 'You do not have permission to delete customers.',
+                    'detail': 'Only business admins can delete customers.'
+                }, status=status.HTTP_403_FORBIDDEN)
             
+            # Log the deletion before performing it
+            logger.info(f"Deleting client: {instance.id} ({instance.first_name} {instance.last_name}) by user: {request.user.username}")
+            
+            # Create audit log before deletion
             instance._auditlog_user = request.user
-            instance.is_deleted = True
-            from django.utils import timezone
-            instance.deleted_at = timezone.now()
-            instance.save()
-            return Response({'status': 'client soft-deleted'}, status=status.HTTP_204_NO_CONTENT)
+            from .models import AuditLog
+            before = {field.name: str(getattr(instance, field.name)) for field in instance._meta.fields}
+            AuditLog.objects.create(
+                client=instance,
+                action='delete',
+                user=request.user,
+                before=before,
+                after=None
+            )
+            
+            # Perform hard delete
+            instance.delete()
+            
+            logger.info(f"Successfully deleted client: {instance.id}")
+            
+            return Response({
+                'success': True,
+                'message': 'Customer permanently deleted from database'
+            }, status=status.HTTP_200_OK)
             
         except Exception as e:
+            logger.error(f"Error deleting client: {e}")
             return Response({
                 'error': 'Failed to delete customer',
                 'detail': str(e)
@@ -1344,9 +1403,17 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         # Filter by date range
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
+        
         if start_date:
+            # Handle ISO datetime strings by extracting just the date part
+            if 'T' in start_date:
+                start_date = start_date.split('T')[0]
             queryset = queryset.filter(date__gte=start_date)
+            
         if end_date:
+            # Handle ISO datetime strings by extracting just the date part
+            if 'T' in end_date:
+                end_date = end_date.split('T')[0]
             queryset = queryset.filter(date__lte=end_date)
         
         # Filter by assigned user

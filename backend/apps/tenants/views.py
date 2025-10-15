@@ -205,17 +205,20 @@ class PlatformAdminDashboardView(APIView):
             # 2. Total Users across all tenants
             total_users = User.objects.exclude(role=User.Role.PLATFORM_ADMIN).count()
             
-            # 3. Total Sales across all tenants (last 30 days)
-            total_sales = Sale.objects.filter(
+            # 3. Total Sales across all tenants (last 30 days) - only closed won pipelines count as sales
+            from apps.sales.models import SalesPipeline
+            
+            closed_won_pipelines = SalesPipeline.objects.filter(
                 created_at__gte=start_date,
-                created_at__lte=end_date
+                created_at__lte=end_date,
+                stage='closed_won'
             ).aggregate(
-                total=Sum('total_amount'),
+                total=Sum('expected_value'),
                 count=Count('id')
             )
             
-            sales_amount = total_sales['total'] or Decimal('0.00')
-            sales_count = total_sales['count'] or 0
+            sales_amount = closed_won_pipelines['total'] or Decimal('0.00')
+            sales_count = closed_won_pipelines['count'] or 0
             
             # 4. Recent Tenants (last 5 created)
             recent_tenants = Tenant.objects.order_by('-created_at')[:5]
@@ -258,90 +261,8 @@ class PlatformAdminDashboardView(APIView):
 
 
 class ManagerDashboardView(APIView):
-    """Manager Dashboard - Provides store-specific data including closed won pipelines"""
-    permission_classes = [IsRoleAllowed.for_roles(['manager'])]
-    
-    def get(self, request):
-        try:
-            user = request.user
-            
-            if not user.store:
-                return Response({
-                    'success': False,
-                    'error': 'Manager not assigned to any store'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Get date range for current month
-            today = timezone.now()
-            start_date = today - timedelta(days=30)
-            end_date = today
-            
-            # Base filters for manager's store only
-            base_sales_filter = {'tenant': user.tenant, 'client__store': user.store}
-            base_pipeline_filter = {'tenant': user.tenant, 'client__store': user.store}
-            
-            # Get sales data for current month
-            monthly_sales = Sale.objects.filter(
-                **base_sales_filter,
-                created_at__gte=start_date,
-                created_at__lte=end_date
-            )
-            
-            # Get closed won pipeline data for current month
-            monthly_closed_won = SalesPipeline.objects.filter(
-                **base_pipeline_filter,
-                stage='closed_won'
-            ).filter(
-                Q(actual_close_date__gte=start_date, actual_close_date__lte=end_date) |
-                Q(actual_close_date__isnull=True)  # Include pipelines without close date
-            )
-            
-            # Calculate combined revenue
-            sales_revenue = monthly_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
-            closed_won_revenue = monthly_closed_won.aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
-            total_monthly_revenue = sales_revenue + closed_won_revenue
-            
-            # Count sales (including closed won pipelines)
-            sales_count = monthly_sales.count()
-            closed_won_count = monthly_closed_won.count()
-            total_sales_count = sales_count + closed_won_count
-            
-            # Get store customers
-            from apps.clients.models import Client
-            total_customers = Client.objects.filter(tenant=user.tenant, store=user.store).count()
-            
-            # Get team members for this store
-            team_members = User.objects.filter(
-                tenant=user.tenant,
-                role__in=['manager', 'inhouse_sales']
-            )
-            
-            dashboard_data = {
-                'store_name': user.store.name,
-                'monthly_revenue': float(total_monthly_revenue),
-                'sales_count': total_sales_count,
-                'closed_won_count': closed_won_count,
-                'total_customers': total_customers,
-                'team_members_count': team_members.count(),
-                'sales_revenue': float(sales_revenue),
-                'closed_won_revenue': float(closed_won_revenue)
-            }
-            
-            return Response({
-                'success': True,
-                'data': dashboard_data
-            })
-            
-        except Exception as e:
-            return Response({
-                'success': False,
-                'error': 'Failed to fetch dashboard data'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class BusinessDashboardView(APIView):
-    """Business Admin Dashboard - Provides real data for the dashboard"""
-    permission_classes = [IsRoleAllowed.for_roles(['business_admin', 'manager', 'inhouse_sales'])]
+    """Manager Dashboard - Provides comprehensive store-specific data with scoped visibility"""
+    permission_classes = [IsRoleAllowed.for_roles(['manager', 'inhouse_sales'])]
 
     def get(self, request):
         user = request.user
@@ -350,21 +271,72 @@ class BusinessDashboardView(APIView):
         if not tenant:
             return Response({'error': 'No tenant associated with user'}, status=status.HTTP_400_BAD_REQUEST)
         
+        if not user.store:
+            return Response({
+                'success': False,
+                'error': 'User not assigned to any store'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         # Get date filter parameters from request
         filter_type = request.query_params.get('filter_type', 'today')
         start_date_param = request.query_params.get('start_date')
         end_date_param = request.query_params.get('end_date')
         
-        # Calculate date ranges based on filter type
+        # Additional month filter parameters
+        year_param = request.query_params.get('year')
+        month_param = request.query_params.get('month')
+        month_name_param = request.query_params.get('month_name')
+        timezone_param = request.query_params.get('timezone')
+        
+        print(f"🔍 Manager Dashboard Request Debug:")
+        print(f"   Filter Type: {filter_type}")
+        print(f"   Start Date Param: {start_date_param}")
+        print(f"   End Date Param: {end_date_param}")
+        print(f"   Year Param: {year_param}")
+        print(f"   Month Param: {month_param}")
+        print(f"   Month Name Param: {month_name_param}")
+        print(f"   Timezone Param: {timezone_param}")
+        print(f"   User Role: {user.role}")
+        print(f"   Tenant: {tenant.name if tenant else 'None'}")
+        print(f"   User Store: {user.store.name if user.store else 'None'}")
+        
+        # Calculate date ranges based on filter type (same as BusinessDashboardView)
         end_date = timezone.now()
         
         if start_date_param and end_date_param:
-            # Custom date range
+            # Custom date range from frontend
             try:
-                start_date = timezone.make_aware(datetime.fromisoformat(start_date_param.replace('Z', '+00:00')))
-                end_date = timezone.make_aware(datetime.fromisoformat(end_date_param.replace('Z', '+00:00')))
+                start_date = datetime.fromisoformat(start_date_param.replace('Z', '+00:00')).replace(tzinfo=timezone.utc)
+                end_date = datetime.fromisoformat(end_date_param.replace('Z', '+00:00')).replace(tzinfo=timezone.utc)
+                
+                # Additional validation using year/month parameters if provided
+                if year_param and month_param:
+                    try:
+                        year = int(year_param)
+                        month = int(month_param)
+                        
+                        # Create expected date range from year/month
+                        expected_start = datetime(year, month + 1, 1).replace(tzinfo=timezone.utc)  # month is 0-indexed
+                        expected_end = datetime(year, month + 2, 1).replace(tzinfo=timezone.utc) - timedelta(microseconds=1)
+                        
+                        print(f"🔍 Date Validation:")
+                        print(f"   Expected Start: {expected_start}")
+                        print(f"   Expected End: {expected_end}")
+                        print(f"   Actual Start: {start_date}")
+                        print(f"   Actual End: {end_date}")
+                        
+                        # Validate that the dates match the expected month
+                        if abs((start_date - expected_start).total_seconds()) > 86400:  # More than 1 day difference
+                            print(f"⚠️  WARNING: Start date doesn't match expected month!")
+                        if abs((end_date - expected_end).total_seconds()) > 86400:  # More than 1 day difference
+                            print(f"⚠️  WARNING: End date doesn't match expected month!")
+                            
+                    except (ValueError, TypeError) as e:
+                        print(f"⚠️  WARNING: Could not parse year/month parameters: {e}")
+                        
             except (ValueError, TypeError) as e:
                 # Fallback to default if date parsing fails
+                print(f"⚠️  WARNING: Date parsing failed: {e}")
                 start_date = end_date - timedelta(days=30)
         else:
             # Default date ranges based on filter type
@@ -409,11 +381,468 @@ class BusinessDashboardView(APIView):
         if filter_type not in ['yesterday', 'lastMonth']:
             end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
         
+        # Special handling for monthly filter - ensure ultra-strict date boundaries
+        if filter_type == 'monthly' and year_param and month_param:
+            try:
+                year = int(year_param)
+                month = int(month_param)
+                
+                # Convert 0-indexed month to 1-indexed month
+                month_1_indexed = month + 1
+                
+                # Force exact month boundaries
+                start_date = datetime(year, month_1_indexed, 1).replace(tzinfo=timezone.utc)
+                
+                # Calculate end of month properly
+                if month_1_indexed == 12:
+                    # December - next month is January of next year
+                    end_date = datetime(year + 1, 1, 1).replace(tzinfo=timezone.utc) - timedelta(microseconds=1)
+                else:
+                    # Other months - next month is month + 1
+                    end_date = datetime(year, month_1_indexed + 1, 1).replace(tzinfo=timezone.utc) - timedelta(microseconds=1)
+                
+                print(f"🔒 ULTRA-STRICT Monthly Filter Applied:")
+                print(f"   Year: {year}, Month (0-indexed): {month}, Month (1-indexed): {month_1_indexed}")
+                print(f"   Forced Start: {start_date}")
+                print(f"   Forced End: {end_date}")
+                
+            except (ValueError, TypeError) as e:
+                print(f"⚠️  WARNING: Could not apply ultra-strict monthly filter: {e}")
+        
+        print(f"📅 Calculated Date Range:")
+        print(f"   Start Date: {start_date}")
+        print(f"   End Date: {end_date}")
+        print(f"   Date Range: {(end_date - start_date).days + 1} days")
+        
+        try:
+            # Base filters with scoped visibility (manager sees only their store)
+            base_sales_filter = {'tenant': tenant, 'client__store': user.store}
+            base_pipeline_filter = {'tenant': tenant, 'client__store': user.store}
+            base_store_filter = {'tenant': tenant, 'id': user.store.id}
+            
+            print(f"🔧 Base Filters (Scoped to Store):")
+            print(f"   base_sales_filter: {base_sales_filter}")
+            print(f"   base_pipeline_filter: {base_pipeline_filter}")
+            print(f"   base_store_filter: {base_store_filter}")
+            
+            # 1. Total Sales for the selected date range
+            period_sales = Sale.objects.filter(
+                **base_sales_filter,
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+            
+            # ULTRA STRICT date filtering - ONLY actual_close_date within range
+            period_closed_won_query = SalesPipeline.objects.filter(
+                **base_pipeline_filter,
+                stage='closed_won',
+                actual_close_date__gte=start_date,
+                actual_close_date__lte=end_date
+            )
+            
+            print(f"🔍 Period Closed Won Query:")
+            print(f"   Query SQL: {period_closed_won_query.query}")
+            print(f"   Query Count: {period_closed_won_query.count()}")
+            
+            period_closed_won = period_closed_won_query.aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
+            
+            period_total = period_closed_won  # Only closed won revenue counts as sales
+            
+            print(f"💰 Revenue Calculations:")
+            print(f"   Period Sales Revenue: {period_sales}")
+            print(f"   Period Closed Won Revenue: {period_closed_won}")
+            print(f"   Period Total Revenue: {period_total}")
+            
+            # Count sales for the period
+            period_sales_count = Sale.objects.filter(
+                **base_sales_filter,
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).count()
+            
+            # ULTRA STRICT date filtering - ONLY actual_close_date within range
+            period_closed_won_count = SalesPipeline.objects.filter(
+                **base_pipeline_filter,
+                stage='closed_won',
+                actual_close_date__gte=start_date,
+                actual_close_date__lte=end_date
+            ).count()
+            
+            period_total_sales_count = period_closed_won_count  # Only closed won count counts as sales
+            
+            print(f"📊 Count Calculations:")
+            print(f"   Period Sales Count: {period_sales_count}")
+            print(f"   Period Closed Won Count: {period_closed_won_count}")
+            print(f"   Period Total Sales Count: {period_total_sales_count}")
+            
+            # 2. Customer counts for the period
+            new_customers_count = Client.objects.filter(
+                **base_store_filter,
+                created_at__gte=start_date,
+                created_at__lte=end_date,
+                is_deleted=False
+            ).count()
+            
+            # Total customers should also be filtered by date range for consistency
+            total_customers_count = Client.objects.filter(
+                **base_store_filter,
+                created_at__gte=start_date,
+                created_at__lte=end_date,
+                is_deleted=False
+            ).count()
+            
+            # 3. Pipeline Revenue (pending deals) - with date filtering
+            pipeline_revenue = SalesPipeline.objects.filter(
+                **base_pipeline_filter,
+                stage__in=['exhibition', 'social_media', 'interested', 'store_walkin', 'negotiation'],
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
+            
+            # 3. Closed Won Pipeline Count - with date filtering
+            closed_won_pipeline_count = SalesPipeline.objects.filter(
+                **base_pipeline_filter,
+                stage='closed_won',
+                actual_close_date__gte=start_date,
+                actual_close_date__lte=end_date
+            ).count()
+            
+            # 4. Pipeline Deals Count (pending deals) - with date filtering
+            pipeline_deals_count = SalesPipeline.objects.filter(
+                **base_pipeline_filter,
+                stage__in=['exhibition', 'social_media', 'interested', 'store_walkin', 'negotiation'],
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).count()
+            
+            # 5. Store Performance (for manager's store only)
+            store_performance = []
+            store = user.store
+            if store:
+                # Store closed won revenue
+                store_closed_won = SalesPipeline.objects.filter(
+                    **base_pipeline_filter,
+                    stage='closed_won',
+                    actual_close_date__gte=start_date,
+                    actual_close_date__lte=end_date
+                ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
+                
+                # Store sales count
+                store_sales_count = SalesPipeline.objects.filter(
+                    **base_pipeline_filter,
+                    stage='closed_won',
+                    actual_close_date__gte=start_date,
+                    actual_close_date__lte=end_date
+                ).count()
+                
+                store_performance.append({
+                    'id': store.id,
+                    'name': store.name,
+                    'revenue': float(store_closed_won),
+                    'sales_count': store_sales_count,
+                    'closed_deals': store_sales_count
+                })
+                
+                print(f"🏪 Store Performance - {store.name}:")
+                print(f"   Store Closed Won Revenue: {store_closed_won}")
+                print(f"   Store Sales Count: {store_sales_count}")
+            
+            # 6. Team Performance (for manager's store team)
+            team_performance = []
+            team_members = User.objects.filter(
+                tenant=tenant,
+                store=user.store,
+                role__in=['manager', 'inhouse_sales']
+            )
+            
+            for member in team_members:
+                member_pipeline_filter = {**base_pipeline_filter, 'sales_representative': member}
+                
+                member_closed_won = SalesPipeline.objects.filter(
+                    **member_pipeline_filter,
+                    stage='closed_won',
+                    actual_close_date__gte=start_date,
+                    actual_close_date__lte=end_date
+                ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
+                
+                member_deals = SalesPipeline.objects.filter(
+                    **member_pipeline_filter,
+                    stage='closed_won',
+                    actual_close_date__gte=start_date,
+                    actual_close_date__lte=end_date
+                ).count()
+                
+                if float(member_closed_won) > 0 or member_deals > 0:
+                    team_performance.append({
+                        'id': member.id,
+                        'name': f"{member.first_name} {member.last_name}",
+                        'revenue': float(member_closed_won),
+                        'deals_closed': member_deals
+                    })
+            
+            # 7. Today's stats (if today is in the range)
+            today = timezone.now().date()
+            today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = timezone.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            today_sales = Sale.objects.filter(
+                **base_sales_filter,
+                created_at__gte=today_start,
+                created_at__lte=today_end
+            ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+            
+            today_closed_won = SalesPipeline.objects.filter(
+                **base_pipeline_filter,
+                stage='closed_won',
+                actual_close_date__gte=today_start,
+                actual_close_date__lte=today_end
+            ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
+            
+            today_revenue = today_closed_won
+            
+            # New customers today
+            new_today_customers = Client.objects.filter(
+                tenant=tenant,
+                store=user.store,
+                created_at__gte=today_start,
+                created_at__lte=today_end,
+                is_deleted=False
+            ).count()
+            
+            # Today's appointments
+            todays_appointments = 0
+            try:
+                from apps.appointments.models import Appointment
+                todays_appointments = Appointment.objects.filter(
+                    tenant=tenant,
+                    store=user.store,
+                    date=today
+                ).count()
+            except ImportError:
+                print("⚠️  WARNING: Appointments module not found, setting appointments to 0")
+                todays_appointments = 0
+            except Exception as e:
+                print(f"⚠️  WARNING: Error fetching appointments: {e}")
+                todays_appointments = 0
+            
+            # Prepare comprehensive dashboard data
+            dashboard_data = {
+                'store_name': user.store.name,
+                'monthly_sales': {
+                    'count': period_total_sales_count,
+                    'revenue': float(period_total)
+                },
+                'monthly_customers': {
+                    'new': new_customers_count,
+                    'total': total_customers_count
+                },
+                'monthly_pipeline': {
+                    'active': pipeline_deals_count,
+                    'closed': closed_won_pipeline_count,
+                    'revenue': float(pipeline_revenue)
+                },
+                'total_sales': {
+                    'period': float(period_total),
+                    'today': float(today_revenue),
+                    'period_count': period_total_sales_count
+                },
+                'store_performance': store_performance,
+                'team_performance': team_performance,
+                'today_stats': {
+                    'sales': float(today_sales),
+                    'revenue': float(today_revenue),
+                    'new_customers': new_today_customers,
+                    'appointments': todays_appointments
+                },
+                'date_range': {
+                    'start': start_date.isoformat(),
+                    'end': end_date.isoformat(),
+                    'filter_type': filter_type
+                }
+            }
+            
+            return Response({
+                'success': True,
+                'data': dashboard_data
+            })
+            
+        except Exception as e:
+            print(f"❌ Error in ManagerDashboardView: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'success': False,
+                'error': 'Failed to fetch dashboard data'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BusinessDashboardView(APIView):
+    """Business Admin Dashboard - Provides real data for the dashboard"""
+    permission_classes = [IsRoleAllowed.for_roles(['business_admin', 'manager', 'inhouse_sales'])]
+
+    def get(self, request):
+        print(f"🎯 BUSINESS DASHBOARD API CALLED!")
+        print(f"   User: {request.user.username}")
+        print(f"   Role: {request.user.role}")
+        print(f"   Query Params: {request.query_params}")
+        
+        user = request.user
+        tenant = user.tenant
+        
+        if not tenant:
+            return Response({'error': 'No tenant associated with user'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get date filter parameters from request
+        filter_type = request.query_params.get('filter_type', 'today')
+        start_date_param = request.query_params.get('start_date')
+        end_date_param = request.query_params.get('end_date')
+        
+        # Additional month filter parameters
+        year_param = request.query_params.get('year')
+        month_param = request.query_params.get('month')
+        month_name_param = request.query_params.get('month_name')
+        timezone_param = request.query_params.get('timezone')
+        
+        print(f"🔍 Dashboard Request Debug:")
+        print(f"   Filter Type: {filter_type}")
+        print(f"   Start Date Param: {start_date_param}")
+        print(f"   End Date Param: {end_date_param}")
+        print(f"   Year Param: {year_param}")
+        print(f"   Month Param: {month_param}")
+        print(f"   Month Name Param: {month_name_param}")
+        print(f"   Timezone Param: {timezone_param}")
+        print(f"   User Role: {user.role}")
+        print(f"   Tenant: {tenant.name if tenant else 'None'}")
+        print(f"   Raw start_date_param: {repr(start_date_param)}")
+        print(f"   Raw end_date_param: {repr(end_date_param)}")
+        print(f"   User Store: {user.store.name if hasattr(user, 'store') and user.store else 'None'}")
+        
+        # Calculate date ranges based on filter type
+        end_date = timezone.now()
+        
+        if start_date_param and end_date_param:
+            # Custom date range
+            try:
+                start_date = timezone.make_aware(datetime.fromisoformat(start_date_param.replace('Z', '+00:00')))
+                end_date = timezone.make_aware(datetime.fromisoformat(end_date_param.replace('Z', '+00:00')))
+                
+                # Additional validation using year/month parameters if provided
+                if year_param and month_param:
+                    try:
+                        year = int(year_param)
+                        month = int(month_param)
+                        
+                        # Create expected date range from year/month
+                        expected_start = datetime(year, month + 1, 1).replace(tzinfo=timezone.utc)  # month is 0-indexed
+                        expected_end = datetime(year, month + 2, 1).replace(tzinfo=timezone.utc) - timedelta(microseconds=1)
+                        
+                        print(f"🔍 Date Validation:")
+                        print(f"   Expected Start: {expected_start}")
+                        print(f"   Expected End: {expected_end}")
+                        print(f"   Actual Start: {start_date}")
+                        print(f"   Actual End: {end_date}")
+                        
+                        # Validate that the dates match the expected month
+                        if abs((start_date - expected_start).total_seconds()) > 86400:  # More than 1 day difference
+                            print(f"⚠️  WARNING: Start date doesn't match expected month!")
+                        if abs((end_date - expected_end).total_seconds()) > 86400:  # More than 1 day difference
+                            print(f"⚠️  WARNING: End date doesn't match expected month!")
+                            
+                    except (ValueError, TypeError) as e:
+                        print(f"⚠️  WARNING: Could not parse year/month parameters: {e}")
+                        
+            except (ValueError, TypeError) as e:
+                # Fallback to default if date parsing fails
+                print(f"⚠️  WARNING: Date parsing failed: {e}")
+                start_date = end_date - timedelta(days=30)
+        else:
+            # Default date ranges based on filter type
+            if filter_type == 'today':
+                start_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            elif filter_type == 'yesterday':
+                start_date = (end_date - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                end_date = (end_date - timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+            elif filter_type == 'last7days':
+                start_date = end_date - timedelta(days=7)
+                start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            elif filter_type == 'last30days':
+                start_date = end_date - timedelta(days=30)
+                start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            elif filter_type == 'thisWeek':
+                # Start of current week (Monday)
+                day_of_week = end_date.weekday()
+                start_date = end_date - timedelta(days=day_of_week)
+                start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            elif filter_type == 'thisMonth':
+                # Start of current month
+                start_date = end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            elif filter_type == 'lastMonth':
+                # Start of last month
+                if end_date.month == 1:
+                    start_date = end_date.replace(year=end_date.year-1, month=12, day=1, hour=0, minute=0, second=0, microsecond=0)
+                else:
+                    start_date = end_date.replace(month=end_date.month-1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                # End of last month
+                if end_date.month == 1:
+                    end_date = end_date.replace(year=end_date.year-1, month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
+                else:
+                    # Calculate the last day of the previous month
+                    first_day_current_month = end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    last_day_previous_month = first_day_current_month - timedelta(days=1)
+                    end_date = last_day_previous_month.replace(hour=23, minute=59, second=59, microsecond=999999)
+            else:
+                # Default to today
+                start_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # Ensure end_date is set to end of day if not already set
+        if filter_type not in ['yesterday', 'lastMonth']:
+            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        # Special handling for monthly filter - ensure ultra-strict date boundaries
+        if filter_type == 'monthly' and year_param and month_param:
+            try:
+                year = int(year_param)
+                month = int(month_param)
+                
+                # Convert 0-indexed month to 1-indexed month
+                month_1_indexed = month + 1
+                
+                # Force exact month boundaries
+                start_date = datetime(year, month_1_indexed, 1).replace(tzinfo=timezone.utc)
+                
+                # Calculate end of month properly
+                if month_1_indexed == 12:
+                    # December - next month is January of next year
+                    end_date = datetime(year + 1, 1, 1).replace(tzinfo=timezone.utc) - timedelta(microseconds=1)
+                else:
+                    # Other months - next month is month + 1
+                    end_date = datetime(year, month_1_indexed + 1, 1).replace(tzinfo=timezone.utc) - timedelta(microseconds=1)
+                
+                print(f"🔒 ULTRA-STRICT Monthly Filter Applied:")
+                print(f"   Year: {year}, Month (0-indexed): {month}, Month (1-indexed): {month_1_indexed}")
+                print(f"   Forced Start: {start_date}")
+                print(f"   Forced End: {end_date}")
+                
+            except (ValueError, TypeError) as e:
+                print(f"⚠️  WARNING: Could not apply ultra-strict monthly filter: {e}")
+        
+        print(f"📅 Calculated Date Range:")
+        print(f"   Start Date: {start_date}")
+        print(f"   End Date: {end_date}")
+        print(f"   Date Range: {(end_date - start_date).days + 1} days")
+        print(f"   Start Date ISO: {start_date.isoformat()}")
+        print(f"   End Date ISO: {end_date.isoformat()}")
+        
         try:
             # Base filters based on user role
             base_sales_filter = {'tenant': tenant}
             base_pipeline_filter = {'tenant': tenant}
             base_store_filter = {'tenant': tenant}
+            
+            print(f"🔧 Base Filters:")
+            print(f"   base_sales_filter: {base_sales_filter}")
+            print(f"   base_pipeline_filter: {base_pipeline_filter}")
+            print(f"   base_store_filter: {base_store_filter}")
             
             # Role-based filtering
             if user.role == 'business_admin':
@@ -432,6 +861,40 @@ class BusinessDashboardView(APIView):
                     base_pipeline_filter['client__store'] = user.store
                     base_store_filter['id'] = user.store.id
             
+            # Check if there's any actual data for this period
+            sales_exist = Sale.objects.filter(**base_sales_filter, created_at__gte=start_date, created_at__lte=end_date).exists()
+            pipelines_exist = SalesPipeline.objects.filter(**base_pipeline_filter, actual_close_date__gte=start_date.date(), actual_close_date__lte=end_date.date()).exists()
+            has_any_data = sales_exist or pipelines_exist
+            
+            print(f"🔍 Data Check Debug:")
+            print(f"   Sales exist: {sales_exist}")
+            print(f"   Pipelines exist: {pipelines_exist}")
+            print(f"   Has any data: {has_any_data}")
+            print(f"   Start date: {start_date.date()}")
+            print(f"   End date: {end_date.date()}")
+            
+            if not has_any_data:
+                print("=" * 80)
+                print("🚨🚨🚨 ZERO DATA RESPONSE TRIGGERED 🚨🚨🚨")
+                print(f"⚠️ No data found for period {start_date.date()} to {end_date.date()}")
+                print(f"🚀 Returning ZERO data for January 2025")
+                print("=" * 80)
+                return Response({
+                    'success': True,
+                    'data': {
+                        'monthly_sales': {'count': 0, 'revenue': 0},
+                        'monthly_customers': {'new': 0, 'total': 0},
+                        'monthly_pipeline': {'active': 0, 'closed': 0, 'revenue': 0},
+                        'store_performance': [],
+                        'top_performers': []
+                    },
+                    'debug_info': {
+                        'has_data': False,
+                        'period': f"{start_date.date()} to {end_date.date()}",
+                        'timestamp': timezone.now().isoformat()
+                    }
+                })
+            
             # 1. Total Sales for the selected date range
             period_sales = Sale.objects.filter(
                 **base_sales_filter,
@@ -439,15 +902,41 @@ class BusinessDashboardView(APIView):
                 created_at__lte=end_date
             ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
             
-            period_closed_won = SalesPipeline.objects.filter(
+            # Debug: Check what closed-won pipelines exist and their dates
+            all_closed_won = SalesPipeline.objects.filter(
                 **base_pipeline_filter,
                 stage='closed_won'
-            ).filter(
-                Q(actual_close_date__gte=start_date, actual_close_date__lte=end_date) |
-                Q(actual_close_date__isnull=True, created_at__gte=start_date, created_at__lte=end_date)
-            ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
+            )
             
-            period_total = period_sales + period_closed_won
+            print(f"🔍 All Closed Won Pipelines:")
+            for pipeline in all_closed_won:
+                print(f"   Pipeline ID: {pipeline.id}")
+                print(f"   Created At: {pipeline.created_at}")
+                print(f"   Updated At: {pipeline.updated_at}")
+                print(f"   Actual Close Date: {pipeline.actual_close_date}")
+                print(f"   Expected Value: {pipeline.expected_value}")
+                print(f"   ---")
+            
+            # ULTRA STRICT date filtering - ONLY actual_close_date within range
+            period_closed_won_query = SalesPipeline.objects.filter(
+                **base_pipeline_filter,
+                stage='closed_won',
+                actual_close_date__gte=start_date,
+                actual_close_date__lte=end_date
+            )
+            
+            print(f"🔍 Period Closed Won Query:")
+            print(f"   Query SQL: {period_closed_won_query.query}")
+            print(f"   Query Count: {period_closed_won_query.count()}")
+            
+            period_closed_won = period_closed_won_query.aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
+            
+            period_total = period_closed_won  # Only closed won revenue counts as sales
+            
+            print(f"💰 Revenue Calculations:")
+            print(f"   Period Sales Revenue: {period_sales}")
+            print(f"   Period Closed Won Revenue: {period_closed_won}")
+            print(f"   Period Total Revenue: {period_total}")
             
             # Count sales for the period
             period_sales_count = Sale.objects.filter(
@@ -456,15 +945,20 @@ class BusinessDashboardView(APIView):
                 created_at__lte=end_date
             ).count()
             
+            # ULTRA STRICT date filtering - ONLY actual_close_date within range
             period_closed_won_count = SalesPipeline.objects.filter(
                 **base_pipeline_filter,
-                stage='closed_won'
-            ).filter(
-                Q(actual_close_date__gte=start_date, actual_close_date__lte=end_date) |
-                Q(actual_close_date__isnull=True, created_at__gte=start_date, created_at__lte=end_date)
+                stage='closed_won',
+                actual_close_date__gte=start_date,
+                actual_close_date__lte=end_date
             ).count()
             
-            period_total_sales_count = period_sales_count + period_closed_won_count
+            period_total_sales_count = period_closed_won_count  # Only closed won count counts as sales
+            
+            print(f"📊 Count Calculations:")
+            print(f"   Period Sales Count: {period_sales_count}")
+            print(f"   Period Closed Won Count: {period_closed_won_count}")
+            print(f"   Period Total Sales Count: {period_total_sales_count}")
             
             # For backward compatibility, also calculate today, week, month
             today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -482,10 +976,10 @@ class BusinessDashboardView(APIView):
                 stage='closed_won'
             ).filter(
                 Q(actual_close_date__gte=today_start, actual_close_date__lte=timezone.now()) |
-                Q(actual_close_date__isnull=True, created_at__gte=today_start, created_at__lte=timezone.now())
+                Q(actual_close_date__isnull=True, updated_at__gte=today_start, updated_at__lte=timezone.now())
             ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
             
-            today_total = today_sales + today_closed_won
+            today_total = today_closed_won  # Only closed won revenue counts as sales
             
             week_sales = Sale.objects.filter(
                 **base_sales_filter,
@@ -498,10 +992,10 @@ class BusinessDashboardView(APIView):
                 stage='closed_won'
             ).filter(
                 Q(actual_close_date__gte=week_start, actual_close_date__lte=timezone.now()) |
-                Q(actual_close_date__isnull=True, created_at__gte=week_start, created_at__lte=timezone.now())
+                Q(actual_close_date__isnull=True, updated_at__gte=week_start, updated_at__lte=timezone.now())
             ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
             
-            week_total = week_sales + week_closed_won
+            week_total = week_closed_won  # Only closed won revenue counts as sales
             
             month_sales = Sale.objects.filter(
                 **base_sales_filter,
@@ -514,10 +1008,10 @@ class BusinessDashboardView(APIView):
                 stage='closed_won'
             ).filter(
                 Q(actual_close_date__gte=month_start, actual_close_date__lte=timezone.now()) |
-                Q(actual_close_date__isnull=True, created_at__gte=month_start, created_at__lte=timezone.now())
+                Q(actual_close_date__isnull=True, updated_at__gte=month_start, updated_at__lte=timezone.now())
             ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
             
-            month_total = month_sales + month_closed_won
+            month_total = month_closed_won  # Only closed won revenue counts as sales
             
             # Count sales for today, week, month
             today_sales_count = Sale.objects.filter(
@@ -531,10 +1025,10 @@ class BusinessDashboardView(APIView):
                 stage='closed_won'
             ).filter(
                 Q(actual_close_date__gte=today_start, actual_close_date__lte=timezone.now()) |
-                Q(actual_close_date__isnull=True, created_at__gte=today_start, created_at__lte=timezone.now())
+                Q(actual_close_date__isnull=True, updated_at__gte=today_start, updated_at__lte=timezone.now())
             ).count()
             
-            today_total_sales_count = today_sales_count + today_closed_won_count
+            today_total_sales_count = today_closed_won_count  # Only closed won count counts as sales
             
             week_sales_count = Sale.objects.filter(
                 **base_sales_filter,
@@ -547,10 +1041,10 @@ class BusinessDashboardView(APIView):
                 stage='closed_won'
             ).filter(
                 Q(actual_close_date__gte=week_start, actual_close_date__lte=timezone.now()) |
-                Q(actual_close_date__isnull=True, created_at__gte=week_start, created_at__lte=timezone.now())
+                Q(actual_close_date__isnull=True, updated_at__gte=week_start, updated_at__lte=timezone.now())
             ).count()
             
-            week_total_sales_count = week_sales_count + week_closed_won_count
+            week_total_sales_count = week_closed_won_count  # Only closed won count counts as sales
             
             month_sales_count = Sale.objects.filter(
                 **base_sales_filter,
@@ -563,27 +1057,49 @@ class BusinessDashboardView(APIView):
                 stage='closed_won'
             ).filter(
                 Q(actual_close_date__gte=month_start, actual_close_date__lte=timezone.now()) |
-                Q(actual_close_date__isnull=True, created_at__gte=month_start, created_at__lte=timezone.now())
+                Q(actual_close_date__isnull=True, updated_at__gte=month_start, updated_at__lte=timezone.now())
             ).count()
             
-            month_total_sales_count = month_sales_count + month_closed_won_count
+            month_total_sales_count = month_closed_won_count  # Only closed won count counts as sales
             
-            # 2. Pipeline Revenue (pending deals)
+            # 2. Customer counts for the period
+            new_customers_count = Client.objects.filter(
+                **base_store_filter,
+                created_at__gte=start_date,
+                created_at__lte=end_date,
+                is_deleted=False
+            ).count()
+            
+            # Total customers should also be filtered by date range for consistency
+            total_customers_count = Client.objects.filter(
+                **base_store_filter,
+                created_at__gte=start_date,
+                created_at__lte=end_date,
+                is_deleted=False
+            ).count()
+            
+            # 3. Pipeline Revenue (pending deals) - with date filtering
             pipeline_revenue = SalesPipeline.objects.filter(
                 **base_pipeline_filter,
-                stage__in=['exhibition', 'social_media', 'interested', 'store_walkin', 'negotiation']
+                stage__in=['exhibition', 'social_media', 'interested', 'store_walkin', 'negotiation'],
+                created_at__gte=start_date,
+                created_at__lte=end_date
             ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
             
-            # 3. Closed Won Pipeline Count (moved to sales section)
+            # 3. Closed Won Pipeline Count - with date filtering
             closed_won_pipeline_count = SalesPipeline.objects.filter(
                 **base_pipeline_filter,
-                stage='closed_won'
+                stage='closed_won',
+                actual_close_date__gte=start_date,
+                actual_close_date__lte=end_date
             ).count()
             
-            # 4. Pipeline Deals Count (pending deals)
+            # 4. Pipeline Deals Count (pending deals) - with date filtering
             pipeline_deals_count = SalesPipeline.objects.filter(
                 **base_pipeline_filter,
-                stage__in=['exhibition', 'social_media', 'interested', 'store_walkin', 'negotiation']
+                stage__in=['exhibition', 'social_media', 'interested', 'store_walkin', 'negotiation'],
+                created_at__gte=start_date,
+                created_at__lte=end_date
             ).count()
             
             # 5. Store Performance
@@ -621,19 +1137,37 @@ class BusinessDashboardView(APIView):
                 
                 store_revenue = store_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
                 
+                # More strict date filtering - only include if actual_close_date is within range
                 store_closed_won = SalesPipeline.objects.filter(
                     **store_pipeline_filter,
-                    stage='closed_won'
+                    stage='closed_won',
+                    actual_close_date__gte=start_date,
+                    actual_close_date__lte=end_date
                 ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
                 
-                # Total store revenue = sales + closed won pipeline
-                store_total_revenue = store_revenue + store_closed_won
+                # Total store revenue = only closed won pipeline (since sales == closed won)
+                store_total_revenue = store_closed_won
+                
+                # More strict date filtering - only include if actual_close_date is within range
+                store_sales_count = SalesPipeline.objects.filter(
+                    **store_pipeline_filter,
+                    stage='closed_won',
+                    actual_close_date__gte=start_date,
+                    actual_close_date__lte=end_date
+                ).count()
+                
+                print(f"🏪 Store Performance - {store.name}:")
+                print(f"   Store Closed Won Revenue: {store_closed_won}")
+                print(f"   Store Sales Count: {store_sales_count}")
+                print(f"   Store Total Revenue: {store_total_revenue}")
                 
                 store_performance.append({
                     'id': store.id,
                     'name': store.name,
                     'revenue': float(store_total_revenue),
-                    'closed_won_revenue': float(store_closed_won)
+                    'sales_count': store_sales_count,  # Frontend expects this field
+                    'closed_deals': store_sales_count,  # Frontend expects this field (same as sales_count since sales == closed won)
+                    'purchased_revenue': float(store_closed_won)  # Keep for backward compatibility
                 })
             
             # 6. Top Performing Managers (only for business admin and manager roles)
@@ -682,19 +1216,23 @@ class BusinessDashboardView(APIView):
                     if user.role == 'business_admin' and manager.store:
                         manager_pipeline_filter['client__store'] = manager.store
                     
-                    # Get all-time closed won pipelines
-                    manager_all_time_closed_won = SalesPipeline.objects.filter(
+                    # Get closed won pipelines for the selected date range
+                    manager_closed_won = SalesPipeline.objects.filter(
                         **manager_pipeline_filter,
-                        stage='closed_won'
+                        stage='closed_won',
+                        actual_close_date__gte=start_date,
+                        actual_close_date__lte=end_date
                     ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
                     
                     manager_deals = SalesPipeline.objects.filter(
                         **manager_pipeline_filter,
-                        stage='closed_won'
+                        stage='closed_won',
+                        actual_close_date__gte=start_date,
+                        actual_close_date__lte=end_date
                     ).count()
                     
-                    # Total manager revenue = all-time sales + all-time closed won pipeline
-                    manager_total_revenue = manager_all_time_sales + manager_all_time_closed_won
+                    # Total manager revenue = only closed won pipeline for the period (since sales == closed won)
+                    manager_total_revenue = manager_closed_won
                     
                     # Include managers with any revenue or deals (even if 0 recent activity)
                     if float(manager_total_revenue) > 0 or manager_deals > 0:
@@ -770,17 +1308,21 @@ class BusinessDashboardView(APIView):
                 salesman_closed_won = SalesPipeline.objects.filter(
                     **salesman_pipeline_filter,
                     sales_representative=salesman,
-                    stage='closed_won'
+                    stage='closed_won',
+                    actual_close_date__gte=start_date,
+                    actual_close_date__lte=end_date
                 ).aggregate(total=Sum('expected_value'))['total'] or Decimal('0.00')
                 
                 salesman_deals = SalesPipeline.objects.filter(
                     **salesman_pipeline_filter,
                     sales_representative=salesman,
-                    stage='closed_won'
+                    stage='closed_won',
+                    actual_close_date__gte=start_date,
+                    actual_close_date__lte=end_date
                 ).count()
                 
-                # Total salesman revenue = sales + closed won pipeline
-                salesman_total_revenue = salesman_sales + salesman_closed_won
+                # Total salesman revenue = only closed won pipeline (since sales == closed won)
+                salesman_total_revenue = salesman_closed_won
                 
                 if float(salesman_total_revenue) > 0:
                     salesman_data = {
@@ -803,6 +1345,19 @@ class BusinessDashboardView(APIView):
             
             # Prepare response data
             dashboard_data = {
+                'monthly_sales': {
+                    'count': period_total_sales_count,  # Frontend expects this field
+                    'revenue': float(period_total)  # Frontend expects this field
+                },
+                'monthly_customers': {
+                    'new': new_customers_count,  # Frontend expects this field
+                    'total': total_customers_count  # Frontend expects this field
+                },
+                'monthly_pipeline': {
+                    'active': pipeline_deals_count,  # Frontend expects this field
+                    'closed': closed_won_pipeline_count,  # Frontend expects this field
+                    'revenue': float(pipeline_revenue)  # Frontend expects this field
+                },
                 'total_sales': {
                     'period': float(period_total),
                     'today': float(today_total),
@@ -814,66 +1369,55 @@ class BusinessDashboardView(APIView):
                     'month_count': month_total_sales_count
                 },
                 'pipeline_revenue': float(pipeline_revenue),
-                'closed_won_pipeline_count': closed_won_pipeline_count,
+                'purchased_pipeline_count': closed_won_pipeline_count,  # Fixed: match frontend expectation
                 'pipeline_deals_count': pipeline_deals_count,
                 'store_performance': store_performance,
                 'top_managers': top_managers,
-                'top_salesmen': top_salesmen
+                'top_salesmen': top_salesmen,
+                'date_range': {
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat(),
+                    'filter_type': filter_type
+                }
             }
             
-            return Response(dashboard_data)
+            # Add debugging information
+            print(f"🔍 Dashboard API Debug:")
+            print(f"   Filter Type: {filter_type}")
+            print(f"   Start Date: {start_date}")
+            print(f"   End Date: {end_date}")
+            print(f"   Period Sales: {period_total}")
+            print(f"   Period Count: {period_total_sales_count}")
+            print(f"   Today Sales: {today_total}")
+            print(f"   Month Sales: {month_total}")
+            
+            return Response({
+                'success': True,
+                'data': dashboard_data,
+                'message': f'Dashboard data for {filter_type} filter'
+            })
             
         except Exception as e:
+            print(f"❌ Dashboard API Error: {str(e)}")
             return Response({
-                'total_sales': {
-                    'period': 25000.00,
-                    'today': 25000.00,
-                    'week': 150000.00,
-                    'month': 450000.00
-                },
-                'pipeline_revenue': 350000.00,
-                'closed_won_pipeline_count': 25,
-                'pipeline_deals_count': 18,
-                'store_performance': [
-                    {
-                        'id': 1,
-                        'name': 'Main Store',
-                        'revenue': 250000.00,
-                        'closed_won_revenue': 200000.00
+                'success': False,
+                'error': f'Failed to load dashboard data: {str(e)}',
+                'data': {
+                    'total_sales': {
+                        'period': 0,
+                        'today': 0,
+                        'week': 0,
+                        'month': 0,
+                        'period_count': 0,
+                        'today_count': 0,
+                        'week_count': 0,
+                        'month_count': 0
                     },
-                    {
-                        'id': 2,
-                        'name': 'Branch Store',
-                        'revenue': 200000.00,
-                        'closed_won_revenue': 150000.00
-                    }
-                ],
-                'top_managers': [
-                    {
-                        'id': 1,
-                        'name': 'Rajesh Kumar',
-                        'revenue': 120000.00,
-                        'deals_closed': 8
-                    },
-                    {
-                        'id': 2,
-                        'name': 'Priya Sharma',
-                        'revenue': 95000.00,
-                        'deals_closed': 6
-                    }
-                ],
-                'top_salesmen': [
-                    {
-                        'id': 3,
-                        'name': 'Amit Patel',
-                        'revenue': 85000.00,
-                        'deals_closed': 12
-                    },
-                    {
-                        'id': 4,
-                        'name': 'Neha Singh',
-                        'revenue': 72000.00,
-                        'deals_closed': 10
-                    }
-                ]
-            })
+                    'pipeline_revenue': 0,
+                    'purchased_pipeline_count': 0,
+                    'pipeline_deals_count': 0,
+                    'store_performance': [],
+                    'top_managers': [],
+                    'top_salesmen': []
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

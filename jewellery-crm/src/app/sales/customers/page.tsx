@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,9 @@ import { useAuth } from '@/hooks/useAuth';
 import ScopeIndicator from '@/components/ui/ScopeIndicator';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { DateRange } from 'react-day-picker';
+import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 
 export default function SalesCustomersPage() {
   const { userScope } = useScopedVisibility();
@@ -35,6 +38,7 @@ export default function SalesCustomersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Client | null>(null);
   const [filteredCustomers, setFilteredCustomers] = useState<Client[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
 
   // Check if user can delete customers (managers and higher roles)
   const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
@@ -43,13 +47,20 @@ export default function SalesCustomersPage() {
   const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('Fetching customers with user scope:', userScope.type);
+      console.log('🔍 [SALES] Fetching customers with params:', {
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+        userScope: userScope.type,
+      });
       
-      const response = await apiService.getClients();
-      console.log('Customers API response:', response);
+      const response = await apiService.getClients({
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      console.log('📊 [SALES] API Response:', response);
       
       const customersData = Array.isArray(response.data) ? response.data : [];
-      console.log('Processed customers data:', customersData);
+      console.log(`✅ [SALES] Loaded ${customersData.length} customers`);
       
       setCustomers(customersData);
     } catch (error) {
@@ -63,11 +74,11 @@ export default function SalesCustomersPage() {
     } finally {
       setLoading(false);
     }
-  }, [userScope.type, toast]);
+  }, [userScope.type, toast, dateRange]);
 
   useEffect(() => {
     fetchCustomers();
-  }, [fetchCustomers]);
+  }, [fetchCustomers, dateRange]);
 
   useEffect(() => {
     // Filter customers based on search term, status, and my data filter
@@ -152,7 +163,7 @@ export default function SalesCustomersPage() {
         console.log('Customer deleted successfully');
         toast({
           title: "Success!",
-          description: "Customer moved to trash successfully!",
+          description: "Customer permanently deleted from database!",
           variant: "success",
         });
       } else {
@@ -174,16 +185,16 @@ export default function SalesCustomersPage() {
       fetchCustomers();
       
       // Handle specific permission errors
-      if (error.message && error.message.includes('House sales persons cannot delete customers')) {
+      if (error.message && error.message.includes('You do not have permission to delete customers')) {
         toast({
           title: "Permission Denied",
-          description: "You do not have permission to delete customers. Only managers can delete customers.",
+          description: "You do not have permission to delete customers. Only business admins can delete customers.",
           variant: "destructive",
         });
-      } else if (error.message && error.message.includes('You do not have permission to delete this customer')) {
+      } else if (error.message && error.message.includes('Only business admins can delete customers')) {
         toast({
           title: "Permission Denied",
-          description: "You do not have permission to delete this customer. You can only delete customers from your own store.",
+          description: "Only business admins can delete customers. Please contact your business administrator.",
           variant: "destructive",
         });
       } else {
@@ -350,6 +361,11 @@ export default function SalesCustomersPage() {
             </div>
           </div>
           <div className="flex gap-2 items-center">
+            <DateRangeFilter
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              placeholder="Filter by date range"
+            />
             <Button 
               variant="outline" 
               size="sm" 
@@ -373,6 +389,23 @@ export default function SalesCustomersPage() {
             </Button>
           </div>
         </div>
+
+      {/* Date Filter Indicator */}
+      <Card className="shadow-sm border-blue-200 bg-blue-50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-700">Current Date Filter</p>
+                      <p className="text-sm font-bold text-blue-800">
+                        {formatDateRange(dateRange)}
+                      </p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 text-sm font-semibold">📅</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">

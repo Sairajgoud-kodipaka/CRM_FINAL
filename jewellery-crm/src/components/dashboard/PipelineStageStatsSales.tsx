@@ -12,6 +12,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { DateRange } from 'react-day-picker';
+import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 import { 
   CUSTOMER_INTERESTS,
   PRODUCT_TYPES,
@@ -78,6 +81,7 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
   const [pipelineStats, setPipelineStats] = useState<PipelineStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +102,7 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
     { name: 'Interested', value: 'interested', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
     { name: 'Store - Walkin', value: 'store_walkin', color: 'bg-green-100 text-green-800 border-green-200' },
     { name: 'Negotiation', value: 'negotiation', color: 'bg-orange-100 text-orange-800 border-orange-200' },
-    { name: 'Purchased', value: 'purchased', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+    { name: 'Closed Won', value: 'closed_won', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
     { name: 'Closed Lost', value: 'closed_lost', color: 'bg-red-100 text-red-800 border-red-200' },
     { name: 'Future Prospect', value: 'future_prospect', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
     { name: 'Not Qualified', value: 'not_qualified', color: 'bg-gray-100 text-gray-800 border-gray-200' },
@@ -106,13 +110,23 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
 
   useEffect(() => {
     fetchPipelineStats();
-  }, []);
+  }, [dateRange]);
 
   const fetchPipelineStats = async () => {
     try {
       setLoading(true);
+      console.log('🔍 [PIPELINE] Fetching pipeline stats with params:', {
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      
       // Try to get detailed stage data first
-      let response = await apiService.getPipelineStages();
+      let response = await apiService.getPipelineStages({
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      
+      console.log('📊 [PIPELINE] Pipeline stages API Response:', response);
       
       if (response.success) {
         const stagesData = response.data;
@@ -131,7 +145,10 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
         setPipelineStats(stageStats);
       } else {
         // Fallback to general pipeline stats
-        response = await apiService.getPipelineStats();
+        response = await apiService.getPipelineStats({
+          start_date: dateRange?.from?.toISOString(),
+          end_date: dateRange?.to?.toISOString(),
+        });
         if (response.success) {
           // Use general stats to show at least some data
           const stats = response.data;
@@ -314,6 +331,36 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
 
   return (
     <div className={className}>
+      {/* Date Filter */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-text-primary">Sales Pipeline</h2>
+          <p className="text-text-secondary text-sm">Track customer progress through sales stages</p>
+        </div>
+        <DateRangeFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          placeholder="Filter by date range"
+        />
+      </div>
+
+      {/* Date Filter Indicator */}
+      <Card className="shadow-sm border-blue-200 bg-blue-50 mb-6">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-700">Current Date Filter</p>
+                      <p className="text-sm font-bold text-blue-800">
+                        {formatDateRange(dateRange)}
+                      </p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 text-sm font-semibold">📅</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-8">
@@ -360,9 +407,6 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
               <CardContent className="pt-0">
                 <div className="text-2xl font-bold mb-2">
                   {stage.count}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {formatCurrency(stage.value_sum)}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
                   Click to view customers

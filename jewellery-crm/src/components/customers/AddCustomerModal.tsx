@@ -68,11 +68,6 @@ interface FormData {
   savingScheme: string;
   customerInterests: string[];
 
-  customerPreferences: string;
-  designSelected: string;
-  wantsMoreDiscount: string;
-  checkingOtherJewellers: string;
-  letHimVisit: string;
   productType: string;
   style: string;
 
@@ -96,8 +91,6 @@ interface FormData {
   // New Critical Fields
   ageOfEndUser: string;
   productSubtype: string;
-  goldRange: string;
-  diamondRange: string;
   ageingPercentage: string;
   
   // Material Selection Fields
@@ -108,6 +101,7 @@ interface FormData {
 }
 
 interface ProductInterest {
+  mainCategory: string;
   products: { product: string; revenue: string }[];
   preferences: {
     designSelected: boolean;
@@ -154,11 +148,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     savingScheme: "Inactive",
     customerInterests: [],
 
-    customerPreferences: "",
-    designSelected: "Modern",
-    wantsMoreDiscount: "No",
-    checkingOtherJewellers: "No",
-    letHimVisit: "No",
     productType: "",
     style: "",
     selectedWeight: 3.5,
@@ -181,8 +170,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     // New Critical Fields
     ageOfEndUser: "",
     productSubtype: "",
-    goldRange: "",
-    diamondRange: "",
     ageingPercentage: "",
     
     // Material Selection Fields
@@ -224,6 +211,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // State for interests
       const [interests, setInterests] = useState<ProductInterest[]>([
       {
+        mainCategory: "",
         products: [{ product: "", revenue: "" }],
         preferences: {
           designSelected: false,
@@ -679,11 +667,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         customer_interests: formData.customerInterests,
         customer_interests_input: interests.map(interest => JSON.stringify(interest)),
 
-        customer_preferences: cleanStringField(formData.customerPreferences),
-        design_selected: formData.designSelected,
-        wants_more_discount: formData.wantsMoreDiscount,
-        checking_other_jewellers: formData.checkingOtherJewellers,
-        let_him_visit: formData.letHimVisit,
         product_type: formData.productType,
         style: formData.style,
 
@@ -696,8 +679,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         // New Critical Fields
         age_of_end_user: formData.ageOfEndUser,
         product_subtype: formData.productSubtype,
-        gold_range: formData.goldRange,
-        diamond_range: formData.diamondRange,
         ageing_percentage: cleanStringField(formData.ageingPercentage),
         
         // Material Selection Fields
@@ -1185,6 +1166,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const addInterest = () => {
     console.log('➕ Adding new interest...');
     const newInterest = {
+        mainCategory: "",
         products: [{ product: "", revenue: "" }],
         preferences: {
           designSelected: false,
@@ -1765,6 +1747,32 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                     )}
                   </div>
                   
+                  {/* Category Selection for this interest */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">Category</label>
+                    <Select
+                      value={interest.mainCategory || ''}
+                      onValueChange={(value) => {
+                        setInterests(prev => {
+                          const copy = [...prev];
+                          copy[idx].mainCategory = value;
+                          return copy;
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.name}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
                   {/* Product Selection for this interest */}
                   <div className="mb-4">
                     <label className="block text-sm font-medium mb-2">Product</label>
@@ -2004,62 +2012,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         <div className="border rounded-lg p-4 mb-4">
           <div className="font-semibold mb-3 text-lg">📝 Additional Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Gold Range</label>
-              <Input 
-                placeholder="Enter gold range" 
-                value={formData.goldRange}
-                onChange={(e) => handleInputChange('goldRange', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Diamond Range</label>
-              <Input 
-                placeholder="Enter diamond range" 
-                value={formData.diamondRange}
-                onChange={(e) => handleInputChange('diamondRange', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Customer Preferences</label>
-              <Input 
-                placeholder="Enter customer preferences" 
-                value={formData.customerPreferences}
-                onChange={(e) => handleInputChange('customerPreferences', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Design Selected</label>
-              <Input 
-                placeholder="Enter design selected" 
-                value={formData.designSelected}
-                onChange={(e) => handleInputChange('designSelected', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Wants More Discount</label>
-              <Input 
-                placeholder="Enter discount preference" 
-                value={formData.wantsMoreDiscount}
-                onChange={(e) => handleInputChange('wantsMoreDiscount', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Checking Other Jewellers</label>
-              <Input 
-                placeholder="Enter checking status" 
-                value={formData.checkingOtherJewellers}
-                onChange={(e) => handleInputChange('checkingOtherJewellers', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Visit Preference</label>
-              <Input 
-                placeholder="Enter visit preference" 
-                value={formData.letHimVisit}
-                onChange={(e) => handleInputChange('letHimVisit', e.target.value)}
-              />
-            </div>
             <div>
               <label className="block text-sm font-medium mb-1">Design Number</label>
               <Input 

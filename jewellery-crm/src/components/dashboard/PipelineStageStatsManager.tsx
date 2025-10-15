@@ -98,7 +98,7 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
     { name: 'Interested', value: 'interested', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Store - Walkin', value: 'store_walkin', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Negotiation', value: 'negotiation', color: 'bg-white text-gray-800 border-gray-200' },
-    { name: 'Purchased', value: 'purchased', color: 'bg-white text-gray-800 border-gray-200' },
+    { name: 'Closed Won', value: 'closed_won', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Closed Lost', value: 'closed_lost', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Future Prospect', value: 'future_prospect', color: 'bg-white text-gray-800 border-gray-200' },
     { name: 'Not Qualified', value: 'not_qualified', color: 'bg-white text-gray-800 border-gray-200' },

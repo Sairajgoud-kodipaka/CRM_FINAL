@@ -16,6 +16,8 @@ import { ImportModal } from '@/components/customers/ImportModal';
 import { ExportModal } from '@/components/customers/ExportModal';
 import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal';
 import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 
 export default function CustomersPage() {
   const { user } = useAuth();
@@ -29,6 +31,7 @@ export default function CustomersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
 
   // Check if user can delete customers (managers and higher roles)
   const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
@@ -50,14 +53,20 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchClients();
-  }, [currentPage, searchTerm, statusFilter]);
+  }, [currentPage, searchTerm, statusFilter, dateRange]);
 
   const fetchClients = async () => {
     try {
       setLoading(true);
+      console.log('🔍 [BUSINESS ADMIN] Fetching customers with params:', {
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      
       const response = await apiService.getClients({
         page: currentPage,
-       
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
         status: statusFilter === 'all' ? undefined : statusFilter,
       });
       
@@ -234,10 +243,10 @@ export default function CustomersPage() {
         console.error('Failed to delete client:', error);
         
         // Handle specific permission errors
-        if (error.message && error.message.includes('House sales persons cannot delete customers')) {
-          alert('You do not have permission to delete customers. Only managers can delete customers. Please contact your administrator.');
-        } else if (error.message && error.message.includes('You do not have permission to delete this customer')) {
-          alert('You do not have permission to delete this customer. You can only delete customers from your own store.');
+        if (error.message && error.message.includes('You do not have permission to delete customers')) {
+          alert('You do not have permission to delete customers. Only business admins can delete customers.');
+        } else if (error.message && error.message.includes('Only business admins can delete customers')) {
+          alert('Only business admins can delete customers. Please contact your business administrator.');
         } else {
           alert('Failed to delete customer. Please try again.');
         }
@@ -342,6 +351,23 @@ export default function CustomersPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Date Filter */}
+      <Card className="shadow-sm border-blue-200 bg-blue-50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-blue-800">Date Range Filter:</span>
+              <span className="text-sm text-blue-600">{formatDateRange(dateRange)}</span>
+            </div>
+            <DateRangeFilter
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              className="w-auto"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Search and Filters */}
       <Card className="shadow-sm">

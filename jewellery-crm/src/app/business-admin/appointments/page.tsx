@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { DateRange } from 'react-day-picker';
+import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 
 import { Search, Filter, MoreHorizontal, Calendar, Clock, User, MapPin, Eye, CheckCircle, XCircle, AlertTriangle, CalendarDays, RefreshCw } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
@@ -74,6 +77,7 @@ export default function BusinessAdminAppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
   
 
 
@@ -92,7 +96,7 @@ export default function BusinessAdminAppointmentsPage() {
     const interval = setInterval(checkTodayAppointments, 60 * 60 * 1000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [dateRange]);
 
   useEffect(() => {
     // Filter appointments based on search term, status, and date
@@ -235,12 +239,17 @@ export default function BusinessAdminAppointmentsPage() {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      console.log('=== FETCHING APPOINTMENTS ===');
-      const response = await apiService.getAppointments();
-      console.log('Appointments API response:', response);
-      console.log('Response success:', response.success);
-      console.log('Response data type:', typeof response.data);
-      console.log('Response data:', response.data);
+      console.log('🔍 [APPOINTMENTS] Fetching appointments with params:', {
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      
+      const response = await apiService.getAppointments({
+        start_date: dateRange?.from?.toISOString(),
+        end_date: dateRange?.to?.toISOString(),
+      });
+      
+      console.log('📊 [APPOINTMENTS] API Response:', response);
       
       // Ensure we have an array of appointments
       const appointmentsData = Array.isArray(response.data) ? response.data : [];
@@ -364,11 +373,16 @@ export default function BusinessAdminAppointmentsPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
-              <div>
+        <div>
           <h1 className="text-2xl font-semibold text-text-primary">Appointments</h1>
           <p className="text-text-secondary mt-1">Manage and track all appointments</p>
-              </div>
-        <div className="flex gap-2">
+        </div>
+        <div className="flex gap-2 items-center">
+          <DateRangeFilter
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            placeholder="Filter by date range"
+          />
           <Button 
             variant="outline" 
             size="sm" 
@@ -377,8 +391,25 @@ export default function BusinessAdminAppointmentsPage() {
           >
             <RefreshCw className="w-4 h-4" /> Refresh
           </Button>
-              </div>
+        </div>
+      </div>
+
+      {/* Date Filter Indicator */}
+      <Card className="shadow-sm border-blue-200 bg-blue-50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-700">Current Date Filter</p>
+              <p className="text-sm font-bold text-blue-800">
+                {formatDateRange(dateRange)}
+              </p>
             </div>
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 text-sm font-semibold">📅</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

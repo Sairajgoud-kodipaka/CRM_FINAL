@@ -62,7 +62,7 @@ export const SALES_STAGES = {
   INTERESTED: 'interested',
   STORE_WALKIN: 'store_walkin',
   NEGOTIATION: 'negotiation',
-  PURCHASED: 'purchased',
+  CLOSED_WON: 'closed_won',
   CLOSED_LOST: 'closed_lost',
   FUTURE_PROSPECT: 'future_prospect',
   NOT_QUALIFIED: 'not_qualified',
@@ -74,7 +74,7 @@ export const SALES_STAGE_LABELS = {
   [SALES_STAGES.INTERESTED]: 'Interested Customer',
   [SALES_STAGES.STORE_WALKIN]: 'Store Walk-in',
   [SALES_STAGES.NEGOTIATION]: 'In Negotiation',
-  [SALES_STAGES.PURCHASED]: 'Purchased',
+  [SALES_STAGES.CLOSED_WON]: 'Closed Won',
   [SALES_STAGES.CLOSED_LOST]: 'Deal Lost',
   [SALES_STAGES.FUTURE_PROSPECT]: 'Future Prospect',
   [SALES_STAGES.NOT_QUALIFIED]: 'Not Qualified',
@@ -86,7 +86,7 @@ export const SALES_STAGE_COLORS = {
   [SALES_STAGES.INTERESTED]: '#A78BFA', // violet-400
   [SALES_STAGES.STORE_WALKIN]: '#FBBF24', // amber-400
   [SALES_STAGES.NEGOTIATION]: '#F59E0B', // amber-500
-  [SALES_STAGES.PURCHASED]: '#34D399', // emerald-400
+  [SALES_STAGES.CLOSED_WON]: '#34D399', // emerald-400
   [SALES_STAGES.CLOSED_LOST]: '#F87171', // red-400
   [SALES_STAGES.FUTURE_PROSPECT]: '#8B5CF6', // violet-500
   [SALES_STAGES.NOT_QUALIFIED]: '#6B7280', // gray-500

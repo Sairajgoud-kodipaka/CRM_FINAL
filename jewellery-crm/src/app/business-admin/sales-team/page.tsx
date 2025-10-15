@@ -183,20 +183,7 @@ export default function SalesTeamPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(teamPerformance.summary.total_revenue)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Across all sales team
-            </p>
-          </CardContent>
-        </Card>
+       
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -274,19 +261,13 @@ export default function SalesTeamPage() {
                     <span>{member.store_name || 'No store assigned'}</span>
                   </div>
 
-                  {/* Key Metrics */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Key Metrics (revenue removed) */}
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-600">
                         {member.total_customers}
                       </div>
                       <div className="text-xs text-gray-500">Customers</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">
-                        {formatCurrency(member.total_revenue)}
-                      </div>
-                      <div className="text-xs text-gray-500">Revenue</div>
                     </div>
                   </div>
 
@@ -565,19 +546,7 @@ function SalesPersonDetailModal({ salesPerson, onClose }: SalesPersonDetailModal
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600">
-                      {formatCurrency(detailedProfile.metrics.revenue.total_revenue)}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      +{formatCurrency(detailedProfile.metrics.revenue.revenue_30_days)} this month
-                    </p>
-                  </CardContent>
-                </Card>
+                
 
                 <Card>
                   <CardHeader className="pb-2">
@@ -630,11 +599,7 @@ function SalesPersonDetailModal({ salesPerson, onClose }: SalesPersonDetailModal
                               {new Date(activity.date).toLocaleDateString()}
                             </div>
                           </div>
-                          {activity.value && (
-                            <div className="text-sm font-medium text-green-600">
-                              {formatCurrency(activity.value)}
-                            </div>
-                          )}
+                          
                         </div>
                       ))}
                     </div>
