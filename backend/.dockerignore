@@ -1,0 +1,40 @@
+# Bytecode and cache
+**/__pycache__/
+**/*.pyc
+
+# Virtualenvs
+.venv/
+venv/
+
+# Tests (exclude from image)
+**/tests/**
+**/test_*.py
+**/*_test.py
+
+# Dev-only settings and debug scripts
+core/settings_local.py
+core/settings_dev.py
+**/debug_*.py
+
+# Docs (not needed in runtime image)
+**/*.md
+**/*.MD
+**/*.markdown
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local env files
+.env
+.env.*
+
+# Local media (use external storage in prod)
+media/**
+
+# Build artifacts
+**/*.log
+**/*.sqlite3
+**/*.tsbuildinfo
