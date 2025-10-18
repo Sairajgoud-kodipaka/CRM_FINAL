@@ -52,10 +52,24 @@ EOF
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-# Start the application (ASGI for Channels/WebSockets)
-echo "Starting Uvicorn (ASGI) server..."
-exec uvicorn core.asgi:application \
-    --host 0.0.0.0 \
-    --port $PORT \
-    --workers 2 \
-    --proxy-headers
+# Start the application
+echo "Starting application server..."
+
+# Check if we should use ASGI (for WebSockets) or WSGI (for stability)
+if [ "$USE_ASGI" = "true" ]; then
+    echo "Starting Uvicorn (ASGI) server for WebSocket support..."
+    exec uvicorn core.asgi:application \
+        --host 0.0.0.0 \
+        --port $PORT \
+        --workers 1 \
+        --proxy-headers
+else
+    echo "Starting Gunicorn (WSGI) server for stability..."
+    exec gunicorn core.wsgi:application \
+        --bind 0.0.0.0:$PORT \
+        --workers 2 \
+        --timeout 300 \
+        --preload \
+        --access-logfile - \
+        --error-logfile -
+fi
