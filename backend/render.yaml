@@ -73,6 +73,8 @@ services:
         value: 'PASTE_YOUR_ACTUAL_JSON_CONTENT_HERE'
       - key: GOOGLE_SHEETS_ID
         value: '1W9JFanGBpl5DpFDcGELl3iLCvGnj35rWK0VLxvTS5t0'
+      - key: USE_ASGI
+        value: 'false'
     healthCheckPath: /api/health/
     autoDeploy: true
     buildFilter:
