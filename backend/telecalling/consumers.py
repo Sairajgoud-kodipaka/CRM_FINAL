@@ -2,6 +2,8 @@ import json
 import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.contrib.auth.models import User
+from .models import CallRequest
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +30,6 @@ class CallConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         try:
-            # Import models inside method to avoid app registry issues
-            from django.apps import apps
-            User = apps.get_model('auth', 'User')
-            CallRequest = apps.get_model('telecalling', 'CallRequest')
-            
             text_data_json = json.loads(text_data)
             message_type = text_data_json.get('type')
             

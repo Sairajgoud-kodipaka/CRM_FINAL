@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { telecallingApiService, CallLog as ApiCallLog } from '@/services/telecallingApi';
 import { apiService } from '@/lib/api-service';
-// Exotel WebRTC service removed
+import { exotelWebRTCService } from '@/services/exotelWebRTC';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WebRTCConfig, CallStatus as WebRTCCallStatus } from '@/types/webrtc';
@@ -87,7 +87,7 @@ function CallPageContent() {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [callQuality, setCallQuality] = useState<'excellent' | 'good' | 'fair' | 'poor'>('excellent');
   const [realTimeStatus, setRealTimeStatus] = useState<string>('');
-  const [callId, setCallId] = useState<string>('');
+  const [exotelCallId, setExotelCallId] = useState<string>('');
   const [callLogs, setCallLogs] = useState<LocalCallLog[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string>('');
@@ -163,8 +163,8 @@ function CallPageContent() {
         clearInterval(statusPollingInterval.current);
       }
       
-      // Cleanup call resources
-      setCallId('');
+      // Cleanup WebRTC
+      exotelWebRTCService.cleanup();
     };
   }, [phoneNumber, leadId]);
 
