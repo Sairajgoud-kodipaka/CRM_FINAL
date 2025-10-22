@@ -101,54 +101,63 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database Configuration - SQLite for development
+# Database Configuration - PostgreSQL for all environments
 import sys
 
-# Use SQLite for development
+# Use PostgreSQL for all environments
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='jewellery_crm'),
+        'USER': config('DB_USER', default='postgres'),
+        'PASSWORD': config('DB_PASSWORD', default='postgresql'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+                'OPTIONS': {
+                    'connect_timeout': 30,
+                    'client_encoding': 'utf8',
+                    'sslmode': 'disable',
+                },
     }
 }
 
-# Production configuration for Render managed database (commented out for development)
-# if not DEBUG:
-#     # Check if DATABASE_URL is provided (preferred method)
-#     database_url = config('DATABASE_URL', default=None)
-#     
-#     if database_url:
-#         # Use DATABASE_URL if provided
-#         import dj_database_url
-#         DATABASES['default'] = dj_database_url.parse(
-#             database_url,
-#             conn_max_age=600,
-#             conn_health_checks=True,
-#         )
-#     else:
-#         # Fallback to individual database environment variables
-#         DATABASES['default'] = {
-#             'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
-#             'NAME': config('DB_NAME', default='crm_db'),
-#             'USER': config('DB_USER', default='crm_user'),
-#             'PASSWORD': config('DB_PASSWORD', default=''),
-#             'HOST': config('DB_HOST', default='localhost'),
-#             'PORT': config('DB_PORT', default='5432'),
-#             'CONN_MAX_AGE': 600,
-#             'CONN_HEALTH_CHECKS': True,
-#         }
-#     
-#     # Additional Render optimizations (only for PostgreSQL)
-#     if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
-#         if 'OPTIONS' not in DATABASES['default']:
-#             DATABASES['default']['OPTIONS'] = {}
-#         
-#         DATABASES['default']['OPTIONS'].update({
-#             'application_name': 'jewellery_crm_backend',
-#             'connect_timeout': 60,
-#             'sslmode': 'require',
-#             'client_encoding': 'utf8',
-#         })
+# Production configuration for Render managed database
+if not DEBUG:
+    # Check if DATABASE_URL is provided (preferred method)
+    database_url = config('DATABASE_URL', default=None)
+    
+    if database_url:
+        # Use DATABASE_URL if provided
+        import dj_database_url
+        DATABASES['default'] = dj_database_url.parse(
+            database_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    else:
+        # Fallback to individual database environment variables
+        DATABASES['default'] = {
+            'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
+            'NAME': config('DB_NAME', default='crm_db'),
+            'USER': config('DB_USER', default='crm_user'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': 600,
+            'CONN_HEALTH_CHECKS': True,
+        }
+    
+    # Additional Render optimizations (only for PostgreSQL)
+    if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+        if 'OPTIONS' not in DATABASES['default']:
+            DATABASES['default']['OPTIONS'] = {}
+        
+        DATABASES['default']['OPTIONS'].update({
+            'application_name': 'jewellery_crm_backend',
+            'connect_timeout': 60,
+            'sslmode': 'require',
+            'client_encoding': 'utf8',
+        })
 
 # During collectstatic, use a dummy database config
 if 'collectstatic' in sys.argv:
@@ -443,57 +452,25 @@ CHANNEL_LAYERS = {
     },
 }
 
-# Call Management Configuration (Exotel removed)
-CALL_CONFIG = {
-    'enable_call_logging': config('ENABLE_CALL_LOGGING', default=True, cast=bool),
-    'enable_call_recording': config('ENABLE_CALL_RECORDING', default=False, cast=bool),
-    'max_call_duration': config('MAX_CALL_DURATION', default=3600, cast=int),  # 1 hour
-    'call_retry_attempts': config('CALL_RETRY_ATTEMPTS', default=3, cast=int),
-}
-# Google Sheets Integration Configuration
-GOOGLE_SHEETS_ENABLED = config('GOOGLE_SHEETS_ENABLED', default=False, cast=bool)
-GOOGLE_SHEETS_ID = config('GOOGLE_SHEETS_ID', default=None)
-
-# Channels Configuration for WebSocket support
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(config('REDIS_HOST', default='127.0.0.1'), config('REDIS_PORT', default=6379, cast=int))],
-        },
-    },
-}
-
-# Logging Configuration
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-    },
-    'loggers': {
-        'telecalling': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    },
+# Exotel Configuration
+EXOTEL_CONFIG = {
+    'account_sid': config('EXOTEL_ACCOUNT_SID', default=''),
+    'api_key': config('EXOTEL_API_KEY', default=''),
+    'api_token': config('EXOTEL_API_TOKEN', default=''),
+    'agent_number': config('EXOTEL_AGENT_NUMBER', default=''),
+    'caller_id': config('EXOTEL_CALLER_ID', default=''),
+    'subdomain': config('EXOTEL_SUBDOMAIN', default='api.exotel.com'),  # api.exotel.com for Singapore or api.in.exotel.com for Mumbai
+    'webhook_url': config('EXOTEL_WEBHOOK_URL', default=''),
+    'webhook_secret': config('EXOTEL_WEBHOOK_SECRET', default=''),
+    'record_calls': config('EXOTEL_RECORD_CALLS', default=True, cast=bool),
+    
+    # WebRTC Configuration for direct browser-to-phone calling
+    'webrtc_client_id': config('EXOTEL_WEBRTC_CLIENT_ID', default=''),
+    'webrtc_client_secret': config('EXOTEL_WEBRTC_CLIENT_SECRET', default=''),
+    'webrtc_customer_id': config('EXOTEL_WEBRTC_CUSTOMER_ID', default=''),
+    'webrtc_app_id': config('EXOTEL_WEBRTC_APP_ID', default=''),
+    'webrtc_user_id': config('EXOTEL_WEBRTC_USER_ID', default=''),
+    'webrtc_sip_username': config('EXOTEL_WEBRTC_SIP_USERNAME', default=''),
+    'webrtc_sip_password': config('EXOTEL_WEBRTC_SIP_PASSWORD', default=''),
+    'webrtc_enabled': config('EXOTEL_WEBRTC_ENABLED', default=False, cast=bool),
 }

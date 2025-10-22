@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -146,6 +145,7 @@ export default function TelecallerDashboardPage() {
       setGoogleSheetsStatus(statusData);
     } catch (err) {
       console.error('Error fetching Google Sheets status:', err);
+      // Set default status if API fails
       setGoogleSheetsStatus({
         connection_status: false,
         total_leads: 0,
@@ -157,6 +157,7 @@ export default function TelecallerDashboardPage() {
   useEffect(() => {
     fetchDashboardData();
     fetchGoogleSheetsStatus();
+    // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       fetchDashboardData();
       fetchGoogleSheetsStatus();
@@ -405,6 +406,7 @@ export default function TelecallerDashboardPage() {
                 <div className="text-xs text-gray-500">{dashboardData?.appointments_set || 0} set</div>
               </div>
             </Button>
+            
           </CardContent>
         </Card>
 
@@ -492,6 +494,7 @@ export default function TelecallerDashboardPage() {
                         setIsSyncing(true);
                         const result = await telecallingApiService.triggerManualSync();
                         if (result.sync_status) {
+                          // Refresh data after successful sync
                           await fetchDashboardData();
                           await fetchGoogleSheetsStatus();
                           alert('✅ Manual sync completed successfully! New leads have been imported and assigned.');
@@ -593,6 +596,7 @@ export default function TelecallerDashboardPage() {
                   setIsSyncing(true);
                   const result = await telecallingApiService.triggerManualSync();
                   if (result.sync_status) {
+                    // Refresh data after successful sync
                     await fetchDashboardData();
                     await fetchGoogleSheetsStatus();
                     alert('✅ Manual sync completed successfully! New leads have been imported and assigned.');
