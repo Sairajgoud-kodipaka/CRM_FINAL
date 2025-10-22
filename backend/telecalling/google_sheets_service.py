@@ -29,6 +29,12 @@ class GoogleSheetsService:
     def _initialize_service(self):
         """Initialize Google Sheets service"""
         try:
+            # Check if Google Sheets is enabled
+            sheets_enabled = getattr(settings, 'GOOGLE_SHEETS_ENABLED', False)
+            if not sheets_enabled:
+                logger.info("Google Sheets integration is disabled")
+                return
+            
             # Try Render secret files first (production)
             render_secret_path = '/etc/secrets/mangatrai-6bc45a711bae.json'
             
@@ -39,7 +45,7 @@ class GoogleSheetsService:
                 key_file_path = os.path.join(settings.BASE_DIR.parent, 'jewellery-crm', 'mangatrai-6bc45a711bae.json')
             
             if not os.path.exists(key_file_path):
-                logger.error(f"Google Sheets credentials file not found: {key_file_path}")
+                logger.warning(f"Google Sheets credentials file not found: {key_file_path}. Google Sheets integration will be disabled.")
                 return
             
             # Load credentials
@@ -54,10 +60,15 @@ class GoogleSheetsService:
             # Get spreadsheet ID from settings or environment
             self.spreadsheet_id = getattr(settings, 'GOOGLE_SHEETS_ID', None)
             if not self.spreadsheet_id:
-                logger.warning("GOOGLE_SHEETS_ID not configured")
+                logger.warning("GOOGLE_SHEETS_ID not configured. Please set the spreadsheet ID.")
+                return
+                
+            logger.info("Google Sheets service initialized successfully")
             
         except Exception as e:
             logger.error(f"Failed to initialize Google Sheets service: {str(e)}")
+            self.service = None
+            self.credentials = None
     
     def _get_telecallers(self):
         """Get all active telecallers for round-robin assignment"""

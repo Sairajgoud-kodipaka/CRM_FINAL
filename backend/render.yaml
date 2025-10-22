@@ -69,6 +69,11 @@ services:
         value: 127.0.0.1
       - key: REDIS_PORT
         value: 6379
+      # Google Sheets Configuration
+      - key: GOOGLE_SHEETS_ID
+        value: "1BH-ixsrxVRxHgS-example-sheet-id"  # Replace with actual sheet ID
+      - key: GOOGLE_SHEETS_ENABLED
+        value: true
     healthCheckPath: /api/health/
     autoDeploy: true
     buildFilter:
