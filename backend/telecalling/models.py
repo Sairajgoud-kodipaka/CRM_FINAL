@@ -58,7 +58,7 @@ class Assignment(models.Model):
 
 class CallLog(models.Model):
     """Step 3: Telecaller logs call details and feedback"""
-    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='call_logs')
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='call_logs', null=True, blank=True)
     call_status = models.CharField(max_length=32, choices=[
         ('connected', 'Connected'),
         ('no_answer', 'No Answer'),
@@ -84,6 +84,36 @@ class CallLog(models.Model):
 
     def __str__(self):
         return f"CallLog {self.id} for Assignment {self.assignment_id}"
+
+class SimpleCallLog(models.Model):
+    """Simple call log for manual call tracking without assignments"""
+    telecaller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='simple_call_logs')
+    customer_name = models.CharField(max_length=255)
+    customer_phone = models.CharField(max_length=20)
+    call_status = models.CharField(max_length=32, choices=[
+        ('connected', 'Connected'),
+        ('no_answer', 'No Answer'),
+        ('busy', 'Busy'),
+        ('wrong_number', 'Wrong Number'),
+        ('not_interested', 'Not Interested'),
+        ('call_back', 'Call Back Later'),
+    ])
+    call_duration = models.IntegerField(help_text="Duration in seconds", default=0)
+    customer_sentiment = models.CharField(max_length=20, choices=[
+        ('positive', 'Positive'),
+        ('neutral', 'Neutral'),
+        ('negative', 'Negative'),
+    ], default='neutral')
+    notes = models.TextField(blank=True)
+    call_time = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-call_time']
+
+    def __str__(self):
+        return f"SimpleCallLog {self.id} - {self.customer_name} by {self.telecaller.get_full_name()}"
 
 class FollowUp(models.Model):
     """Step 4: Manager monitors and creates follow-ups"""

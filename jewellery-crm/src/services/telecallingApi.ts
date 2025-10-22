@@ -55,8 +55,7 @@ export interface CallRequest {
     full_name: string;
   };
   call_type: 'outbound' | 'callback';
-  exotel_call_sid?: string;
-  exotel_bridge_url?: string;
+  call_id?: string;
   status: 'initiated' | 'ringing' | 'answered' | 'completed' | 'failed' | 'busy' | 'no_answer';
   duration: number;
   recording_url?: string;
@@ -148,11 +147,9 @@ export interface CallInitiationResponse {
   call_request_id: string;
   status: 'initiated' | 'failed' | 'answered' | 'ringing';
   error_message?: string;
-  exotel_bridge_url?: string;
   // Additional fields for existing calls
   error?: string;
   call_id?: string;
-  exotel_call_id?: string;
 }
 
 export interface FollowUpCreateRequest {
@@ -244,47 +241,16 @@ class TelecallingApiService {
     return response.data;
   }
 
-  // Test Exotel configuration
-  async testExotelConfig(): Promise<ApiResponse<any>> {
-    return this.request(`${this.baseUrl}/call-requests/test_exotel_config/`, {
+  // Test call configuration
+  async testCallConfig(): Promise<ApiResponse<any>> {
+    return this.request(`${this.baseUrl}/call-requests/test_call_config/`, {
       method: 'POST'
     });
   }
 
-  // Get WebRTC configuration
-  async getWebRTCConfig(): Promise<any> {
-    const response = await apiService.get(`${this.baseUrl}/call-requests/webrtc_config/`);
-    return response.data;
-  }
-
-  // WebRTC API methods
-  async initiateWebRTCCall(data: {
-    to: string;
-    from?: string;
-    customField?: string;
-    webrtcEnabled?: boolean;
-  }): Promise<any> {
-    const response = await apiService.post(`${this.baseUrl}/webrtc/initiate/`, data);
-    return response.data;
-  }
-
-  async getWebRTCCallStatus(callSid: string): Promise<any> {
-    const response = await apiService.get(`${this.baseUrl}/webrtc/call-status/${callSid}/`);
-    return response.data;
-  }
-
-  async endWebRTCCall(callSid: string): Promise<any> {
-    const response = await apiService.post(`${this.baseUrl}/webrtc/end-call/${callSid}/`);
-    return response.data;
-  }
-
-  async muteWebRTCCall(callSid: string, muted: boolean): Promise<any> {
-    const response = await apiService.post(`${this.baseUrl}/webrtc/mute-call/${callSid}/`, { muted });
-    return response.data;
-  }
-
-  async holdWebRTCCall(callSid: string, onHold: boolean): Promise<any> {
-    const response = await apiService.post(`${this.baseUrl}/webrtc/hold-call/${callSid}/`, { onHold });
+  // Call management methods
+  async getCallConfig(): Promise<any> {
+    const response = await apiService.get(`${this.baseUrl}/call-requests/config/`);
     return response.data;
   }
 
@@ -355,12 +321,29 @@ class TelecallingApiService {
   async getCallLogs(filters: CallLogFilters = {}): Promise<CallLog[]> {
     const params = new URLSearchParams();
     
-    if (filters.disposition) params.append('disposition', filters.disposition);
+    if (filters.disposition) params.append('status', filters.disposition);
     if (filters.dateRange?.from) params.append('date_from', filters.dateRange.from);
     if (filters.dateRange?.to) params.append('date_to', filters.dateRange.to);
     if (filters.duration?.min) params.append('duration_min', filters.duration.min.toString());
 
-    const response = await apiService.get(`${this.baseUrl}/call-requests/logs/?${params.toString()}`);
+    const response = await apiService.get(`${this.baseUrl}/simple-call-logs/?${params.toString()}`);
+    return response.data.results || response.data;
+  }
+
+  async submitCallLog(data: {
+    customer_name: string;
+    customer_phone: string;
+    call_duration: number;
+    call_status: string;
+    customer_sentiment: string;
+    notes: string;
+  }): Promise<any> {
+    const response = await apiService.post(`${this.baseUrl}/simple-call-logs/`, data);
+    return response.data;
+  }
+
+  async getCustomerNames(): Promise<CustomerName[]> {
+    const response = await apiService.get(`${this.baseUrl}/customer-names/`);
     return response.data;
   }
 
@@ -659,6 +642,13 @@ export interface LeadTransferRequest {
   lead_id: string;
   to_user_id: number;
   transfer_reason?: string;
+}
+
+export interface CustomerName {
+  id: string;
+  name: string;
+  phone?: string;
+  source?: string;
 }
 
 export const telecallingApiService = new TelecallingApiService();

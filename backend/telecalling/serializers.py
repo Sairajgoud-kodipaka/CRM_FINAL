@@ -2,7 +2,8 @@ from rest_framework import serializers
 from .models import (
     CustomerVisit, Assignment, CallLog, FollowUp, 
     CustomerProfile, Notification, Analytics,
-    Lead, LeadTransfer, CallRequest, FollowUpRequest, AuditLog, WebhookLog
+    Lead, LeadTransfer, CallRequest, FollowUpRequest, AuditLog, WebhookLog,
+    SimpleCallLog
 )
 from django.contrib.auth import get_user_model
 
@@ -405,4 +406,17 @@ class WebhookLogSerializer(serializers.ModelSerializer):
             'id', 'webhook_type', 'payload', 'status', 'error_message',
             'processed_at', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at'] 
+        read_only_fields = ['id', 'created_at']
+
+
+class SimpleCallLogSerializer(serializers.ModelSerializer):
+    telecaller_details = UserMiniSerializer(source='telecaller', read_only=True)
+    
+    class Meta:
+        model = SimpleCallLog
+        fields = [
+            'id', 'telecaller', 'telecaller_details', 'customer_name', 'customer_phone',
+            'call_status', 'call_duration', 'customer_sentiment', 'notes',
+            'call_time', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'telecaller', 'call_time', 'created_at', 'updated_at'] 
