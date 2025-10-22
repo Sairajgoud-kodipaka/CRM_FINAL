@@ -11,17 +11,22 @@ import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-import telecalling.routing
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
+# Get Django ASGI application
 django_asgi_app = get_asgi_application()
+
+# Import routing after Django is initialized
+def get_websocket_urlpatterns():
+    from telecalling.routing import websocket_urlpatterns
+    return websocket_urlpatterns
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AuthMiddlewareStack(
         URLRouter(
-            telecalling.routing.websocket_urlpatterns
+            get_websocket_urlpatterns()
         )
     ),
 })

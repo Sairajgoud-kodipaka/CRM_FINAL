@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
+from decouple import config
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -29,32 +30,56 @@ class GoogleSheetsService:
     def _initialize_service(self):
         """Initialize Google Sheets service"""
         try:
-            # Try Render secret files first (production)
-            render_secret_path = '/etc/secrets/mangatrai-6bc45a711bae.json'
+            # Try environment variable first (production)
+            google_credentials_json = config('GOOGLE_SHEETS_CREDENTIALS_JSON', default=None)
             
-            if os.path.exists(render_secret_path):
-                key_file_path = render_secret_path
+            if google_credentials_json:
+                # Use credentials from environment variable
+                credentials_info = json.loads(google_credentials_json)
+                self.credentials = service_account.Credentials.from_service_account_info(
+                    credentials_info,
+                    scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+                )
             else:
-                # Fallback to local development path
-                key_file_path = os.path.join(settings.BASE_DIR.parent, 'jewellery-crm', 'mangatrai-6bc45a711bae.json')
-            
-            if not os.path.exists(key_file_path):
-                logger.error(f"Google Sheets credentials file not found: {key_file_path}")
-                return
-            
-            # Load credentials
-            self.credentials = service_account.Credentials.from_service_account_file(
-                key_file_path,
-                scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
-            )
+                # Fallback to file-based credentials (development)
+                render_secret_path = '/etc/secrets/mangatrai-6bc45a711bae.json'
+                
+                if os.path.exists(render_secret_path):
+                    key_file_path = render_secret_path
+                else:
+                    # Fallback to local development path - check for new JSON file
+                    new_json_path = os.path.join(settings.BASE_DIR.parent, 'crmsales-475507-247bd72ab136.json')
+                    old_json_path = os.path.join(settings.BASE_DIR.parent, 'jewellery-crm', 'mangatrai-6bc45a711bae.json')
+                    
+                    if os.path.exists(new_json_path):
+                        key_file_path = new_json_path
+                    elif os.path.exists(old_json_path):
+                        key_file_path = old_json_path
+                    else:
+                        key_file_path = new_json_path  # Default to new path
+                
+                if not os.path.exists(key_file_path):
+                    logger.error(f"Google Sheets credentials not found in environment variable or file: {key_file_path}")
+                    return
+                
+                # Load credentials from file
+                self.credentials = service_account.Credentials.from_service_account_file(
+                    key_file_path,
+                    scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+                )
             
             # Build service
             self.service = build('sheets', 'v4', credentials=self.credentials)
             
             # Get spreadsheet ID from settings or environment
             self.spreadsheet_id = getattr(settings, 'GOOGLE_SHEETS_ID', None)
-            if not self.spreadsheet_id:
+            self.spreadsheet_ids = getattr(settings, 'GOOGLE_SHEETS_IDS', [])
+            
+            if not self.spreadsheet_id and not self.spreadsheet_ids:
                 logger.warning("GOOGLE_SHEETS_ID not configured")
+            elif self.spreadsheet_ids and not self.spreadsheet_id:
+                # Use the first sheet ID if multiple are configured
+                self.spreadsheet_id = self.spreadsheet_ids[0]
             
         except Exception as e:
             logger.error(f"Failed to initialize Google Sheets service: {str(e)}")
@@ -88,10 +113,16 @@ class GoogleSheetsService:
         
         return assigned_telecaller
     
-    def sync_leads_from_sheets(self):
+    def sync_leads_from_sheets(self, sheet_id=None):
         """Sync leads from Google Sheets (OPTIMIZED VERSION)"""
-        if not self.service or not self.spreadsheet_id:
+        if not self.service:
             logger.error("Google Sheets service not initialized")
+            return False
+        
+        # Use provided sheet_id or default to configured one
+        target_sheet_id = sheet_id or self.spreadsheet_id
+        if not target_sheet_id:
+            logger.error("No Google Sheet ID configured")
             return False
         
         try:
@@ -104,11 +135,37 @@ class GoogleSheetsService:
             )
             
             # Get data from sheets with full range to include customer data
-            range_name = "Sheet1!A:J"  # Include all columns including full_name and phone_number
-            result = self.service.spreadsheets().values().get(
-                spreadsheetId=self.spreadsheet_id,
-                range=range_name
-            ).execute()
+            # Try different range formats to handle various sheet structures
+            range_formats = [
+                "A:Z",  # Without sheet name (working format)
+                "A1:Z100",  # Without sheet name, with row numbers
+                "Sheet1!A:J",  # Original format
+                "Sheet1!A:Z",  # Wider range
+                "Sheet1!A1:Z100",  # With explicit row numbers
+            ]
+            
+            result = None
+            working_range = None
+            
+            for range_name in range_formats:
+                try:
+                    result = self.service.spreadsheets().values().get(
+                        spreadsheetId=target_sheet_id,
+                        range=range_name
+                    ).execute()
+                    working_range = range_name
+                    logger.info(f"Successfully accessed sheet with range: {range_name}")
+                    break
+                except Exception as e:
+                    logger.warning(f"Range {range_name} failed: {str(e)}")
+                    continue
+            
+            if not result:
+                logger.error("All range formats failed. Please check your sheet structure.")
+                webhook_log.status = 'failed'
+                webhook_log.error_message = 'Unable to access sheet with any range format'
+                webhook_log.save()
+                return False
             
             rows = result.get('values', [])
             if not rows:
@@ -317,12 +374,33 @@ class GoogleSheetsService:
             
             logger.info(f"Connected to spreadsheet: {result.get('properties', {}).get('title', 'Unknown')}")
             
-            # Also get sample data to help debug
-            range_name = "Sheet1!A:F"
-            data_result = self.service.spreadsheets().values().get(
-                spreadsheetId=self.spreadsheet_id,
-                range=range_name
-            ).execute()
+            # Also get sample data to help debug - try different range formats
+            range_formats = [
+                "Sheet1!A:Z",  # Wider range
+                "Sheet1!A1:Z100",  # With explicit row numbers
+                "A:Z",  # Without sheet name
+                "A1:Z100",  # Without sheet name, with row numbers
+            ]
+            
+            data_result = None
+            working_range = None
+            
+            for range_name in range_formats:
+                try:
+                    data_result = self.service.spreadsheets().values().get(
+                        spreadsheetId=self.spreadsheet_id,
+                        range=range_name
+                    ).execute()
+                    working_range = range_name
+                    logger.info(f"Successfully accessed sheet data with range: {range_name}")
+                    break
+                except Exception as e:
+                    logger.warning(f"Range {range_name} failed: {str(e)}")
+                    continue
+            
+            if not data_result:
+                logger.warning("Could not access sheet data with any range format")
+                return True  # Connection is still successful, just can't read data
             
             rows = data_result.get('values', [])
             if rows:

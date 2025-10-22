@@ -18,10 +18,14 @@ SECRET_KEY = config('SECRET_KEY', default='jewelry-crm-2024-production-secure-ke
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1,testserver').split(',') if host.strip()]
+# Production ALLOWED_HOSTS configuration
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,testserver,0.0.0.0,crm-final-tj4n.onrender.com', cast=Csv())
 
 # Google Sheets Configuration
-GOOGLE_SHEETS_ID = config('GOOGLE_SHEETS_ID', default='16pJPUtjKmCTEntCwP4lzJf849pLiN38y4pmFHjQkefk')
+GOOGLE_SHEETS_ID = config('GOOGLE_SHEETS_ID', default='1W9JFanGBpl5DpFDcGELl3iLCvGnj35rWK0VLxvTS5t0')
+
+# Multiple Google Sheets Support
+GOOGLE_SHEETS_IDS = config('GOOGLE_SHEETS_IDS', default='16pJPUtjKmCTEntCwP4lzJf849pLiN38y4pmFHjQkefk', cast=Csv())
 
 # Application definition
 INSTALLED_APPS = [
@@ -101,28 +105,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database Configuration - PostgreSQL for all environments
+# Database Configuration - Use SQLite for local development
 import sys
 
-# Use PostgreSQL for all environments
+# Use SQLite for local development (no external database required)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='jewellery_crm'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default='postgresql'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
-                'OPTIONS': {
-                    'connect_timeout': 30,
-                    'client_encoding': 'utf8',
-                    'sslmode': 'disable',
-                },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
 # Production configuration for Render managed database
-if not DEBUG:
+# Use production database when DATABASE_URL is provided
+if config('DATABASE_URL', default=None):
     # Check if DATABASE_URL is provided (preferred method)
     database_url = config('DATABASE_URL', default=None)
     
