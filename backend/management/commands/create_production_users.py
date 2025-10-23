@@ -17,6 +17,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         force = options['force']
         
+        # Get existing users count before creating new ones
+        existing_users_count = User.objects.count()
+        self.stdout.write(f"📊 Existing users before setup: {existing_users_count}")
+        
         users_to_create = [
             {
                 'username': 'admin',
@@ -110,9 +114,23 @@ class Command(BaseCommand):
                         self.style.SUCCESS(f'Created user: {username} ({description})')
                     )
 
+        # Get final users count
+        final_users_count = User.objects.count()
+        self.stdout.write(f"📊 Final users count: {final_users_count}")
+        
         self.stdout.write(
             self.style.SUCCESS('\n🎉 Production users setup completed!')
         )
+        
+        # Show preservation status
+        if final_users_count > existing_users_count:
+            self.stdout.write(
+                self.style.SUCCESS(f'✅ Added {final_users_count - existing_users_count} new users')
+            )
+        elif final_users_count == existing_users_count:
+            self.stdout.write(
+                self.style.SUCCESS('✅ All users already existed - no changes made')
+            )
         
         self.stdout.write('\n📋 User Credentials:')
         self.stdout.write('=' * 50)

@@ -69,12 +69,25 @@ services:
         value: 127.0.0.1
       - key: REDIS_PORT
         value: 6379
-      - key: GOOGLE_SHEETS_CREDENTIALS_JSON
-        value: 'PASTE_YOUR_ACTUAL_JSON_CONTENT_HERE'
+      - key: GOOGLE_SHEETS_ENABLED
+        value: true
       - key: GOOGLE_SHEETS_ID
         value: '1W9JFanGBpl5DpFDcGELl3iLCvGnj35rWK0VLxvTS5t0'
+      - key: GOOGLE_CREDENTIALS
+        value: '{"type":"service_account","project_id":"crmsales-475507","private_key_id":"247bd72ab136f9ca636cbf4c1c61fa4793a46fc4","private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDQxg6qHRkucmWr\nQ/E3fgpJAItvkBfkWTxOGA9VDyT+iACZbRY82CYxlx5fP9FE25M7ww4D36C+6RSO\nlKJhNutTBH4t6E1pRqhICBl2MCYxec/oqrPsNoOrvbSQ3Lc//z/yI9xkAZHhPI4h\nTI/OqYh8BoP3ogDj/3X0NQxLskQd/eZ32vKJ6isQ6RsK6jAk4R3sApj0j7+a8Nvc\nnvIJRiw+5cCBKMvdUXPWU7DCErFE90P11CUUficQc80Efx+5pAUk6l5KiXmbfBpC\nrlNWvdQx2F/w7F8EFHLToJIk21vFY7RVvZTFwuU/6yL6JdXie6ueBwge6yT+5kmW\nEtAXzqtfAgMBAAECggEADiK+G9iSiIMoZrs+WhwhOCYrffQX5tczIedRJAvXEADh\nAYJrjtaxZ1df40hTGnVyxG+4w2kt3VJ//znWVy/vwq3U/7WKud98RdXk9QxEWcJx\ne5B4IQmwsQn/b6hYim9bwtpli5C4chnpvOl0YNee+fIHyqMs3XZblzUytIfI3Ieu\nkQ/Kvmk2V8jkioe62zPBycPAaGpDctYWi9hM7laLqnVioQsus2xb8fs1LTQnfm77\nz435pbzGYlSuWipfZDNqduo4e317j7ErG/ZONaFpuJ9e0/HoHay7bEUlxx0hzSf8\n+yu2zb+vQ02zzor+P353jx+E9Yu1LYhlg85baY5ASQKBgQDo0Kijc3S1U2w8q/FI\nXilKrE5IkGY8cYY7g7nMHP4ZCYKdNzFpK7w+pUzSn1hiU0/kOcGStjJEFLvEd7zm\nfAZf3S7lO/xCYCH1HeNWY/7VzELR5iZdaDdtPjVenQoB02P4igzwvCnRTeZVBOx/\nAMWVrLzK8yVcibcnix3nXQY8jQKBgQDlkH3Wl9z+4mt2Lc208UVAI+OWhdyDgI6s\nSB2hI1xky6iyd0PXZzQdah75P/4rw7E8lMA5DjU37AvO4Pgt2pr3CHCc1KeOAFCU\nbEiGuwm0+gTcn2nYsfTXve5vXVPUydK/2RSZMwzIf0i2Z9hoIFuHuN/xiKPyFecE\nE+UK+vSKmwKBgFzbVFeU5hioRERSo/KkM73nyXVhupUjBlHYcRN7ANHFnEXOTLPQ\n0Mz/qwtaqKrW5cd2TcGRT60dw+JRi5M2Jmi31EtzyGJE62ZTXGgJjAuD46bKL8UT\nmv/ETw8EfYhK4tWvYgfmVJt5gYOpahYhnazb75TWs7Eb8GQiNXQhAyrFAoGAKprV\nb/VBU6Cr9wPrMJCynIPMokv3sAQ09m5v6U8Jv784cN7HnXuO5YKjevjQcEjiZO7q\neexUHivVyTBhfwkaR4yucbzZ1/Xg/prWHwMpewgHzPZdC5WDbmLWlJ6Kh2xpi6d7\nNi+OSMuusAO32yNeOWMrVMVaP/ymolAa6x3GMs8CgYAYOL2fJG5d7xkgqtqbZXx5\nagocm+Dc4RUpbiXRkr9j+eKIn3cNAP8Wc1YktadOCF3UYD/jYiEUMwSB3biSipoW\ngzytarjCXoVJB5DGriJX9HvpMDL8qkpZ3z6inWlb1Vfd7BFvnbjmNbEP4Nn5hyUg\ny4h31j8MnPorDTy651sUww==\n-----END PRIVATE KEY-----\n","client_email":"crm-625@crmsales-475507.iam.gserviceaccount.com","client_id":"112954059357864433278","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/crm-625%40crmsales-475507.iam.gserviceaccount.com","universe_domain":"googleapis.com"}'
       - key: USE_ASGI
         value: 'false'
+      # Call Management Configuration (Exotel removed)
+      - key: ENABLE_CALL_LOGGING
+        value: 'true'
+      - key: ENABLE_CALL_RECORDING
+        value: 'false'
+      - key: MAX_CALL_DURATION
+        value: '3600'
+      - key: CALL_RETRY_ATTEMPTS
+        value: '3'
+      # Exotel Configuration - REMOVED (No longer using Exotel)
+      # All Exotel-related environment variables have been removed for manual call logging
     healthCheckPath: /api/health/
     autoDeploy: true
     buildFilter:

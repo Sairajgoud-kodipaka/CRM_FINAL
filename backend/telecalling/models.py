@@ -414,3 +414,34 @@ class WebhookLog(models.Model):
     
     def __str__(self):
         return f"{self.webhook_type} webhook - {self.status}"
+
+
+class LeadAssignmentState(models.Model):
+    """Persistent state for round-robin assignment"""
+    assignment_type = models.CharField(max_length=50, choices=[
+        ('round_robin', 'Round Robin'),
+        ('workload_balance', 'Workload Balance'),
+        ('priority_based', 'Priority Based'),
+    ], default='round_robin')
+    last_assigned_telecaller_id = models.IntegerField(null=True, blank=True)
+    assignment_count = models.IntegerField(default=0)
+    last_assignment_time = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'lead_assignment_state'
+
+
+class TelecallerPerformance(models.Model):
+    """Track telecaller performance metrics"""
+    telecaller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='performance_metrics')
+    date = models.DateField(default=timezone.now)
+    leads_assigned = models.IntegerField(default=0)
+    calls_made = models.IntegerField(default=0)
+    calls_answered = models.IntegerField(default=0)
+    conversions = models.IntegerField(default=0)
+    avg_call_duration = models.FloatField(default=0)
+    conversion_rate = models.FloatField(default=0)
+    
+    class Meta:
+        unique_together = ['telecaller', 'date']
+        db_table = 'telecaller_performance'

@@ -125,11 +125,18 @@ python manage.py check --deploy --settings=core.settings || {
     warning "Production deployment check had issues, but continuing..."
 }
 
-# Create production superuser
-log "👤 Creating production users..."
-python manage.py create_production_users || {
-    warning "Production user creation failed, but continuing..."
-}
+# Create production superuser (only if no users exist)
+log "👤 Checking if users exist..."
+USER_COUNT=$(python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); print(User.objects.count())" 2>/dev/null || echo "0")
+
+if [ "$USER_COUNT" -eq 0 ]; then
+    log "👤 No users found - creating initial users..."
+    python manage.py create_production_users || {
+        warning "Production user creation failed, but continuing..."
+    }
+else
+    log "✅ Users already exist ($USER_COUNT users) - preserving existing data"
+fi
 
 # Create logs directory
 log "📝 Setting up logging..."

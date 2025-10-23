@@ -12,7 +12,7 @@ from .new_views import (
 )
 from .call_views import CallRequestViewSet as CallControlViewSet
 from .webhook_views import exotel_webhook, ExotelVoiceWebhookView, ExotelWhatsAppWebhookView
-from .status_views import google_sheets_status, test_connection, manual_sync
+from .status_views import google_sheets_status, test_connection, sync_status
 from .webrtc_views import initiate_webrtc_call, get_call_status, end_call, mute_call, hold_call
 
 router = DefaultRouter()
@@ -47,7 +47,7 @@ urlpatterns = [
     # Google Sheets status and management endpoints
     path('google-sheets/status/', google_sheets_status, name='google-sheets-status'),
     path('google-sheets/test-connection/', test_connection, name='test-connection'),
-    path('google-sheets/manual-sync/', manual_sync, name='manual-sync'),
+    path('google-sheets/sync-status/', sync_status, name='sync-status'),
     
     # Sales person list for transfers
     path('sales-persons/', SalesPersonListView.as_view(), name='sales-persons-list'),

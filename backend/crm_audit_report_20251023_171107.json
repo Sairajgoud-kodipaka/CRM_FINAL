@@ -1,0 +1,123 @@
+{
+  "timestamp": "2025-10-23 17:11:00.609946",
+  "overall_status": "NEEDS_ATTENTION",
+  "components": {
+    "google_sheets": {
+      "status": "PASS",
+      "api_connected": true,
+      "api_message": "Connected to 'Mangatrai Jewels Leads Master Sheet 20 Sep'",
+      "fetch_success": true,
+      "fetch_message": "Successfully fetched 374 leads",
+      "leads_found": 374,
+      "last_check": "2025-10-23 17:11:03.793983"
+    },
+    "lead_management": {
+      "status": "PASS",
+      "total_leads": 369,
+      "google_sheets_leads": 369,
+      "assigned_leads": 369,
+      "unassigned_leads": 0,
+      "duplicate_count": 0,
+      "status_distribution": {
+        "new": 369,
+        "contacted": 0,
+        "qualified": 0,
+        "appointment_set": 0,
+        "not_interested": 0,
+        "converted": 0
+      },
+      "last_check": "2025-10-23 17:11:03.805944"
+    },
+    "assignment_system": {
+      "status": "PASS",
+      "total_telecallers": 1,
+      "available_telecallers": 0,
+      "total_active_leads": 369,
+      "round_robin_state": {
+        "exists": true,
+        "last_assigned_telecaller_id": null,
+        "assignment_count": 0
+      },
+      "workloads": [
+        {
+          "telecaller_id": 8,
+          "telecaller_name": "Suresh Sharm",
+          "active_leads": 369,
+          "is_available": false,
+          "conversion_rate": 0
+        }
+      ],
+      "last_check": "2025-10-23 17:11:03.828902"
+    },
+    "automated_sync": {
+      "status": "ERROR",
+      "error": "Cannot filter a query once a slice has been taken."
+    },
+    "database_integrity": {
+      "status": "PASS",
+      "db_connected": true,
+      "lead_tables": [
+        "telecalling_lead",
+        "telecalling_leadstatushistory",
+        "telecalling_leadtransfer",
+        "lead_assignment_state"
+      ],
+      "orphaned_leads": 0,
+      "missing_name_leads": 0,
+      "missing_phone_leads": 0,
+      "last_check": "2025-10-23 17:11:03.837521"
+    },
+    "api_endpoints": {
+      "status": "PASS",
+      "total_endpoints": 4,
+      "accessible_endpoints": 4,
+      "endpoint_results": {
+        "/api/telecalling/leads/": {
+          "status_code": 401,
+          "accessible": true
+        },
+        "/api/telecalling/assignments/": {
+          "status_code": 401,
+          "accessible": true
+        },
+        "/api/telecalling/call-requests/": {
+          "status_code": 401,
+          "accessible": true
+        },
+        "/api/analytics/dashboard/": {
+          "status_code": 401,
+          "accessible": true
+        }
+      },
+      "last_check": "2025-10-23 17:11:04.841211"
+    },
+    "error_handling": {
+      "status": "PASS",
+      "webhook_error_rate": 6.25,
+      "recent_errors_7days": 1,
+      "execution_error_rate": 0.0,
+      "total_webhook_logs": 16,
+      "failed_webhook_logs": 1,
+      "total_executions": 1,
+      "failed_executions": 0,
+      "last_check": "2025-10-23 17:11:07.628892"
+    }
+  },
+  "issues": [
+    "All telecallers are overloaded",
+    "Automated sync error: Cannot filter a query once a slice has been taken."
+  ],
+  "recommendations": [
+    "Reduce telecaller workload or increase capacity",
+    "Enable automated sync scheduling"
+  ],
+  "performance_metrics": {
+    "sync_execution_time": 2.70634126663208,
+    "database_query_time": 0.0,
+    "assignment_analytics_time": 0.02062225341796875,
+    "sync_success": true,
+    "sync_leads_found": 374,
+    "sync_telecallers_found": 1,
+    "last_check": "2025-10-23 17:11:07.568174"
+  }
+}

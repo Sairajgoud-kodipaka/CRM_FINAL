@@ -151,40 +151,54 @@ def test_connection(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['POST'])
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def manual_sync(request):
-    """Trigger manual Google Sheets sync"""
+def sync_status(request):
+    """Get detailed sync status and statistics"""
     try:
         user = request.user
         
         # Check if user has permission
-        # Allow telecallers to trigger manual sync since it affects their lead data
         if user.role not in ['manager', 'business_admin', 'platform_admin', 'tele_calling']:
             return Response({
                 'error': 'Permission denied'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Perform manual sync
-        from .google_sheets_service import sync_leads_from_sheets
-        success = sync_leads_from_sheets()
+        # Get comprehensive sync statistics
+        from .models import Lead
         
-        if success:
-            message = "✅ Manual sync completed successfully. New leads have been imported and assigned."
-            status_code = status.HTTP_200_OK
-        else:
-            message = "❌ Manual sync failed. Please check the logs for details."
-            status_code = status.HTTP_400_BAD_REQUEST
+        total_leads = Lead.objects.count()
+        google_sheets_leads = Lead.objects.filter(source_system='google_sheets').count()
+        assigned_leads = Lead.objects.filter(assigned_to__isnull=False).count()
+        unassigned_leads = total_leads - assigned_leads
+        
+        # Get recent sync activity
+        recent_logs = WebhookLog.objects.filter(
+            webhook_type='google_sheets'
+        ).order_by('-created_at')[:5]
+        
+        recent_activity = []
+        for log in recent_logs:
+            recent_activity.append({
+                'timestamp': log.created_at,
+                'status': log.status,
+                'message': f"Sync {log.status}",
+                'details': log.error_message if log.status == 'failed' else None
+            })
         
         return Response({
-            'sync_status': success,
-            'message': message,
+            'total_leads': total_leads,
+            'google_sheets_leads': google_sheets_leads,
+            'assigned_leads': assigned_leads,
+            'unassigned_leads': unassigned_leads,
+            'recent_activity': recent_activity,
+            'automation_note': 'Manual sync has been replaced with automated sync. Use the unified_sheets_sync management command for manual operations.',
             'timestamp': timezone.now()
-        }, status=status_code)
+        })
         
     except Exception as e:
-        logger.error(f"Error performing manual sync: {str(e)}")
+        logger.error(f"Error getting sync status: {str(e)}")
         return Response({
-            'error': 'Failed to perform sync',
+            'error': 'Failed to get sync status',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

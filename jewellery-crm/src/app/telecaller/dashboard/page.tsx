@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
   TrendingUp, Users, Percent, Phone, AlertCircle, 
-  Calendar, Clock, Target, BarChart3, Activity, CheckCircle,
+  Calendar, Clock, Target, BarChart3, CheckCircle,
   AlertTriangle, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -115,14 +115,6 @@ export default function TelecallerDashboardPage() {
   const [dashboardData, setDashboardData] = useState<TelecallerDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastSync, setLastSync] = useState<string>('');
-  const [googleSheetsStatus, setGoogleSheetsStatus] = useState<{
-    connection_status: boolean;
-    last_sync?: string;
-    total_leads?: number;
-    assigned_leads?: number;
-  } | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
@@ -130,7 +122,6 @@ export default function TelecallerDashboardPage() {
       setError(null);
       const data = await telecallingApiService.getTelecallerDashboard();
       setDashboardData(data);
-      setLastSync(new Date().toLocaleTimeString());
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
@@ -139,28 +130,12 @@ export default function TelecallerDashboardPage() {
     }
   };
 
-  const fetchGoogleSheetsStatus = async () => {
-    try {
-      const statusData = await telecallingApiService.getGoogleSheetsStatus();
-      setGoogleSheetsStatus(statusData);
-    } catch (err) {
-      console.error('Error fetching Google Sheets status:', err);
-      // Set default status if API fails
-      setGoogleSheetsStatus({
-        connection_status: false,
-        total_leads: 0,
-        assigned_leads: 0
-      });
-    }
-  };
 
   useEffect(() => {
     fetchDashboardData();
-    fetchGoogleSheetsStatus();
     // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       fetchDashboardData();
-      fetchGoogleSheetsStatus();
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -251,24 +226,9 @@ export default function TelecallerDashboardPage() {
             </p>
           </div>
           <div className="text-right">
-            <div className="flex items-center gap-2 mb-2">
-              {googleSheetsStatus?.connection_status ? (
-                <CheckCircle className="w-5 h-5 text-green-300" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-red-300" />
-              )}
-              <span className="text-sm">
-                Google Sheets API: {googleSheetsStatus?.connection_status ? 'Connected' : 'Disconnected'}
-              </span>
+            <div className="text-sm text-gray-600">
+              Welcome back, {user?.first_name}!
             </div>
-            <div className="text-xs text-grey-200">
-              Last Sync: {lastSync || 'Never'}
-            </div>
-            {googleSheetsStatus && (
-              <div className="text-xs text-grey-200 mt-1">
-                Leads: {googleSheetsStatus.total_leads || 0} total, {googleSheetsStatus.assigned_leads || 0} assigned
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -378,7 +338,7 @@ export default function TelecallerDashboardPage() {
               className="w-full justify-start h-12"
               onClick={() => router.push('/telecaller/call')}
             >
-              <Activity className="w-4 h-4 mr-3" />
+              <Phone className="w-4 h-4 mr-3" />
               <div className="text-left">
                 <div className="font-medium">Open Call Panel</div>
                 <div className="text-xs text-gray-500">Mute / Hold / End</div>
@@ -451,180 +411,7 @@ export default function TelecallerDashboardPage() {
         </Card>
       </div>
 
-      {/* Google Sheets Sync */}
-      <Card className="p-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="w-5 h-5" />
-            📊 GOOGLE SHEETS SYNC
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                <div>
-                  <h4 className="font-medium text-blue-900">Manual Lead Import</h4>
-                  <p className="text-sm text-blue-700">Click to sync leads from Google Sheets and auto-assign them to telecallers</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={async () => {
-                      try {
-                        const result = await telecallingApiService.testGoogleSheetsConnection();
-                        console.log('Test connection result:', result);
-                        if (result.sample_data) {
-                          alert(`✅ Connection successful!\n\nSample data from Google Sheets:\n${JSON.stringify(result.sample_data, null, 2)}`);
-                        } else {
-                          alert(`✅ Connection successful!\n\nMessage: ${result.message}`);
-                        }
-                      } catch (error) {
-                        console.error('Test connection error:', error);
-                        alert('❌ Connection test failed. Please check the logs.');
-                      }
-                    }}
-                    variant="outline"
-                    size="sm"
-                  >
-                    🔍 Test Connection
-                  </Button>
-                  <Button 
-                    onClick={async () => {
-                      try {
-                        setIsSyncing(true);
-                        const result = await telecallingApiService.triggerManualSync();
-                        if (result.sync_status) {
-                          // Refresh data after successful sync
-                          await fetchDashboardData();
-                          await fetchGoogleSheetsStatus();
-                          alert('✅ Manual sync completed successfully! New leads have been imported and assigned.');
-                        } else {
-                          alert('❌ Manual sync failed. Please check the logs for details.');
-                        }
-                      } catch (error) {
-                        console.error('Manual sync error:', error);
-                        alert('❌ Manual sync failed. Please try again.');
-                      } finally {
-                        setIsSyncing(false);
-                      }
-                    }}
-                    disabled={isSyncing}
-                    className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
-                  >
-                    {isSyncing ? (
-                      <>
-                        <Skeleton className="w-4 h-4 mr-2 rounded" />
-                        Syncing...
-                      </>
-                    ) : (
-                      '🔄 Sync Now'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-gray-900">
-                  {googleSheetsStatus?.total_leads || 0}
-                </div>
-                <div className="text-sm text-gray-600">Total Leads</div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">
-                  {googleSheetsStatus?.assigned_leads || 0}
-                </div>
-                <div className="text-sm text-gray-600">Assigned Leads</div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">
-                  {(googleSheetsStatus?.total_leads || 0) - (googleSheetsStatus?.assigned_leads || 0)}
-                </div>
-                <div className="text-sm text-gray-600">Unassigned</div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* API Diagnostics */}
-      <Card className="p-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="w-5 h-5" />
-            🧪 API DIAGNOSTICS
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-4">
-              <div className="text-sm">
-                <span className="text-gray-600">Last Sync: </span>
-                <span className="font-medium">{lastSync || 'Never'}</span>
-              </div>
-              <div className="text-sm">
-                <span className="text-gray-600">Google Sheets API: </span>
-                <Badge 
-                  variant="outline" 
-                  className={googleSheetsStatus?.connection_status 
-                    ? "text-green-600 border-green-600" 
-                    : "text-red-600 border-red-600"
-                  }
-                >
-                  {googleSheetsStatus?.connection_status ? '✅ Connected' : '❌ Disconnected'}
-                </Badge>
-              </div>
-              <div className="text-sm">
-                <span className="text-gray-600">Leads: </span>
-                <span className="font-medium text-blue-600">
-                  {googleSheetsStatus?.total_leads || 0} total
-                </span>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => {
-              fetchDashboardData();
-              fetchGoogleSheetsStatus();
-            }}>
-              Refresh Data
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={async () => {
-                try {
-                  setIsSyncing(true);
-                  const result = await telecallingApiService.triggerManualSync();
-                  if (result.sync_status) {
-                    // Refresh data after successful sync
-                    await fetchDashboardData();
-                    await fetchGoogleSheetsStatus();
-                    alert('✅ Manual sync completed successfully! New leads have been imported and assigned.');
-                  } else {
-                    alert('❌ Manual sync failed. Please check the logs for details.');
-                  }
-                } catch (error) {
-                  console.error('Manual sync error:', error);
-                  alert('❌ Manual sync failed. Please try again.');
-                } finally {
-                  setIsSyncing(false);
-                }
-              }}
-              disabled={isSyncing}
-              className="ml-2"
-            >
-              {isSyncing ? (
-                <>
-                  <Skeleton className="w-4 h-4 mr-1 rounded" />
-                  Syncing...
-                </>
-              ) : (
-                '🔄 Sync Google Sheets'
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Footer */}
       <div className="text-center text-sm text-gray-500 py-4 border-t">
