@@ -1,39 +1,60 @@
 #!/bin/bash
+# Utho VM Production Startup Script
+# This script is designed for Utho Cloud VM deployment
 
 # Exit on any error
 set -e
 
-echo "Starting Django application..."
+echo "🚀 Starting Jewellery CRM Backend on Utho VM..."
+
+# Check Python version
+PYTHON_VERSION=$(python3 --version 2>&1)
+echo "✓ Python Version: $PYTHON_VERSION"
+
+# Check if .env file exists
+if [ ! -f ".env" ]; then
+    echo "❌ ERROR: .env file not found!"
+    echo "Please create .env file with production settings"
+    exit 1
+fi
+echo "✓ Environment file found"
 
 # Wait for database to be ready
-echo "Waiting for database connection..."
-python -c "
+echo "⏳ Checking database connection..."
+python3 << 'PYEOF'
 import os
 import sys
+import time
 import django
-from django.conf import settings
-from django.db import connection
-from django.core.management import execute_from_command_line
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-# Test database connection
-try:
-    connection.ensure_connection()
-    print('Database connection successful!')
-except Exception as e:
-    print(f'Database connection failed: {e}')
-    sys.exit(1)
-"
+from django.db import connection
+
+max_attempts = 30
+for i in range(max_attempts):
+    try:
+        connection.ensure_connection()
+        print(f'✓ Database connection successful!')
+        break
+    except Exception as e:
+        if i < max_attempts - 1:
+            print(f'  Attempt {i+1}/{max_attempts}: Waiting for database...')
+            time.sleep(2)
+        else:
+            print(f'❌ Database connection failed after {max_attempts} attempts')
+            print(f'   Error: {e}')
+            sys.exit(1)
+PYEOF
 
 # Run migrations
-echo "Running database migrations..."
-python manage.py migrate --noinput
+echo "📊 Running database migrations..."
+python3 manage.py migrate --noinput
 
-# Create superuser if no users exist at all
-echo "Checking if any users exist..."
-python manage.py shell << EOF
+# Create superuser if no users exist
+echo "👤 Checking if any users exist..."
+python3 manage.py shell << 'EOF'
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
@@ -53,27 +74,25 @@ else:
 EOF
 
 # Collect static files
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
+echo "📦 Collecting static files..."
+python3 manage.py collectstatic --noinput
+
+# Create necessary directories
+mkdir -p logs media staticfiles
+echo "✓ Created necessary directories"
 
 # Start the application
-echo "Starting application server..."
+echo "🎯 Starting application server..."
 
-# Check if we should use ASGI (for WebSockets) or WSGI (for stability)
-if [ "$USE_ASGI" = "true" ]; then
-    echo "Starting Uvicorn (ASGI) server for WebSocket support..."
-    exec uvicorn core.asgi:application \
-        --host 0.0.0.0 \
-        --port $PORT \
-        --workers 1 \
-        --proxy-headers
-else
-    echo "Starting Gunicorn (WSGI) server for stability..."
-    exec gunicorn core.wsgi:application \
-        --bind 0.0.0.0:$PORT \
-        --workers 2 \
-        --timeout 300 \
-        --preload \
-        --access-logfile - \
-        --error-logfile -
-fi
+# Determine port (default to 8000 for Utho VM)
+PORT=${PORT:-8000}
+
+# Use ASGI (Uvicorn) by default for Utho VM
+echo "🚀 Starting Uvicorn (ASGI) server on port $PORT..."
+exec uvicorn core.asgi:application \
+    --host 0.0.0.0 \
+    --port $PORT \
+    --workers 2 \
+    --proxy-headers \
+    --log-level warning \
+    --access-log

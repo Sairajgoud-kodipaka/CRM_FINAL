@@ -311,10 +311,10 @@ class CRMAuditor:
                 cursor.execute("SELECT 1")
                 db_connected = cursor.fetchone()[0] == 1
                 
-                # Check table existence
+                # Check table existence (PostgreSQL)
                 cursor.execute("""
-                    SELECT name FROM sqlite_master 
-                    WHERE type='table' AND name LIKE '%lead%'
+                    SELECT table_name FROM information_schema.tables 
+                    WHERE table_schema = 'public' AND table_name LIKE '%lead%'
                 """)
                 lead_tables = [row[0] for row in cursor.fetchall()]
                 

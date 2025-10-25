@@ -1,0 +1,90 @@
+# Root level .gitignore for CRM_FINAL project
+
+# SQLite database files (PostgreSQL only project)
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3
+db.sqlite3-journal
+db.sqlite3-wal
+db.sqlite3-shm
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+build/
+dist/
+.next/
+out/
+
+# Media and static files
+media/
+staticfiles/
+static/
+
+# API keys and credentials
+secrets.json
+api_keys.json
+credentials.json
+mangatrai-*.json
+service-account-*.json
+crmsales-*.json
+*-service-account.json
+*-*.json
+
+# Specific credential files that may have been committed
+**/mangatrai-6bc45a711bae.json
+**/crmsales-475507-247bd72ab136.json
+
+# Allow package.json and other non-secret JSON files
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.json
+!eslintrc.json
+!components.json
+!.eslintrc.json
+!vercel.json
+!.vscode/settings.json

@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Count, Sum, Q, Avg
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from apps.clients.models import Client
 from apps.products.models import Product
 from apps.sales.models import Sale, SalesPipeline
@@ -16,6 +16,8 @@ from apps.tenants.models import Tenant
 def dashboard_stats(request):
     """
     Get dashboard statistics using existing data.
+    Supports date filtering via start_date and end_date query parameters.
+    Uses Django ORM to prevent SQL injection - all queries are parameterized.
     """
     # Get the first tenant or create a default one
     tenant = Tenant.objects.first()
@@ -25,10 +27,42 @@ def dashboard_stats(request):
             'error': 'No tenant found'
         }, status=400)
     
-    # Get date range for comparisons (last 30 days vs previous 30 days)
-    end_date = timezone.now()
-    start_date = end_date - timedelta(days=30)
-    previous_start = start_date - timedelta(days=30)
+    # Get date parameters from request (safe from SQL injection - using Django ORM)
+    start_date_param = request.GET.get('start_date')
+    end_date_param = request.GET.get('end_date')
+    
+    # Parse dates or use defaults
+    if start_date_param and end_date_param:
+        try:
+            # Handle ISO datetime strings by extracting just the date part
+            if 'T' in start_date_param:
+                start_date_param = start_date_param.split('T')[0]
+            if 'T' in end_date_param:
+                end_date_param = end_date_param.split('T')[0]
+            
+            start_date = datetime.strptime(start_date_param, '%Y-%m-%d').replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = datetime.strptime(end_date_param, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            # Make timezone-aware
+            start_date = timezone.make_aware(start_date)
+            end_date = timezone.make_aware(end_date)
+            
+            print(f"🔍 [ANALYTICS API] Using custom date range: {start_date.date()} to {end_date.date()}")
+        except ValueError as e:
+            print(f"❌ [ANALYTICS API] Invalid date format: {e}")
+            # Fallback to default
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=30)
+    else:
+        # Default to last 30 days
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=30)
+        print(f"🔍 [ANALYTICS API] Using default date range: {start_date.date()} to {end_date.date()}")
+    
+    # Calculate previous period for comparison
+    period_duration = end_date - start_date
+    previous_end = start_date
+    previous_start = previous_end - period_duration
     
     # Check if user is store-specific (manager, inhouse_sales, etc.)
     user = request.user

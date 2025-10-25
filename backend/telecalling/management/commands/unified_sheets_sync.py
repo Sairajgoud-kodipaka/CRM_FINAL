@@ -63,3 +63,5 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR('✗ Google Sheets sync failed')
             )
+
+

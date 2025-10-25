@@ -1681,10 +1681,14 @@ class ApiService {
 
   // Analytics
   async getAnalytics(params?: {
+    start_date?: string;
+    end_date?: string;
     period?: string;
     type?: string;
   }): Promise<ApiResponse<any>> {
     const queryParams = new URLSearchParams();
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
     if (params?.period) queryParams.append('period', params.period);
     if (params?.type) queryParams.append('type', params.type);
 

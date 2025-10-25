@@ -40,8 +40,22 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Google Cloud credentials
-*.json
+# Google Cloud credentials - specific patterns only
 mangatrai-*.json
 service-account-*.json
+crmsales-*.json
+*-*-*-*.json
+
+# Specific credential files
+mangatrai-6bc45a711bae.json
 crmsales-475507-247bd72ab136.json
+
+# Allow package.json and other non-secret JSON files
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.json
+!eslintrc.json
+!components.json
+!.eslintrc.json
+!vercel.json

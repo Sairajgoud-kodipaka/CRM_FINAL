@@ -1,14 +1,14 @@
 // Configuration file for environment-based settings
 export const config = {
-  // API Configuration
+  // API Configuration - Updated for Utho VM backend
   API_BASE_URL: process.env.NEXT_PUBLIC_API_URL 
     ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-    : 'http://localhost:8000/api',
+    : 'http://150.241.246.110/api',
   
-  // WebSocket Configuration
+  // WebSocket Configuration - Updated for Utho VM backend
   WS_BASE_URL: process.env.NEXT_PUBLIC_API_URL 
     ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://')
-    : 'ws://localhost:8000',
+    : 'ws://150.241.246.110',
   
   // Site Configuration
   SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',

@@ -83,32 +83,40 @@ class GoogleSheetsReader:
     def _initialize_service(self) -> bool:
         """Initialize Google Sheets service with read-only credentials"""
         try:
-            # Try environment variable first (production)
-            google_credentials_json = config('GOOGLE_SHEETS_CREDENTIALS_JSON', default=None)
+            # Priority 1: Check for JSON file in deployment directory (production)
+            deployment_json_path = os.path.join(settings.BASE_DIR, 'mangatrai-6bc45a711bae.json')
             
-            if google_credentials_json:
-                credentials_info = json.loads(google_credentials_json)
-                self.credentials = service_account.Credentials.from_service_account_info(
-                    credentials_info,
-                    scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
-                )
+            if os.path.exists(deployment_json_path):
+                key_file_path = deployment_json_path
+                logger.info(f"Using Google Sheets credentials from: {key_file_path}")
             else:
-                # Fallback to file-based credentials (development)
-                credential_paths = [
-                    '/etc/secrets/mangatrai-6bc45a711bae.json',
-                    os.path.join(settings.BASE_DIR.parent, 'crmsales-475507-247bd72ab136.json'),
-                    os.path.join(settings.BASE_DIR.parent, 'jewellery-crm', 'mangatrai-6bc45a711bae.json')
-                ]
+                # Priority 2: Try environment variable (fallback)
+                google_credentials_json = config('GOOGLE_SHEETS_CREDENTIALS_JSON', default=None)
                 
-                key_file_path = None
-                for path in credential_paths:
-                    if os.path.exists(path):
-                        key_file_path = path
-                        break
-                
-                if not key_file_path:
-                    logger.error("Google Sheets credentials not found")
-                    return False
+                if google_credentials_json:
+                    credentials_info = json.loads(google_credentials_json)
+                    self.credentials = service_account.Credentials.from_service_account_info(
+                        credentials_info,
+                        scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+                    )
+                    logger.info("Using Google Sheets credentials from environment variable")
+                else:
+                    # Priority 3: Use the original Google credentials file
+                    credential_paths = [
+                        '/etc/secrets/mangatrai-6bc45a711bae.json',
+                        os.path.join(settings.BASE_DIR, 'mangatrai-6bc45a711bae.json'),
+                        os.path.join(settings.BASE_DIR.parent, 'jewellery-crm', 'mangatrai-6bc45a711bae.json')
+                    ]
+                    
+                    key_file_path = None
+                    for path in credential_paths:
+                        if os.path.exists(path):
+                            key_file_path = path
+                            break
+                    
+                    if not key_file_path:
+                        logger.error("Google Sheets credentials not found")
+                        return False
                 
                 self.credentials = service_account.Credentials.from_service_account_file(
                     key_file_path,

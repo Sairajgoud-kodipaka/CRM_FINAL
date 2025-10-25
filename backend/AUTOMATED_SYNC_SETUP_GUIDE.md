@@ -181,3 +181,5 @@ python manage.py unified_sheets_sync
 5. **Configure backup** for the automation system
 
 The system is now fully automated and will sync Google Sheets data every 30 minutes during business hours without any manual intervention!
+
+

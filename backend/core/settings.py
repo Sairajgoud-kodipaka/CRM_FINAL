@@ -9,7 +9,7 @@ from decouple import config, Csv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Get the port from environment (Render requirement)
+# Get the port from environment (Utho VM requirement)
 PORT = config('PORT', default=8000, cast=int)
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -19,7 +19,7 @@ SECRET_KEY = config('SECRET_KEY', default='jewelry-crm-2024-production-secure-ke
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Production ALLOWED_HOSTS configuration
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,testserver,0.0.0.0,crm-final-tj4n.onrender.com', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,testserver,0.0.0.0,150.241.246.110', cast=Csv())
 
 # Google Sheets Configuration
 GOOGLE_SHEETS_ID = config('GOOGLE_SHEETS_ID', default='1W9JFanGBpl5DpFDcGELl3iLCvGnj35rWK0VLxvTS5t0')
@@ -105,34 +105,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database Configuration - Use SQLite for local development
+# Database Configuration - PostgreSQL Only
 import sys
 
-# Use SQLite for local development (no external database required)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# PostgreSQL configuration for all environments
+# Check if DATABASE_URL is provided (preferred method)
+database_url = config('DATABASE_URL', default=None)
 
-# Production configuration for Render managed database
-# Use production database when DATABASE_URL is provided
-if config('DATABASE_URL', default=None):
-    # Check if DATABASE_URL is provided (preferred method)
-    database_url = config('DATABASE_URL', default=None)
-    
-    if database_url:
-        # Use DATABASE_URL if provided
-        import dj_database_url
-        DATABASES['default'] = dj_database_url.parse(
+if database_url:
+    # Use DATABASE_URL if provided
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(
             database_url,
             conn_max_age=600,
             conn_health_checks=True,
         )
-    else:
-        # Fallback to individual database environment variables
-        DATABASES['default'] = {
+    }
+else:
+    # Fallback to individual database environment variables
+    DATABASES = {
+        'default': {
             'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
             'NAME': config('DB_NAME', default='crm_db'),
             'USER': config('DB_USER', default='crm_user'),
@@ -142,25 +135,30 @@ if config('DATABASE_URL', default=None):
             'CONN_MAX_AGE': 600,
             'CONN_HEALTH_CHECKS': True,
         }
-    
-    # Additional Render optimizations (only for PostgreSQL)
-    if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
-        if 'OPTIONS' not in DATABASES['default']:
-            DATABASES['default']['OPTIONS'] = {}
-        
-        DATABASES['default']['OPTIONS'].update({
-            'application_name': 'jewellery_crm_backend',
-            'connect_timeout': 60,
-            'sslmode': 'require',
-            'client_encoding': 'utf8',
-        })
+    }
 
-# During collectstatic, use a dummy database config
+# Additional PostgreSQL optimizations
+if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+    if 'OPTIONS' not in DATABASES['default']:
+        DATABASES['default']['OPTIONS'] = {}
+    
+    DATABASES['default']['OPTIONS'].update({
+        'application_name': 'jewellery_crm_backend',
+        'connect_timeout': 60,
+        'sslmode': 'require',
+        'client_encoding': 'utf8',
+    })
+
+# During collectstatic, use PostgreSQL with minimal config
 if 'collectstatic' in sys.argv:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='crm_db'),
+            'USER': config('DB_USER', default='crm_user'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
         }
     }
 
@@ -241,7 +239,7 @@ SIMPLE_JWT = {
 }
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app').split(',') if origin.strip()]
+CORS_ALLOWED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://jewellery-crm-frontend.vercel.app,http://150.241.246.110').split(',') if origin.strip()]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)  # Secure by default
 
@@ -249,7 +247,7 @@ CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bo
 WAHA_BASE_URL = config('WAHA_BASE_URL', default='http://localhost:3001')
 WAHA_SESSION = config('WAHA_SESSION', default='jewelry_crm')
 WAHA_API_KEY = config('WAHA_API_KEY', default=None)
-SITE_URL = config('SITE_URL', default='https://crm-final-tj4n.onrender.com')
+SITE_URL = config('SITE_URL', default='http://150.241.246.110:8000')
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -281,7 +279,7 @@ CORS_EXPOSE_HEADERS = [
 ]
 
 # CSRF Settings
-CSRF_TRUSTED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app').split(',') if origin.strip()]
+CSRF_TRUSTED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://jewellery-crm-frontend.vercel.app,http://150.241.246.110').split(',') if origin.strip()]
 
 # Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
@@ -322,8 +320,8 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
     
-    # HTTPS Settings - Render handles SSL automatically
-    SECURE_SSL_REDIRECT = False  # Render handles HTTPS redirects
+    # HTTPS Settings - Utho VM configuration
+    SECURE_SSL_REDIRECT = False  # Set to True when SSL is configured
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # Trust proxy headers
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True

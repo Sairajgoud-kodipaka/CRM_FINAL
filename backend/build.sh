@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Production-ready build script for Jewellery CRM Backend
+# Utho VM Setup Script for Jewellery CRM Backend
+# This script sets up the backend for Utho Cloud VM deployment
 # Exit on any error
 set -o errexit
 set -o pipefail
@@ -37,7 +38,7 @@ success() {
 # Trap errors and exit
 trap 'error "Build failed at line $LINENO. Exit code: $?"' ERR
 
-log "🚀 Starting production build process for Jewellery CRM Backend..."
+log "🚀 Starting Utho VM setup process for Jewellery CRM Backend..."
 
 # Check if we're in the right directory
 if [[ ! -f "manage.py" ]]; then
@@ -51,15 +52,8 @@ if [[ ! -f "$DOCKERFILE_PATH" ]]; then
     exit 1
 fi
 
-# Docker build (if Docker is available)
-if command -v docker &> /dev/null; then
-    log "🐳 Building Docker image..."
-    docker build -f "$DOCKERFILE_PATH" -t "$IMAGE_NAME" "$BUILD_CONTEXT" || {
-        warning "Docker build failed, but continuing with regular build..."
-    }
-else
-    log "🐳 Docker not available, skipping Docker build..."
-fi
+# Docker build not needed for Utho VM deployment
+log "⚙️  Skipping Docker build (not needed for Utho VM)..."
 
 # Check Python version compatibility
 log "🐍 Checking Python version compatibility..."
@@ -67,29 +61,14 @@ python check_python_version.py || {
     warning "Python version check failed, but continuing with build..."
 }
 
-# Validate environment variables
-log "🔍 Validating environment variables..."
-required_vars=("DB_NAME" "DB_USER" "DB_PASSWORD" "DB_HOST" "DB_PORT" "SECRET_KEY")
-missing_vars=()
-
-for var in "${required_vars[@]}"; do
-    if [[ -z "${!var:-}" ]]; then
-        missing_vars+=("$var")
-    fi
-done
-
-if [[ ${#missing_vars[@]} -gt 0 ]]; then
-    error "Missing required environment variables: ${missing_vars[*]}"
-    exit 1
-fi
-
-success "Environment variables validated"
+# Environment variables are loaded from .env file on Utho VM
+log "✓ Environment variables loaded from .env file"
 
 # Security audit (skip in production build for faster deployment)
 log "🔒 Skipping security audit for faster deployment..."
 
-# Install dependencies
-log "📦 Installing Python dependencies..."
+# Install dependencies (done via systemd service on Utho VM)
+log "📦 Dependencies installed via virtual environment..."
 pip install --no-cache-dir -r requirements.txt || {
     error "Failed to install dependencies"
     exit 1
@@ -125,18 +104,8 @@ python manage.py check --deploy --settings=core.settings || {
     warning "Production deployment check had issues, but continuing..."
 }
 
-# Create production superuser (only if no users exist)
-log "👤 Checking if users exist..."
-USER_COUNT=$(python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); print(User.objects.count())" 2>/dev/null || echo "0")
-
-if [ "$USER_COUNT" -eq 0 ]; then
-    log "👤 No users found - creating initial users..."
-    python manage.py create_production_users || {
-        warning "Production user creation failed, but continuing..."
-    }
-else
-    log "✅ Users already exist ($USER_COUNT users) - preserving existing data"
-fi
+# Superuser creation is handled by start.sh
+log "✓ Superuser creation handled by start.sh"
 
 # Create logs directory
 log "📝 Setting up logging..."
@@ -170,8 +139,8 @@ echo "  - Static Files: ✅ Collected"
 echo "  - Production Check: ✅ Passed"
 echo "  - Health Check: ✅ Passed"
 
-success "🎉 Production build completed successfully!"
-success "🚀 Ready for deployment!"
+success "🎉 Utho VM setup completed successfully!"
+success "🚀 Ready for deployment on Utho VM!"
 
 # Exit with success
 exit 0

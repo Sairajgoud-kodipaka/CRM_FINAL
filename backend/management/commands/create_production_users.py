@@ -143,4 +143,4 @@ class Command(BaseCommand):
             self.stdout.write(f'  Password: {password}')
             self.stdout.write('')
         
-        self.stdout.write('🔗 Admin Panel: https://crm-final-tj4n.onrender.com/admin/')
+        self.stdout.write('🔗 Admin Panel: http://150.241.246.110/admin/')

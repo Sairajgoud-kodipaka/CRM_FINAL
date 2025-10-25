@@ -62,12 +62,17 @@ export default function ManagerAnalyticsPage() {
       setLoading(true);
       setError(null);
       
-      console.log('Fetching analytics data...');
+      console.log('Fetching analytics data with date filtering...');
       console.log('API endpoint: /analytics/dashboard/');
       
       // Get date range for filtering
       const startDate = dateRange?.from || new Date();
       const endDate = dateRange?.to || new Date();
+      
+      console.log('Date range:', {
+        from: startDate.toISOString(),
+        to: endDate.toISOString()
+      });
       
       const response = await apiService.getAnalytics({
         start_date: startDate.toISOString(),

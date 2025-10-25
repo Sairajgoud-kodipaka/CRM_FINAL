@@ -37,7 +37,7 @@ RUN chmod -R 755 /etc/secrets
 # Make startup script executable
 RUN chmod +x start.sh
 
-# Expose port (use PORT environment variable for Render)
+# Expose port (use PORT environment variable for Utho VM)
 EXPOSE $PORT
 
 # Health check

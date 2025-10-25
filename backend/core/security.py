@@ -37,7 +37,7 @@ SESSION_SAVE_EVERY_REQUEST = True
 # CSRF Settings
 CSRF_COOKIE_AGE = 31449600  # 1 year
 CSRF_USE_SESSIONS = True
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com').split(',')
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='https://jewel-crm.vercel.app,http://150.241.246.110').split(',')
 
 # Content Security Policy
 CSP_DEFAULT_SRC = ("'self'",)
@@ -45,7 +45,7 @@ CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
 CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "'unsafe-eval'")
 CSP_IMG_SRC = ("'self'", "data:", "https:")
 CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
-CSP_CONNECT_SRC = ("'self'", "https://crm-final-mfe4.onrender.com")
+CSP_CONNECT_SRC = ("'self'", "http://150.241.246.110")
 
 # Rate Limiting
 RATELIMIT_ENABLE = True
