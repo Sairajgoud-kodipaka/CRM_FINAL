@@ -190,6 +190,10 @@ static/
 *.sqlite
 *.sqlite3
 
+# Deployment configs with secrets (NEVER commit these!)
+render.yaml
+*.deploy.yaml
+
 # Backup files
 *.bak
 *.backup
