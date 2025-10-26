@@ -137,5 +137,38 @@ echo "7. Check logs if needed:"
 echo "   sudo journalctl -u crm-backend.service -f"
 echo "   tail -f /var/www/CRM_FINAL/backend/logs/error.log"
 echo ""
+echo "8. Check service status:"
+echo "   systemctl status postgresql"
+echo "   systemctl status redis-server"
+echo "   systemctl status crm-backend.service"
+echo "   systemctl status nginx"
+echo ""
 
+# Display current service status
+log "🔍 Checking current service status..."
+echo ""
+echo "=== Service Status ==="
+echo ""
+echo "PostgreSQL:"
+systemctl is-active postgresql >/dev/null 2>&1 && success "✅ PostgreSQL is running" || warning "❌ PostgreSQL is NOT running"
+echo ""
+echo "Redis:"
+systemctl is-active redis-server >/dev/null 2>&1 && success "✅ Redis is running" || warning "❌ Redis is NOT running"
+echo ""
+echo "CRM Backend Service:"
+if systemctl is-active crm-backend.service >/dev/null 2>&1; then
+    success "✅ CRM Backend service is running"
+    echo "   Service details:"
+    systemctl status crm-backend.service --no-pager -l | head -10
+else
+    warning "❌ CRM Backend service is NOT running"
+fi
+echo ""
+echo "Nginx:"
+systemctl is-active nginx >/dev/null 2>&1 && success "✅ Nginx is running" || warning "❌ Nginx is NOT running"
+echo ""
+echo "=== Port Check ==="
+netstat -tuln | grep -E ':(5432|6379|8000|80)' | head -5
+echo ""
+success "✅ Status check completed!"
 
