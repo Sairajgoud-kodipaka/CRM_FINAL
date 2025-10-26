@@ -6,8 +6,8 @@ Wants=redis.service
 
 [Service]
 Type=notify
-User=crm-web
-Group=crm-web
+User=root
+Group=root
 WorkingDirectory=/var/www/CRM_FINAL/backend
 Environment="PATH=/var/www/CRM_FINAL/backend/venv/bin"
 Environment="DJANGO_SETTINGS_MODULE=core.settings"
