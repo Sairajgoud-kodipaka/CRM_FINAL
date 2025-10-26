@@ -105,19 +105,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database Configuration - Use SQLite for local development
+# Database Configuration - Use PostgreSQL for Utho Cloud
 import sys
 
-# Use SQLite for local development (no external database required)
+# Primary database configuration - PostgreSQL (for Utho Cloud deployment)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
+        'NAME': config('DB_NAME', default='jewellery_crm'),
+        'USER': config('DB_USER', default='crm_user'),
+        'PASSWORD': config('DB_PASSWORD', default='SecurePassword123!'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': 600,
+        'CONN_HEALTH_CHECKS': True,
     }
 }
 
-# Production configuration for Render managed database
-# Use production database when DATABASE_URL is provided
+# Use DATABASE_URL if provided (for compatibility with external services)
 if config('DATABASE_URL', default=None):
     # Check if DATABASE_URL is provided (preferred method)
     database_url = config('DATABASE_URL', default=None)
@@ -143,7 +148,7 @@ if config('DATABASE_URL', default=None):
             'CONN_HEALTH_CHECKS': True,
         }
     
-    # Additional Render optimizations (only for PostgreSQL)
+    # Additional PostgreSQL optimizations (for Utho Cloud VM)
     if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
         if 'OPTIONS' not in DATABASES['default']:
             DATABASES['default']['OPTIONS'] = {}
@@ -151,16 +156,19 @@ if config('DATABASE_URL', default=None):
         DATABASES['default']['OPTIONS'].update({
             'application_name': 'jewellery_crm_backend',
             'connect_timeout': 60,
-            'sslmode': 'require',
             'client_encoding': 'utf8',
         })
 
-# During collectstatic, use a dummy database config
+# During collectstatic, use a minimal PostgreSQL config
 if 'collectstatic' in sys.argv:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'postgres',
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': 'localhost',
+            'PORT': '5432',
         }
     }
 

@@ -1,0 +1,32 @@
+[Unit]
+Description=Jewellery CRM Backend Service
+After=network.target postgresql.service redis.service
+Requires=postgresql.service
+Wants=redis.service
+
+[Service]
+Type=notify
+User=crm-web
+Group=crm-web
+WorkingDirectory=/var/www/CRM_FINAL/backend
+Environment="PATH=/var/www/CRM_FINAL/backend/venv/bin"
+Environment="DJANGO_SETTINGS_MODULE=core.settings"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/var/www/CRM_FINAL/backend/venv/bin/gunicorn core.wsgi:application \
+    --bind 127.0.0.1:8000 \
+    --workers 3 \
+    --timeout 300 \
+    --graceful-timeout 120 \
+    --preload \
+    --access-logfile /var/www/CRM_FINAL/backend/logs/access.log \
+    --error-logfile /var/www/CRM_FINAL/backend/logs/error.log \
+    --log-level info
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

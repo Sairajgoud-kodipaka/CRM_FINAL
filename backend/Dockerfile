@@ -12,11 +12,10 @@ ENV PORT=8000
 WORKDIR /app
 
 # Install system dependencies
+# Note: psycopg2-binary doesn't require libpq-dev or build-essential
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         postgresql-client \
-        build-essential \
-        libpq-dev \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
