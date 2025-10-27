@@ -403,7 +403,6 @@ class ApiService {
           // Try different possible structures - prioritize state.token
           const token = parsed.state?.token || parsed.token || null;
           if (token) {
-            console.log('🔑 Token found in auth-storage:', token.substring(0, 20) + '...');
             return token;
           }
         }
@@ -412,17 +411,15 @@ class ApiService {
         try {
           const authStore = JSON.parse(localStorage.getItem('auth-storage') || '{}');
           if (authStore.state?.token) {
-            console.log('🔑 Token found in Zustand store:', authStore.state.token.substring(0, 20) + '...');
             return authStore.state.token;
           }
         } catch (e) {
           // Ignore parsing errors for Zustand store
         }
         
-        console.log('❌ No token found in storage');
         return null;
       } catch (error) {
-        console.error('Error parsing auth storage:', error);
+        // Error parsing auth storage
         return null;
       }
     }
@@ -481,7 +478,6 @@ class ApiService {
     }
     
     if (keysToInvalidate.length > 0) {
-      console.log('🔄 Cache invalidated for patterns:', patterns, 'Keys:', keysToInvalidate.length);
       this.cacheInvalidationListeners.forEach(listener => listener(keysToInvalidate));
     }
   }
@@ -493,7 +489,7 @@ class ApiService {
         try {
           listener(data);
         } catch (error) {
-          console.error('Error in mutation listener:', error);
+          // Error in mutation listener
         }
       });
     }
@@ -534,7 +530,6 @@ class ApiService {
     const pending = this.pendingRequests.get(cacheKey);
     
     if (pending && Date.now() - pending.timestamp < this.REQUEST_DEDUP_WINDOW) {
-      console.log('🔄 Deduplicating request:', cacheKey);
       return pending.promise;
     }
 
@@ -578,7 +573,6 @@ class ApiService {
     if (!options.method || options.method === 'GET') {
       const cachedData = this.getFromCache<T>(cacheKey);
       if (cachedData) {
-        console.log('⚡ Cache hit:', endpoint);
         performanceMonitor.recordCacheHit();
         performanceMonitor.endTiming(endpoint, true);
         return { data: cachedData, success: true };
@@ -609,20 +603,12 @@ class ApiService {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        console.error('API Error Response:', {
-          status: response.status,
-          statusText: response.statusText,
-          url: response.url,
-          headers: Object.fromEntries(response.headers.entries())
-        });
-        
         // Try to get the error response body
         let errorMessage = `API Error: ${response.status} ${response.statusText}`;
         let errorData: any = null;
         
         try {
           const errorBody = await response.text();
-          console.error('API Error Response body:', errorBody);
           
           // Try to parse the error body as JSON
           try {
@@ -643,7 +629,7 @@ class ApiService {
             }
           }
         } catch (e) {
-          console.error('Could not read error response body');
+          // Could not read error response body
         }
         
         // Only redirect for 401 errors that are NOT login attempts
@@ -709,7 +695,6 @@ class ApiService {
           data = JSON.parse(responseText);
         }
       } catch (error) {
-        console.error('Failed to parse JSON response:', error);
         // If JSON parsing fails, return success with empty data
         data = null;
       }
@@ -730,14 +715,12 @@ class ApiService {
       // Cache successful GET responses
       if ((!options.method || options.method === 'GET') && result.success) {
         this.setCache(cacheKey, result.data);
-        console.log('💾 Cached response:', endpoint);
       }
       
       // End performance monitoring for successful requests
       performanceMonitor.endTiming(endpoint, false);
       return result;
     } catch (error) {
-      console.error('API Request failed:', error);
       // End performance monitoring for failed requests
       performanceMonitor.endTiming(endpoint, false);
       throw error;
@@ -868,7 +851,7 @@ class ApiService {
           body: JSON.stringify({ refresh_token: token }),
         });
       } catch (error) {
-        console.error('Logout error:', error);
+        // Logout error
       }
     }
     
@@ -909,8 +892,6 @@ class ApiService {
     queryParams.append('_t', Date.now().toString());
     
     const url = `/tenants/dashboard/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    console.log('🔍 [API] Dashboard URL:', url);
-    console.log('🔍 [API] Cache Key:', cacheKey);
     return this.request(url);
   }
 
@@ -929,7 +910,6 @@ class ApiService {
     if (params?.filter_type) queryParams.append('filter_type', params.filter_type);
     
     const url = `/tenants/manager-dashboard/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    console.log('Manager Dashboard API URL:', url);
     return this.request(url);
   }
 
@@ -1456,7 +1436,6 @@ class ApiService {
     if (params?.assigned_to) queryParams.append('assigned_to', params.assigned_to);
 
     const response = await this.request<SalesPipeline[]>(`/sales/pipeline/${queryParams.toString() ? `?${queryParams}` : ''}`);
-    console.log('getSalesPipeline response:', response);
     return response;
   }
 
@@ -1474,7 +1453,6 @@ class ApiService {
     queryParams.append('platform', 'true');
 
     const response = await this.request<SalesPipeline[]>(`/sales/pipeline/${queryParams.toString() ? `?${queryParams}` : ''}`);
-    console.log('getPlatformSalesPipeline response:', response);
     return response;
   }
 
@@ -1491,7 +1469,6 @@ class ApiService {
       if (params?.source) queryParams.append('source', params.source);
 
       const response = await this.request<any[]>(`/crm/sales/pipeline/${queryParams.toString() ? `?${queryParams}` : ''}`);
-      console.log('getCRMSalesPipeline response:', response);
       return response;
     } catch (error) {
       // Silently handle missing endpoint - this is expected until backend is implemented
@@ -1513,7 +1490,6 @@ class ApiService {
     if (params?.stage) queryParams.append('stage', params.stage);
 
     const response = await this.request<SalesPipeline[]>(`/sales/pipeline/my/${queryParams.toString() ? `?${queryParams}` : ''}`);
-    console.log('getMySalesPipeline response:', response);
     return response;
   }
 
@@ -1522,7 +1498,6 @@ class ApiService {
   }
 
   async createSalesPipeline(pipelineData: Partial<SalesPipeline>): Promise<ApiResponse<SalesPipeline>> {
-    console.log('Creating pipeline with data:', pipelineData);
     return this.request('/sales/pipeline/create/', {
       method: 'POST',
       body: JSON.stringify(pipelineData),
@@ -1659,24 +1634,44 @@ class ApiService {
     address?: string;
     store?: number;
   }): Promise<ApiResponse<User>> {
-    console.log('API Service: Creating team member with data:', memberData);
-    return this.request('/users/team-members/', {
+    const response = await this.request('/users/team-members/', {
       method: 'POST',
       body: JSON.stringify(memberData),
     });
+    
+    // Invalidate cache for team members and related data
+    if (response.success) {
+      this.invalidateCache(['/users/team-members/', '/users/', '/stores/']);
+    }
+    
+    return response;
   }
 
   async updateTeamMember(id: string, memberData: Partial<User>): Promise<ApiResponse<User>> {
-    return this.request(`/users/team-members/${id}/update/`, {
+    const response = await this.request(`/users/team-members/${id}/update/`, {
       method: 'PUT',
       body: JSON.stringify(memberData),
     });
+    
+    // Invalidate cache for team members and related data
+    if (response.success) {
+      this.invalidateCache([`/users/team-members/${id}/`, '/users/team-members/', '/users/', '/stores/']);
+    }
+    
+    return response;
   }
 
   async deleteTeamMember(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/users/team-members/${id}/delete/`, {
+    const response = await this.request(`/users/team-members/${id}/delete/`, {
       method: 'DELETE',
     });
+    
+    // Invalidate cache for team members and related data
+    if (response.success) {
+      this.invalidateCache([`/users/team-members/${id}/`, '/users/team-members/', '/users/', '/stores/']);
+    }
+    
+    return response;
   }
 
   // Analytics
@@ -1811,23 +1806,44 @@ class ApiService {
   }
 
   async createStore(storeData: Partial<Store>): Promise<ApiResponse<Store>> {
-    return this.request('/stores/', {
+    const response = await this.request('/stores/', {
       method: 'POST',
       body: JSON.stringify(storeData),
     });
+    
+    // Invalidate cache for stores and related data
+    if (response.success) {
+      this.invalidateCache(['/stores/', '/users/team-members/', '/users/']);
+    }
+    
+    return response;
   }
 
   async updateStore(id: string, storeData: Partial<Store>): Promise<ApiResponse<Store>> {
-    return this.request(`/stores/${id}/`, {
+    const response = await this.request(`/stores/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(storeData),
     });
+    
+    // Invalidate cache for stores and related data
+    if (response.success) {
+      this.invalidateCache([`/stores/${id}/`, '/stores/', '/users/team-members/', '/users/']);
+    }
+    
+    return response;
   }
 
   async deleteStore(id: string): Promise<ApiResponse<void>> {
-    return this.request(`/stores/${id}/`, {
+    const response = await this.request(`/stores/${id}/`, {
       method: 'DELETE',
     });
+    
+    // Invalidate cache for stores and related data
+    if (response.success) {
+      this.invalidateCache([`/stores/${id}/`, '/stores/', '/users/team-members/', '/users/']);
+    }
+    
+    return response;
   }
 
   async getStoreTeam(storeId: string): Promise<ApiResponse<any[]>> {

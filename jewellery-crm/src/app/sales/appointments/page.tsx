@@ -508,7 +508,7 @@ export default function SalesAppointmentsPage() {
             <div>
               <p className="text-sm font-medium text-blue-700">Current Date Filter</p>
               <p className="text-sm font-bold text-blue-800">
-                {formatDateRange(dateRange)}
+                {formatDateRange(dateRange as { from: Date; to: Date } | undefined)}
               </p>
             </div>
             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
