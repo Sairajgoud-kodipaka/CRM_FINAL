@@ -54,23 +54,22 @@ if [[ -d ".git" ]]; then
     # Pull latest code
     log "Pulling latest changes from repository..."
     
+    # Disable credential prompt for public repos
+    git config --local credential.helper ""
+    export GIT_TERMINAL_PROMPT=0
+    
     # For public repos, credentials are NOT needed
     # Try to pull with auto-merge (merge if conflicts, fast-forward if clean)
-    if git pull --no-rebase --quiet 2>&1; then
-        success "Code updated successfully"
-        info "Latest commit: $(git log -1 --pretty=format:'%h - %s')"
-    else
-        # If merge conflict, try rebase
-        warning "Auto-merge failed, trying rebase..."
-        git rebase --abort 2>/dev/null || true
-        if git pull --rebase --quiet 2>&1; then
-            success "Code updated successfully (rebase)"
+    if git pull 2>&1 | grep -v "Username\|Password"; then
+        if [ ${PIPESTATUS[0]} -eq 0 ]; then
+            success "Code updated successfully"
             info "Latest commit: $(git log -1 --pretty=format:'%h - %s')"
         else
-            error "Git pull failed!"
-            info "This might be a conflict or network issue"
-            warning "Continuing with existing code..."
+            warning "Git pull had issues but continuing..."
         fi
+    else
+        warning "Git pull prompted for credentials (repo might be private)"
+        warning "Skipping git pull - continuing with existing code..."
     fi
 else
     warning ".git directory not found. Skipping git pull."
@@ -132,6 +131,7 @@ python manage.py check --database default || { error "Database connection failed
 success "Database connection successful"
 
 log "Running migrations..."
+python manage.py makemigrations --noinput || warning "No new migrations created"
 python manage.py migrate --noinput
 
 log "Collecting static files..."
