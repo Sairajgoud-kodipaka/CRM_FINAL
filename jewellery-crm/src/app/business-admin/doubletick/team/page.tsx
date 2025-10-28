@@ -11,12 +11,12 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Users, 
-  Plus, 
-  UserPlus, 
-  Settings, 
-  BarChart3, 
+import {
+  Users,
+  Plus,
+  UserPlus,
+  Settings,
+  BarChart3,
   MessageSquare,
   Clock,
   CheckCircle,
@@ -196,7 +196,7 @@ export default function TeamManagement() {
   };
 
   const handleUpdatePermissions = (memberId: string, permission: string, value: boolean) => {
-    setTeamMembers(teamMembers.map(m => 
+    setTeamMembers(teamMembers.map(m =>
       m.id === memberId ? { ...m, [permission]: value } : m
     ));
   };

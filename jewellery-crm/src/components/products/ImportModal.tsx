@@ -31,34 +31,34 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
   };
 
   const validateAndSetFile = (selectedFile: File) => {
-    console.log('Processing file:', selectedFile.name, selectedFile.type);
+
     // More comprehensive CSV file validation
-    const isValidCSV = selectedFile.type === 'text/csv' || 
+    const isValidCSV = selectedFile.type === 'text/csv' ||
                       selectedFile.name.toLowerCase().endsWith('.csv') ||
                       selectedFile.type === 'application/csv' ||
                       selectedFile.type === 'text/plain';
-    
+
     if (isValidCSV) {
       setFile(selectedFile);
       setError(null);
       setSuccess(null);
-      console.log('File accepted:', selectedFile.name);
+
     } else {
       setError('Please select a valid CSV file. Only .csv files are supported.');
       setFile(null);
-      console.log('File rejected - invalid type:', selectedFile.type);
+
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File change event triggered:', e.target.files);
+
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       validateAndSetFile(selectedFile);
     } else {
       setFile(null);
       setError(null);
-      console.log('No file selected');
+
     }
   };
 
@@ -75,7 +75,7 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     const droppedFiles = e.dataTransfer.files;
     if (droppedFiles.length > 0) {
       const selectedFile = droppedFiles[0];
@@ -110,7 +110,7 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
         setError(response.message || 'Failed to import products');
       }
     } catch (error) {
-      console.error('Failed to import products:', error);
+
       setError('Failed to import products. Please try again.');
     } finally {
       setLoading(false);
@@ -121,7 +121,7 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
         const csvContent = `name,sku,description,category,cost_price,selling_price,discount_price,quantity,min_quantity,max_quantity,weight,dimensions,material,color,size,status,is_featured,is_bestseller
 Gold Ring,GOLD001,Beautiful gold ring,Rings,5000,8000,7500,10,2,50,5.2,10 x 5 x 2 cm,Gold,Yellow,18K,active,true,false
 Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,3000,5000,4500,15,3,100,8.5,15 x 8 x 1 cm,Silver,White,925,active,false,true`;
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -182,20 +182,20 @@ Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,3000,5000,4500,15,3,
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Select CSV File</Label>
-              <div 
+              <div
                 className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
-                  isDragOver 
-                    ? 'border-blue-400 bg-blue-50' 
+                  isDragOver
+                    ? 'border-blue-400 bg-blue-50'
                     : 'border-gray-300 hover:border-gray-400'
                 }`}
                 onClick={() => {
-                  console.log('Upload area clicked');
+
                   const fileInput = document.getElementById('file-upload') as HTMLInputElement;
                   if (fileInput) {
-                    console.log('File input found, clicking...');
+
                     fileInput.click();
                   } else {
-                    console.log('File input not found!');
+
                   }
                 }}
                 onDragOver={handleDragOver}
@@ -212,8 +212,8 @@ Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,3000,5000,4500,15,3,
                 <div className="space-y-4">
                   <Upload className="w-8 h-8 mx-auto text-gray-400" />
                   <p className="text-sm text-gray-600">
-                    {isDragOver 
-                      ? 'Drop your CSV file here' 
+                    {isDragOver
+                      ? 'Drop your CSV file here'
                       : 'Drag and drop your CSV file here, or click to browse'
                     }
                   </p>
@@ -221,13 +221,13 @@ Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,3000,5000,4500,15,3,
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Choose File button clicked');
+
                       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
                       if (fileInput) {
-                        console.log('File input found, clicking...');
+
                         fileInput.click();
                       } else {
-                        console.log('File input not found!');
+
                       }
                     }}
                     className="bg-primary hover:bg-primary/90 text-white"
@@ -293,4 +293,4 @@ Silver Necklace,SILVER001,Elegant silver necklace,Necklaces,3000,5000,4500,15,3,
       </div>
     </div>
   );
-} 
+}

@@ -38,7 +38,7 @@ export default function ManagerInventoryPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch products
       const productsResponse = await apiService.getProducts();
       if (productsResponse.success && productsResponse.data) {
@@ -55,9 +55,9 @@ export default function ManagerInventoryPage() {
           }
         }
         setProducts(productsData);
-        console.log(`Loaded ${productsData.length} products`);
+
       } else {
-        console.warn('Products response is not valid:', productsResponse.data);
+
         setProducts([]);
       }
 
@@ -67,7 +67,7 @@ export default function ManagerInventoryPage() {
         setStats(statsResponse.data);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+
       setProducts([]);
     } finally {
       setLoading(false);
@@ -77,11 +77,11 @@ export default function ManagerInventoryPage() {
   const filteredProducts = Array.isArray(products) ? products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || 
+    const matchesStatus = statusFilter === 'all' ||
                          (statusFilter === 'in stock' && product.quantity > product.min_quantity) ||
                          (statusFilter === 'low stock' && product.quantity > 0 && product.quantity <= product.min_quantity) ||
                          (statusFilter === 'out of stock' && product.quantity === 0);
-    
+
     return matchesSearch && matchesStatus;
   }) : [];
 
@@ -154,7 +154,7 @@ export default function ManagerInventoryPage() {
                       if (product.quantity <= product.min_quantity) return 'low stock';
                       return 'in stock';
                     };
-                    
+
                     return (
                       <tr key={i} className="border-t border-border hover:bg-gray-50">
                         <td className="px-4 py-2 font-medium text-text-primary">{item.name}</td>

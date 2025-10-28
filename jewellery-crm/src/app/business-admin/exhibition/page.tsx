@@ -27,16 +27,16 @@ export default function BusinessAdminExhibitionPage() {
     try {
       setLoading(true);
       const response = await apiService.getExhibitionLeads();
-      
+
       if (response.success && response.data) {
-        const clients = Array.isArray(response.data) 
-          ? response.data 
+        const clients = Array.isArray(response.data)
+          ? response.data
           : (response.data as any)?.results || (response.data as any)?.data || [];
-        
+
         setExhibitionLeads(clients);
       }
     } catch (error) {
-      console.error('Error fetching exhibition leads:', error);
+
       toast({
         title: "Error",
         description: "Failed to fetch exhibition leads",
@@ -50,17 +50,17 @@ export default function BusinessAdminExhibitionPage() {
   const promoteToMainCustomer = async (customerId: number) => {
     try {
       setPromotingCustomer(customerId);
-      
+
       // Use the exhibition-specific promotion API
       const response = await apiService.promoteExhibitionLead(customerId.toString());
-      
+
       if (response.success) {
         toast({
           title: "Success!",
           description: "Customer promoted to main customer database",
           variant: "success",
         });
-        
+
         // Refresh the list
         fetchExhibitionLeads();
       } else {
@@ -71,7 +71,7 @@ export default function BusinessAdminExhibitionPage() {
         });
       }
     } catch (error) {
-      console.error('Error promoting customer:', error);
+
       toast({
         title: "Error",
         description: "Failed to promote customer",
@@ -83,14 +83,14 @@ export default function BusinessAdminExhibitionPage() {
   };
 
   const filteredLeads = exhibitionLeads.filter(lead => {
-    const matchesSearch = 
+    const matchesSearch =
       lead.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.phone?.includes(searchTerm) ||
       lead.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -130,9 +130,9 @@ export default function BusinessAdminExhibitionPage() {
           <p className="text-text-secondary mt-1">Manage and promote exhibition leads to your main customer database</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={fetchExhibitionLeads}
             className="flex items-center gap-1"
           >
@@ -186,7 +186,7 @@ export default function BusinessAdminExhibitionPage() {
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
@@ -251,7 +251,7 @@ export default function BusinessAdminExhibitionPage() {
             </tbody>
           </table>
         </div>
-        
+
         {filteredLeads.length > 0 && (
           <div className="text-sm text-text-secondary text-center py-2">
             Showing {filteredLeads.length} of {exhibitionLeads.length} exhibition leads

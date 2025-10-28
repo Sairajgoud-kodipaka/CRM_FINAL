@@ -5,14 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { 
-  MessageSquare, 
-  Users, 
-  Bot, 
-  BarChart3, 
-  Send, 
-  Plus, 
-  Settings, 
+import {
+  MessageSquare,
+  Users,
+  Bot,
+  BarChart3,
+  Send,
+  Plus,
+  Settings,
   Phone,
   Clock,
   CheckCircle,
@@ -432,8 +432,8 @@ export default function DoubleTickDashboard() {
                         <span className="font-medium">{campaign.messages_sent}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-600 h-2 rounded-full" 
+                        <div
+                          className="bg-green-600 h-2 rounded-full"
                           style={{ width: `${(campaign.messages_sent / campaign.total_recipients) * 100}%` }}
                         ></div>
                       </div>

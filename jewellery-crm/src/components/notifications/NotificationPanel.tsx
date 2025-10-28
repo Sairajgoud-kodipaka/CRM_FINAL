@@ -73,27 +73,16 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
   const [volume, setVolume] = useState(0.5);
 
   // Debug logging
-  console.log('🔔 NotificationPanel render:', {
-    user: user?.username,
-    role: user?.role,
-    tenant: user?.tenant,
-    store: user?.store,
-    isAuthenticated,
-    isHydrated,
-    totalNotifications: state.notifications.length,
-    unreadCount: state.unreadCount,
-    isLoading: state.isLoading,
-    error: state.error
-  });
+
 
   // Debug function to manually fetch notifications
   const handleDebugFetch = async () => {
-    console.log('🔧 Manual debug fetch triggered');
+
     try {
       await actions.fetchNotifications();
-      console.log('🔧 Manual fetch completed');
+
     } catch (error) {
-      console.error('🔧 Manual fetch failed:', error);
+
     }
   };
 
@@ -116,67 +105,62 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
 
   // Filter notifications based on user role and store access
   const getScopedNotifications = (notifications: Notification[]) => {
-    console.log('🔍 getScopedNotifications called with:', {
-      totalNotifications: notifications.length,
-      userRole: user?.role,
-      userTenant: user?.tenant,
-      userStore: user?.store
-    });
+
 
     if (!user) return [];
 
     // Business admin can see all notifications
     if (user.role === 'business_admin') {
-      console.log('👑 Business admin - showing all notifications');
+
       return notifications;
     }
 
     // Manager can see their store's notifications
     if (user.role === 'manager') {
-      const filtered = notifications.filter(notification => 
+      const filtered = notifications.filter(notification =>
         notification.tenantId === user.tenant?.toString() &&
         (!notification.storeId || notification.storeId === user.store?.toString())
       );
-      console.log('👔 Manager - filtered to:', filtered.length, 'notifications');
+
       return filtered;
     }
 
     // Inhouse sales can see their store's notifications and their own
     if (user.role === 'inhouse_sales') {
-      const filtered = notifications.filter(notification => 
+      const filtered = notifications.filter(notification =>
         notification.userId === user.id.toString() ||
         (notification.tenantId === user.tenant?.toString() &&
          (!notification.storeId || notification.storeId === user.store?.toString()))
       );
-      console.log('💼 Inhouse sales - filtered to:', filtered.length, 'notifications');
+
       return filtered;
     }
 
     // Telecaller can see their assigned notifications
     if (user.role === 'tele_calling') {
-      const filtered = notifications.filter(notification => 
+      const filtered = notifications.filter(notification =>
         notification.userId === user.id.toString() ||
         notification.tenantId === user.tenant?.toString()
       );
-      console.log('📞 Telecaller - filtered to:', filtered.length, 'notifications');
+
       return filtered;
     }
 
     // Marketing team can see marketing-related notifications
     if (user.role === 'marketing') {
-      const filtered = notifications.filter(notification => 
+      const filtered = notifications.filter(notification =>
         notification.type === 'marketing_campaign' ||
         notification.type === 'announcement'
       );
-      console.log('📢 Marketing - filtered to:', filtered.length, 'notifications');
+
       return filtered;
     }
 
     // Default: only show user's own notifications
-    const filtered = notifications.filter(notification => 
+    const filtered = notifications.filter(notification =>
       notification.userId === user.id.toString()
     );
-    console.log('🔒 Default - showing only own notifications:', filtered.length);
+
     return filtered;
   };
 
@@ -196,14 +180,14 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
     try {
       // Show confirmation dialog
       const confirmed = window.confirm('Are you sure you want to delete this notification?');
-      
+
       if (!confirmed) {
         return;
       }
-      
+
       await actions.deleteNotification(notificationId);
     } catch (error) {
-      console.error('Error deleting notification:', error);
+
     }
   };
 
@@ -213,18 +197,18 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
       const confirmed = window.confirm(
         `Are you sure you want to delete all ${scopedNotifications.length} notifications? This action cannot be undone.`
       );
-      
+
       if (!confirmed) {
         return;
       }
-      
+
       // Delete all notifications one by one
-      const deletePromises = scopedNotifications.map(notification => 
+      const deletePromises = scopedNotifications.map(notification =>
         actions.deleteNotification(notification.id)
       );
       await Promise.all(deletePromises);
     } catch (error) {
-      console.error('Error deleting all notifications:', error);
+
     }
   };
 
@@ -252,7 +236,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
     notificationSound.setEnabled(!newMutedState);
-    
+
     // Test sound if unmuting
     if (newMutedState === false) {
       notificationSound.play();
@@ -288,12 +272,12 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
               <p className="text-sm text-gray-600 mb-2 line-clamp-2">
                 {notification.message}
               </p>
-              
+
               {/* Metadata */}
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span>{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</span>
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className={`text-xs ${getPriorityColor(notification.priority)}`}
                 >
                   {getPriorityText(notification.priority)}
@@ -374,7 +358,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
             </p>
           </div>
         </div>
-        
+
         {/* Debug button - only show in development */}
         {process.env.NODE_ENV === 'development' && (
           <Button
@@ -386,7 +370,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
             🔧 Debug Fetch
           </Button>
         )}
-        
+
         <Button
           variant="ghost"
           size="sm"
@@ -506,7 +490,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
               className="text-xs"
               onClick={() => {
                 // TODO: Navigate to notifications page
-                console.log('View all notifications');
+
               }}
             >
               View all
@@ -516,4 +500,4 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
       )}
     </div>
   );
-}; 
+};

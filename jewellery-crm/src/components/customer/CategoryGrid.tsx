@@ -22,10 +22,10 @@ const categoryIcons: { [key: string]: string } = {
   'default': '💎'
 };
 
-export default function CategoryGrid({ 
-  categories, 
-  onCategorySelect, 
-  selectedCategory 
+export default function CategoryGrid({
+  categories,
+  onCategorySelect,
+  selectedCategory
 }: CategoryGridProps) {
   const params = useParams();
   const tenant = params?.tenant as string;
@@ -68,11 +68,11 @@ export default function CategoryGrid({
               {category.description}
             </p>
           )}
-          
+
           {/* Hover effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </button>
       ))}
     </div>
   );
-} 
+}

@@ -54,9 +54,9 @@ export default function TenantsListPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await apiService.getTenants();
-      
+
       if (response.success && response.data) {
         const tenantsData = Array.isArray(response.data) ? response.data : [];
         setTenants(tenantsData);
@@ -65,7 +65,7 @@ export default function TenantsListPage() {
         setTenants([]);
       }
     } catch (err) {
-      console.error('Error fetching tenants:', err);
+
       setError(`Failed to load tenants data: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setTenants([]);
     } finally {
@@ -88,7 +88,7 @@ export default function TenantsListPage() {
     try {
       setDeleting(true);
       const response = await apiService.deleteTenant(tenantToDelete.id.toString());
-      
+
       if (response.success) {
         setTenants(prev => prev.filter(t => t.id !== tenantToDelete.id));
         setDeleteDialogOpen(false);
@@ -97,7 +97,7 @@ export default function TenantsListPage() {
         setError(`Failed to delete tenant: ${response.message || 'Unknown error'}`);
       }
     } catch (err) {
-      console.error('Error deleting tenant:', err);
+
       setError(`Failed to delete tenant: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setDeleting(false);
@@ -113,11 +113,11 @@ export default function TenantsListPage() {
     try {
       setToggling(tenant.id);
       const response = await apiService.toggleTenantStatus(tenant.id);
-      
+
       if (response.success) {
         // Update the tenant in the local state
-        setTenants(prev => prev.map(t => 
-          t.id === tenant.id 
+        setTenants(prev => prev.map(t =>
+          t.id === tenant.id
             ? { ...t, subscription_status: response.data.subscription_status }
             : t
         ));
@@ -125,7 +125,7 @@ export default function TenantsListPage() {
         setError(`Failed to toggle tenant status: ${response.message || 'Unknown error'}`);
       }
     } catch (err) {
-      console.error('Error toggling tenant status:', err);
+
       setError(`Failed to toggle tenant status: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setToggling(null);
@@ -134,7 +134,7 @@ export default function TenantsListPage() {
 
   const getStatusColor = (status: string | null) => {
     if (!status) return 'bg-gray-100 text-gray-800 border-gray-200';
-    
+
     switch (status) {
       case 'active':
         return 'bg-green-100 text-green-800 border-green-200';
@@ -149,7 +149,7 @@ export default function TenantsListPage() {
 
   const getBusinessTypeIcon = (type: string | null) => {
     if (!type) return '🏢';
-    
+
     switch (type) {
       case 'jewelry_store':
         return '💍';
@@ -217,8 +217,8 @@ export default function TenantsListPage() {
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <p className="text-red-600 mb-2">Error loading tenants</p>
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button 
-              onClick={() => window.location.reload()} 
+            <Button
+              onClick={() => window.location.reload()}
               variant="outline"
               className="mt-4"
             >
@@ -252,7 +252,7 @@ export default function TenantsListPage() {
             <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No Tenants Found</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              No tenant businesses are currently registered in the system. 
+              No tenant businesses are currently registered in the system.
               You can create a new tenant to get started.
             </p>
             <Link href="/platform/tenants/new">
@@ -532,4 +532,4 @@ export default function TenantsListPage() {
   );
 }
 
- 
+

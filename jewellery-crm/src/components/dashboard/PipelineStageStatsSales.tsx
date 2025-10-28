@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
-import { 
+import {
   CUSTOMER_INTERESTS,
   PRODUCT_TYPES,
   STYLES,
@@ -115,33 +115,30 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
   const fetchPipelineStats = async () => {
     try {
       setLoading(true);
-      console.log('🔍 [PIPELINE] Fetching pipeline stats with params:', {
-        start_date: dateRange?.from?.toISOString(),
-        end_date: dateRange?.to?.toISOString(),
-      });
-      
+
+
       // Try to get detailed stage data first
       let response = await apiService.getPipelineStages({
         start_date: dateRange?.from?.toISOString(),
         end_date: dateRange?.to?.toISOString(),
       });
-      
-      console.log('📊 [PIPELINE] Pipeline stages API Response:', response);
-      
+
+
+
       if (response.success) {
         const stagesData = response.data;
-        console.log('Pipeline stages data received:', stagesData);
+
         // Map the backend data to our frontend format
         const stageStats = pipelineStages.map(stage => {
           const backendStage = stagesData.find((s: any) => s.label === stage.name);
-          console.log(`Mapping stage ${stage.name}:`, backendStage);
+
           return {
             ...stage,
             count: backendStage?.count || 0,
             value_sum: backendStage?.value || 0,
           };
         });
-        console.log('Final stage stats:', stageStats);
+
         setPipelineStats(stageStats);
       } else {
         // Fallback to general pipeline stats
@@ -161,7 +158,7 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
         }
       }
     } catch (error) {
-      console.error('Failed to fetch pipeline stats:', error);
+
       setError('Failed to load pipeline stats');
       // Fallback to empty stats
       const stageStats = pipelineStages.map(stage => ({
@@ -209,24 +206,24 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
 
   const handleUpdateStage = async () => {
     if (!selectedCustomerForTransition || !newStage) return;
-    
+
     setTransitionLoading(true);
     try {
       // Find the pipeline ID for this customer
       const response = await apiService.getSalesPipeline({ stage: selectedCustomerForTransition.pipeline_stage });
-      
+
       if (response.success) {
         const pipelineData = response.data;
-        const dataArray = Array.isArray(pipelineData) ? pipelineData : 
-                         (pipelineData as any)?.results ? (pipelineData as any).results : 
+        const dataArray = Array.isArray(pipelineData) ? pipelineData :
+                         (pipelineData as any)?.results ? (pipelineData as any).results :
                          (pipelineData as any)?.data ? (pipelineData as any).data : [];
-        
+
         const pipeline = dataArray.find((p: any) => p.client?.id === selectedCustomerForTransition.id);
-        
+
         if (pipeline) {
           // Update the pipeline stage
           const updateResponse = await apiService.updatePipelineStage(pipeline.id.toString(), { stage: newStage });
-          
+
           if (updateResponse.success) {
             // Show success message with updated counts
             const oldStageName = pipelineStages.find(s => s.value === selectedCustomerForTransition.pipeline_stage)?.name;
@@ -236,11 +233,11 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
           description: `Successfully moved ${selectedCustomerForTransition.full_name} from ${oldStageName} to ${newStageName} stage`,
           variant: "success",
         });
-            
+
             // Update local state immediately for dynamic UI update
             const updatedCustomers = customersInStage.filter(customer => customer.id !== selectedCustomerForTransition.id);
             setCustomersInStage(updatedCustomers);
-            
+
             // Update pipeline stats immediately
             const updatedStats = pipelineStats.map(stage => {
               if (stage.value === selectedCustomerForTransition.pipeline_stage) {
@@ -251,11 +248,11 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
               return stage;
             });
             setPipelineStats(updatedStats);
-            
+
             setShowStageTransitionModal(false);
             setSelectedCustomerForTransition(null);
             setNewStage('');
-            
+
             // Refresh pipeline stats in background to ensure data consistency
             setTimeout(() => {
               fetchPipelineStats();
@@ -282,7 +279,7 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
         });
       }
     } catch (error) {
-      console.error('Failed to update pipeline stage:', error);
+
       toast({
         title: "Error",
         description: "An error occurred while updating the pipeline stage. Please try again.",
@@ -297,13 +294,13 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
     try {
       // Here you would typically call an API to update the customer
       // For now, we'll just update the local state
-      const updatedCustomers = customersInStage.map(customer => 
+      const updatedCustomers = customersInStage.map(customer =>
         customer.id === updatedCustomer.id ? updatedCustomer : customer
       );
       setCustomersInStage(updatedCustomers);
       setShowEditModal(false);
       setEditingCustomer(null);
-      
+
       // Show success message
       toast({
         title: "Success!",
@@ -311,7 +308,7 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
         variant: "success",
       });
     } catch (error) {
-      console.error('Failed to save customer:', error);
+
       toast({
         title: "Error",
         description: "Failed to save customer. Please try again.",
@@ -373,8 +370,8 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
         <div className="flex items-center justify-center py-8">
           <div className="text-red-600 text-center">
             <div className="mb-2">{error}</div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => {
                 setError(null);
@@ -391,8 +388,8 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
       {!loading && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {pipelineStats.map((stage) => (
-            <Card 
-              key={stage.value} 
+            <Card
+              key={stage.value}
               className={`shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 border-2 ${stage.color}`}
               onClick={() => handleStageClick(stage.value)}
             >
@@ -446,7 +443,7 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
               </Button>
             </div>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Search and Filter */}
             <div className="flex items-center gap-2">
@@ -487,8 +484,8 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
                   This could mean either there are no customers in this pipeline stage, or there was an issue fetching the data.
                 </div>
                 {searchTerm && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setSearchTerm('')}
                   >
@@ -496,8 +493,8 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
                   </Button>
                 )}
                 <div className="mt-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => handleStageClick(selectedStage!)}
                   >

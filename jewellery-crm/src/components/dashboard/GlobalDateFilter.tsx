@@ -6,11 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ShopifyDatePicker } from '@/components/ui/shopify-date-picker';
 import { useGlobalDateRange, useFormattedDateRange } from '@/hooks/useGlobalDateRange';
-import { 
-  Calendar, 
-  RefreshCw, 
-  Clock, 
-  Filter, 
+import {
+  Calendar,
+  RefreshCw,
+  Clock,
+  Filter,
   CheckCircle,
   AlertCircle,
   Download,
@@ -38,16 +38,16 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
   compact = false,
   sticky = true
 }) => {
-  const { 
-    dateRange, 
-    setDateRange, 
-    isLoading, 
-    lastUpdated, 
-    refreshData, 
-    applyDateRange, 
-    hasChanges 
+  const {
+    dateRange,
+    setDateRange,
+    isLoading,
+    lastUpdated,
+    refreshData,
+    applyDateRange,
+    hasChanges
   } = useGlobalDateRange();
-  
+
   const { formattedRange, getRelativeTimeString } = useFormattedDateRange();
 
   const handleApply = () => {
@@ -62,7 +62,7 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    
+
     setDateRange({ start: startOfMonth, end: endOfMonth });
     applyDateRange();
   };
@@ -76,7 +76,7 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
         </Badge>
       );
     }
-    
+
     if (hasChanges) {
       return (
         <Badge variant="destructive" className="text-xs">
@@ -85,7 +85,7 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
         </Badge>
       );
     }
-    
+
     return (
       <Badge variant="default" className="text-xs">
         <CheckCircle className="w-3 h-3 mr-1" />
@@ -105,7 +105,7 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
           <Calendar className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium">Date Range:</span>
         </div>
-        
+
         <div className="flex-1 max-w-xs">
           <ShopifyDatePicker
             selected={dateRange}
@@ -114,17 +114,17 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
             showPresets={false}
           />
         </div>
-        
+
         {hasChanges && (
           <Button size="sm" onClick={handleApply}>
             Apply
           </Button>
         )}
-        
+
         <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isLoading}>
           <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
         </Button>
-        
+
         {getStatusBadge()}
       </div>
     );
@@ -144,7 +144,7 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
               <Filter className="w-5 h-5 text-primary" />
               <span className="font-semibold text-lg">Global Date Filter</span>
             </div>
-            
+
             <div className="w-80">
               <ShopifyDatePicker
                 selected={dateRange}
@@ -152,7 +152,7 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
                 className="w-full"
               />
             </div>
-            
+
             {hasChanges && (
               <Button onClick={handleApply} disabled={isLoading}>
                 Apply Filter
@@ -167,15 +167,15 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
               <Clock className="w-4 h-4" />
               <span>Last updated: {lastUpdated ? getRelativeTimeString(lastUpdated) : 'Never'}</span>
             </div>
-            
+
             {/* Status Badge */}
             {getStatusBadge()}
-            
+
             {/* Action Buttons */}
             <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleResetToCurrentMonth}
                 disabled={isLoading}
                 title="Reset to current month"
@@ -183,21 +183,21 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Current Month
               </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRefresh} 
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
                 disabled={isLoading}
               >
                 <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
                 Refresh
               </Button>
-              
+
               {showExportButton && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={onExport}
                   disabled={isLoading}
                 >
@@ -205,11 +205,11 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
                   Export
                 </Button>
               )}
-              
+
               {showSettingsButton && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={onSettings}
                 >
                   <Settings className="w-4 h-4 mr-2" />
@@ -231,7 +231,7 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
                 <strong>Filter Type:</strong> Custom Date Range
               </span>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <span className="text-xs">
                 All dashboard sections will update with this date range

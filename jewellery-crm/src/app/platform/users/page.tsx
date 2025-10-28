@@ -5,10 +5,10 @@ import { DashboardLayout, CardContainer } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  Plus, 
-  Search, 
+import {
+  Users,
+  Plus,
+  Search,
   Filter,
   MoreHorizontal,
   ArrowLeft,
@@ -88,7 +88,7 @@ export default function PlatformUsersPage() {
         created_at: '2025-07-21'
       }
     ];
-    
+
     setUsers(mockUsers);
     setLoading(false);
   }, []);
@@ -253,7 +253,7 @@ export default function PlatformUsersPage() {
             </div>
           </div>
         </CardContainer>
-        
+
         <CardContainer>
           <div className="flex items-center space-x-3">
             <Shield className="w-8 h-8 text-purple-500" />
@@ -265,7 +265,7 @@ export default function PlatformUsersPage() {
             </div>
           </div>
         </CardContainer>
-        
+
         <CardContainer>
           <div className="flex items-center space-x-3">
             <Building2 className="w-8 h-8 text-blue-500" />
@@ -277,7 +277,7 @@ export default function PlatformUsersPage() {
             </div>
           </div>
         </CardContainer>
-        
+
         <CardContainer>
           <div className="flex items-center space-x-3">
             <Users className="w-8 h-8 text-green-500" />
@@ -292,4 +292,4 @@ export default function PlatformUsersPage() {
       </div>
     </DashboardLayout>
   );
-} 
+}

@@ -17,12 +17,12 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       <div className="bg-gradient-to-r from-gold to-yellow-500 text-white text-center py-2 text-sm font-medium">
         <span>✨ Free Shipping on Orders Above ₹999 | 30-Day Return Policy</span>
       </div>
-      
+
       {/* Main content */}
       <div className="relative">
         {children}
       </div>
-      
+
       {/* WhatsApp floating button */}
       <div className="fixed bottom-6 right-6 z-50">
         <button className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-110">
@@ -33,4 +33,4 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       </div>
     </div>
   );
-} 
+}

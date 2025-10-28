@@ -34,14 +34,14 @@ const AlertDialogTrigger = React.forwardRef<
   }
 >(({ className, children, asChild = false, ...props }, ref) => {
   const { onOpenChange } = React.useContext(AlertDialogContext)
-  
+
   if (asChild) {
     return React.cloneElement(children as React.ReactElement, {
       onClick: () => onOpenChange(true),
       ...props,
     })
   }
-  
+
   return (
     <button
       ref={ref}
@@ -184,7 +184,7 @@ const AlertDialogAction = React.forwardRef<
   React.ButtonHTMLAttributes<HTMLButtonElement>
 >(({ className, ...props }, ref) => {
   const { onOpenChange } = React.useContext(AlertDialogContext)
-  
+
   return (
     <button
       ref={ref}
@@ -201,7 +201,7 @@ const AlertDialogCancel = React.forwardRef<
   React.ButtonHTMLAttributes<HTMLButtonElement>
 >(({ className, ...props }, ref) => {
   const { onOpenChange } = React.useContext(AlertDialogContext)
-  
+
   return (
     <button
       ref={ref}
@@ -229,4 +229,4 @@ export {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
-} 
+}

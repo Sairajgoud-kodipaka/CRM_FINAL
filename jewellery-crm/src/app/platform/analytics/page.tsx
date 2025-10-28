@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { DashboardLayout, CardContainer } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  TrendingUp, 
+import {
+  TrendingUp,
   TrendingDown,
   Users,
   Building2,
@@ -103,7 +103,7 @@ export default function PlatformAnalyticsPage() {
         }
       ]
     };
-    
+
     setAnalyticsData(mockData);
     setLoading(false);
   }, []);
@@ -243,7 +243,7 @@ export default function PlatformAnalyticsPage() {
               Last 12 Months
             </Button>
           </div>
-          
+
           <div className="h-64 bg-muted/20 rounded-lg flex items-center justify-center">
             <div className="text-center">
               <LineChart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -265,7 +265,7 @@ export default function PlatformAnalyticsPage() {
               View Details
             </Button>
           </div>
-          
+
           <div className="h-64 bg-muted/20 rounded-lg flex items-center justify-center">
             <div className="text-center">
               <PieChart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -287,7 +287,7 @@ export default function PlatformAnalyticsPage() {
             View All
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           {analyticsData.top_performing_tenants.map((tenant, index) => (
             <div key={tenant.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
@@ -330,7 +330,7 @@ export default function PlatformAnalyticsPage() {
             <p className="text-sm text-muted-foreground">Last 30 days</p>
           </div>
         </CardContainer>
-        
+
         <CardContainer>
           <div className="text-center">
             <BarChart3 className="h-8 w-8 text-purple-500 mx-auto mb-2" />
@@ -339,7 +339,7 @@ export default function PlatformAnalyticsPage() {
             <p className="text-sm text-muted-foreground">API requests</p>
           </div>
         </CardContainer>
-        
+
         <CardContainer>
           <div className="text-center">
             <TrendingDown className="h-8 w-8 text-green-500 mx-auto mb-2" />
@@ -351,4 +351,4 @@ export default function PlatformAnalyticsPage() {
       </div>
     </DashboardLayout>
   );
-} 
+}

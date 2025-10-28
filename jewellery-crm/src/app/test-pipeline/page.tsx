@@ -12,7 +12,7 @@ export default function TestPipelinePage() {
         This page is temporarily disabled due to component import issues.
         Will be re-enabled after fixing PipelineStageStats component.
       </p>
-      
+
       {/* <PipelineStageStats /> */}
     </div>
   );

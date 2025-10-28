@@ -63,11 +63,11 @@ export default function TelecallerAppointmentsPage() {
       if (response.success && response.data && Array.isArray(response.data)) {
         setAppointments(response.data);
       } else {
-        console.warn('Appointments response is not an array:', response.data);
+
         setAppointments([]);
       }
     } catch (error) {
-      console.error('Error fetching appointments:', error);
+
       setAppointments([]);
     } finally {
       setLoading(false);
@@ -79,7 +79,7 @@ export default function TelecallerAppointmentsPage() {
     const matchesSearch = appointment.purpose.toLowerCase().includes(searchLower) ||
                          (appointment.client_name && appointment.client_name.toLowerCase().includes(searchLower));
     const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   }) : [];
 
@@ -135,8 +135,8 @@ export default function TelecallerAppointmentsPage() {
       </div>
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
-          <Input 
-            placeholder="Search by customer or type..." 
+          <Input
+            placeholder="Search by customer or type..."
             className="w-full md:w-80"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -186,8 +186,8 @@ export default function TelecallerAppointmentsPage() {
                       <Badge variant="outline" className="capitalize text-xs">{appointment.status}</Badge>
                     </td>
                     <td className="px-4 py-2">
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         onClick={() => handleViewAppointment(appointment)}
                         title="View appointment details"

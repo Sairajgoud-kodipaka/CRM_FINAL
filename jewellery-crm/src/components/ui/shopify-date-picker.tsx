@@ -104,7 +104,7 @@ export const ShopifyDatePicker: React.FC<DatePickerProps> = ({
   const [currentYear, setCurrentYear] = useState(year);
   const [currentMonth2, setCurrentMonth2] = useState(month + 1);
   const [currentYear2, setCurrentYear2] = useState(year);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -121,7 +121,7 @@ export const ShopifyDatePicker: React.FC<DatePickerProps> = ({
 
   const formatDateRange = (range: DateRange): string => {
     if (!range.start) return placeholder;
-    
+
     if (!range.end || (range.start.getTime() === range.end.getTime())) {
       return range.start.toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -129,7 +129,7 @@ export const ShopifyDatePicker: React.FC<DatePickerProps> = ({
         year: 'numeric'
       });
     }
-    
+
     return `${range.start.toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short'
@@ -144,7 +144,7 @@ export const ShopifyDatePicker: React.FC<DatePickerProps> = ({
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const days: Date[] = [];
-    
+
     // Add days from previous month
     const startDay = firstDay.getDay();
     for (let i = startDay - 1; i >= 0; i--) {
@@ -152,54 +152,54 @@ export const ShopifyDatePicker: React.FC<DatePickerProps> = ({
       prevDate.setDate(firstDay.getDate() - i - 1);
       days.push(prevDate);
     }
-    
+
     // Add days from current month
     for (let day = 1; day <= lastDay.getDate(); day++) {
       days.push(new Date(year, month, day));
     }
-    
+
     // Add days from next month to fill the grid
     const remainingDays = 42 - days.length;
     for (let day = 1; day <= remainingDays; day++) {
       days.push(new Date(year, month + 1, day));
     }
-    
+
     return days;
   };
 
   const isDateInRange = (date: Date): boolean => {
     if (!selected.start) return false;
     if (!selected.end) return date.getTime() === selected.start.getTime();
-    
+
     const startTime = selected.start.getTime();
     const endTime = selected.end.getTime();
     const dateTime = date.getTime();
-    
+
     return dateTime >= startTime && dateTime <= endTime;
   };
 
   const isDateSelected = (date: Date): boolean => {
     if (!selected.start) return false;
     if (!selected.end) return date.getTime() === selected.start.getTime();
-    
-    return date.getTime() === selected.start.getTime() || 
+
+    return date.getTime() === selected.start.getTime() ||
            date.getTime() === selected.end.getTime();
   };
 
   const isDateDisabled = (date: Date): boolean => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (minDate && date < minDate) return true;
     if (maxDate && date > maxDate) return true;
     if (date > today) return true; // Disable future dates
-    
+
     return false;
   };
 
   const handleDateClick = (date: Date) => {
     if (isDateDisabled(date)) return;
-    
+
     if (!selected.start || (selected.start && selected.end)) {
       // Start new selection
       onChange({ start: date, end: null });
@@ -352,7 +352,7 @@ export const ShopifyDatePicker: React.FC<DatePickerProps> = ({
                   const isInRange = isDateInRange(date);
                   const isDisabled = isDateDisabled(date);
                   const isHovered = hoveredDate && date.getTime() === hoveredDate.getTime();
-                  
+
                   return (
                     <button
                       key={index}
@@ -394,7 +394,7 @@ export const ShopifyDatePicker: React.FC<DatePickerProps> = ({
                   const isInRange = isDateInRange(date);
                   const isDisabled = isDateDisabled(date);
                   const isHovered = hoveredDate && date.getTime() === hoveredDate.getTime();
-                  
+
                   return (
                     <button
                       key={index}
@@ -424,10 +424,10 @@ export const ShopifyDatePicker: React.FC<DatePickerProps> = ({
           <div className="mt-4 flex items-center justify-between border-t pt-4">
             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
-              <span>Data as of {new Date().toLocaleString('en-IN', { 
-                day: 'numeric', 
-                month: 'short', 
-                hour: '2-digit', 
+              <span>Data as of {new Date().toLocaleString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
                 minute: '2-digit',
                 timeZone: 'Asia/Kolkata'
               })} IST</span>

@@ -70,7 +70,7 @@ export default function EscalationsPage() {
         category: filters.category && filters.category !== 'all' ? filters.category : undefined,
         search: filters.search || undefined,
       });
-      
+
       if (response.success) {
         const data = response.data as any;
         if (Array.isArray(data)) {
@@ -84,7 +84,7 @@ export default function EscalationsPage() {
         setEscalations([]);
       }
     } catch (error) {
-      console.error('Error fetching escalations:', error);
+
       setEscalations([]);
     } finally {
       setLoading(false);
@@ -98,7 +98,7 @@ export default function EscalationsPage() {
         setStats(response.data);
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+
     }
   };
 
@@ -125,7 +125,7 @@ export default function EscalationsPage() {
         });
       }
     } catch (error) {
-      console.error('Error updating status:', error);
+
       toast({
         title: "Error",
         description: "Failed to update status",
@@ -152,7 +152,7 @@ export default function EscalationsPage() {
         });
       }
     } catch (error) {
-      console.error('Error assigning escalation:', error);
+
       toast({
         title: "Error",
         description: "Failed to assign escalation",
@@ -221,7 +221,7 @@ export default function EscalationsPage() {
     const due = new Date(dueDate);
     const diff = due.getTime() - now.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
-    
+
     if (hours < 0) {
       return `${Math.abs(hours)}h overdue`;
     } else if (hours < 24) {
@@ -398,7 +398,7 @@ export default function EscalationsPage() {
       {/* Escalations List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {escalations.map((escalation) => (
-          <Card 
+          <Card
             key={escalation.id}
             className={`transition-all duration-200 hover:shadow-lg ${
               escalation.is_overdue ? 'border-l-4 border-l-red-500' : ''
@@ -436,7 +436,7 @@ export default function EscalationsPage() {
               <p className="text-text-secondary text-sm line-clamp-3 mb-4">
                 {escalation.description}
               </p>
-              
+
               {/* Time Remaining */}
               <div className="mb-4 p-2 bg-gray-50 rounded text-xs">
                 <div className="flex items-center gap-1">
@@ -450,8 +450,8 @@ export default function EscalationsPage() {
               {/* Actions */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <AddNoteModal 
-                    escalationId={escalation.id.toString()} 
+                  <AddNoteModal
+                    escalationId={escalation.id.toString()}
                     onSuccess={handleRefresh}
                   />
                   {!escalation.assigned_to && (
@@ -508,4 +508,4 @@ export default function EscalationsPage() {
       )}
     </div>
   );
-} 
+}

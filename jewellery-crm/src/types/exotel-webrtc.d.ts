@@ -27,21 +27,21 @@ declare module '@exotel-npm-dev/webrtc-core-sdk' {
 
   export class ExotelWebRTC {
     constructor(options: ExotelWebRTCOptions);
-    
+
     initialize(): Promise<boolean>;
     destroy(): void;
-    
+
     makeCall(options: CallOptions): Promise<any>;
-    
+
     onStatusChange(callback: (status: CallStatus) => void): void;
     offStatusChange(callback: (status: CallStatus) => void): void;
-    
+
     isCallActive(): boolean;
     isCallMuted(): boolean;
     isCallOnHold(): boolean;
     getCallDuration(): number;
     getCurrentCallInfo(): any;
-    
+
     endCall(): Promise<boolean>;
     toggleMute(): Promise<boolean>;
     toggleHold(): Promise<boolean>;

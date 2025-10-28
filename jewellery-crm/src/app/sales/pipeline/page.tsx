@@ -11,7 +11,7 @@ export default function SalesPipelinePage() {
           Track and manage your sales pipeline stages and customer progress
         </p>
       </div>
-      
+
       <PipelineStageStatsSales />
     </div>
   );

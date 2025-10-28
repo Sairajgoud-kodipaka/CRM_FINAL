@@ -1,11 +1,11 @@
 /**
  * ResponsiveTable Component
- * 
+ *
  * A fully responsive table component that adapts to different screen sizes:
  * - Mobile (≤768px): Card-based layout with vertical data display
  * - Tablet (768px-1024px): Optimized table with essential columns
  * - Desktop (≥1024px): Full table with all columns
- * 
+ *
  * Features:
  * - No horizontal scrolling on mobile
  * - Touch-optimized interactions
@@ -18,9 +18,9 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { 
-  ChevronUp, 
-  ChevronDown, 
+import {
+  ChevronUp,
+  ChevronDown,
   MoreHorizontal,
   Search,
   Filter,
@@ -41,7 +41,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -153,9 +153,9 @@ function MobileCardView<T extends Record<string, unknown>>({
         const isSelected = selectedRows.has(index);
         const title = mobileCardTitle ? mobileCardTitle(row) : String(row[columns[0]?.key] || 'Untitled');
         const subtitle = mobileCardSubtitle ? mobileCardSubtitle(row) : String(row[columns[1]?.key] || '');
-        
+
         return (
-          <Card 
+          <Card
             key={index}
             className={cn(
               'transition-all duration-200 hover:shadow-md cursor-pointer',
@@ -178,7 +178,7 @@ function MobileCardView<T extends Record<string, unknown>>({
                       />
                     </div>
                   )}
-                  
+
                   {/* Title and subtitle */}
                   <div className="mb-3">
                     <h3 className="font-semibold text-foreground text-base leading-tight mb-1">
@@ -190,7 +190,7 @@ function MobileCardView<T extends Record<string, unknown>>({
                       </p>
                     )}
                   </div>
-                  
+
                   {/* Key data fields */}
                   <div className="space-y-2">
                     {columns
@@ -198,14 +198,14 @@ function MobileCardView<T extends Record<string, unknown>>({
                       .slice(0, 3) // Show max 3 key fields on mobile
                       .map((column) => {
                         const value = row[column.key];
-                        const displayValue = column.mobileRender 
+                        const displayValue = column.mobileRender
                           ? column.mobileRender(value, row)
-                          : column.render 
+                          : column.render
                             ? column.render(value, row)
                             : value;
-                        
+
                         if (!displayValue) return null;
-                        
+
                         return (
                           <div key={column.key} className="flex items-center gap-2 text-sm">
                             <span className="text-muted-foreground font-medium min-w-0 flex-shrink-0">
@@ -219,7 +219,7 @@ function MobileCardView<T extends Record<string, unknown>>({
                       })}
                   </div>
                 </div>
-                
+
                 {/* Actions */}
                 <div className="flex flex-col items-end gap-2">
                   {mobileCardActions ? (
@@ -247,7 +247,7 @@ function MobileCardView<T extends Record<string, unknown>>({
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => onAction?.('delete', row)}
                           className="text-destructive"
                         >
@@ -292,7 +292,7 @@ function TabletTableView<T extends Record<string, unknown>>({
   onSelectAllChange: (checked: boolean) => void;
 }) {
   // Filter columns for tablet view (high and medium priority)
-  const tabletColumns = columns.filter(col => 
+  const tabletColumns = columns.filter(col =>
     col.priority === 'high' || col.priority === 'medium'
   );
 
@@ -327,7 +327,7 @@ function TabletTableView<T extends Record<string, unknown>>({
                   />
                 </th>
               )}
-              
+
               {tabletColumns.map((column) => (
                 <th
                   key={column.key}
@@ -336,13 +336,13 @@ function TabletTableView<T extends Record<string, unknown>>({
                   {column.title}
                 </th>
               ))}
-              
+
               <th className="w-12 px-4 py-3">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
-          
+
           <tbody className="bg-card divide-y divide-border">
             {data.length === 0 ? (
               <tr>
@@ -373,19 +373,19 @@ function TabletTableView<T extends Record<string, unknown>>({
                       />
                     </td>
                   )}
-                  
+
                   {tabletColumns.map((column) => (
                     <td
                       key={column.key}
                       className="px-4 py-3 text-sm text-foreground"
                     >
-                      {column.render 
+                      {column.render
                         ? column.render(row[column.key], row)
                         : row[column.key] as React.ReactNode
                       }
                     </td>
                   ))}
-                  
+
                   <td className="px-4 py-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -409,7 +409,7 @@ function TabletTableView<T extends Record<string, unknown>>({
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => onAction?.('delete', row)}
                           className="text-destructive"
                         >
@@ -502,7 +502,7 @@ function DesktopTableView<T extends Record<string, unknown>>({
                   />
                 </th>
               )}
-              
+
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -519,13 +519,13 @@ function DesktopTableView<T extends Record<string, unknown>>({
                   </div>
                 </th>
               ))}
-              
+
               <th className="w-12 px-6 py-3">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
-          
+
           <tbody className="bg-card divide-y divide-border">
             {data.length === 0 ? (
               <tr>
@@ -556,19 +556,19 @@ function DesktopTableView<T extends Record<string, unknown>>({
                       />
                     </td>
                   )}
-                  
+
                   {columns.map((column) => (
                     <td
                       key={column.key}
                       className="px-6 py-4 text-sm text-foreground"
                     >
-                      {column.render 
+                      {column.render
                         ? column.render(row[column.key], row)
                         : row[column.key] as React.ReactNode
                       }
                     </td>
                   ))}
-                  
+
                   <td className="px-6 py-4 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -592,7 +592,7 @@ function DesktopTableView<T extends Record<string, unknown>>({
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => onAction?.('delete', row)}
                           className="text-destructive"
                         >
@@ -645,7 +645,7 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
   // Filter data based on search query
   const filteredData = useMemo(() => {
     if (!searchQuery) return data;
-    
+
     return data.filter(row =>
       Object.values(row).some(value =>
         value?.toString().toLowerCase().includes(searchQuery.toLowerCase())
@@ -700,7 +700,7 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
       newSelection.delete(index);
     }
     setSelectedRows(newSelection);
-    
+
     if (onRowSelect) {
       const selectedData = Array.from(newSelection).map(i => sortedData[i]);
       onRowSelect(selectedData);
@@ -803,7 +803,7 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
                   {selectedRows.size} selected
                 </Badge>
               )}
-              
+
               {actions}
             </div>
           </div>
@@ -821,7 +821,7 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
             {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)} of{' '}
             {pagination.totalItems} results
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -832,7 +832,7 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            
+
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                 const page = i + 1;
@@ -849,7 +849,7 @@ export function ResponsiveTable<T extends Record<string, unknown>>({
                 );
               })}
             </div>
-            
+
             <Button
               variant="outline"
               size="sm"

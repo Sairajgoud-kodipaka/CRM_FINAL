@@ -58,13 +58,13 @@ export default function CreateEscalationModal({ onSuccess }: CreateEscalationMod
         setClients(response.data || []);
       }
     } catch (error) {
-      console.error('Error fetching clients:', error);
+
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.title.trim() || !formData.description.trim() || !formData.client) {
       toast({
         title: "Error",
@@ -76,7 +76,7 @@ export default function CreateEscalationModal({ onSuccess }: CreateEscalationMod
 
     try {
       setLoading(true);
-      
+
       const response = await apiService.createEscalation({
         ...formData,
         client: parseInt(formData.client),
@@ -106,7 +106,7 @@ export default function CreateEscalationModal({ onSuccess }: CreateEscalationMod
         });
       }
     } catch (error) {
-      console.error('Error creating escalation:', error);
+
       toast({
         title: "Error",
         description: "Failed to create escalation",
@@ -154,7 +154,7 @@ export default function CreateEscalationModal({ onSuccess }: CreateEscalationMod
             Create New Escalation
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div className="space-y-2">
@@ -302,4 +302,4 @@ export default function CreateEscalationModal({ onSuccess }: CreateEscalationMod
       </DialogContent>
     </Dialog>
   );
-} 
+}

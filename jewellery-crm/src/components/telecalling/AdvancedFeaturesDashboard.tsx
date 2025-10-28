@@ -8,14 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  MessageSquare, 
-  Volume1, 
-  Route, 
-  Zap, 
-  BarChart3, 
-  Users, 
-  Phone, 
+import {
+  MessageSquare,
+  Volume1,
+  Route,
+  Zap,
+  BarChart3,
+  Users,
+  Phone,
   Clock,
   TrendingUp,
   Bot,
@@ -87,27 +87,27 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
       const data = await telecallingApiService.getRoutingAnalytics();
       setAnalytics(data);
     } catch (error) {
-      console.error('Error loading analytics:', error);
+
     }
   };
 
   const sendSMS = async (template?: any) => {
     if (!leadId) return;
-    
+
     try {
       setIsLoading(true);
       const message = template ? template.message.replace('{name}', leadName || 'Customer') : smsMessage;
-      
+
       const result = await telecallingApiService.sendSMS(leadId, message, template?.id);
-      
+
       if (result.success) {
         setSmsMessage('');
-        console.log('SMS sent successfully');
+
       } else {
-        console.error('Failed to send SMS:', result.error);
+
       }
     } catch (error) {
-      console.error('Error sending SMS:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -115,21 +115,21 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
 
   const sendVoiceMessage = async (template?: any) => {
     if (!leadId) return;
-    
+
     try {
       setIsLoading(true);
       const message = template ? template.message.replace('{name}', leadName || 'Customer') : voiceMessage;
-      
+
       const result = await telecallingApiService.sendVoiceMessage(leadId, message, template?.id);
-      
+
       if (result.success) {
         setVoiceMessage('');
-        console.log('Voice message sent successfully');
+
       } else {
-        console.error('Failed to send voice message:', result.error);
+
       }
     } catch (error) {
-      console.error('Error sending voice message:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -137,18 +137,18 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
 
   const routeCall = async () => {
     if (!leadId) return;
-    
+
     try {
       setIsLoading(true);
       const result = await telecallingApiService.routeCall(leadId, routingStrategy);
-      
+
       if (result.success) {
-        console.log(`Call routed to ${result.agent_name} using ${result.routing_strategy}`);
+
       } else {
-        console.error('Failed to route call:', result.error);
+
       }
     } catch (error) {
-      console.error('Error routing call:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -156,18 +156,18 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
 
   const triggerAutomation = async () => {
     if (!leadId || !automationWorkflow) return;
-    
+
     try {
       setIsLoading(true);
       const result = await telecallingApiService.triggerAutomation(leadId, automationWorkflow);
-      
+
       if (result.success) {
-        console.log(`Automation workflow ${automationWorkflow} triggered successfully`);
+
       } else {
-        console.error('Failed to trigger automation:', result.error);
+
       }
     } catch (error) {
-      console.error('Error triggering automation:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -224,8 +224,8 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
                     className="min-h-[100px]"
                   />
                 </div>
-                <Button 
-                  onClick={() => sendSMS()} 
+                <Button
+                  onClick={() => sendSMS()}
                   disabled={!smsMessage || isLoading}
                   className="w-full"
                 >
@@ -287,8 +287,8 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
                     className="min-h-[100px]"
                   />
                 </div>
-                <Button 
-                  onClick={() => sendVoiceMessage()} 
+                <Button
+                  onClick={() => sendVoiceMessage()}
                   disabled={!voiceMessage || isLoading}
                   className="w-full"
                 >
@@ -359,9 +359,9 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
                     </SelectContent>
                   </Select>
                 </div>
-                
-                <Button 
-                  onClick={routeCall} 
+
+                <Button
+                  onClick={routeCall}
                   disabled={isLoading}
                   className="w-full"
                 >
@@ -396,7 +396,7 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
                         <div className="text-sm text-green-800">Active Agents</div>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm">Top Performing Agents</h4>
                       {analytics.agent_performance?.slice(0, 3).map((agent: any, index: number) => (
@@ -450,9 +450,9 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
                     </SelectContent>
                   </Select>
                 </div>
-                
-                <Button 
-                  onClick={triggerAutomation} 
+
+                <Button
+                  onClick={triggerAutomation}
                   disabled={!automationWorkflow || isLoading}
                   className="w-full"
                 >
@@ -484,7 +484,7 @@ export function AdvancedFeaturesDashboard({ leadId, leadName, leadPhone }: Advan
                       <div className="text-sm text-orange-800">Automation Active</div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <h4 className="font-medium text-sm">Recent Automations</h4>
                     <div className="space-y-1 text-sm">

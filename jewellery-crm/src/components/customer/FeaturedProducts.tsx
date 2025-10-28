@@ -17,15 +17,15 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
   const [wishlist, setWishlist] = useState<number[]>([]);
 
   const toggleWishlist = (productId: number) => {
-    setWishlist(prev => 
-      prev.includes(productId) 
+    setWishlist(prev =>
+      prev.includes(productId)
         ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
   };
 
   const addToCart = (product: Product) => {
-    console.log('Adding to cart:', product);
+
   };
 
   const formatPrice = (price: number) => {
@@ -101,33 +101,33 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
                     }}
                   />
                 ) : null}
-                
+
                 {/* Fallback emoji when no image or image fails to load */}
                 <div className={`w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center ${product.main_image_url ? 'hidden' : ''}`}>
                   <span className="text-6xl">
-                    {product.category_name === 'Rings' ? '💍' : 
-                     product.category_name === 'Necklaces' ? '📿' : 
-                     product.category_name === 'Earrings' ? '👂' : 
+                    {product.category_name === 'Rings' ? '💍' :
+                     product.category_name === 'Necklaces' ? '📿' :
+                     product.category_name === 'Earrings' ? '👂' :
                      product.category_name === 'Crowns' ? '👑' : '💎'}
                   </span>
                 </div>
-                
+
                 {/* Image overlay */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300" />
-                
+
                 {/* Action buttons */}
                 <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
                   <button
                     onClick={() => toggleWishlist(product.id)}
                     className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
-                      isWishlisted 
-                        ? 'bg-red-500 text-white' 
+                      isWishlisted
+                        ? 'bg-red-500 text-white'
                         : 'bg-white text-gray-600 hover:bg-red-500 hover:text-white'
                     }`}
                   >
                     <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
                   </button>
-                  
+
                   <Link
                     href={`/store/${tenant}/product/${product.id}`}
                     className="w-10 h-10 rounded-full bg-white text-gray-600 hover:bg-gold hover:text-white flex items-center justify-center transition-all duration-200"
@@ -225,4 +225,4 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
       )}
     </div>
   );
-} 
+}

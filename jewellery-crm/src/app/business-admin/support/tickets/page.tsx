@@ -46,7 +46,7 @@ export default function SupportTicketsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
-  
+
   // Form state for creating new ticket
   const [newTicket, setNewTicket] = useState({
     title: '',
@@ -63,14 +63,14 @@ export default function SupportTicketsPage() {
     if (!isHydrated) {
       return; // Wait for hydration to complete
     }
-    
+
     if (!isAuthenticated) {
-      console.log('User not authenticated, redirecting to login');
+
       router.push('/');
       return;
     }
-    
-    console.log('User authenticated:', { user, isAuthenticated });
+
+
     fetchTickets();
   }, [searchTerm, statusFilter, isAuthenticated, user, router, isHydrated]);
 
@@ -81,7 +81,7 @@ export default function SupportTicketsPage() {
         status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchTerm || undefined,
       });
-      
+
       if (response.success) {
         const data = response.data as any;
         setTickets(Array.isArray(data) ? data : data.results || []);
@@ -89,7 +89,7 @@ export default function SupportTicketsPage() {
         setError('Failed to load support tickets');
       }
     } catch (error) {
-      console.error('Failed to fetch support tickets:', error);
+
       setError('Failed to load support tickets');
       setTickets([]);
     } finally {
@@ -101,7 +101,7 @@ export default function SupportTicketsPage() {
     try {
       setCreatingTicket(true);
       const response = await apiService.createSupportTicket(newTicket);
-      
+
       if (response.success) {
         setShowCreateModal(false);
         setNewTicket({
@@ -119,7 +119,7 @@ export default function SupportTicketsPage() {
         setError('Failed to create ticket');
       }
     } catch (error) {
-      console.error('Failed to create ticket:', error);
+
       setError('Failed to create ticket');
     } finally {
       setCreatingTicket(false);
@@ -127,11 +127,11 @@ export default function SupportTicketsPage() {
   };
 
   const handleViewTicket = (ticketId: number) => {
-    console.log('Navigating to ticket:', ticketId);
+
     try {
       router.push(`/business-admin/support/tickets/${ticketId}`);
     } catch (error) {
-      console.error('Navigation error:', error);
+
     }
   };
 
@@ -143,9 +143,9 @@ export default function SupportTicketsPage() {
       'closed': { variant: 'secondary', className: 'bg-gray-100 text-gray-800' },
       'reopened': { variant: 'default', className: 'bg-orange-100 text-orange-800' },
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.open;
-    
+
     return (
       <Badge variant={config.variant as any} className={config.className}>
         {status.replace('_', ' ')}
@@ -160,9 +160,9 @@ export default function SupportTicketsPage() {
       'high': { variant: 'default', className: 'bg-orange-100 text-orange-800' },
       'critical': { variant: 'destructive', className: 'bg-red-100 text-red-800' },
     };
-    
+
     const config = priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.medium;
-    
+
     return (
       <Badge variant={config.variant as any} className={config.className}>
         {priority}
@@ -172,11 +172,11 @@ export default function SupportTicketsPage() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    
+
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Invalid Date';
-      
+
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -188,12 +188,12 @@ export default function SupportTicketsPage() {
   };
 
   const filteredTickets = tickets.filter(ticket => {
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       ticket.ticket_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ticket.title.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -335,7 +335,7 @@ export default function SupportTicketsPage() {
                 <Button variant="outline" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   onClick={handleCreateTicket}
                   disabled={!newTicket.title || !newTicket.summary || creatingTicket}
                 >
@@ -356,13 +356,13 @@ export default function SupportTicketsPage() {
           </Button>
         </div>
       </div>
-      
+
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input 
-              placeholder="Search by ticket ID or subject..." 
+            <Input
+              placeholder="Search by ticket ID or subject..."
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -382,7 +382,7 @@ export default function SupportTicketsPage() {
             </SelectContent>
           </Select>
         </div>
-        
+
         {/* Table */}
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           <table className="min-w-full text-sm">
@@ -400,8 +400,8 @@ export default function SupportTicketsPage() {
               {filteredTickets.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-text-secondary">
-                    {searchTerm || statusFilter !== 'all' 
-                      ? 'No tickets found matching your criteria.' 
+                    {searchTerm || statusFilter !== 'all'
+                      ? 'No tickets found matching your criteria.'
                       : 'No support tickets found. Create your first ticket to get started.'}
                   </td>
                 </tr>
@@ -414,14 +414,14 @@ export default function SupportTicketsPage() {
                     <td className="px-4 py-2">{getPriorityBadge(ticket.priority)}</td>
                     <td className="px-4 py-2 text-text-secondary">{formatDate(ticket.created_at)}</td>
                     <td className="px-4 py-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         title="View Details"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log('Button clicked for ticket:', ticket.id, ticket.ticket_id);
+
                           handleViewTicket(ticket.id);
                         }}
                       >
@@ -434,7 +434,7 @@ export default function SupportTicketsPage() {
             </tbody>
           </table>
         </div>
-        
+
         {filteredTickets.length > 0 && (
           <div className="text-sm text-text-secondary text-center">
             Showing {filteredTickets.length} of {tickets.length} tickets
@@ -444,5 +444,5 @@ export default function SupportTicketsPage() {
     </div>
   );
 }
- 
- 
+
+

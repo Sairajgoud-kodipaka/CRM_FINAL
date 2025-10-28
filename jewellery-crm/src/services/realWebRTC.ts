@@ -32,33 +32,33 @@ class RealWebRTCService {
 
   constructor(options: WebRTCConfig) {
     this.config = options;
-    console.log('🚀 Initializing Real WebRTC Service');
+
   }
 
   async initialize(): Promise<boolean> {
     try {
-      console.log('🚀 Initializing Real WebRTC...');
-      
+
+
       // Request microphone permission and get local stream
       const hasPermission = await this.requestMicrophonePermission();
       if (!hasPermission) {
-        console.warn('⚠️ Microphone permission denied');
+
         return false;
       }
-      
+
       this.isInitialized = true;
-      console.log('✅ Real WebRTC initialized successfully');
+
       return true;
     } catch (error) {
-      console.error('❌ Failed to initialize Real WebRTC:', error);
+
       return false;
     }
   }
 
   private async requestMicrophonePermission(): Promise<boolean> {
     try {
-      console.log('🎤 Requesting microphone permission...');
-      
+
+
       this.bridge.localStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -69,30 +69,30 @@ class RealWebRTCService {
         },
         video: false
       });
-      
-      console.log('✅ Microphone permission granted');
+
+
       return true;
     } catch (error) {
-      console.error('❌ Microphone permission denied:', error);
+
       return false;
     }
   }
 
   async makeCall(options: CallOptions): Promise<any> {
     if (!this.isInitialized || !this.bridge.localStream) {
-      console.error('❌ WebRTC not initialized or no microphone access');
+
       this.notifyStatusChange({ status: 'failed', duration: 0, error: 'WebRTC not initialized' });
       return null;
     }
 
     try {
-      console.log('📞 Making real WebRTC call to:', options.to);
-      
+
+
       // Step 1: Initiate call via Exotel REST API
       const exotelResponse = await this.initiateExotelCall(options);
-      
+
       if (!exotelResponse.success) {
-        console.error('❌ Exotel call initiation failed:', exotelResponse.error);
+
         this.notifyStatusChange({ status: 'failed', duration: 0, error: exotelResponse.error });
         return null;
       }
@@ -121,7 +121,7 @@ class RealWebRTCService {
 
       return this.currentCall;
     } catch (error) {
-      console.error('❌ Failed to make call:', error);
+
       this.notifyStatusChange({ status: 'failed', duration: 0, error: error.message });
       return null;
     }
@@ -129,8 +129,8 @@ class RealWebRTCService {
 
   private async initiateExotelCall(options: CallOptions): Promise<{success: boolean, callSid?: string, bridgeUrl?: string, error?: string}> {
     try {
-      console.log('📞 Initiating Exotel call...');
-      
+
+
       // Use Exotel REST API to initiate call
       const response = await fetch('/api/telecalling/webrtc/initiate/', {
         method: 'POST',
@@ -146,23 +146,23 @@ class RealWebRTCService {
       });
 
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
-        console.log('✅ Exotel call initiated:', data.callSid);
+
         return {
           success: true,
           callSid: data.callSid,
           bridgeUrl: data.bridgeUrl
         };
       } else {
-        console.error('❌ Exotel call failed:', data.error);
+
         return {
           success: false,
           error: data.error || 'Unknown error'
         };
       }
     } catch (error) {
-      console.error('❌ Exotel API error:', error);
+
       return {
         success: false,
         error: error.message
@@ -172,8 +172,8 @@ class RealWebRTCService {
 
   private async setupWebRTCBridge(bridgeUrl: string): Promise<void> {
     try {
-      console.log('🌉 Setting up WebRTC bridge...');
-      
+
+
       // Create RTCPeerConnection for WebRTC bridge
       this.bridge.peerConnection = new RTCPeerConnection({
         iceServers: [
@@ -191,20 +191,20 @@ class RealWebRTCService {
 
       // Handle remote stream
       this.bridge.peerConnection.ontrack = (event) => {
-        console.log('📞 Remote audio stream received');
+
         this.bridge.remoteStream = event.streams[0];
         this.bridge.isConnected = true;
-        
+
         // Play remote audio
         const audio = new Audio();
         audio.srcObject = this.bridge.remoteStream;
-        audio.play().catch(console.error);
+        audio.play().catch(() => {});
       };
 
       // Handle connection state changes
       this.bridge.peerConnection.onconnectionstatechange = () => {
-        console.log('🔗 Connection state:', this.bridge.peerConnection?.connectionState);
-        
+
+
         if (this.bridge.peerConnection?.connectionState === 'connected') {
           this.notifyStatusChange({ status: 'answered', duration: 0, callId: this.currentCall.id });
           this.startCallTimer();
@@ -215,16 +215,16 @@ class RealWebRTCService {
 
       // Connect to Exotel bridge
       await this.connectToBridge(bridgeUrl);
-      
+
     } catch (error) {
-      console.error('❌ Failed to setup WebRTC bridge:', error);
+
     }
   }
 
   private async connectToBridge(bridgeUrl: string): Promise<void> {
     try {
-      console.log('🌉 Connecting to Exotel bridge...');
-      
+
+
       // Create offer
       const offer = await this.bridge.peerConnection!.createOffer();
       await this.bridge.peerConnection!.setLocalDescription(offer);
@@ -243,17 +243,17 @@ class RealWebRTCService {
 
       if (response.ok) {
         const answer = await response.json();
-        
+
         // Set remote description
         await this.bridge.peerConnection!.setRemoteDescription({
           type: 'answer',
           sdp: answer.sdp
         });
-        
-        console.log('✅ Connected to Exotel bridge');
+
+
       }
     } catch (error) {
-      console.error('❌ Failed to connect to bridge:', error);
+
     }
   }
 
@@ -267,7 +267,7 @@ class RealWebRTCService {
 
       try {
         const status = await this.getCallStatus(this.currentCall.exotelCallId);
-        
+
         switch (status.status) {
           case 'ringing':
             this.notifyStatusChange({ status: 'ringing', duration: 0, callId: this.currentCall.id });
@@ -296,7 +296,7 @@ class RealWebRTCService {
             break;
         }
       } catch (error) {
-        console.error('❌ Error monitoring call:', error);
+
       }
     }, 2000); // Check every 2 seconds
   }
@@ -307,7 +307,7 @@ class RealWebRTCService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('❌ Error getting call status:', error);
+
       return { status: 'unknown' };
     }
   }
@@ -316,10 +316,10 @@ class RealWebRTCService {
     this.durationInterval = setInterval(() => {
       if (this.currentCall && this.currentCall.status === 'answered') {
         const duration = this.getCallDuration();
-        this.notifyStatusChange({ 
-          status: 'answered', 
-          duration, 
-          callId: this.currentCall.id 
+        this.notifyStatusChange({
+          status: 'answered',
+          duration,
+          callId: this.currentCall.id
         });
       }
     }, 1000);
@@ -335,25 +335,25 @@ class RealWebRTCService {
   async endCall(): Promise<boolean> {
     try {
       if (this.currentCall) {
-        console.log('📞 Ending real WebRTC call...');
-        
+
+
         // End call via Exotel API
         await this.endExotelCall(this.currentCall.exotelCallId);
-        
+
         const duration = this.getCallDuration();
-        this.notifyStatusChange({ 
-          status: 'ended', 
-          duration, 
-          callId: this.currentCall.id 
+        this.notifyStatusChange({
+          status: 'ended',
+          duration,
+          callId: this.currentCall.id
         });
-        
+
         this.cleanup();
-        console.log('✅ Call ended successfully');
+
         return true;
       }
       return false;
     } catch (error) {
-      console.error('❌ Failed to end call:', error);
+
       return false;
     }
   }
@@ -364,7 +364,7 @@ class RealWebRTCService {
         method: 'POST'
       });
     } catch (error) {
-      console.error('❌ Error ending Exotel call:', error);
+
     }
   }
 
@@ -374,20 +374,20 @@ class RealWebRTCService {
         const audioTrack = this.bridge.localStream.getAudioTracks()[0];
         if (audioTrack) {
           audioTrack.enabled = !audioTrack.enabled;
-          console.log('🔇 Mute toggled:', !audioTrack.enabled);
+
           return !audioTrack.enabled;
         }
       }
       return false;
     } catch (error) {
-      console.error('❌ Error toggling mute:', error);
+
       return false;
     }
   }
 
   async toggleHold(): Promise<boolean> {
     // Hold functionality would pause the audio stream
-    console.log('⏸️ Hold toggle (not implemented yet)');
+
     return false;
   }
 
@@ -443,24 +443,24 @@ class RealWebRTCService {
       try {
         callback(status);
       } catch (error) {
-        console.error('Error in status change callback:', error);
+
       }
     });
   }
 
   private cleanup(): void {
     this.stopCallTimer();
-    
+
     if (this.bridge.peerConnection) {
       this.bridge.peerConnection.close();
       this.bridge.peerConnection = null;
     }
-    
+
     if (this.bridge.localStream) {
       this.bridge.localStream.getTracks().forEach(track => track.stop());
       this.bridge.localStream = null;
     }
-    
+
     this.bridge.remoteStream = null;
     this.bridge.isConnected = false;
     this.currentCall = null;
@@ -471,7 +471,7 @@ class RealWebRTCService {
     this.cleanup();
     this.callStatusCallbacks = [];
     this.isInitialized = false;
-    console.log('🧹 Real WebRTC service destroyed');
+
   }
 }
 

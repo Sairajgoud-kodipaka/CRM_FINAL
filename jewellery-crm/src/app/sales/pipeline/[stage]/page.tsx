@@ -67,18 +67,18 @@ export default function SalesPipelineStagePage() {
   const router = useRouter();
   const params = useParams();
   const stageValue = params?.stage as string;
-  
+
   const [customers, setCustomers] = useState<CustomerInStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [stageInfo, setStageInfo] = useState<PipelineStage | null>(null);
-  
+
   // Stage transition states
   const [showStageTransitionModal, setShowStageTransitionModal] = useState(false);
   const [selectedCustomerForTransition, setSelectedCustomerForTransition] = useState<CustomerInStage | null>(null);
   const [newStage, setNewStage] = useState<string>('');
   const [transitionLoading, setTransitionLoading] = useState(false);
-  
+
   // Customer profile modal states
   const [showCustomerProfileModal, setShowCustomerProfileModal] = useState(false);
   const [selectedCustomerProfile, setSelectedCustomerProfile] = useState<CustomerInStage | null>(null);
@@ -112,11 +112,7 @@ export default function SalesPipelineStagePage() {
   // Debug: Log customer profile data when modal opens
   useEffect(() => {
     if (selectedCustomerProfile) {
-      console.log('=== FRONTEND DEBUG: Modal Product Interests ===');
-      console.log('selectedCustomerProfile:', selectedCustomerProfile);
-      console.log('customer_interests:', selectedCustomerProfile.customer_interests);
-      console.log('customer_interests type:', typeof selectedCustomerProfile.customer_interests);
-      console.log('customer_interests length:', Array.isArray(selectedCustomerProfile.customer_interests) ? selectedCustomerProfile.customer_interests.length : 'Not an array');
+
     }
   }, [selectedCustomerProfile]);
 
@@ -124,11 +120,11 @@ export default function SalesPipelineStagePage() {
     try {
       setLoading(true);
       const response = await apiService.getSalesPipeline({ stage: stageValue });
-      
+
       if (response.success) {
         const pipelineData = response.data;
         let dataArray: any[] = [];
-        
+
         if (Array.isArray(pipelineData)) {
           dataArray = pipelineData;
         } else if (pipelineData && typeof pipelineData === 'object') {
@@ -141,18 +137,13 @@ export default function SalesPipelineStagePage() {
             dataArray = data.items;
           }
         }
-        
+
         const customersData = dataArray.map((pipeline: any) => {
           const expectedValue = parseFloat(pipeline.expected_value) || 0;
-          
+
           // Debug: Log the pipeline data to see what's being received
-          console.log('=== FRONTEND DEBUG: Pipeline data ===');
-          console.log('Pipeline:', pipeline);
-          console.log('Client:', pipeline.client);
-          console.log('Customer interests:', pipeline.client?.customer_interests);
-          console.log('Customer interests type:', typeof pipeline.client?.customer_interests);
-          console.log('Customer interests length:', Array.isArray(pipeline.client?.customer_interests) ? pipeline.client?.customer_interests.length : 'Not an array');
-          
+
+
           return {
             id: pipeline.client?.id || 0,
             first_name: pipeline.client?.first_name || '',
@@ -185,13 +176,13 @@ export default function SalesPipelineStagePage() {
             customer_interests: pipeline.client?.customer_interests || [],
           };
         });
-        
+
         setCustomers(customersData);
       } else {
         setCustomers([]);
       }
     } catch (error) {
-      console.error('Failed to fetch customers in stage:', error);
+
       setCustomers([]);
     } finally {
       setLoading(false);
@@ -215,50 +206,46 @@ export default function SalesPipelineStagePage() {
 
   const handleCustomerProfileClick = (customer: CustomerInStage) => {
     // Debug: Log the customer data being passed to the modal
-    console.log('=== FRONTEND DEBUG: Customer Profile Click ===');
-    console.log('Customer:', customer);
-    console.log('Customer interests:', customer.customer_interests);
-    console.log('Customer interests type:', typeof customer.customer_interests);
-    console.log('Customer interests length:', Array.isArray(customer.customer_interests) ? customer.customer_interests.length : 'Not an array');
-    
+
+
     setSelectedCustomerProfile(customer);
     setShowCustomerProfileModal(true);
   };
 
   const handleUpdateStage = async () => {
     if (!selectedCustomerForTransition || !newStage) return;
-    
+
     setTransitionLoading(true);
     try {
       // Find the pipeline ID for this customer
       const response = await apiService.getSalesPipeline({ stage: selectedCustomerForTransition.pipeline_stage });
-      
+
       if (response.success) {
         const pipelineData = response.data;
-        const dataArray = Array.isArray(pipelineData) ? pipelineData : 
-                         (pipelineData as any)?.results ? (pipelineData as any).results : 
+        const dataArray = Array.isArray(pipelineData) ? pipelineData :
+                         (pipelineData as any)?.results ? (pipelineData as any).results :
                          (pipelineData as any)?.data ? (pipelineData as any).data : [];
-        
+
         const pipeline = dataArray.find((p: any) => p.client?.id === selectedCustomerForTransition.id);
-        
+
         if (pipeline) {
           // Update the pipeline stage
           const updateResponse = await apiService.updatePipelineStage(pipeline.id.toString(), { stage: newStage });
-          
+
           if (updateResponse.success) {
             // Show success message with updated counts
             const oldStageName = pipelineStages.find(s => s.value === selectedCustomerForTransition.pipeline_stage)?.name;
             const newStageName = pipelineStages.find(s => s.value === newStage)?.name;
             alert(`Successfully moved ${selectedCustomerForTransition.full_name} from ${oldStageName} to ${newStageName} stage`);
-            
+
             // Update local state immediately for dynamic UI update
             const updatedCustomers = customers.filter(customer => customer.id !== selectedCustomerForTransition.id);
             setCustomers(updatedCustomers);
-            
+
             setShowStageTransitionModal(false);
             setSelectedCustomerForTransition(null);
             setNewStage('');
-            
+
             // Refresh data to ensure consistency
             setTimeout(() => {
               fetchCustomersInStage();
@@ -273,7 +260,7 @@ export default function SalesPipelineStagePage() {
         alert('Failed to fetch pipeline data. Please try again.');
       }
     } catch (error) {
-      console.error('Failed to update pipeline stage:', error);
+
       alert('An error occurred while updating the pipeline stage. Please try again.');
     } finally {
       setTransitionLoading(false);
@@ -389,8 +376,8 @@ export default function SalesPipelineStagePage() {
                 {searchTerm ? 'No customers found matching your search' : 'No customers in this stage'}
               </div>
               {searchTerm && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setSearchTerm('')}
                   className="mt-2"
@@ -412,8 +399,8 @@ export default function SalesPipelineStagePage() {
                 </TableHeader>
                 <TableBody>
                   {filteredCustomers.map((customer) => (
-                    <TableRow 
-                      key={customer.id} 
+                    <TableRow
+                      key={customer.id}
                       className="hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
                       onClick={() => handleCustomerProfileClick(customer)}
                     >
@@ -485,7 +472,7 @@ export default function SalesPipelineStagePage() {
               </div>
             </DialogTitle>
           </DialogHeader>
-          
+
           {selectedCustomerProfile && (
             <div className="space-y-6 py-4">
               {/* Main Info Cards */}
@@ -572,7 +559,7 @@ export default function SalesPipelineStagePage() {
                     {selectedCustomerProfile.customer_interests?.length || 0} items
                   </span>
                 </div>
-                
+
                 {selectedCustomerProfile.customer_interests && selectedCustomerProfile.customer_interests.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedCustomerProfile.customer_interests.map((interest, index) => (
@@ -588,7 +575,7 @@ export default function SalesPipelineStagePage() {
                             ₹{interest.revenue?.toLocaleString() || '0'}
                           </span>
                         </div>
-                        
+
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Category:</span>
@@ -599,7 +586,7 @@ export default function SalesPipelineStagePage() {
                             <span className="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded max-w-[100px] truncate">{interest.product?.name || 'Not specified'}</span>
                           </div>
                         </div>
-                        
+
                         {interest.notes && (
                           <div className="mt-3 pt-3 border-t border-gray-200">
                             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">Notes:</span>

@@ -41,11 +41,11 @@ export const GlobalDateRangeProvider: React.FC<GlobalDateRangeProviderProps> = (
 
   const [dateRange, setDateRangeState] = useState<DateRange>(() => {
     if (defaultRange) return defaultRange;
-    
+
     // Default to current month
     return getCurrentMonthRange();
   });
-  
+
   const [appliedDateRange, setAppliedDateRange] = useState<DateRange>(dateRange);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -54,7 +54,7 @@ export const GlobalDateRangeProvider: React.FC<GlobalDateRangeProviderProps> = (
 
   // Check if there are unsaved changes
   useEffect(() => {
-    const hasUnsavedChanges = 
+    const hasUnsavedChanges =
       dateRange.start?.getTime() !== appliedDateRange.start?.getTime() ||
       dateRange.end?.getTime() !== appliedDateRange.end?.getTime();
     setHasChanges(hasUnsavedChanges);
@@ -65,17 +65,17 @@ export const GlobalDateRangeProvider: React.FC<GlobalDateRangeProviderProps> = (
     const checkMonthChange = () => {
       const now = new Date();
       const currentMonthIndex = now.getMonth();
-      
+
       if (currentMonthIndex !== currentMonth) {
-        console.log('🔄 Month changed! Refreshing to new month data...');
+
         setCurrentMonth(currentMonthIndex);
-        
+
         // Auto-refresh to new month if no custom range is selected
         const newMonthRange = getCurrentMonthRange();
         setDateRangeState(newMonthRange);
         setAppliedDateRange(newMonthRange);
         setHasChanges(false);
-        
+
         // Trigger callback if provided
         if (onDateRangeChange) {
           onDateRangeChange(newMonthRange);
@@ -85,16 +85,16 @@ export const GlobalDateRangeProvider: React.FC<GlobalDateRangeProviderProps> = (
 
     // Check every minute for month change
     const interval = setInterval(checkMonthChange, 60000);
-    
+
     // Also check immediately
     checkMonthChange();
-    
+
     return () => clearInterval(interval);
   }, [currentMonth, onDateRangeChange]);
 
   const setDateRange = useCallback((range: DateRange) => {
     setDateRangeState(range);
-    
+
     if (autoApply) {
       applyDateRange(range);
     }
@@ -102,20 +102,20 @@ export const GlobalDateRangeProvider: React.FC<GlobalDateRangeProviderProps> = (
 
   const applyDateRange = useCallback((range?: DateRange) => {
     const rangeToApply = range || dateRange;
-    
+
     setIsLoading(true);
     setAppliedDateRange(rangeToApply);
     setLastUpdated(new Date());
     setHasChanges(false);
-    
+
     // Notify global date parameter service
     globalDateParameterService.setDateRange(rangeToApply);
-    
+
     // Call the callback if provided
     if (onDateRangeChange) {
       onDateRangeChange(rangeToApply);
     }
-    
+
     // Simulate loading time for better UX
     setTimeout(() => {
       setIsLoading(false);
@@ -129,10 +129,10 @@ export const GlobalDateRangeProvider: React.FC<GlobalDateRangeProviderProps> = (
     setAppliedDateRange(clearedRange);
     setHasChanges(false);
     setLastUpdated(new Date());
-    
+
     // Notify global date parameter service
     globalDateParameterService.setDateRange(clearedRange);
-    
+
     if (onDateRangeChange) {
       onDateRangeChange(clearedRange);
     }
@@ -141,11 +141,11 @@ export const GlobalDateRangeProvider: React.FC<GlobalDateRangeProviderProps> = (
   const refreshData = useCallback(() => {
     setIsLoading(true);
     setLastUpdated(new Date());
-    
+
     if (onDateRangeChange) {
       onDateRangeChange(appliedDateRange);
     }
-    
+
     setTimeout(() => {
       setIsLoading(false);
     }, 500);
@@ -184,7 +184,7 @@ export const useDateRangeEffect = (
   deps: React.DependencyList = []
 ) => {
   const { appliedDateRange } = useGlobalDateRange();
-  
+
   useEffect(() => {
     callback(appliedDateRange);
   }, [appliedDateRange, ...deps]);
@@ -193,10 +193,10 @@ export const useDateRangeEffect = (
 // Hook for getting formatted date range strings
 export const useFormattedDateRange = () => {
   const { appliedDateRange } = useGlobalDateRange();
-  
+
   const formatDateRange = useCallback((range: DateRange): string => {
     if (!range.start) return 'No date selected';
-    
+
     if (!range.end || range.start.getTime() === range.end.getTime()) {
       return range.start.toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -204,7 +204,7 @@ export const useFormattedDateRange = () => {
         year: 'numeric'
       });
     }
-    
+
     return `${range.start.toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short'
@@ -217,14 +217,14 @@ export const useFormattedDateRange = () => {
 
   const getDateRangeForAPI = useCallback((range: DateRange) => {
     if (!range.start) return null;
-    
+
     const startDate = new Date(range.start);
     const endDate = range.end ? new Date(range.end) : new Date(range.start);
-    
+
     // Set time to start/end of day
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
-    
+
     return {
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
@@ -243,7 +243,7 @@ export const useFormattedDateRange = () => {
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInHours < 24) return `${diffInHours}h ago`;
     if (diffInDays < 7) return `${diffInDays}d ago`;
-    
+
     return date.toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',

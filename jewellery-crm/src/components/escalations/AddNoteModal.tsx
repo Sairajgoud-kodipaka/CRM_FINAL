@@ -35,7 +35,7 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.content.trim()) {
       toast({
         title: "Error",
@@ -47,7 +47,7 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
 
     try {
       setLoading(true);
-      
+
       const response = await apiService.createEscalationNote(escalationId, {
         content: formData.content,
         is_internal: formData.is_internal,
@@ -73,7 +73,7 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
         });
       }
     } catch (error) {
-      console.error('Error adding note:', error);
+
       toast({
         title: "Error",
         description: "Failed to add note",
@@ -106,7 +106,7 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
             Add Note
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Note Content */}
           <div className="space-y-2">
@@ -145,8 +145,8 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
 
           {/* Note Type Indicator */}
           <div className={`p-3 rounded-lg text-sm ${
-            formData.is_internal 
-              ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+            formData.is_internal
+              ? 'bg-blue-50 text-blue-700 border border-blue-200'
               : 'bg-green-50 text-green-700 border border-green-200'
           }`}>
             <div className="flex items-center gap-2">
@@ -163,7 +163,7 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
               )}
             </div>
             <p className="text-xs mt-1 opacity-75">
-              {formData.is_internal 
+              {formData.is_internal
                 ? 'This note will only be visible to team members'
                 : 'This note will be visible to the customer'
               }
@@ -188,4 +188,4 @@ export default function AddNoteModal({ escalationId, onSuccess, open, onOpenChan
       </DialogContent>
     </Dialog>
   );
-} 
+}

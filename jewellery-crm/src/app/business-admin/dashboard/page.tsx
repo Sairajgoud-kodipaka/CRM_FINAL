@@ -26,7 +26,7 @@ interface DashboardData {
     closed: number;
     revenue: number;
   };
-  
+
   // Store Performance for current month
   store_performance: Array<{
     id: number;
@@ -35,7 +35,7 @@ interface DashboardData {
     sales_count: number;
     closed_deals: number;
   }>;
-  
+
   // Top Performers for current month
   top_performers: Array<{
     id: number;
@@ -90,14 +90,14 @@ function BusinessAdminDashboardContent() {
     setCurrentMonth(prev => {
       const now = new Date();
       const currentDate = { year: now.getFullYear(), month: now.getMonth() };
-      
+
       // Prevent navigation to future months
-      if (prev.year > currentDate.year || 
+      if (prev.year > currentDate.year ||
           (prev.year === currentDate.year && prev.month >= currentDate.month)) {
-        console.log('⚠️ Cannot navigate to future months');
+
         return prev; // Stay on current month
       }
-      
+
       if (prev.month === 11) {
         return { year: prev.year + 1, month: 0 };
       }
@@ -116,23 +116,16 @@ function BusinessAdminDashboardContent() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const monthRange = getCurrentMonthRange();
-      console.log('🔍 [DASHBOARD] Fetching monthly data for:', formatMonth());
-      console.log('📅 [DASHBOARD] Date range:', {
-        start: monthRange.start.toISOString(),
-        end: monthRange.end.toISOString(),
-        year: currentMonth.year,
-        month: currentMonth.month,
-        monthName: formatMonth()
-      });
-      
+
+
       // CRITICAL: Force fresh data by clearing any cached data first
       setDashboardData(null);
-      
+
       // Add a small delay to ensure state is cleared
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       const response = await apiService.getBusinessAdminDashboard({
         start_date: monthRange.start.toISOString(),
         end_date: monthRange.end.toISOString(),
@@ -142,21 +135,18 @@ function BusinessAdminDashboardContent() {
         month_name: formatMonth(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       });
-      
-      console.log('📡 [DASHBOARD] API Response:', response);
-      
+
+
+
       if (response.success) {
         setDashboardData(response.data);
-        console.log('✅ [DASHBOARD] Monthly data loaded successfully');
-        console.log('📊 [DASHBOARD] Data structure:', response.data);
-        console.log('📊 [DASHBOARD] Monthly Sales:', response.data.monthly_sales);
-        console.log('📊 [DASHBOARD] Store Performance:', response.data.store_performance);
+
       } else {
         setError('Failed to load dashboard data');
-        console.error('❌ [DASHBOARD] API Error:', response.message || response.errors);
+
       }
     } catch (err) {
-      console.error('❌ [DASHBOARD] Fetch Error:', err);
+
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -219,7 +209,7 @@ function BusinessAdminDashboardContent() {
           <h1 className="text-3xl font-bold text-text-primary tracking-tight">Dashboard</h1>
           <p className="text-text-secondary mt-1">Monthly performance overview</p>
         </div>
-        
+
         {/* Month Navigation */}
         <div className="flex items-center gap-3">
           <Button
@@ -231,24 +221,24 @@ function BusinessAdminDashboardContent() {
             <ChevronLeft className="w-4 h-4" />
             Previous
           </Button>
-          
+
           <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
             <CalendarIcon className="w-4 h-4 text-blue-600" />
             <span className="font-medium text-blue-800">{formatMonth()}</span>
           </div>
-          
+
           <Button
             variant="outline"
             size="sm"
             onClick={goToNextMonth}
             className="flex items-center gap-1"
-            disabled={currentMonth.year > new Date().getFullYear() || 
+            disabled={currentMonth.year > new Date().getFullYear() ||
                      (currentMonth.year === new Date().getFullYear() && currentMonth.month >= new Date().getMonth())}
           >
             Next
             <ChevronRight className="w-4 h-4" />
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -257,12 +247,12 @@ function BusinessAdminDashboardContent() {
           >
             Current Month
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
             onClick={async () => {
-              console.log('🔄 [DASHBOARD] Manual refresh triggered');
+
               setDashboardData(null);
               setLoading(true);
               await fetchDashboardData();
@@ -362,7 +352,7 @@ function BusinessAdminDashboardContent() {
                     <p className="text-sm text-text-secondary">Store #{store.id}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-6">
                   <div className="text-center">
                     <div className="text-lg font-semibold text-blue-600">
@@ -412,7 +402,7 @@ function BusinessAdminDashboardContent() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-6">
                   <div className="text-center">
                     <div className="text-lg font-semibold text-blue-600">

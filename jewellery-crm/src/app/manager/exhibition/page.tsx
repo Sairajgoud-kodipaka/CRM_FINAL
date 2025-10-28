@@ -48,12 +48,12 @@ export default function ManagerExhibitionPage() {
 
   const testAPI = async () => {
     try {
-      console.log('🧪 Testing API manually...');
+
       const response = await apiService.getExhibitionLeads();
-      console.log('🧪 Test API response:', response);
+
       alert(`API Test Result: ${JSON.stringify(response, null, 2)}`);
     } catch (error) {
-      console.error('🧪 Test API error:', error);
+
       alert(`API Test Error: ${error}`);
     }
   };
@@ -62,51 +62,51 @@ export default function ManagerExhibitionPage() {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔍 Fetching exhibition leads...');
-      
+
+
       // Fetch exhibition leads for the manager's store
       const response = await apiService.getExhibitionLeads();
-      console.log('📡 Exhibition leads API response:', response);
-      
+
+
       // Handle the actual API response format with proper typing
       if (response && typeof response === 'object') {
         if ('success' in response && response.success && 'data' in response) {
           // Handle ApiResponse<ExhibitionLead[]> format
           if (Array.isArray(response.data)) {
-            console.log('✅ Using response.data (array):', response.data);
+
             setLeads(response.data);
           } else if (response.data && typeof response.data === 'object' && 'results' in response.data) {
             // Handle paginated response format with type assertion
             const resultsData = (response.data as { results: ExhibitionLead[] }).results;
             if (Array.isArray(resultsData)) {
-              console.log('✅ Using response.data.results (array):', resultsData);
+
               setLeads(resultsData);
             } else {
-              console.warn('⚠️ Exhibition leads response.data.results is not an array:', resultsData);
+
               setLeads([]);
               setError(`Invalid response.data.results format: ${JSON.stringify(resultsData)}`);
             }
           } else {
-            console.warn('⚠️ Exhibition leads response.data is not in expected format:', response.data);
+
             setLeads([]);
             setError(`Invalid response.data format: ${JSON.stringify(response.data)}`);
           }
         } else if (Array.isArray(response)) {
           // Handle direct array response
-          console.log('✅ Using response directly (array):', response);
+
           setLeads(response);
         } else {
-          console.warn('⚠️ Exhibition leads response is not in expected format:', response);
+
           setLeads([]);
           setError(`Invalid API response format: ${JSON.stringify(response)}`);
         }
       } else {
-        console.warn('⚠️ Exhibition leads response is not an object:', response);
+
         setLeads([]);
         setError(`Invalid API response: ${JSON.stringify(response)}`);
       }
     } catch (error) {
-      console.error('❌ Error fetching exhibition leads:', error);
+
       setLeads([]);
       setError(`API Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -122,7 +122,7 @@ export default function ManagerExhibitionPage() {
         await fetchExhibitionLeads();
       }
     } catch (error) {
-      console.error('Error promoting lead:', error);
+
     }
   };
 
@@ -140,14 +140,14 @@ export default function ManagerExhibitionPage() {
       if (response.success) {
         // Refresh the leads list
         await fetchExhibitionLeads();
-        console.log('✅ Exhibition lead captured successfully:', response.data);
+
         setError(null); // Clear any previous errors
       } else {
-        console.error('❌ Failed to capture exhibition lead:', response);
-        
+
+
         // Extract detailed error message from response
         let errorMessage = 'Failed to capture lead. Please try again.';
-        
+
         if (response.errors) {
           if (typeof response.errors === 'string') {
             errorMessage = response.errors;
@@ -157,15 +157,15 @@ export default function ManagerExhibitionPage() {
             errorMessage = response.errors.detail;
           }
         }
-        
+
         setError(errorMessage);
       }
     } catch (error: any) {
-      console.error('❌ Error capturing exhibition lead:', error);
-      
+
+
       // Handle API error responses with detailed error messages
       let errorMessage = 'Error capturing lead. Please try again.';
-      
+
       if (error?.response?.data) {
         const errorData = error.response.data;
         if (errorData.email && Array.isArray(errorData.email)) {
@@ -178,7 +178,7 @@ export default function ManagerExhibitionPage() {
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
+
       setError(errorMessage);
     }
   };
@@ -216,7 +216,7 @@ export default function ManagerExhibitionPage() {
           <p className="text-gray-600 mt-2">Manage and promote exhibition leads to your main customer database.</p>
         </div>
         <div className="flex gap-3">
-          <Button 
+          <Button
             className="bg-orange-600 hover:bg-orange-700"
             onClick={() => setIsCaptureModalOpen(true)}
           >

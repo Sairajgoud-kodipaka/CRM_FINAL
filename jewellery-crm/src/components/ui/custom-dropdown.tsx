@@ -77,7 +77,7 @@ export function CustomDropdown({
                 {option}
               </button>
             ))}
-            
+
             {/* Add Custom Value Section */}
             <div className="border-t border-gray-200">
               {!isAddingCustom ? (

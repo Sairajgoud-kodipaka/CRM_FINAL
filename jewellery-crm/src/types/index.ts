@@ -201,28 +201,28 @@ export interface Deal {
   stage: SalesPipelineStage;
   value: number;
   probability: number; // 0-100 percentage
-  
+
   // Product details
   products: DealProduct[];
-  
+
   // Timeline
   expectedCloseDate: Date;
   createdAt: Date;
   updatedAt: Date;
   closedAt?: Date;
-  
+
   // Assignment
   assignedTo: string; // Sales team member ID
-  
+
   // Activity tracking
   lastActivityDate?: Date;
   nextFollowUp?: Date;
-  
+
   // Additional info
   source: string;
   tags: string[];
   notes?: string;
-  
+
   // Custom fields for jewellery business
   occasion?: string;
   urgency: 'low' | 'medium' | 'high';
@@ -248,35 +248,35 @@ export interface FollowUp {
   tenant: number;
   appointment?: number;
   interaction?: number;
-  
+
   // Follow-up details
   type: FollowUpType;
   title: string;
   description: string;
   due_date: string;
   due_time?: string;
-  
+
   // Status and tracking
   status: FollowUpStatus;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  
+
   // Reminder settings
   reminder_sent: boolean;
   reminder_date?: string;
-  
+
   // Outcome
   outcome_notes?: string;
   next_action?: string;
-  
+
   // Assignment
   assigned_to?: number;
   created_by?: number;
-  
+
   // Timestamps
   created_at: string;
   updated_at: string;
   completed_at?: string;
-  
+
   // Soft delete
   is_deleted: boolean;
   deleted_at?: string;
@@ -301,18 +301,18 @@ export interface ClientInteraction {
   interaction_type: InteractionType;
   subject: string;
   description: string;
-  
+
   // Outcome
   outcome: InteractionOutcome;
-  
+
   // Follow-up
   requires_follow_up: boolean;
   follow_up_date?: string;
   follow_up_notes?: string;
-  
+
   // User who made the interaction
   user: number;
-  
+
   // Timestamps
   created_at: string;
   updated_at: string;
@@ -501,33 +501,33 @@ export interface Appointment {
   tenantId: string;
   customerId: string;
   storeId: string;
-  
+
   // Appointment details
   type: AppointmentType;
   status: AppointmentStatus;
   title: string;
   description?: string;
-  
+
   // Scheduling
   startTime: Date;
   endTime: Date;
   duration: number; // in minutes
-  
+
   // Staff assignment
   assignedTo: string; // Staff member ID
-  
+
   // Related records
   dealId?: string;
   productIds?: string[];
-  
+
   // Customer preferences
   customerNotes?: string;
   internalNotes?: string;
-  
+
   // Reminders
   reminderSent: boolean;
   reminderTime?: Date;
-  
+
   // Metadata
   createdAt: Date;
   updatedAt: Date;
@@ -552,39 +552,39 @@ export interface Order {
   tenantId: string;
   customerId: string;
   storeId?: string; // For offline orders
-  
+
   // Order details
   status: OrderStatus;
   type: 'online' | 'offline';
-  
+
   // Items
   items: OrderItem[];
-  
+
   // Pricing
   subtotal: number;
   taxAmount: number;
   discountAmount: number;
   shippingAmount: number;
   totalAmount: number;
-  
+
   // Addresses
   billingAddress: Address;
   shippingAddress?: Address;
-  
+
   // Payment
   paymentMethod: string;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   paymentTransactionId?: string;
-  
+
   // Delivery
   expectedDeliveryDate?: Date;
   deliveredAt?: Date;
   trackingNumber?: string;
-  
+
   // Notes
   customerNotes?: string;
   internalNotes?: string;
-  
+
   // Metadata
   createdAt: Date;
   updatedAt: Date;
@@ -771,7 +771,7 @@ export interface FormState<T> {
 /**
  * Notification types for different system events
  */
-export type NotificationType = 
+export type NotificationType =
   | 'appointment_reminder'
   | 'deal_update'
   | 'new_customer'
@@ -813,25 +813,25 @@ export interface Notification {
   message: string;
   priority: NotificationPriority;
   status: NotificationStatus;
-  
+
   // Related data
   relatedId?: string; // ID of related entity (deal, appointment, etc.)
   relatedType?: string; // Type of related entity
-  
+
   // User and tenant info
   userId: string;
   tenantId: string;
   storeId?: string; // Store ID for store-specific notifications
-  
+
   // Timing
   createdAt: Date;
   readAt?: Date;
   expiresAt?: Date;
-  
+
   // Action data
   actionUrl?: string;
   actionText?: string;
-  
+
   // Metadata
   metadata?: Record<string, any>;
   isPersistent: boolean; // Whether notification should persist until manually dismissed
@@ -843,20 +843,20 @@ export interface Notification {
 export interface NotificationSettings {
   userId: string;
   tenantId: string;
-  
+
   // Email notifications
   emailNotifications: {
     enabled: boolean;
     types: NotificationType[];
     frequency: 'immediate' | 'daily' | 'weekly';
   };
-  
+
   // Push notifications
   pushNotifications: {
     enabled: boolean;
     types: NotificationType[];
   };
-  
+
   // In-app notifications
   inAppNotifications: {
     enabled: boolean;
@@ -864,7 +864,7 @@ export interface NotificationSettings {
     sound: boolean;
     desktop: boolean;
   };
-  
+
   // Quiet hours
   quietHours: {
     enabled: boolean;
@@ -872,7 +872,7 @@ export interface NotificationSettings {
     endTime: string; // HH:mm format
     timezone: string;
   };
-  
+
   // Custom preferences
   preferences: {
     appointmentReminders: boolean;
@@ -895,10 +895,10 @@ export interface NotificationTemplate {
   title: string;
   message: string;
   priority: NotificationPriority;
-  
+
   // Template variables
   variables: string[];
-  
+
   // Default settings
   defaultSettings: {
     isPersistent: boolean;
@@ -906,7 +906,7 @@ export interface NotificationTemplate {
     actionUrl?: string;
     actionText?: string;
   };
-  
+
   // Metadata
   isActive: boolean;
   createdAt: Date;

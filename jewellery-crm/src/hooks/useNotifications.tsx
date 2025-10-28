@@ -41,37 +41,37 @@ const notificationReducer = (state: NotificationState, action: NotificationActio
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
-    
+
     case 'SET_ERROR':
       return { ...state, error: action.payload };
-    
+
     case 'SET_NOTIFICATIONS':
       // Ensure payload is an array and handle potential null/undefined
       const notifications = Array.isArray(action.payload) ? action.payload : [];
       const unreadCount = notifications.filter(n => n.status === 'unread').length;
-      return { 
-        ...state, 
+      return {
+        ...state,
         notifications,
-        unreadCount 
+        unreadCount
       };
-    
+
     case 'ADD_NOTIFICATION':
       const newNotifications = [action.payload, ...state.notifications];
-      const newUnreadCount = action.payload.status === 'unread' 
-        ? state.unreadCount + 1 
+      const newUnreadCount = action.payload.status === 'unread'
+        ? state.unreadCount + 1
         : state.unreadCount;
-      
+
       // Play notification sound for new unread notifications
       if (action.payload.status === 'unread' && typeof window !== 'undefined') {
         notificationSound.play();
       }
-      
+
       return {
         ...state,
         notifications: newNotifications,
         unreadCount: newUnreadCount
       };
-    
+
     case 'UPDATE_NOTIFICATION':
       const updatedNotifications = state.notifications.map(notification =>
         notification.id === action.payload.id
@@ -84,7 +84,7 @@ const notificationReducer = (state: NotificationState, action: NotificationActio
         notifications: updatedNotifications,
         unreadCount: updatedUnreadCount
       };
-    
+
     case 'REMOVE_NOTIFICATION':
       const filteredNotifications = state.notifications.filter(
         notification => notification.id !== action.payload
@@ -95,7 +95,7 @@ const notificationReducer = (state: NotificationState, action: NotificationActio
         notifications: filteredNotifications,
         unreadCount: filteredUnreadCount
       };
-    
+
     case 'MARK_AS_READ':
       const markedNotifications = state.notifications.map(notification =>
         notification.id === action.payload
@@ -108,7 +108,7 @@ const notificationReducer = (state: NotificationState, action: NotificationActio
         notifications: markedNotifications,
         unreadCount: markedUnreadCount
       };
-    
+
     case 'MARK_ALL_AS_READ':
       const allReadNotifications = state.notifications.map(notification => ({
         ...notification,
@@ -120,19 +120,19 @@ const notificationReducer = (state: NotificationState, action: NotificationActio
         notifications: allReadNotifications,
         unreadCount: 0
       };
-    
+
     case 'SET_UNREAD_COUNT':
       return { ...state, unreadCount: action.payload };
-    
+
     case 'SET_SETTINGS':
       return { ...state, settings: action.payload };
-    
+
     case 'SET_CONNECTION_STATUS':
       return { ...state, isConnected: action.payload };
-    
+
     case 'CLEAR_NOTIFICATIONS':
       return { ...state, notifications: [], unreadCount: 0 };
-    
+
     default:
       return state;
   }
@@ -185,46 +185,46 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Fetch notifications from API
   const fetchNotifications = useCallback(async () => {
     const now = Date.now();
-    
+
     // Prevent rapid successive calls
     if (now - lastFetchTime < DEBOUNCE_DELAY) {
-      console.log('🔒 fetchNotifications debounced - too soon since last call');
+
       return;
     }
-    
-    console.log('🔍 fetchNotifications called with:', { user: user?.username, isAuthenticated, isHydrated });
-    
+
+
+
     if (!user || !isAuthenticated || !isHydrated) {
-      console.log('❌ fetchNotifications early return - missing user/auth/hydration');
+
       return;
     }
 
     try {
-      console.log('📡 Starting API call to fetch notifications...');
+
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
 
       // Call the actual API to get notifications
       const response = await apiService.getNotifications();
-      console.log('📡 API Response:', response);
-      
+
+
       if (response.success && response.data) {
         // Extract the results array from the paginated response
         const notifications = Array.isArray(response.data) ? response.data : (response.data as any).results || [];
-        console.log('✅ Setting notifications in state:', notifications.length, 'notifications');
+
         dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
         setLastFetchTime(Date.now()); // Update last fetch time on success
       } else {
         // If no data or error, set empty array
-        console.log('⚠️ No data or error in response, setting empty notifications');
+
         dispatch({ type: 'SET_NOTIFICATIONS', payload: [] });
         if (!response.success) {
-          console.log('❌ API call failed:', response.message);
+
           dispatch({ type: 'SET_ERROR', payload: response.message || 'Failed to fetch notifications' });
         }
       }
     } catch (error) {
-      console.error('💥 Error fetching notifications:', error);
+
       dispatch({ type: 'SET_ERROR', payload: 'Failed to fetch notifications' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -238,10 +238,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       if (response.success) {
         dispatch({ type: 'MARK_AS_READ', payload: id });
       } else {
-        console.error('Failed to mark notification as read:', response.message);
+
       }
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+
     }
   }, []);
 
@@ -252,10 +252,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       if (response.success) {
         dispatch({ type: 'MARK_ALL_AS_READ' });
       } else {
-        console.error('Failed to mark all notifications as read:', response.message);
+
       }
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+
     }
   }, []);
 
@@ -266,10 +266,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       if (response.success) {
         dispatch({ type: 'REMOVE_NOTIFICATION', payload: id });
       } else {
-        console.error('Failed to delete notification:', response.message);
+
       }
     } catch (error) {
-      console.error('Error deleting notification:', error);
+
     }
   }, []);
 
@@ -280,10 +280,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       if (response.success) {
         dispatch({ type: 'ADD_NOTIFICATION', payload: response.data });
       } else {
-        console.error('Failed to create notification:', response.message);
+
       }
     } catch (error) {
-      console.error('Error creating notification:', error);
+
     }
   }, []);
 
@@ -296,11 +296,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       if (response.success) {
         dispatch({ type: 'SET_SETTINGS', payload: response.data });
       } else {
-        console.warn('Failed to fetch notification settings:', response.message);
+
         // Don't throw error, just log warning to prevent affecting other components
       }
     } catch (error) {
-      console.warn('Error fetching notification settings:', error);
+
       // Don't throw error, just log warning to prevent affecting other components
     }
   }, [user]);
@@ -312,10 +312,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       if (response.success) {
         dispatch({ type: 'SET_SETTINGS', payload: response.data });
       } else {
-        console.error('Failed to update notification settings:', response.message);
+
       }
     } catch (error) {
-      console.error('Error updating notification settings:', error);
+
     }
   }, []);
 
@@ -387,4 +387,4 @@ export const useNotifications = () => {
     throw new Error('useNotifications must be used within a NotificationProvider');
   }
   return context;
-}; 
+};

@@ -1,6 +1,6 @@
 /**
  * Unified Form Hook
- * 
+ *
  * This hook provides consistent form management across all form types
  * with built-in validation, synchronization, and state management
  */
@@ -43,7 +43,7 @@ export interface FormHookReturn<T> {
   isSubmitting: boolean;
   isValid: boolean;
   isDirty: boolean;
-  
+
   // Form actions
   setField: (field: keyof T, value: any) => void;
   setFields: (fields: Partial<T>) => void;
@@ -53,11 +53,11 @@ export interface FormHookReturn<T> {
   validateForm: () => boolean;
   resetForm: () => void;
   submitForm: () => Promise<void>;
-  
+
   // Sync actions
   syncToForms: (targetForms: string[]) => void;
   syncFromForm: (sourceFormType: string, sourceData: any) => void;
-  
+
   // Computed fields
   computedFields: Record<string, any>;
 }
@@ -106,11 +106,11 @@ export function useUnifiedForm<T extends Record<string, any>>(
   const computedFields = useMemo(() => {
     const transformers = FORM_TRANSFORMERS[formType] || {};
     const computed: Record<string, any> = {};
-    
+
     Object.entries(transformers).forEach(([field, transformer]) => {
       computed[field] = transformer(formData);
     });
-    
+
     return computed;
   }, [formType, formData]);
 
@@ -181,12 +181,12 @@ export function useUnifiedForm<T extends Record<string, any>>(
   const setField = useCallback((field: keyof T, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setIsDirty(true);
-    
+
     // Clear error when field is updated
     if (errors[field as string]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
-    
+
     // Mark field as touched
     setTouched(prev => ({ ...prev, [field]: true }));
   }, [errors]);
@@ -194,7 +194,7 @@ export function useUnifiedForm<T extends Record<string, any>>(
   const setFields = useCallback((fields: Partial<T>) => {
     setFormData(prev => ({ ...prev, ...fields }));
     setIsDirty(true);
-    
+
     // Clear errors for updated fields
     const updatedFields = Object.keys(fields);
     setErrors(prev => {
@@ -206,7 +206,7 @@ export function useUnifiedForm<T extends Record<string, any>>(
       });
       return newErrors;
     });
-    
+
     // Mark fields as touched
     setTouched(prev => {
       const newTouched = { ...prev };
@@ -243,7 +243,7 @@ export function useUnifiedForm<T extends Record<string, any>>(
     try {
       await onSubmit?.(formData);
     } catch (error) {
-      console.error('Form submission error:', error);
+
     } finally {
       setIsSubmitting(false);
     }
@@ -257,11 +257,11 @@ export function useUnifiedForm<T extends Record<string, any>>(
       targetForms,
       excludeSyncFields
     );
-    
+
     Object.entries(syncResults).forEach(([targetForm, syncData]) => {
       formSyncService.notify(targetForm, syncData);
     });
-    
+
     onSync?.(formData);
   }, [formType, formData, excludeSyncFields, onSync]);
 
@@ -272,7 +272,7 @@ export function useUnifiedForm<T extends Record<string, any>>(
       [formType],
       excludeSyncFields
     );
-    
+
     if (syncResults[formType]) {
       setFields(syncResults[formType]);
     }
@@ -289,7 +289,7 @@ export function useUnifiedForm<T extends Record<string, any>>(
 
   // Form validity
   const isValid = useMemo(() => {
-    return Object.values(errors).every(error => !error) && 
+    return Object.values(errors).every(error => !error) &&
            Object.keys(formData).length > 0;
   }, [errors, formData]);
 
@@ -301,7 +301,7 @@ export function useUnifiedForm<T extends Record<string, any>>(
     isSubmitting,
     isValid,
     isDirty,
-    
+
     // Form actions
     setField,
     setFields,
@@ -311,11 +311,11 @@ export function useUnifiedForm<T extends Record<string, any>>(
     validateForm,
     resetForm,
     submitForm,
-    
+
     // Sync actions
     syncToForms,
     syncFromForm,
-    
+
     // Computed fields
     computedFields
   };
@@ -387,7 +387,7 @@ export function FormField<T extends Record<string, any>>({
 }: FormFieldProps<T>) {
   const { formData, errors, touched, setField, setTouched } = form;
   const hasError = touched[field] && errors[field];
-  
+
   const handleChange = (value: any) => {
     setField(field, value);
   };
@@ -402,7 +402,7 @@ export function FormField<T extends Record<string, any>>({
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
-      
+
       {type === 'textarea' ? (
         <textarea
           value={formData[field] || ''}
@@ -435,7 +435,7 @@ export function FormField<T extends Record<string, any>>({
           className={`w-full p-2 border rounded-md ${hasError ? 'border-red-500' : 'border-gray-300'}`}
         />
       )}
-      
+
       {hasError && (
         <p className="text-red-500 text-sm mt-1">{errors[field]}</p>
       )}

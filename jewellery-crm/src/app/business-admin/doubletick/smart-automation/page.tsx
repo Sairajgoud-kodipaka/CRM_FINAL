@@ -10,14 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Zap, 
-  Plus, 
-  Save, 
-  Play, 
-  Pause, 
-  Trash2, 
-  Settings, 
+import {
+  Zap,
+  Plus,
+  Save,
+  Play,
+  Pause,
+  Trash2,
+  Settings,
   MessageSquare,
   Brain,
   Users,

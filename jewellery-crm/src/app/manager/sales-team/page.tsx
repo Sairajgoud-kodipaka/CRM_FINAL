@@ -6,11 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Users, 
-  TrendingUp, 
-  DollarSign, 
-  Target, 
+import {
+  Users,
+  TrendingUp,
+  DollarSign,
+  Target,
   Calendar,
   Activity,
   Trophy,
@@ -61,14 +61,11 @@ export default function ManagerSalesTeamPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSalesPerson, setSelectedSalesPerson] = useState<SalesPerson | null>(null);
-  
+
   // Debug: Log current user info
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.user;
-    console.log('👤 Current user:', user);
-    console.log('🔑 User role:', user?.role);
-    console.log('🏢 User tenant:', user?.tenant);
-    console.log('🏪 User store:', user?.store);
+
   }, []);
 
   useEffect(() => {
@@ -78,21 +75,20 @@ export default function ManagerSalesTeamPage() {
   const fetchTeamPerformance = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Fetching team performance...');
-      console.log('📡 API URL: /sales-team/performance/');
-      
+
+
       const response = await apiService.get('/sales-team/performance/');
-      console.log('📡 API Response:', response);
-      
+
+
       if (response.success) {
-        console.log('✅ Success! Setting team performance data:', response.data);
+
         setTeamPerformance(response.data as TeamPerformance);
       } else {
-        console.log('❌ API returned error:', response.message);
+
         setError(response.message || 'Failed to fetch team performance');
       }
     } catch (error) {
-      console.error('💥 Error fetching team performance:', error);
+
       setError('Failed to fetch team performance');
     } finally {
       setLoading(false);
@@ -247,8 +243,8 @@ export default function ManagerSalesTeamPage() {
           {/* Team Members Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {teamPerformance.performance_data.map((member) => (
-              <Card 
-                key={member.user_id} 
+              <Card
+                key={member.user_id}
                 className="cursor-pointer hover:shadow-lg transition-shadow"
                 onClick={() => setSelectedSalesPerson(member)}
               >
@@ -268,8 +264,8 @@ export default function ManagerSalesTeamPage() {
                         </CardDescription>
                       </div>
                     </div>
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className={getOnlineStatusColor(member.is_online)}
                     >
                       {member.is_online ? 'Online' : 'Offline'}
@@ -302,8 +298,8 @@ export default function ManagerSalesTeamPage() {
 
                   {/* Performance Score */}
                   <div className="text-center">
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className={`${getPerformanceColor(member.performance_score)} px-3 py-1`}
                     >
                       <Trophy className="w-3 h-3 mr-1" />
@@ -352,7 +348,7 @@ export default function ManagerSalesTeamPage() {
                           <div className="flex items-center">
                             {index < 3 && (
                               <Trophy className={`w-4 h-4 mr-2 ${
-                                index === 0 ? 'text-yellow-500' : 
+                                index === 0 ? 'text-yellow-500' :
                                 index === 1 ? 'text-gray-400' : 'text-orange-500'
                               }`} />
                             )}
@@ -395,10 +391,10 @@ export default function ManagerSalesTeamPage() {
                   {teamPerformance.performance_data
                     .sort((a, b) => b.total_revenue - a.total_revenue)
                     .map((member) => {
-                      const percentage = teamPerformance.summary.total_revenue > 0 
-                        ? (member.total_revenue / teamPerformance.summary.total_revenue) * 100 
+                      const percentage = teamPerformance.summary.total_revenue > 0
+                        ? (member.total_revenue / teamPerformance.summary.total_revenue) * 100
                         : 0;
-                      
+
                       return (
                         <div key={member.user_id} className="space-y-2">
                           <div className="flex justify-between text-sm">
@@ -408,7 +404,7 @@ export default function ManagerSalesTeamPage() {
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
+                            <div
                               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                               style={{ width: `${percentage}%` }}
                             ></div>
@@ -496,7 +492,7 @@ function SalesPersonDetailModal({ salesPerson, onClose }: SalesPersonDetailModal
         setDetailedProfile(response.data);
       }
     } catch (error) {
-      console.error('Error fetching detailed profile:', error);
+
     } finally {
       setLoading(false);
     }

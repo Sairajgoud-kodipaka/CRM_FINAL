@@ -30,7 +30,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
 
     // Store manager and inhouse sales can only see their store's notifications
     if (user.role === 'manager' || user.role === 'inhouse_sales') {
-      return notifications.filter(notification => 
+      return notifications.filter(notification =>
         notification.tenantId === user.tenant?.toString() &&
         (!notification.storeId || notification.storeId === user.store?.toString())
       );
@@ -38,7 +38,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
 
     // Tele-calling users can see their store's notifications and their own
     if (user.role === 'tele_calling') {
-      return notifications.filter(notification => 
+      return notifications.filter(notification =>
         notification.userId === user.id.toString() ||
         (notification.tenantId === user.tenant?.toString() &&
          (!notification.storeId || notification.storeId === user.store?.toString()))
@@ -47,7 +47,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
 
     // Marketing users can see marketing-related notifications and their store's notifications
     if (user.role === 'marketing') {
-      return notifications.filter(notification => 
+      return notifications.filter(notification =>
         notification.type === 'marketing_campaign' ||
         notification.type === 'announcement' ||
         (notification.tenantId === user.tenant?.toString() &&
@@ -56,7 +56,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
     }
 
     // Default: only show user's own notifications
-    return notifications.filter(notification => 
+    return notifications.filter(notification =>
       notification.userId === user.id.toString()
     );
   };
@@ -71,8 +71,8 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
     // Get scoped notifications that are unread and not already in active toasts
     const scopedNotifications = getScopedNotifications(state.notifications);
     const newNotifications = scopedNotifications.filter(
-      notification => 
-        notification.status === 'unread' && 
+      notification =>
+        notification.status === 'unread' &&
         !activeToasts.find(toast => toast.id === notification.id)
     );
 
@@ -94,7 +94,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
     }
 
     const scopedNotifications = getScopedNotifications(state.notifications);
-    setActiveToasts(prev => 
+    setActiveToasts(prev =>
       prev.filter(toast => {
         const currentNotification = scopedNotifications.find(n => n.id === toast.id);
         return currentNotification && currentNotification.status === 'unread';
@@ -139,12 +139,12 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
   const handleToastClose = async (notificationId: string) => {
     // Remove from active toasts immediately
     setActiveToasts(prev => prev.filter(toast => toast.id !== notificationId));
-    
+
     // Mark as read in the global state
     try {
       await actions.markAsRead(notificationId);
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+
     }
   };
 
@@ -153,12 +153,12 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
     try {
       await actions.markAsRead(notification.id);
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+
     }
-    
+
     // Remove from active toasts
     setActiveToasts(prev => prev.filter(toast => toast.id !== notification.id));
-    
+
     // Navigate to action URL if available
     if (notification.actionUrl) {
       window.location.href = notification.actionUrl;
@@ -197,7 +197,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
           </button>
         </div>
       )}
-      
+
       {activeToasts.map((notification, index) => (
         <div
           key={notification.id}
@@ -217,4 +217,4 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
       ))}
     </div>
   );
-}; 
+};

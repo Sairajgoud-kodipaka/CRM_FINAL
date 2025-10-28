@@ -18,7 +18,7 @@ export interface ScopedVisibilityConfig {
  */
 export const useScopedVisibility = (): ScopedVisibilityConfig => {
   const { user } = useAuth();
-  
+
   if (!user) {
     return {
       canAccessAllData: false,
@@ -34,7 +34,7 @@ export const useScopedVisibility = (): ScopedVisibilityConfig => {
 
   // Determine user scope based on role
   let userScope: UserScope;
-  
+
   if (user.role === 'platform_admin' || user.role === 'business_admin') {
     userScope = {
       type: 'all',
@@ -95,8 +95,8 @@ export const filterDataByScope = <T extends Record<string, any>>(
     const userField = options?.userField || 'user_id';
     const assignedToField = options?.assignedToField || 'assigned_to';
     const salesRepField = options?.salesRepField || 'sales_representative';
-    
-    return data.filter(item => 
+
+    return data.filter(item =>
       item[userField] === scope.filters.user_id ||
       item[assignedToField] === scope.filters.user_id ||
       item[salesRepField] === scope.filters.user_id
@@ -111,15 +111,15 @@ export const filterDataByScope = <T extends Record<string, any>>(
  */
 export const getScopeQueryParams = (scope: UserScope): Record<string, string> => {
   const params: Record<string, string> = {};
-  
+
   if (scope.type === 'store' && scope.filters.store_id) {
     params.store_id = scope.filters.store_id.toString();
   }
-  
+
   if (scope.type === 'own' && scope.filters.user_id) {
     params.user_id = scope.filters.user_id.toString();
   }
-  
+
   return params;
 };
 
@@ -134,13 +134,13 @@ export const canPerformAction = (
   switch (action) {
     case 'view_all':
       return scope.type === 'all';
-    
+
     case 'view_store':
       return scope.type === 'all' || scope.type === 'store';
-    
+
     case 'view_own':
       return scope.type === 'all' || scope.type === 'store' || scope.type === 'own';
-    
+
     case 'edit_own':
       if (scope.type === 'all' || scope.type === 'store') return true;
       if (scope.type === 'own' && item) {
@@ -149,10 +149,10 @@ export const canPerformAction = (
                item.sales_representative === scope.filters.user_id;
       }
       return false;
-    
+
     case 'delete_own':
       return canPerformAction('edit_own', scope, item);
-    
+
     default:
       return false;
   }
@@ -188,6 +188,6 @@ export const getScopedEndpoint = (
     const myEndpoint = baseEndpoint.replace('/list/', '/my/');
     return myEndpoint;
   }
-  
+
   return baseEndpoint;
-}; 
+};

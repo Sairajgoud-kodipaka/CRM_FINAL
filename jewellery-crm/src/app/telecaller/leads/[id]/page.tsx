@@ -6,13 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Calendar, 
-  User, 
-  Clock, 
+import {
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  User,
+  Clock,
   TrendingUp,
   CheckCircle,
   AlertCircle,
@@ -78,17 +78,17 @@ export default function LeadViewPage() {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('🔍 Fetching lead details for ID:', leadId);
-      
+
+
+
       // Fetch lead details with all Google Sheets data
       const leadData = await telecallingApiService.getLead(leadId);
-      
-      console.log('📡 Lead details API response:', leadData);
-      
+
+
+
       setLead(leadData);
     } catch (err) {
-      console.error('❌ Error fetching lead details:', err);
+
       setError(err instanceof Error ? err.message : 'Failed to load lead details');
     } finally {
       setLoading(false);
@@ -204,14 +204,14 @@ export default function LeadViewPage() {
             <Badge className={getPriorityColor(lead.priority)}>
               {lead.priority.toUpperCase()} PRIORITY
             </Badge>
-            <Button 
+            <Button
               onClick={() => setTransferModalOpen(true)}
               className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700"
             >
               <ArrowRight className="w-4 h-4" />
               Transfer to Sales
             </Button>
-            <Button 
+            <Button
               onClick={handleCall}
               className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
             >
@@ -250,7 +250,7 @@ export default function LeadViewPage() {
                         <p className="font-medium">{lead.name}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
                       <Phone className="w-4 h-4 text-gray-500" />
                       <div>
@@ -362,7 +362,7 @@ export default function LeadViewPage() {
                           </div>
                         </div>
                       )}
-                      
+
                       {lead.segments?.length > 0 && (
                         <div>
                           <p className="text-sm text-gray-500 mb-2">Segments</p>
@@ -594,7 +594,7 @@ export default function LeadViewPage() {
                     <p className="text-2xl font-bold text-blue-600">{lead.call_attempts}</p>
                     <p className="text-sm text-gray-600">Call Attempts</p>
                   </div>
-                  
+
                   <div className="text-center p-4 bg-green-50 rounded-lg">
                     <Calendar className="w-8 h-8 text-green-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-green-600">
@@ -602,7 +602,7 @@ export default function LeadViewPage() {
                     </p>
                     <p className="text-sm text-gray-600">Follow-ups</p>
                   </div>
-                  
+
                   <div className="text-center p-4 bg-purple-50 rounded-lg">
                     <Clock className="w-8 h-8 text-purple-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-purple-600">
@@ -610,7 +610,7 @@ export default function LeadViewPage() {
                     </p>
                     <p className="text-sm text-gray-600">Total Talk Time</p>
                   </div>
-                  
+
                   <div className="text-center p-4 bg-orange-50 rounded-lg">
                     <TrendingUp className="w-8 h-8 text-orange-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-orange-600">
@@ -639,7 +639,7 @@ export default function LeadViewPage() {
                       <p className="text-sm text-gray-500">{formatDate(lead.created_at)}</p>
                     </div>
                   </div>
-                  
+
                   {lead.assigned_at && (
                     <div className="flex items-center gap-4">
                       <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
@@ -649,7 +649,7 @@ export default function LeadViewPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {lead.last_interaction && (
                     <div className="flex items-center gap-4">
                       <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
@@ -659,7 +659,7 @@ export default function LeadViewPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {lead.next_followup && (
                     <div className="flex items-center gap-4">
                       <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
@@ -680,14 +680,14 @@ export default function LeadViewPage() {
           <Button variant="outline" onClick={() => router.back()}>
             Close
           </Button>
-          <Button 
+          <Button
             onClick={() => setTransferModalOpen(true)}
             className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700"
           >
             <ArrowRight className="w-4 h-4" />
             Transfer to Sales
           </Button>
-          <Button 
+          <Button
             onClick={handleCall}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
           >

@@ -1,6 +1,6 @@
 /**
  * Modal Context
- * 
+ *
  * Global state management for modal visibility to control MobileNav display.
  * When any modal is open, MobileNav should be hidden to prevent button overlap.
  */
@@ -63,7 +63,7 @@ export function useModal() {
   if (context === undefined) {
     // Return a fallback object when ModalProvider is not available
     if (process.env.NODE_ENV === 'development') {
-      console.warn('useModal is being used outside of ModalProvider. Modal state management will not work.');
+
     }
     return {
       isAnyModalOpen: false,

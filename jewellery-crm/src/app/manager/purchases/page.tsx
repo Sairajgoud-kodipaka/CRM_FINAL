@@ -71,11 +71,11 @@ export default function ManagerPurchasesPage() {
   const fetchPurchases = async () => {
     try {
       const response = await apiService.getPurchases();
-      console.log("Purchases API response:", response);
-      
+
+
       // Handle different response formats
       let purchasesData = null;
-      
+
       if (response.success && response.data) {
         if (Array.isArray(response.data)) {
           // Standard ApiResponse format with direct array
@@ -94,14 +94,12 @@ export default function ManagerPurchasesPage() {
         // Paginated response without success property
         purchasesData = (response.data as any).results;
       }
-      
+
       if (purchasesData && Array.isArray(purchasesData)) {
-        console.log("Purchases data:", purchasesData);
+
         setPurchases(purchasesData);
       } else {
-        console.error("Invalid purchases response format:", response);
-        console.error("Response type:", typeof response);
-        console.error("Response keys:", response ? Object.keys(response) : 'No response');
+
         setPurchases([]);
         toast({
           title: "Warning",
@@ -110,7 +108,7 @@ export default function ManagerPurchasesPage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching purchases:", error);
+
       setPurchases([]);
       toast({
         title: "Error",
@@ -123,11 +121,11 @@ export default function ManagerPurchasesPage() {
   const fetchClosedWonDeals = async () => {
     try {
       const response = await apiService.getSalesPipelines();
-      console.log("Sales pipelines API response:", response);
-      
+
+
       // Handle different response formats
       let salesData = null;
-      
+
       if (response.success && response.data) {
         if (Array.isArray(response.data)) {
           // Standard ApiResponse format with direct array
@@ -146,18 +144,16 @@ export default function ManagerPurchasesPage() {
         // Paginated response without success property
         salesData = (response.data as any).results;
       }
-      
+
       if (salesData && Array.isArray(salesData)) {
-        console.log("Sales pipelines data:", salesData);
+
         const closedWon = salesData.filter(
           (deal: SalesPipeline) => deal.stage === "closed_won"
         );
-        console.log("Closed won deals:", closedWon);
+
         setClosedWonDeals(closedWon);
       } else {
-        console.error("Invalid sales pipelines response format:", response);
-        console.error("Response type:", typeof response);
-        console.error("Response keys:", response ? Object.keys(response) : 'No response');
+
         setClosedWonDeals([]);
         toast({
           title: "Warning",
@@ -166,7 +162,7 @@ export default function ManagerPurchasesPage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching closed won deals:", error);
+
       setClosedWonDeals([]);
       toast({
         title: "Error",
@@ -214,8 +210,8 @@ export default function ManagerPurchasesPage() {
     if (!item || !item.client || !item.client.full_name) {
       return false;
     }
-    
-    const matchesSearch = 
+
+    const matchesSearch =
       item.client.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item as any).product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item as SalesPipeline).title?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -223,7 +219,7 @@ export default function ManagerPurchasesPage() {
     if (filterStatus === "all") return matchesSearch;
     if (filterStatus === "purchases") return "product_name" in item && matchesSearch;
     if (filterStatus === "deals") return "stage" in item && matchesSearch;
-    
+
     return matchesSearch;
   });
 

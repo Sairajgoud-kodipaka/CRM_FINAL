@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  MessageSquare, 
-  Clock, 
-  CheckCircle, 
+import {
+  MessageSquare,
+  Clock,
+  CheckCircle,
   AlertCircle,
   Plus,
   Search,
@@ -22,15 +22,15 @@ import {
   Tag
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -170,7 +170,7 @@ export default function SupportPage() {
       high: { color: 'bg-orange-100 text-orange-800', text: 'High' },
       urgent: { color: 'bg-red-100 text-red-800', text: 'Urgent' }
     };
-    
+
     const config = priorityConfig[priority as keyof typeof priorityConfig];
     return (
       <Badge className={config.color}>
@@ -189,7 +189,7 @@ export default function SupportPage() {
       answered: { color: 'bg-green-100 text-green-800', text: 'Answered' },
       escalated: { color: 'bg-red-100 text-red-800', text: 'Escalated' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig];
     return (
       <Badge className={config.color}>
@@ -235,7 +235,7 @@ export default function SupportPage() {
             <p className="text-xs text-muted-foreground">+3 from yesterday</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
@@ -246,7 +246,7 @@ export default function SupportPage() {
             <p className="text-xs text-muted-foreground">-0.5h from last week</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Resolution Rate</CardTitle>
@@ -257,7 +257,7 @@ export default function SupportPage() {
             <p className="text-xs text-muted-foreground">+2.1% from last month</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Customer Satisfaction</CardTitle>
@@ -471,7 +471,7 @@ export default function SupportPage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Response Time Distribution</CardTitle>
@@ -482,7 +482,7 @@ export default function SupportPage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Category Breakdown</CardTitle>
@@ -528,7 +528,7 @@ export default function SupportPage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Agent Performance</CardTitle>
@@ -568,5 +568,5 @@ export default function SupportPage() {
     </div>
   );
 }
- 
- 
+
+

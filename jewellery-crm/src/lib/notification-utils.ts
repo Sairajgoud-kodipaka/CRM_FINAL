@@ -43,7 +43,7 @@ export function createNotification(options: CreateNotificationOptions): Omit<Not
  */
 export const notificationTemplates = {
   // Appointment notifications
-  appointmentReminder: (customerName: string, appointmentTime: string, appointmentId: string) => 
+  appointmentReminder: (customerName: string, appointmentTime: string, appointmentId: string) =>
     createNotification({
       type: 'appointment_reminder',
       title: 'Appointment Reminder',
@@ -321,10 +321,10 @@ export function isWithinQuietHours(
 
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes();
-  
+
   const [startHour, startMinute] = quietHours.startTime.split(':').map(Number);
   const [endHour, endMinute] = quietHours.endTime.split(':').map(Number);
-  
+
   const startMinutes = startHour * 60 + startMinute;
   const endMinutes = endHour * 60 + endMinute;
 
@@ -335,4 +335,4 @@ export function isWithinQuietHours(
     // Overnight quiet hours
     return currentTime >= startMinutes || currentTime <= endMinutes;
   }
-} 
+}

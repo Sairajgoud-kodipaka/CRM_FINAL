@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Calendar, 
-  User, 
-  Clock, 
+import {
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  User,
+  Clock,
   TrendingUp,
   CheckCircle,
   AlertCircle,
@@ -95,15 +95,15 @@ export function LeadDetailModal({ lead, isOpen, onClose, onCall }: LeadDetailMod
   const [activeTab, setActiveTab] = useState('details');
 
   if (!lead) return null;
-  
+
   // Determine pipeline status based on lead status
   const getPipelineStatus = (stageId: string): 'completed' | 'current' | 'pending' => {
     switch (lead.status) {
       case 'new':
-        return stageId === 'lead_generated' ? 'completed' : 
+        return stageId === 'lead_generated' ? 'completed' :
                stageId === 'assigned' ? 'current' : 'pending';
       case 'contacted':
-        return ['lead_generated', 'assigned'].includes(stageId) ? 'completed' : 
+        return ['lead_generated', 'assigned'].includes(stageId) ? 'completed' :
                stageId === 'contacted' ? 'current' : 'pending';
       case 'qualified':
         return ['lead_generated', 'assigned', 'contacted'].includes(stageId) ? 'completed' :
@@ -189,7 +189,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onCall }: LeadDetailMod
                       <p className="font-medium">{lead.name}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     <Phone className="w-4 h-4 text-gray-500" />
                     <div>
@@ -319,7 +319,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onCall }: LeadDetailMod
               </CardHeader>
               <CardContent>
                 <div className="flex gap-3">
-                  <Button 
+                  <Button
                     onClick={() => onCall(assignment)}
                     className="flex items-center gap-2"
                   >
@@ -347,14 +347,14 @@ export function LeadDetailModal({ lead, isOpen, onClose, onCall }: LeadDetailMod
                   {pipelineStages.map((stage, index) => {
                     const stageStatus = getPipelineStatus(stage.id);
                     const Icon = stage.icon;
-                    
+
                     return (
                       <div key={stage.id} className="flex items-center gap-4">
                         <div className="flex items-center gap-3">
                           {getStatusIcon(stageStatus)}
                           <Icon className="w-5 h-5 text-gray-500" />
                         </div>
-                        
+
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <h3 className="font-medium">{stage.name}</h3>
@@ -389,7 +389,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onCall }: LeadDetailMod
                     </p>
                     <p className="text-sm text-gray-600">Completed Stages</p>
                   </div>
-                  
+
                   <div className="text-center p-4 bg-blue-50 rounded-lg">
                     <Activity className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-blue-600">
@@ -397,7 +397,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onCall }: LeadDetailMod
                     </p>
                     <p className="text-sm text-gray-600">Current Stage</p>
                   </div>
-                  
+
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
                     <Clock className="w-8 h-8 text-gray-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-gray-600">
@@ -416,7 +416,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onCall }: LeadDetailMod
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button 
+          <Button
             onClick={() => onCall(lead)}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
           >

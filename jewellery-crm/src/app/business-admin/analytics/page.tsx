@@ -58,27 +58,24 @@ export default function AnalyticsPage() {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      console.log('🔍 [ANALYTICS] Fetching analytics data with params:', {
-        start_date: dateRange?.from?.toISOString(),
-        end_date: dateRange?.to?.toISOString(),
-      });
-      
+
+
       const response = await apiService.getBusinessAdminDashboard({
         start_date: dateRange?.from?.toISOString(),
         end_date: dateRange?.to?.toISOString(),
       });
-      
-      console.log('📊 [ANALYTICS] API Response:', response);
-      
+
+
+
       if (response.success) {
-        console.log('✅ [ANALYTICS] Analytics data loaded successfully');
+
         setAnalyticsData(response.data);
       } else {
-        console.error('❌ [ANALYTICS] Failed to fetch analytics:', response);
+
         setError('Failed to load analytics data');
       }
     } catch (err) {
-      console.error('❌ [ANALYTICS] Error fetching analytics:', err);
+
       setError('Failed to load analytics data');
     } finally {
       setLoading(false);
@@ -123,25 +120,25 @@ export default function AnalyticsPage() {
   }
 
   const stats = [
-    { 
-      label: 'Monthly Revenue', 
-      value: formatCurrency(analyticsData.total_sales.month), 
-      icon: <TrendingUp className="w-6 h-6 text-green-600" /> 
+    {
+      label: 'Monthly Revenue',
+      value: formatCurrency(analyticsData.total_sales.month),
+      icon: <TrendingUp className="w-6 h-6 text-green-600" />
     },
-    { 
-      label: 'Monthly Orders', 
-      value: formatNumber(analyticsData.total_sales.month_count), 
-      icon: <BarChart2 className="w-6 h-6 text-blue-600" /> 
+    {
+      label: 'Monthly Orders',
+      value: formatNumber(analyticsData.total_sales.month_count),
+      icon: <BarChart2 className="w-6 h-6 text-blue-600" />
     },
-    { 
-      label: 'Pipeline Revenue', 
-      value: formatCurrency(analyticsData.pipeline_revenue), 
-      icon: <Users className="w-6 h-6 text-purple-600" /> 
+    {
+      label: 'Pipeline Revenue',
+      value: formatCurrency(analyticsData.pipeline_revenue),
+      icon: <Users className="w-6 h-6 text-purple-600" />
     },
-    { 
-      label: 'Pipeline Deals', 
-      value: formatNumber(analyticsData.pipeline_deals_count), 
-      icon: <Percent className="w-6 h-6 text-orange-600" /> 
+    {
+      label: 'Pipeline Deals',
+      value: formatNumber(analyticsData.pipeline_deals_count),
+      icon: <Percent className="w-6 h-6 text-orange-600" />
     },
   ];
 
@@ -294,6 +291,6 @@ export default function AnalyticsPage() {
     </div>
   );
 }
- 
- 
- 
+
+
+

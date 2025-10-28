@@ -6,12 +6,12 @@ import { DashboardLayout, CardContainer } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  ArrowLeft, 
-  Edit, 
-  Phone, 
-  Mail, 
-  MapPin, 
+import {
+  ArrowLeft,
+  Edit,
+  Phone,
+  Mail,
+  MapPin,
   Calendar,
   ShoppingBag,
   IndianRupee,
@@ -67,7 +67,7 @@ export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
-  
+
   const [customer, setCustomer] = React.useState<CustomerDetail | null>(null);
   const [orders, setOrders] = React.useState<Order[]>([]);
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
@@ -91,7 +91,7 @@ export default function CustomerDetailPage() {
       const customerResponse = await apiService.getClient(customerId);
 
 
-      
+
       if (customerResponse.success && customerResponse.data) {
         setCustomer(customerResponse.data as CustomerDetail);
       } else {
@@ -103,10 +103,10 @@ export default function CustomerDetailPage() {
       try {
         const ordersResponse = await apiService.getSales();
         if (ordersResponse.success && ordersResponse.data) {
-          const customerOrders = Array.isArray(ordersResponse.data) 
+          const customerOrders = Array.isArray(ordersResponse.data)
             ? ordersResponse.data.filter((order: any) => order.client === parseInt(customerId))
             : [];
-          
+
           const formattedOrders: Order[] = customerOrders.map((order: any) => ({
             id: order.id,
             order_number: `ORD-${order.id}`,
@@ -115,11 +115,11 @@ export default function CustomerDetailPage() {
             status: order.status || 'confirmed',
             items_count: order.items?.length || 0
           }));
-          
+
           setOrders(formattedOrders);
         }
       } catch (error) {
-        console.error('Error fetching orders:', error);
+
       }
 
       // Fetch customer appointments
@@ -129,7 +129,7 @@ export default function CustomerDetailPage() {
           const customerAppointments = Array.isArray(appointmentsResponse.data)
             ? appointmentsResponse.data.filter((apt: any) => apt.client === parseInt(customerId))
             : [];
-          
+
           const formattedAppointments: Appointment[] = customerAppointments.map((apt: any) => ({
             id: apt.id,
             date: apt.date,
@@ -138,15 +138,15 @@ export default function CustomerDetailPage() {
             status: apt.status,
             assigned_to: apt.assigned_to
           }));
-          
+
           setAppointments(formattedAppointments);
         }
       } catch (error) {
-        console.error('Error fetching appointments:', error);
+
       }
 
     } catch (error) {
-      console.error('Error fetching customer data:', error);
+
       setError('Failed to load customer data');
     } finally {
       setLoading(false);
@@ -260,7 +260,7 @@ export default function CustomerDetailPage() {
                 <Mail className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm">{customer.email}</span>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 <Phone className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm">{customer.phone}</span>
@@ -353,7 +353,7 @@ export default function CustomerDetailPage() {
                 New Order
               </Button>
             </div>
-            
+
             {orders.length > 0 ? (
               <div className="space-y-3">
                 {orders.slice(0, 5).map((order) => (
@@ -394,7 +394,7 @@ export default function CustomerDetailPage() {
                 Schedule
               </Button>
             </div>
-            
+
             {appointments.length > 0 ? (
               <div className="space-y-3">
                 {appointments.slice(0, 5).map((appointment) => (
@@ -426,4 +426,4 @@ export default function CustomerDetailPage() {
       </div>
     </DashboardLayout>
   );
-} 
+}

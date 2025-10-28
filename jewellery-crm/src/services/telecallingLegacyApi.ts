@@ -64,8 +64,8 @@ class TelecallingLegacyApiService {
   async getAssignments(): Promise<Assignment[]> {
     try {
       const response = await apiService.get('/telecalling/assignments/');
-      console.log('Raw API response:', response);
-      
+
+
       // Handle different response formats
       if (Array.isArray(response.data)) {
         return response.data;
@@ -74,11 +74,11 @@ class TelecallingLegacyApiService {
       } else if (response.data && Array.isArray(response.data.data)) {
         return response.data.data;
       } else {
-        console.warn('Unexpected API response format:', response.data);
+
         return [];
       }
     } catch (error) {
-      console.error('Error fetching assignments:', error);
+
       throw error;
     }
   }
@@ -93,8 +93,8 @@ class TelecallingLegacyApiService {
   async getCallLogs(): Promise<CallLog[]> {
     try {
       const response = await apiService.get('/telecalling/call-logs/');
-      console.log('Raw call logs API response:', response);
-      
+
+
       // Handle different response formats
       if (Array.isArray(response.data)) {
         return response.data;
@@ -103,11 +103,11 @@ class TelecallingLegacyApiService {
       } else if (response.data && Array.isArray(response.data.data)) {
         return response.data.data;
       } else {
-        console.warn('Unexpected call logs API response format:', response.data);
+
         return [];
       }
     } catch (error) {
-      console.error('Error fetching call logs:', error);
+
       throw error;
     }
   }
@@ -196,7 +196,7 @@ class TelecallingLegacyApiService {
     if (!email) return '';
     const [local, domain] = email.split('@');
     if (!local || !domain) return email;
-    const maskedLocal = local.length > 2 
+    const maskedLocal = local.length > 2
       ? local[0] + '*'.repeat(local.length - 2) + local[local.length - 1]
       : local;
     return `${maskedLocal}@${domain}`;

@@ -1,9 +1,9 @@
 /**
  * Header Component
- * 
+ *
  * Top navigation bar with search, notifications, and user menu.
  * Features HubSpot-inspired design with clean white background.
- * 
+ *
  * Key Features:
  * - Global search functionality
  * - Notification center
@@ -17,7 +17,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
-import { 
+import {
   Search,
   Menu,
   Settings,
@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -47,13 +47,13 @@ interface HeaderProps {
 
 /**
  * Header Component
- * 
+ *
  * Renders the top navigation bar with search, actions, and user menu.
  */
-export function Header({ 
-  onSidebarToggle, 
-  showSidebarToggle = false, 
-  className 
+export function Header({
+  onSidebarToggle,
+  showSidebarToggle = false,
+  className
 }: HeaderProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -95,7 +95,7 @@ export function Header({
   };
 
   const handleSidebarToggle = () => {
-    console.log('🔥 SIDEBAR TOGGLE CLICKED!', { onSidebarToggle });
+
     if (onSidebarToggle) {
       onSidebarToggle();
     }

@@ -1,9 +1,9 @@
 /**
  * Sales Team Dashboard Component
- * 
+ *
  * Personal dashboard for sales representatives in jewellery stores.
  * Features personal performance, customer pipeline, and sales tools.
- * 
+ *
  * Key Features:
  * - Personal sales performance and targets
  * - Customer pipeline management
@@ -21,17 +21,17 @@ import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useSalesDashboard, useSalesPipeline, useAppointments } from '@/hooks/useDashboardData';
 import { DashboardSkeleton, KPICardSkeleton, PipelineItemSkeleton, AppointmentItemSkeleton, QuickActionSkeleton } from '@/components/ui/skeleton';
-import { 
-  DashboardLayout, 
+import {
+  DashboardLayout,
   CardContainer,
 } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
+import {
   User,
-  Target, 
+  Target,
   ShoppingBag,
   Calendar,
   Users,
@@ -120,26 +120,26 @@ export const SalesTeamDashboard = React.memo(function SalesTeamDashboard() {
   const router = useRouter();
 
   // React Query hooks for data fetching
-  const { 
-    data: salesData, 
-    isLoading: salesLoading, 
-    error: salesError 
+  const {
+    data: salesData,
+    isLoading: salesLoading,
+    error: salesError
   } = useSalesDashboard();
 
-  const { 
-    data: pipelineData, 
-    isLoading: pipelineLoading 
+  const {
+    data: pipelineData,
+    isLoading: pipelineLoading
   } = useSalesPipeline();
 
-  const { 
-    data: appointmentsData, 
-    isLoading: appointmentsLoading 
+  const {
+    data: appointmentsData,
+    isLoading: appointmentsLoading
   } = useAppointments();
 
   // Derived state from React Query data
   const salesMetrics = React.useMemo((): SalesMetrics | null => {
     if (!salesData) return null;
-    
+
     return {
       personal: {
         name: user?.name || 'Sales Representative',
@@ -165,7 +165,7 @@ export const SalesTeamDashboard = React.memo(function SalesTeamDashboard() {
 
   const customerPipeline = React.useMemo((): CustomerPipeline[] => {
     if (!pipelineData || !Array.isArray(pipelineData)) return [];
-    
+
     return pipelineData.slice(0, 4).map((pipeline: any) => ({
       id: pipeline.id,
       name: pipeline.client_name || 'Customer',
@@ -181,7 +181,7 @@ export const SalesTeamDashboard = React.memo(function SalesTeamDashboard() {
 
   const upcomingAppointments = React.useMemo((): Appointment[] => {
     if (!appointmentsData || !Array.isArray(appointmentsData)) return [];
-    
+
     return appointmentsData.slice(0, 3).map((appointment: any) => ({
       id: appointment.id,
       customer: appointment.client_name || 'Customer',
@@ -194,7 +194,7 @@ export const SalesTeamDashboard = React.memo(function SalesTeamDashboard() {
 
   const recentAchievements = React.useMemo((): Achievement[] => {
     if (!salesData) return [];
-    
+
     const achievements: Achievement[] = [];
     if (salesData.sales_count > 0) {
       achievements.push({
@@ -416,7 +416,7 @@ export const SalesTeamDashboard = React.memo(function SalesTeamDashboard() {
               View All
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             {pipelineLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
@@ -503,7 +503,7 @@ export const SalesTeamDashboard = React.memo(function SalesTeamDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="font-medium text-foreground">{appointment.time}</p>
-                  <Badge 
+                  <Badge
                     variant={appointment.status === 'confirmed' ? 'default' : 'secondary'}
                   >
                     {appointment.status}
@@ -534,8 +534,8 @@ export const SalesTeamDashboard = React.memo(function SalesTeamDashboard() {
               </p>
               <p className="text-sm text-muted-foreground">of target achieved</p>
             </div>
-            <Progress 
-              value={(salesMetrics.personal.achieved / salesMetrics.personal.monthlyTarget) * 100} 
+            <Progress
+              value={(salesMetrics.personal.achieved / salesMetrics.personal.monthlyTarget) * 100}
               className="h-3"
             />
             <div className="flex justify-between text-sm text-muted-foreground">
@@ -604,53 +604,53 @@ export const SalesTeamDashboard = React.memo(function SalesTeamDashboard() {
       <CardContainer>
         <h3 className="text-xl font-semibold text-foreground mb-6">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="h-20 flex-col space-y-2"
             onClick={() => handleQuickAction('addCustomer')}
           >
             <Plus className="w-5 h-5" />
             <span className="text-xs">Add Customer</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="h-20 flex-col space-y-2"
             onClick={() => handleQuickAction('bookAppointment')}
           >
             <Calendar className="w-5 h-5" />
             <span className="text-xs">Book Appointment</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="h-20 flex-col space-y-2"
             onClick={() => handleQuickAction('makeCall')}
           >
             <Phone className="w-5 h-5" />
             <span className="text-xs">Make Call</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="h-20 flex-col space-y-2"
             onClick={() => handleQuickAction('sendWhatsApp')}
           >
             <MessageSquare className="w-5 h-5" />
             <span className="text-xs">Send WhatsApp</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="h-20 flex-col space-y-2"
             onClick={() => handleQuickAction('viewCatalog')}
           >
             <Eye className="w-5 h-5" />
             <span className="text-xs">View Catalog</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="h-20 flex-col space-y-2"
             onClick={() => handleQuickAction('myReports')}
           >

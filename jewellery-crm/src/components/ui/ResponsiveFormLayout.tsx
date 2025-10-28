@@ -1,11 +1,11 @@
 /**
  * ResponsiveFormLayout Component
- * 
+ *
  * A responsive form layout component that adapts to different screen sizes:
  * - Mobile (≤768px): Single-column layout with progressive disclosure
  * - Tablet (768px-1024px): Single or two-column based on content
  * - Desktop (≥1024px): Multi-column layouts
- * 
+ *
  * Features:
  * - Touch targets ≥44px
  * - Proper spacing ≥8px
@@ -63,16 +63,16 @@ export interface ResponsiveFormLayoutProps {
 }
 
 // Individual Field Component
-function FormFieldComponent({ 
-  field, 
-  value, 
-  onChange, 
-  error 
-}: { 
-  field: FormField; 
-  value: any; 
-  onChange: (value: any) => void; 
-  error?: string; 
+function FormFieldComponent({
+  field,
+  value,
+  onChange,
+  error
+}: {
+  field: FormField;
+  value: any;
+  onChange: (value: any) => void;
+  error?: string;
 }) {
   const isMobile = useIsMobile();
   const inputType = isMobile && field.mobileType ? field.mobileType : field.type;
@@ -182,7 +182,7 @@ function FormFieldComponent({
   return (
     <div className="space-y-2">
       {inputType !== 'checkbox' && (
-        <label 
+        <label
           htmlFor={field.name}
           className="block text-sm font-medium text-foreground"
         >
@@ -190,13 +190,13 @@ function FormFieldComponent({
           {field.required && <span className="text-destructive ml-1">*</span>}
         </label>
       )}
-      
+
       {renderInput()}
-      
+
       {field.helpText && (
         <p className="text-xs text-muted-foreground">{field.helpText}</p>
       )}
-      
+
       {error && (
         <p className="text-xs text-destructive">{error}</p>
       )}
@@ -205,18 +205,18 @@ function FormFieldComponent({
 }
 
 // Form Section Component
-function FormSectionComponent({ 
-  section, 
-  values, 
-  onChange, 
+function FormSectionComponent({
+  section,
+  values,
+  onChange,
   errors,
   isCollapsible = false,
   isExpanded = true,
-  onToggle 
-}: { 
-  section: FormSection; 
-  values: any; 
-  onChange: (field: string, value: any) => void; 
+  onToggle
+}: {
+  section: FormSection;
+  values: any;
+  onChange: (field: string, value: any) => void;
   errors: any;
   isCollapsible?: boolean;
   isExpanded?: boolean;
@@ -250,7 +250,7 @@ function FormSectionComponent({
             </p>
           )}
         </div>
-        
+
         {isCollapsible && (
           <button
             type="button"
@@ -314,7 +314,7 @@ export function ResponsiveFormLayout({
       section.fields.forEach((field) => {
         initialValues[field.name] = field.type === 'checkbox' ? false : '';
       });
-      
+
       // Set initial expanded state
       initialExpanded[section.title] = section.defaultExpanded ?? true;
     });
@@ -326,7 +326,7 @@ export function ResponsiveFormLayout({
   // Handle field value changes
   const handleFieldChange = (fieldName: string, value: any) => {
     setValues(prev => ({ ...prev, [fieldName]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[fieldName]) {
       setErrors(prev => ({ ...prev, [fieldName]: '' }));
@@ -344,7 +344,7 @@ export function ResponsiveFormLayout({
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Basic validation
     const newErrors: Record<string, string> = {};
     sections.forEach((section) => {
@@ -382,7 +382,7 @@ export function ResponsiveFormLayout({
         {sections.map((section) => {
           const isExpanded = expandedSections[section.title] ?? true;
           const isCollapsible = shouldCollapseSections && section.collapsible !== false;
-          
+
           return (
             <div
               key={section.title}
@@ -429,7 +429,7 @@ export function ResponsiveFormLayout({
         >
           {loading ? 'Submitting...' : submitLabel}
         </button>
-        
+
         {onCancel && (
           <button
             type="button"

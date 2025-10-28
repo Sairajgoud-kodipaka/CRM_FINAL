@@ -63,7 +63,7 @@ export function ExportModal({ isOpen, onClose, onSuccess }: ExportModalProps) {
   ];
 
   const handleFieldToggle = (fieldKey: string) => {
-    setSelectedFields(prev => 
+    setSelectedFields(prev =>
       prev.includes(fieldKey)
         ? prev.filter(f => f !== fieldKey)
         : [...prev, fieldKey]
@@ -92,24 +92,22 @@ export function ExportModal({ isOpen, onClose, onSuccess }: ExportModalProps) {
         format,
         fields: selectedFields
       });
-      
+
       if (response.success) {
         // Debug: Log what we're getting
-        console.log('Export response:', response);
-        console.log('Response data type:', typeof response.data);
-        console.log('Response data:', response.data);
-        
+
+
         // The response.data is already a blob from the API service
         const blob = response.data;
-        
+
         // Check if blob is valid
         if (!blob || !(blob instanceof Blob)) {
-          console.error('Invalid blob received:', blob);
-          
+
+
           // Try to create a blob from the data if it's a string
           if (typeof response.data === 'string') {
-            const newBlob = new Blob([response.data], { 
-              type: format === 'csv' ? 'text/csv' : 'application/json' 
+            const newBlob = new Blob([response.data], {
+              type: format === 'csv' ? 'text/csv' : 'application/json'
             });
             const url = window.URL.createObjectURL(newBlob);
             const a = document.createElement('a');
@@ -119,16 +117,16 @@ export function ExportModal({ isOpen, onClose, onSuccess }: ExportModalProps) {
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
-            
+
             onSuccess();
             onClose();
             return;
           }
-          
+
           setError('Invalid file data received from server');
           return;
         }
-        
+
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -137,14 +135,14 @@ export function ExportModal({ isOpen, onClose, onSuccess }: ExportModalProps) {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        
+
         onSuccess();
         onClose();
       } else {
         setError(response.message || 'Failed to export customers');
       }
     } catch (error) {
-      console.error('Export error:', error);
+
       setError('Failed to export customers. Please try again.');
     } finally {
       setExporting(false);
@@ -207,7 +205,7 @@ export function ExportModal({ isOpen, onClose, onSuccess }: ExportModalProps) {
                 </Button>
               </div>
             </div>
-            
+
             <div className="border rounded-md p-3 max-h-60 overflow-y-auto">
               <div className="grid grid-cols-2 gap-2">
                 {availableFields.map((field) => (
@@ -267,4 +265,4 @@ export function ExportModal({ isOpen, onClose, onSuccess }: ExportModalProps) {
       </div>
     </div>
   );
-} 
+}

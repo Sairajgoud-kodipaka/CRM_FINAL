@@ -47,7 +47,7 @@ export default function NotificationSettingsPage() {
       await actions.updateSettings(settings);
       // Show success message
     } catch (error) {
-      console.error('Error saving notification settings:', error);
+
       // Show error message
     } finally {
       setIsSaving(false);
@@ -59,7 +59,7 @@ export default function NotificationSettingsPage() {
     try {
       await actions.getSettings();
     } catch (error) {
-      console.error('Error refreshing settings:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +141,7 @@ export default function NotificationSettingsPage() {
               <Switch
                 id="email-enabled"
                 checked={settings.emailNotifications.enabled}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   handleSettingChange('emailNotifications.enabled', checked)
                 }
               />
@@ -154,7 +154,7 @@ export default function NotificationSettingsPage() {
                   <Label htmlFor="email-frequency">Email Frequency</Label>
                   <Select
                     value={settings.emailNotifications.frequency}
-                    onValueChange={(value) => 
+                    onValueChange={(value) =>
                       handleSettingChange('emailNotifications.frequency', value)
                     }
                   >
@@ -190,7 +190,7 @@ export default function NotificationSettingsPage() {
               <Switch
                 id="push-enabled"
                 checked={settings.pushNotifications.enabled}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   handleSettingChange('pushNotifications.enabled', checked)
                 }
               />
@@ -215,7 +215,7 @@ export default function NotificationSettingsPage() {
               <Switch
                 id="inapp-enabled"
                 checked={settings.inAppNotifications.enabled}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   handleSettingChange('inAppNotifications.enabled', checked)
                 }
               />
@@ -233,7 +233,7 @@ export default function NotificationSettingsPage() {
                     <Switch
                       id="sound-enabled"
                       checked={settings.inAppNotifications.sound}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked) =>
                         handleSettingChange('inAppNotifications.sound', checked)
                       }
                     />
@@ -246,7 +246,7 @@ export default function NotificationSettingsPage() {
                     <Switch
                       id="desktop-enabled"
                       checked={settings.inAppNotifications.desktop}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked) =>
                         handleSettingChange('inAppNotifications.desktop', checked)
                       }
                     />
@@ -274,7 +274,7 @@ export default function NotificationSettingsPage() {
               <Switch
                 id="quiet-hours-enabled"
                 checked={settings.quietHours.enabled}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   handleSettingChange('quietHours.enabled', checked)
                 }
               />
@@ -290,7 +290,7 @@ export default function NotificationSettingsPage() {
                       id="quiet-start"
                       type="time"
                       value={settings.quietHours.startTime}
-                      onChange={(e) => 
+                      onChange={(e) =>
                         handleSettingChange('quietHours.startTime', e.target.value)
                       }
                       className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
@@ -302,7 +302,7 @@ export default function NotificationSettingsPage() {
                       id="quiet-end"
                       type="time"
                       value={settings.quietHours.endTime}
-                      onChange={(e) => 
+                      onChange={(e) =>
                         handleSettingChange('quietHours.endTime', e.target.value)
                       }
                       className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
@@ -333,7 +333,7 @@ export default function NotificationSettingsPage() {
                 </div>
                 <Switch
                   checked={settings.preferences[type.value as keyof typeof settings.preferences] || false}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     handleSettingChange(`preferences.${type.value}`, checked)
                   }
                 />
@@ -344,4 +344,4 @@ export default function NotificationSettingsPage() {
       </Card>
     </div>
   );
-} 
+}

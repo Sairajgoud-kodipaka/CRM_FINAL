@@ -1,9 +1,9 @@
 /**
  * Reusable Data Table Component
- * 
+ *
  * HubSpot-inspired data table with sorting, filtering, and pagination.
  * Designed to be flexible and reusable across different data types.
- * 
+ *
  * Key Features:
  * - Sortable columns
  * - Row selection with checkboxes
@@ -16,9 +16,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { 
-  ChevronUp, 
-  ChevronDown, 
+import {
+  ChevronUp,
+  ChevronDown,
   MoreHorizontal,
   Search,
   Filter,
@@ -27,7 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -131,9 +131,9 @@ function MobileCardView<T extends Record<string, unknown>>({
         const isSelected = selectedRows.has(index);
         const title = mobileCardTitle ? mobileCardTitle(row) : String(row[columns[0]?.key] || 'Untitled');
         const subtitle = mobileCardSubtitle ? mobileCardSubtitle(row) : String(row[columns[1]?.key] || '');
-        
+
         return (
-          <Card 
+          <Card
             key={index}
             className={cn(
               'transition-all duration-200 hover:shadow-md cursor-pointer',
@@ -156,7 +156,7 @@ function MobileCardView<T extends Record<string, unknown>>({
                       />
                     </div>
                   )}
-                  
+
                   {/* Title and subtitle */}
                   <div className="mb-3">
                     <h3 className="font-semibold text-foreground text-base leading-tight mb-1">
@@ -168,7 +168,7 @@ function MobileCardView<T extends Record<string, unknown>>({
                       </p>
                     )}
                   </div>
-                  
+
                   {/* Key data fields */}
                   <div className="space-y-2">
                     {columns
@@ -176,14 +176,14 @@ function MobileCardView<T extends Record<string, unknown>>({
                       .slice(0, 3) // Show max 3 key fields on mobile
                       .map((column) => {
                         const value = row[column.key];
-                        const displayValue = column.mobileRender 
+                        const displayValue = column.mobileRender
                           ? column.mobileRender(value, row)
-                          : column.render 
+                          : column.render
                             ? column.render(value, row)
                             : value;
-                        
+
                         if (!displayValue) return null;
-                        
+
                         return (
                           <div key={column.key} className="flex items-center gap-2 text-sm">
                             <span className="text-muted-foreground font-medium min-w-0 flex-shrink-0">
@@ -197,7 +197,7 @@ function MobileCardView<T extends Record<string, unknown>>({
                       })}
                   </div>
                 </div>
-                
+
                 {/* Actions */}
                 <div className="flex flex-col items-end gap-2">
                   {mobileCardActions ? (
@@ -222,7 +222,7 @@ function MobileCardView<T extends Record<string, unknown>>({
                         <DropdownMenuItem onClick={() => onAction?.('edit', row)}>
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => onAction?.('delete', row)}
                           className="text-destructive"
                         >
@@ -243,7 +243,7 @@ function MobileCardView<T extends Record<string, unknown>>({
 
 /**
  * DataTable Component
- * 
+ *
  * Generic, reusable data table following HubSpot design patterns.
  * Now includes responsive behavior for mobile and tablet devices.
  */
@@ -277,7 +277,7 @@ export function DataTable<T extends Record<string, unknown>>({
   // Filter data based on search query
   const filteredData = useMemo(() => {
     if (!searchQuery) return data;
-    
+
     return data.filter(row =>
       Object.values(row).some(value =>
         value?.toString().toLowerCase().includes(searchQuery.toLowerCase())
@@ -332,7 +332,7 @@ export function DataTable<T extends Record<string, unknown>>({
       newSelection.delete(index);
     }
     setSelectedRows(newSelection);
-    
+
     if (onRowSelect) {
       const selectedData = Array.from(newSelection).map(i => sortedData[i]);
       onRowSelect(selectedData);
@@ -387,7 +387,7 @@ export function DataTable<T extends Record<string, unknown>>({
             <div className="h-10 w-32 bg-muted animate-pulse rounded" />
           </div>
         </div>
-        
+
         {/* Table skeleton */}
         <div className="p-6 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -426,7 +426,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     {selectedRows.size} selected
                   </Badge>
                 )}
-                
+
                 {actions}
               </div>
             </div>
@@ -477,17 +477,17 @@ export function DataTable<T extends Record<string, unknown>>({
                 {selectedRows.size} selected
               </Badge>
             )}
-            
+
             <Button variant="outline" size="sm">
               <Filter className="h-4 w-4 mr-2" />
               Filter
             </Button>
-            
+
             <Button variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            
+
             {actions}
           </div>
         </div>
@@ -506,7 +506,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   />
                 </th>
               )}
-              
+
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -523,13 +523,13 @@ export function DataTable<T extends Record<string, unknown>>({
                   </div>
                 </th>
               ))}
-              
+
               <th className="w-12 px-6 py-3">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
-          
+
           <tbody className="bg-card divide-y divide-border">
             {sortedData.length === 0 ? (
               <tr>
@@ -561,7 +561,7 @@ export function DataTable<T extends Record<string, unknown>>({
                       />
                     </td>
                   )}
-                  
+
                   {columns.map((column) => (
                     <td
                       key={column.key}
@@ -570,7 +570,7 @@ export function DataTable<T extends Record<string, unknown>>({
                       {renderCell(column, row)}
                     </td>
                   ))}
-                  
+
                   <td className="px-6 py-4 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

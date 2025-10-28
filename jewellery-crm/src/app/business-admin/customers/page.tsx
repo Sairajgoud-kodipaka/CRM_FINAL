@@ -39,11 +39,11 @@ export default function CustomersPage() {
   // Real-time updates
   useCustomerRealtimeUpdates(
     () => {
-      console.log('🔄 Refreshing customers list due to real-time update');
+
       fetchClients();
     },
     (customerId) => {
-      console.log('🔄 Customer details changed for ID:', customerId);
+
       // If the detail modal is open for this customer, refresh it
       if (selectedCustomerId === customerId && showDetailModal) {
         // The CustomerDetailModal will handle its own refresh via the custom event
@@ -58,24 +58,21 @@ export default function CustomersPage() {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      console.log('🔍 [BUSINESS ADMIN] Fetching customers with params:', {
-        start_date: dateRange?.from?.toISOString(),
-        end_date: dateRange?.to?.toISOString(),
-      });
-      
+
+
       const response = await apiService.getClients({
         page: currentPage,
         start_date: dateRange?.from?.toISOString(),
         end_date: dateRange?.to?.toISOString(),
         status: statusFilter === 'all' ? undefined : statusFilter,
       });
-      
+
       if (response.success) {
         const data = response.data as any;
         setClients(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
-      console.error('Failed to fetch clients:', error);
+
       // Fallback to empty array if API fails
       setClients([]);
     } finally {
@@ -89,10 +86,10 @@ export default function CustomersPage() {
       if (response.success) {
         setShowAddModal(false);
         // Real-time updates will automatically refresh the list
-        console.log('✅ Customer created successfully, real-time updates will handle refresh');
+
       }
     } catch (error) {
-      console.error('Failed to create client:', error);
+
     }
   };
 
@@ -106,7 +103,7 @@ export default function CustomersPage() {
 
   const getStatusBadgeVariant = (status: string | undefined) => {
     if (!status) return 'outline';
-    
+
     switch (status.toLowerCase()) {
       case 'customer':
         return 'default';
@@ -123,11 +120,11 @@ export default function CustomersPage() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    
+
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Invalid Date';
-      
+
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -185,7 +182,7 @@ export default function CustomersPage() {
         const client = row as Client;
         return (
           <Badge variant={getStatusBadgeVariant(client.status)}>
-            {client.status 
+            {client.status
               ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
               : 'Unknown'
             }
@@ -209,10 +206,10 @@ export default function CustomersPage() {
       mobileLabel: 'Created By',
       render: (value, row) => {
         const client = row as Client;
-        const createdBy = client.created_by 
-          ? `${client.created_by.first_name} ${client.created_by.last_name}` 
-          : client.assigned_to 
-            ? `User ID: ${client.assigned_to}` 
+        const createdBy = client.created_by
+          ? `${client.created_by.first_name} ${client.created_by.last_name}`
+          : client.assigned_to
+            ? `User ID: ${client.assigned_to}`
             : 'System';
         return <span className="text-text-secondary">{createdBy}</span>;
       },
@@ -240,8 +237,8 @@ export default function CustomersPage() {
         await apiService.deleteClient(client.id.toString());
         fetchClients(); // Refresh the list
       } catch (error: any) {
-        console.error('Failed to delete client:', error);
-        
+
+
         // Handle specific permission errors
         if (error.message && error.message.includes('You do not have permission to delete customers')) {
           alert('You do not have permission to delete customers. Only business admins can delete customers.');
@@ -263,25 +260,25 @@ export default function CustomersPage() {
           <p className="text-text-secondary mt-1">Manage your customer relationships and interactions</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="flex items-center gap-2"
             onClick={() => setIsImportModalOpen(true)}
           >
             <Upload className="w-4 h-4" />
             Import
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="flex items-center gap-2"
             onClick={() => setIsExportModalOpen(true)}
           >
             <Download className="w-4 h-4" />
             Export
           </Button>
-          
+
         </div>
       </div>
 

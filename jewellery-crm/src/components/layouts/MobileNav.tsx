@@ -1,9 +1,9 @@
 /**
  * Mobile Navigation Component
- * 
+ *
  * Bottom navigation bar for mobile devices with key CRM actions.
  * Provides quick access to essential features on mobile screens.
- * 
+ *
  * Key Features:
  * - Fixed bottom navigation for mobile
  * - Touch-friendly 44px minimum touch targets
@@ -18,7 +18,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { 
+import {
   Home,
   Users,
   TrendingUp,
@@ -71,7 +71,7 @@ const getMobileNavItems = (role: string) => {
           icon: Settings,
         },
       ];
-    
+
     case 'manager':
       return [
         {
@@ -102,7 +102,7 @@ const getMobileNavItems = (role: string) => {
           icon: User,
         },
       ];
-    
+
     case 'sales':
     case 'inhouse_sales':
       return [
@@ -134,7 +134,7 @@ const getMobileNavItems = (role: string) => {
           icon: User,
         },
       ];
-    
+
     case 'telecaller':
       return [
         {
@@ -164,7 +164,7 @@ const getMobileNavItems = (role: string) => {
           icon: User,
         },
       ];
-    
+
     case 'marketing':
       return [
         {
@@ -189,7 +189,7 @@ const getMobileNavItems = (role: string) => {
           icon: MessageSquare,
         },
       ];
-    
+
     case 'platform_admin':
       return [
         {
@@ -218,7 +218,7 @@ const getMobileNavItems = (role: string) => {
           icon: Settings,
         },
       ];
-    
+
     default:
       return [
         {
@@ -252,14 +252,14 @@ const getMobileNavItems = (role: string) => {
 
 /**
  * MobileNav Component
- * 
+ *
  * Renders bottom navigation for mobile devices with essential CRM actions.
  */
 export function MobileNav({ className }: MobileNavProps) {
   const pathname = usePathname();
   const { user } = useAuth();
   const { isAnyModalOpen } = useModal();
-  
+
   // Get role-based navigation items
   const mobileNavItems = getMobileNavItems(user?.role || 'sales');
 
@@ -286,7 +286,7 @@ export function MobileNav({ className }: MobileNavProps) {
       <div className="flex items-center justify-around h-16 px-2">
         {mobileNavItems.map((item) => {
           const isActive = isActiveRoute(item.href);
-          
+
           return (
             <Link
               key={item.href}
@@ -296,8 +296,8 @@ export function MobileNav({ className }: MobileNavProps) {
                 'min-w-[44px] min-h-[44px] px-3 py-2',
                 'text-xs font-medium transition-colors duration-200',
                 'relative group',
-                isActive 
-                  ? 'text-primary' 
+                isActive
+                  ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -307,7 +307,7 @@ export function MobileNav({ className }: MobileNavProps) {
                   'h-5 w-5 mb-1 transition-transform duration-200',
                   'group-active:scale-95'
                 )} />
-                
+
                 {/* Badge for notifications */}
                 {item.badge && (
                   <Badge
@@ -322,7 +322,7 @@ export function MobileNav({ className }: MobileNavProps) {
                   </Badge>
                 )}
               </div>
-              
+
               {/* Label */}
               <span className={cn(
                 'text-xs leading-none truncate max-w-[60px]',
@@ -330,7 +330,7 @@ export function MobileNav({ className }: MobileNavProps) {
               )}>
                 {item.title}
               </span>
-              
+
               {/* Active indicator */}
               {isActive && (
                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
@@ -345,7 +345,7 @@ export function MobileNav({ className }: MobileNavProps) {
 
 /**
  * Mobile Menu Overlay Component
- * 
+ *
  * Full-screen overlay menu for mobile "More" section
  */
 interface MobileMenuOverlayProps {
@@ -358,7 +358,7 @@ export function MobileMenuOverlay({ isOpen, onClose }: MobileMenuOverlayProps) {
 
   const { user } = useAuth();
   const userRole = user?.role || 'sales';
-  
+
   // Get role-specific menu items
   const getMenuItems = (role: string) => {
     const basePath = role === 'business_admin' ? '/business-admin' :
@@ -383,22 +383,22 @@ export function MobileMenuOverlay({ isOpen, onClose }: MobileMenuOverlayProps) {
   return (
     <div className="fixed inset-0 z-50 lg:hidden">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50"
         onClick={onClose}
       />
-      
+
       {/* Menu Content */}
       <div className="absolute bottom-0 left-0 right-0 bg-background border-t border-border rounded-t-lg">
         {/* Handle */}
         <div className="flex justify-center py-3">
           <div className="w-8 h-1 bg-muted rounded-full" />
         </div>
-        
+
         {/* Menu Items */}
         <div className="px-4 pb-8">
           <h3 className="text-lg font-semibold mb-4">Menu</h3>
-          
+
           <div className="grid grid-cols-3 gap-4">
             {menuItems.map((item) => (
               <Link

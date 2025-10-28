@@ -76,7 +76,7 @@ export default function ImageUpload({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       const previewUrl = URL.createObjectURL(file);
@@ -229,4 +229,4 @@ export default function ImageUpload({
       </div>
     </div>
   );
-} 
+}

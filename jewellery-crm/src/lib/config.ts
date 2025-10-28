@@ -1,18 +1,18 @@
 // Configuration file for environment-based settings
 export const config = {
   // API Configuration
-  API_BASE_URL: process.env.NEXT_PUBLIC_API_URL 
+  API_BASE_URL: process.env.NEXT_PUBLIC_API_URL
     ? `${process.env.NEXT_PUBLIC_API_URL}/api`
     : 'http://localhost:8000/api',
-  
+
   // WebSocket Configuration
-  WS_BASE_URL: process.env.NEXT_PUBLIC_API_URL 
+  WS_BASE_URL: process.env.NEXT_PUBLIC_API_URL
     ? process.env.NEXT_PUBLIC_API_URL.replace('https://', 'wss://').replace('http://', 'ws://')
     : 'ws://localhost:8000',
-  
+
   // Site Configuration
   SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-  
+
   // Environment
   IS_PRODUCTION: process.env.NODE_ENV === 'production',
   IS_DEVELOPMENT: process.env.NODE_ENV === 'development',

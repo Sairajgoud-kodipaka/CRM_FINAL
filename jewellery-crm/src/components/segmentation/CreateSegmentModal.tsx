@@ -9,14 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Plus, 
-  X, 
-  Target, 
-  DollarSign, 
-  Users, 
-  ShoppingBag, 
-  Calendar, 
+import {
+  Plus,
+  X,
+  Target,
+  DollarSign,
+  Users,
+  ShoppingBag,
+  Calendar,
   MapPin,
   Wand2,
   Save,
@@ -102,10 +102,10 @@ export default function CreateSegmentModal({ open, onOpenChange, onSegmentCreate
       criteria,
       createdAt: new Date().toISOString(),
     };
-    
+
     onSegmentCreated?.(segment);
     onOpenChange(false);
-    
+
     // Reset form
     setSegmentName('');
     setSegmentDescription('');
@@ -219,7 +219,7 @@ export default function CreateSegmentModal({ open, onOpenChange, onSegmentCreate
                     const fieldOption = Object.values(fieldOptions)
                       .flat()
                       .find(f => f.value === criterion.field);
-                    
+
                     return (
                       <div key={criterion.id} className="p-4 bg-gray-50 rounded-lg border">
                         <div className="flex items-center justify-between mb-3">
@@ -239,7 +239,7 @@ export default function CreateSegmentModal({ open, onOpenChange, onSegmentCreate
                             <X className="w-4 h-4" />
                           </Button>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div className="space-y-1">
                             <Label className="text-xs text-gray-600">Field</Label>
@@ -261,7 +261,7 @@ export default function CreateSegmentModal({ open, onOpenChange, onSegmentCreate
                               </SelectContent>
                             </Select>
                           </div>
-                          
+
                           <div className="space-y-1">
                             <Label className="text-xs text-gray-600">Operator</Label>
                             <Select
@@ -280,7 +280,7 @@ export default function CreateSegmentModal({ open, onOpenChange, onSegmentCreate
                               </SelectContent>
                             </Select>
                           </div>
-                          
+
                           <div className="space-y-1">
                             <Label className="text-xs text-gray-600">Value</Label>
                             <Input
@@ -313,13 +313,13 @@ export default function CreateSegmentModal({ open, onOpenChange, onSegmentCreate
                     <h4 className="font-semibold text-gray-900">{segmentName || 'Untitled Segment'}</h4>
                     <p className="text-sm text-gray-600">{segmentDescription || 'No description provided'}</p>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2">
                     {criteria.map((criterion) => {
                       const fieldOption = Object.values(fieldOptions)
                         .flat()
                         .find(f => f.value === criterion.field);
-                      
+
                       return (
                         <Badge key={criterion.id} variant="secondary" className="text-xs">
                           {fieldOption?.label} {criterion.operator} {criterion.value}
@@ -327,7 +327,7 @@ export default function CreateSegmentModal({ open, onOpenChange, onSegmentCreate
                       );
                     })}
                   </div>
-                  
+
                   <div className="text-sm text-gray-600">
                     Estimated customers: <span className="font-semibold text-blue-600">~1,250</span>
                   </div>
@@ -341,7 +341,7 @@ export default function CreateSegmentModal({ open, onOpenChange, onSegmentCreate
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleSave}
               disabled={!segmentName || criteria.length === 0}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"

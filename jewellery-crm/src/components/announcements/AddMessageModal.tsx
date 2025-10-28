@@ -39,7 +39,7 @@ export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.subject.trim() || !formData.content.trim()) {
       toast({
         title: "Error",
@@ -51,7 +51,7 @@ export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
 
     try {
       setLoading(true);
-      
+
       const response = await apiService.createTeamMessage({
         ...formData,
       });
@@ -80,7 +80,7 @@ export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
         });
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+
       toast({
         title: "Error",
         description: "Failed to send message",
@@ -101,7 +101,7 @@ export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
   const handleRecipientChange = (recipient: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
-      recipients: checked 
+      recipients: checked
         ? [...prev.recipients, recipient]
         : prev.recipients.filter(r => r !== recipient),
     }));
@@ -122,7 +122,7 @@ export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
             Send New Team Message
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Subject */}
           <div className="space-y-2">
@@ -240,4 +240,4 @@ export default function AddMessageModal({ onSuccess }: AddMessageModalProps) {
       </DialogContent>
     </Dialog>
   );
-} 
+}

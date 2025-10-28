@@ -57,15 +57,15 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
     try {
       setLoading(true);
       const response = await apiService.getClients();
-      
+
       if (response.success && response.data) {
-        const clientsData = Array.isArray(response.data) 
-          ? response.data 
+        const clientsData = Array.isArray(response.data)
+          ? response.data
           : (response.data as any)?.results || (response.data as any)?.data || [];
         setClients(clientsData);
       }
     } catch (error) {
-      console.error('Error fetching clients:', error);
+
       setClients([]);
     } finally {
       setLoading(false);
@@ -81,7 +81,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.title || !formData.client || !formData.expected_value) {
       alert('Please fill in all required fields');
       return;
@@ -89,7 +89,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
 
     try {
       setSaving(true);
-      
+
              const pipelineData = {
          title: formData.title,
          client_id: parseInt(formData.client),
@@ -103,9 +103,9 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
        };
 
       const response = await apiService.createSalesPipeline(pipelineData);
-      
+
       if (response.success) {
-        console.log('Deal created successfully');
+
         onDealCreated();
         onClose();
         // Reset form
@@ -121,11 +121,11 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
           next_action_date: '',
         });
       } else {
-        console.error('Failed to create deal:', response);
+
         alert('Failed to create deal. Please try again.');
       }
     } catch (error) {
-      console.error('Error creating deal:', error);
+
       alert('Error creating deal. Please check the console for details.');
     } finally {
       setSaving(false);
@@ -167,8 +167,8 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={saving || !formData.title || !formData.client}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -196,7 +196,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="client">Client *</Label>
                 <Select value={formData.client} onValueChange={(value) => handleInputChange('client', value)}>
@@ -241,7 +241,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="probability">Probability (%)</Label>
                 <Select value={formData.probability} onValueChange={(value) => handleInputChange('probability', value)}>
@@ -285,7 +285,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="expected_close_date">Expected Close Date</Label>
                 <Input
@@ -314,7 +314,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
                   placeholder="e.g., Schedule follow-up call"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="next_action_date">Next Action Date</Label>
                 <Input
@@ -324,7 +324,7 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
                   onChange={(e) => handleInputChange('next_action_date', e.target.value)}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
@@ -340,4 +340,4 @@ export function AddDealModal({ open, onClose, onDealCreated }: AddDealModalProps
         </form>
     </ResponsiveDialog>
   );
-} 
+}

@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Production-ready configuration
+  compiler: {
+    // Strip all console.* calls in production builds
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
   eslint: {
     ignoreDuringBuilds: true, // Ignore ESLint for deployment
   },

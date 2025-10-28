@@ -86,13 +86,13 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
             setCustomerPhone('Not provided');
           }
         } catch (error) {
-          console.error('Error fetching customer:', error);
+
           setCustomerName(`Customer #${appointment.client}`);
           setCustomerPhone('Not provided');
         }
       }
     } catch (error) {
-      console.error('Error fetching customer/user names:', error);
+
     }
   };
 
@@ -103,7 +103,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
     const time = timeString ? timeString : '00:00';
     const [hours, minutes] = time.split(':');
     date.setHours(parseInt(hours), parseInt(minutes));
-    
+
     return date.toLocaleString('en-IN', {
       year: 'numeric',
       month: 'short',
@@ -160,7 +160,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
         alert('Failed to confirm appointment. Please try again.');
       }
     } catch (error) {
-      console.error('Error confirming appointment:', error);
+
       alert('Error confirming appointment. Please try again.');
     } finally {
       setLoading(false);
@@ -184,7 +184,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
         alert('Failed to complete appointment. Please try again.');
       }
     } catch (error) {
-      console.error('Error completing appointment:', error);
+
       alert('Error completing appointment. Please try again.');
     } finally {
       setLoading(false);
@@ -208,7 +208,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
         alert('Failed to cancel appointment. Please try again.');
       }
     } catch (error) {
-      console.error('Error cancelling appointment:', error);
+
       alert('Error cancelling appointment. Please try again.');
     } finally {
       setLoading(false);
@@ -237,7 +237,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
         alert('Failed to reschedule appointment. Please try again.');
       }
     } catch (error) {
-      console.error('Error rescheduling appointment:', error);
+
       alert('Error rescheduling appointment. Please try again.');
     } finally {
       setLoading(false);
@@ -274,7 +274,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
         alert('Failed to update appointment. Please try again.');
       }
     } catch (error) {
-      console.error('Error updating appointment:', error);
+
       alert('Error updating appointment. Please try again.');
     } finally {
       setLoading(false);
@@ -294,7 +294,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
           <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
             {appointment?.status === 'scheduled' && (
               <>
-                <Button 
+                <Button
                   variant="default"
                   size="sm"
                   onClick={handleConfirm}
@@ -302,7 +302,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
                 >
                   {loading ? 'Confirming...' : 'Confirm'}
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowRescheduleModal(true)}
@@ -310,7 +310,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
                 >
                   Reschedule
                 </Button>
-                <Button 
+                <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => setShowCancelModal(true)}
@@ -322,7 +322,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
             )}
             {appointment?.status === 'confirmed' && (
               <>
-                <Button 
+                <Button
                   variant="default"
                   size="sm"
                   onClick={() => setShowOutcomeModal(true)}
@@ -330,7 +330,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
                 >
                   Complete
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowRescheduleModal(true)}
@@ -494,8 +494,8 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
             <Button variant="outline" onClick={() => setShowRescheduleModal(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleRescheduleSubmit} 
+            <Button
+              onClick={handleRescheduleSubmit}
               disabled={loading || !rescheduleData.newDate || !rescheduleData.newTime}
             >
               {loading ? 'Rescheduling...' : 'Reschedule Appointment'}
@@ -609,8 +609,8 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
              <Button variant="outline" onClick={() => setShowEditModal(false)}>
                Cancel
              </Button>
-             <Button 
-               onClick={handleEditSubmit} 
+             <Button
+               onClick={handleEditSubmit}
                disabled={loading || !editData.date || !editData.time || !editData.purpose}
              >
                {loading ? 'Updating...' : 'Update Appointment'}

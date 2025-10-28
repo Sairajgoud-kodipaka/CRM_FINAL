@@ -8,20 +8,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  Bot, 
-  Plus, 
-  Trash2, 
-  Save, 
-  Play, 
-  Pause, 
+import {
+  Bot,
+  Plus,
+  Trash2,
+  Save,
+  Play,
+  Pause,
   Settings,
   MessageSquare,
   Zap,
@@ -29,7 +29,7 @@ import {
   CheckCircle,
   X
 } from 'lucide-react';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -171,7 +171,7 @@ export function BotBuilder() {
         resetBotForm();
       }
     } catch (error) {
-      console.error('Error creating bot:', error);
+
     }
   };
 
@@ -189,8 +189,8 @@ export function BotBuilder() {
 
       if (response.ok) {
         const newTrigger = await response.json();
-        setBots(prev => prev.map(bot => 
-          bot.id === selectedBot.id 
+        setBots(prev => prev.map(bot =>
+          bot.id === selectedBot.id
             ? { ...bot, triggers: [...bot.triggers, newTrigger] }
             : bot
         ));
@@ -198,7 +198,7 @@ export function BotBuilder() {
         resetTriggerForm();
       }
     } catch (error) {
-      console.error('Error creating trigger:', error);
+
     }
   };
 
@@ -216,11 +216,11 @@ export function BotBuilder() {
 
       if (response.ok) {
         const updatedTrigger = await response.json();
-        setBots(prev => prev.map(bot => 
-          bot.id === selectedBot.id 
-            ? { 
-                ...bot, 
-                triggers: bot.triggers.map(trigger => 
+        setBots(prev => prev.map(bot =>
+          bot.id === selectedBot.id
+            ? {
+                ...bot,
+                triggers: bot.triggers.map(trigger =>
                   trigger.id === editingTrigger.id ? updatedTrigger : trigger
                 )
               }
@@ -231,7 +231,7 @@ export function BotBuilder() {
         resetTriggerForm();
       }
     } catch (error) {
-      console.error('Error updating trigger:', error);
+
     }
   };
 
@@ -244,17 +244,17 @@ export function BotBuilder() {
       });
 
       if (response.ok) {
-        setBots(prev => prev.map(bot => 
-          bot.id === selectedBot.id 
-            ? { 
-                ...bot, 
+        setBots(prev => prev.map(bot =>
+          bot.id === selectedBot.id
+            ? {
+                ...bot,
                 triggers: bot.triggers.filter(trigger => trigger.id !== triggerId)
               }
             : bot
         ));
       }
     } catch (error) {
-      console.error('Error deleting trigger:', error);
+
     }
   };
 
@@ -591,8 +591,8 @@ export function BotBuilder() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="trigger-type">Trigger Type</Label>
-                          <Select 
-                            value={triggerForm.trigger_type} 
+                          <Select
+                            value={triggerForm.trigger_type}
                             onValueChange={(value: any) => setTriggerForm(prev => ({ ...prev, trigger_type: value }))}
                           >
                             <SelectTrigger>
@@ -633,8 +633,8 @@ export function BotBuilder() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="response-type">Response Type</Label>
-                          <Select 
-                            value={triggerForm.response_type} 
+                          <Select
+                            value={triggerForm.response_type}
                             onValueChange={(value: any) => setTriggerForm(prev => ({ ...prev, response_type: value }))}
                           >
                             <SelectTrigger>

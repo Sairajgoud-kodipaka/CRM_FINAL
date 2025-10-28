@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Building2, 
-  Users, 
-  MapPin, 
+import {
+  Building2,
+  Users,
+  MapPin,
   Phone,
   Mail,
   Clock,
@@ -26,15 +26,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -169,7 +169,7 @@ export default function StorePage() {
       offline: { color: 'bg-gray-100 text-gray-800', text: 'Offline' },
       on_break: { color: 'bg-orange-100 text-orange-800', text: 'On Break' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig];
     return (
       <Badge className={config.color}>
@@ -200,7 +200,7 @@ export default function StorePage() {
             <p className="text-xs text-muted-foreground">2 active, 1 maintenance</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
@@ -211,7 +211,7 @@ export default function StorePage() {
             <p className="text-xs text-muted-foreground">+2 from last month</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Sales</CardTitle>
@@ -222,7 +222,7 @@ export default function StorePage() {
             <p className="text-xs text-muted-foreground">+12% from yesterday</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Inventory</CardTitle>
@@ -456,7 +456,7 @@ export default function StorePage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Staff Performance</CardTitle>
@@ -486,7 +486,7 @@ export default function StorePage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Inventory by Store</CardTitle>
@@ -508,7 +508,7 @@ export default function StorePage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Sales Comparison</CardTitle>
@@ -525,5 +525,5 @@ export default function StorePage() {
     </div>
   );
 }
- 
- 
+
+

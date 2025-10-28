@@ -38,7 +38,7 @@ export function PhoneInputComponent({
 
     // Remove all non-digit characters
     const digitsOnly = mobileValue.replace(/\D/g, '');
-    
+
     // Strict validation: exactly 10 digits, no more, no less
     if (digitsOnly.length === 10) {
       // Additional validation: Indian mobile numbers start with 6, 7, 8, or 9
@@ -67,10 +67,10 @@ export function PhoneInputComponent({
   // Handle mobile number change with strict validation
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
-    
+
     // Remove all non-digit characters
     const digitsOnly = inputValue.replace(/\D/g, '');
-    
+
     // Enforce exactly 10 digits maximum
     if (digitsOnly.length <= 10) {
       // Concatenate +91 prefix with mobile number
@@ -88,7 +88,7 @@ export function PhoneInputComponent({
         <div className="inline-flex items-center justify-center px-2 py-2 text-sm font-semibold text-gray-700 bg-gray-100 border border-gray-300 border-r-0 rounded-l-md min-w-[36px] flex-shrink-0">
           +91
         </div>
-        
+
         {/* Mobile number input */}
         <input
           type="tel"
@@ -109,7 +109,7 @@ export function PhoneInputComponent({
           )}
         />
       </div>
-      
+
       {/* Validation error */}
       {!isValid && validationError && (
         <p className="text-sm text-red-600 font-medium flex items-center gap-2">
@@ -117,7 +117,7 @@ export function PhoneInputComponent({
           {validationError}
         </p>
       )}
-      
+
 
     </div>
   );

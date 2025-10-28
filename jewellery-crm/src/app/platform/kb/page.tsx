@@ -19,13 +19,13 @@ export default function KnowledgeBasePage() {
           </Button>
         </Link>
       </div>
-      
+
       <Card className="p-8">
         <div className="text-center">
           <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">Knowledge Base Coming Soon</h3>
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            The knowledge base feature is currently under development. This will allow platform administrators 
+            The knowledge base feature is currently under development. This will allow platform administrators
             to create and manage help articles for tenant businesses.
           </p>
           <div className="flex items-center justify-center space-x-4">
@@ -81,4 +81,4 @@ export default function KnowledgeBasePage() {
     </div>
   );
 }
- 
+

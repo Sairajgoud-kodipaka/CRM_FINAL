@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Settings, 
-  Users, 
-  Building2, 
+import {
+  Settings,
+  Users,
+  Building2,
   Globe,
   Save,
   Plus,
@@ -27,7 +27,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,15 +35,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -172,7 +172,7 @@ export default function SettingsPage() {
       disconnected: { color: 'bg-red-100 text-red-800', text: 'Disconnected' },
       pending: { color: 'bg-yellow-100 text-yellow-800', text: 'Pending' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig];
     return (
       <Badge className={config.color}>
@@ -598,7 +598,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">SMS Notifications</h3>
                 <div className="space-y-4">
@@ -643,7 +643,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Session Management</h3>
                 <div className="space-y-4">
@@ -663,5 +663,5 @@ export default function SettingsPage() {
     </div>
   );
 }
- 
- 
+
+

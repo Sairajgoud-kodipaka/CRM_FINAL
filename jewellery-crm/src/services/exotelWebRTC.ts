@@ -9,19 +9,19 @@ let isSDKAvailable = false;
 // Load WebRTC implementation (currently using pure implementation)
 const loadSDK = async () => {
   if (ExotelWebRTC) return ExotelWebRTC;
-  
+
   try {
     // For now, use pure WebRTC implementation to avoid build issues
-    console.log('🔄 Using Pure WebRTC implementation (SDK temporarily disabled)');
+
     ExotelWebRTC = pureWebRTCService;
     isSDKAvailable = false;
     return ExotelWebRTC;
-    
+
     // TODO: Re-enable Exotel SDK when build issues are resolved
     /*
     // Check if we're in a browser environment
     if (typeof window === 'undefined') {
-      console.warn('⚠️ WebRTC SDK requires browser environment, using pure WebRTC fallback');
+
       ExotelWebRTC = pureWebRTCService;
       isSDKAvailable = false;
       return ExotelWebRTC;
@@ -31,11 +31,11 @@ const loadSDK = async () => {
     const { ExotelWebRTC: SDK } = await import('@exotel-npm-dev/webrtc-core-sdk');
     ExotelWebRTC = SDK;
     isSDKAvailable = true;
-    console.log('✅ Exotel WebRTC SDK loaded successfully');
+
     return ExotelWebRTC;
     */
   } catch (error) {
-    console.warn('⚠️ WebRTC SDK not available, using pure WebRTC fallback:', error);
+
     isSDKAvailable = false;
     // Fallback to pure WebRTC implementation
     ExotelWebRTC = pureWebRTCService;
@@ -56,25 +56,25 @@ class CustomWebRTC {
 
   constructor(options: WebRTCConfig) {
     this.config = options;
-    console.log('Using Custom WebRTC implementation');
+
   }
 
   async initialize(): Promise<boolean> {
     try {
-      console.log('🚀 Initializing Custom WebRTC...');
-      
+
+
       // Request microphone permission and get local stream
       const hasPermission = await this.requestMicrophonePermission();
       if (!hasPermission) {
-        console.warn('⚠️ Microphone permission denied');
+
         return false;
       }
-      
+
       this.isInitialized = true;
-      console.log('✅ Custom WebRTC initialized successfully');
+
       return true;
     } catch (error) {
-      console.error('❌ Failed to initialize Custom WebRTC:', error);
+
       return false;
     }
   }
@@ -91,19 +91,19 @@ class CustomWebRTC {
         },
         video: false
       });
-      
-      console.log('✅ Microphone permission granted');
+
+
       return true;
     } catch (error) {
-      console.error('❌ Microphone permission denied:', error);
+
       return false;
     }
   }
 
   async makeCall(options: CallOptions): Promise<any> {
     try {
-      console.log('📞 Making Custom WebRTC call to:', options.to);
-      
+
+
       // Create call object
       this.currentCall = {
         id: `call-${Date.now()}`,
@@ -129,7 +129,7 @@ class CustomWebRTC {
 
       return this.currentCall;
     } catch (error) {
-      console.error('❌ Failed to make call:', error);
+
       this.notifyStatusChange({ status: 'failed', duration: 0, error: error.message });
       return null;
     }
@@ -139,10 +139,10 @@ class CustomWebRTC {
     this.durationInterval = setInterval(() => {
       if (this.currentCall && this.currentCall.status === 'answered') {
         const duration = this.getCallDuration();
-        this.notifyStatusChange({ 
-          status: 'answered', 
-          duration, 
-          callId: this.currentCall.id 
+        this.notifyStatusChange({
+          status: 'answered',
+          duration,
+          callId: this.currentCall.id
         });
       }
     }, 1000);
@@ -158,23 +158,23 @@ class CustomWebRTC {
   async endCall(): Promise<boolean> {
     try {
       if (this.currentCall) {
-        console.log('📞 Ending Custom WebRTC call...');
+
         const duration = this.getCallDuration();
-        
+
         this.stopCallTimer();
-        this.notifyStatusChange({ 
-          status: 'ended', 
-          duration, 
-          callId: this.currentCall.id 
+        this.notifyStatusChange({
+          status: 'ended',
+          duration,
+          callId: this.currentCall.id
         });
-        
+
         this.cleanup();
-        console.log('✅ Call ended successfully');
+
         return true;
       }
       return false;
     } catch (error) {
-      console.error('❌ Failed to end call:', error);
+
       return false;
     }
   }
@@ -185,20 +185,20 @@ class CustomWebRTC {
         const audioTrack = this.localStream.getAudioTracks()[0];
         if (audioTrack) {
           audioTrack.enabled = !audioTrack.enabled;
-          console.log('🔇 Mute toggled:', !audioTrack.enabled);
+
           return !audioTrack.enabled;
         }
       }
       return false;
     } catch (error) {
-      console.error('❌ Error toggling mute:', error);
+
       return false;
     }
   }
 
   async toggleHold(): Promise<boolean> {
     // Hold functionality would pause the audio stream
-    console.log('⏸️ Hold toggle (not implemented yet)');
+
     return false;
   }
 
@@ -253,19 +253,19 @@ class CustomWebRTC {
       try {
         callback(status);
       } catch (error) {
-        console.error('Error in status change callback:', error);
+
       }
     });
   }
 
   private cleanup(): void {
     this.stopCallTimer();
-    
+
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => track.stop());
       this.localStream = null;
     }
-    
+
     this.currentCall = null;
     this.callStartTime = 0;
   }
@@ -274,7 +274,7 @@ class CustomWebRTC {
     this.cleanup();
     this.callStatusCallbacks = [];
     this.isInitialized = false;
-    console.log('🧹 Custom WebRTC destroyed');
+
   }
 }
 
@@ -294,20 +294,20 @@ class ExotelWebRTCService {
    */
   async initialize(config: WebRTCConfig): Promise<boolean> {
     try {
-      console.log('🚀 Initializing WebRTC service...');
-      
+
+
       this.config = config;
-      
+
       // Use pure WebRTC implementation for now
       await pureWebRTCService.initialize(config);
       this.webrtc = pureWebRTCService;
-      
+
       this.isInitialized = true;
-      console.log('✅ WebRTC service initialized successfully (using pure implementation)');
-      
+
+
       return true;
     } catch (error) {
-      console.error('❌ Failed to initialize WebRTC service:', error);
+
       return false;
     }
   }
@@ -319,7 +319,7 @@ class ExotelWebRTCService {
     if (typeof window !== 'undefined') {
       // Listen for microphone permission changes
       navigator.mediaDevices?.addEventListener('devicechange', () => {
-        console.log('🎤 Media devices changed');
+
       });
     }
   }
@@ -329,8 +329,8 @@ class ExotelWebRTCService {
    */
   async requestMicrophonePermission(): Promise<boolean> {
     try {
-      console.log('🎤 Requesting microphone permission...');
-      
+
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -339,14 +339,14 @@ class ExotelWebRTCService {
         },
         video: false
       });
-      
+
       // Stop the stream immediately as we just needed permission
       stream.getTracks().forEach(track => track.stop());
-      
-      console.log('✅ Microphone permission granted');
+
+
       return true;
     } catch (error) {
-      console.error('❌ Microphone permission denied:', error);
+
       return false;
     }
   }
@@ -356,14 +356,14 @@ class ExotelWebRTCService {
    */
   async makeCall(options: CallOptions): Promise<boolean> {
     if (!this.isInitialized || !this.webrtc) {
-      console.error('❌ WebRTC SDK not initialized');
+
       this.notifyStatusChange({ status: 'failed', duration: 0, error: 'SDK not initialized' });
       return false;
     }
 
     try {
-      console.log('📞 Making WebRTC call to:', options.to);
-      
+
+
       // Update status to connecting
       this.notifyStatusChange({ status: 'connecting', duration: 0 });
 
@@ -380,10 +380,10 @@ class ExotelWebRTCService {
         this.setupCallEventListeners(this.currentCall);
       }
 
-      console.log('✅ Call initiated successfully');
+
       return true;
     } catch (error) {
-      console.error('❌ Failed to make call:', error);
+
       this.notifyStatusChange({ status: 'failed', duration: 0, error: error.message });
       return false;
     }
@@ -397,32 +397,32 @@ class ExotelWebRTCService {
 
     // Only setup event listeners if using real SDK
     if (!isSDKAvailable) {
-      console.log('📞 Using fallback WebRTC - event listeners handled internally');
+
       return;
     }
 
     // Call initiated
     call.on('initiated', () => {
-      console.log('📞 Call initiated');
+
       this.notifyStatusChange({ status: 'connecting', duration: 0, callId: call.id });
     });
 
     // Call ringing
     call.on('ringing', () => {
-      console.log('📞 Call ringing');
+
       this.notifyStatusChange({ status: 'ringing', duration: 0, callId: call.id });
     });
 
     // Call answered
     call.on('answered', () => {
-      console.log('📞 Call answered');
+
       this.notifyStatusChange({ status: 'answered', duration: 0, callId: call.id });
       this.startCallTimer();
     });
 
     // Call ended
     call.on('ended', () => {
-      console.log('📞 Call ended');
+
       this.stopCallTimer();
       this.notifyStatusChange({ status: 'ended', duration: this.getCallDuration(), callId: call.id });
       this.currentCall = null;
@@ -430,7 +430,7 @@ class ExotelWebRTCService {
 
     // Call failed
     call.on('failed', (error: any) => {
-      console.log('📞 Call failed:', error);
+
       this.stopCallTimer();
       this.notifyStatusChange({ status: 'failed', duration: this.getCallDuration(), error: error.message });
       this.currentCall = null;
@@ -438,7 +438,7 @@ class ExotelWebRTCService {
 
     // Call busy
     call.on('busy', () => {
-      console.log('📞 Call busy');
+
       this.stopCallTimer();
       this.notifyStatusChange({ status: 'busy', duration: this.getCallDuration(), callId: call.id });
       this.currentCall = null;
@@ -446,7 +446,7 @@ class ExotelWebRTCService {
 
     // No answer
     call.on('no-answer', () => {
-      console.log('📞 No answer');
+
       this.stopCallTimer();
       this.notifyStatusChange({ status: 'no-answer', duration: this.getCallDuration(), callId: call.id });
       this.currentCall = null;
@@ -458,13 +458,13 @@ class ExotelWebRTCService {
    */
   async endCall(): Promise<boolean> {
     if (!this.currentCall) {
-      console.warn('⚠️ No active call to end');
+
       return false;
     }
 
     try {
-      console.log('📞 Ending call...');
-      
+
+
       if (isSDKAvailable && this.currentCall.hangup) {
         // Use real SDK method
         await this.currentCall.hangup();
@@ -472,11 +472,11 @@ class ExotelWebRTCService {
         // Use fallback method
         await this.webrtc.endCall();
       }
-      
-      console.log('✅ Call ended successfully');
+
+
       return true;
     } catch (error) {
-      console.error('❌ Failed to end call:', error);
+
       return false;
     }
   }
@@ -486,7 +486,7 @@ class ExotelWebRTCService {
    */
   async toggleMute(): Promise<boolean> {
     if (!this.currentCall) {
-      console.warn('⚠️ No active call to mute');
+
       return false;
     }
 
@@ -495,14 +495,14 @@ class ExotelWebRTCService {
         // Use real SDK method
         const isMuted = this.currentCall.isMuted();
         await this.currentCall.mute(!isMuted);
-        console.log(`🔇 Call ${isMuted ? 'unmuted' : 'muted'}`);
+
         return !isMuted;
       } else {
         // Use fallback method
         return await this.webrtc.toggleMute();
       }
     } catch (error) {
-      console.error('❌ Failed to toggle mute:', error);
+
       return false;
     }
   }
@@ -512,7 +512,7 @@ class ExotelWebRTCService {
    */
   async toggleHold(): Promise<boolean> {
     if (!this.currentCall) {
-      console.warn('⚠️ No active call to hold');
+
       return false;
     }
 
@@ -521,14 +521,14 @@ class ExotelWebRTCService {
         // Use real SDK method
         const isOnHold = this.currentCall.isOnHold();
         await this.currentCall.hold(!isOnHold);
-        console.log(`⏸️ Call ${isOnHold ? 'unheld' : 'held'}`);
+
         return !isOnHold;
       } else {
         // Use fallback method
         return await this.webrtc.toggleHold();
       }
     } catch (error) {
-      console.error('❌ Failed to toggle hold:', error);
+
       return false;
     }
   }
@@ -538,7 +538,7 @@ class ExotelWebRTCService {
    */
   getCallDuration(): number {
     if (!this.currentCall) return 0;
-    
+
     if (isSDKAvailable && this.currentCall.getDuration) {
       return this.currentCall.getDuration() || 0;
     } else {
@@ -551,7 +551,7 @@ class ExotelWebRTCService {
    */
   isCallActive(): boolean {
     if (!this.currentCall) return false;
-    
+
     if (isSDKAvailable && this.currentCall.isActive) {
       return this.currentCall.isActive();
     } else {
@@ -564,7 +564,7 @@ class ExotelWebRTCService {
    */
   isCallMuted(): boolean {
     if (!this.currentCall) return false;
-    
+
     if (isSDKAvailable && this.currentCall.isMuted) {
       return this.currentCall.isMuted();
     } else {
@@ -577,7 +577,7 @@ class ExotelWebRTCService {
    */
   isCallOnHold(): boolean {
     if (!this.currentCall) return false;
-    
+
     if (isSDKAvailable && this.currentCall.isOnHold) {
       return this.currentCall.isOnHold();
     } else {
@@ -610,7 +610,7 @@ class ExotelWebRTCService {
       try {
         callback(status);
       } catch (error) {
-        console.error('Error in status change callback:', error);
+
       }
     });
   }
@@ -620,14 +620,14 @@ class ExotelWebRTCService {
    */
   private startCallTimer(): void {
     // Timer is handled by the SDK internally
-    console.log('⏱️ Call timer started');
+
   }
 
   /**
    * Stop call timer
    */
   private stopCallTimer(): void {
-    console.log('⏱️ Call timer stopped');
+
   }
 
   /**
@@ -635,7 +635,7 @@ class ExotelWebRTCService {
    */
   getCurrentCallInfo(): any {
     if (!this.currentCall) return null;
-    
+
     if (isSDKAvailable) {
       return {
         id: this.currentCall.id,
@@ -661,15 +661,15 @@ class ExotelWebRTCService {
       }
       this.currentCall = null;
     }
-    
+
     if (this.webrtc) {
       this.webrtc.destroy();
       this.webrtc = null;
     }
-    
+
     this.isInitialized = false;
     this.callStatusCallbacks = [];
-    console.log('🧹 WebRTC service cleaned up');
+
   }
 }
 

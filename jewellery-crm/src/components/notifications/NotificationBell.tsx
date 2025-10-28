@@ -40,7 +40,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
     // Manager can see their store's notifications
     if (user.role === 'manager') {
-      return notifications.filter(notification => 
+      return notifications.filter(notification =>
         notification.tenantId === user.tenant?.toString() &&
         (!notification.storeId || notification.storeId === user.store?.toString())
       );
@@ -48,14 +48,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
     // Inhouse sales can see their own notifications
     if (user.role === 'inhouse_sales') {
-      return notifications.filter(notification => 
+      return notifications.filter(notification =>
         notification.userId === user.id.toString()
       );
     }
 
     // Telecaller can see their assigned notifications
     if (user.role === 'tele_calling') {
-      return notifications.filter(notification => 
+      return notifications.filter(notification =>
         notification.userId === user.id.toString() ||
         notification.tenantId === user.tenant?.toString()
       );
@@ -63,14 +63,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
     // Marketing team can see marketing-related notifications
     if (user.role === 'marketing') {
-      return notifications.filter(notification => 
+      return notifications.filter(notification =>
         notification.type === 'marketing_campaign' ||
         notification.type === 'announcement'
       );
     }
 
     // Default: only show user's own notifications
-    return notifications.filter(notification => 
+    return notifications.filter(notification =>
       notification.userId === user.id.toString()
     );
   };
@@ -132,7 +132,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
         ) : (
           <BellOff className={`h-${getIconSize()} w-${getIconSize()} text-muted-foreground`} />
         )}
-        
+
         {/* Unread count badge */}
         {unreadCount > 0 && (
           <Badge
@@ -150,4 +150,4 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       )}
     </div>
   );
-}; 
+};

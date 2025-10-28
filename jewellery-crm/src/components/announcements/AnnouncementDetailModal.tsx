@@ -47,8 +47,7 @@ export default function AnnouncementDetailModal({ announcement, onSuccess }: Ann
   const [open, setOpen] = React.useState(false);
 
   // Add debugging
-  console.log('AnnouncementDetailModal rendered for announcement:', announcement.id, announcement.title);
-  console.log('Modal open state:', open);
+
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
@@ -81,25 +80,25 @@ export default function AnnouncementDetailModal({ announcement, onSuccess }: Ann
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    console.log('Modal open state changing from', open, 'to', newOpen);
+
     setOpen(newOpen);
   };
 
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           className="h-8 w-8 p-0"
           onClick={() => {
-            console.log('Eye button clicked for announcement:', announcement.id);
+
             setOpen(true);
           }}
         >
           <Eye className="h-4 w-4" />
         </Button>
-        
+
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto z-50 bg-white/95 backdrop-blur-md border-2 border-blue-500 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-black">
@@ -143,7 +142,7 @@ export default function AnnouncementDetailModal({ announcement, onSuccess }: Ann
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   <span>
-                    By: {announcement.author.first_name} {announcement.author.last_name} 
+                    By: {announcement.author.first_name} {announcement.author.last_name}
                     ({announcement.author.role})
                   </span>
                 </div>
@@ -298,7 +297,7 @@ export default function AnnouncementDetailModal({ announcement, onSuccess }: Ann
               <h3 className="text-lg font-semibold">{announcement.title}</h3>
               <p className="text-gray-700">{announcement.content}</p>
               <p className="text-sm text-gray-600">
-                By: {announcement.author.first_name} {announcement.author.last_name} 
+                By: {announcement.author.first_name} {announcement.author.last_name}
                 ({announcement.author.role})
               </p>
               <p className="text-sm text-gray-600">

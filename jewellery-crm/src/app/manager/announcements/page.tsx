@@ -78,16 +78,16 @@ export default function ManagerAnnouncementsPage() {
       setLoading(true);
       // Fetch announcements filtered by current store members
       const response = await apiService.getAnnouncements();
-      console.log('API Response:', response);
+
       if (response.success && response.data && Array.isArray(response.data)) {
         setAnnouncements(response.data);
-        console.log('Announcements set:', response.data);
+
       } else {
-        console.warn('Announcements response is not an array:', response.data);
+
         setAnnouncements([]);
       }
     } catch (error) {
-      console.error('Error fetching announcements:', error);
+
       setAnnouncements([]);
     } finally {
       setLoading(false);
@@ -103,7 +103,7 @@ export default function ManagerAnnouncementsPage() {
         announcement_type: 'team_specific', // Ensure it's team-specific
         target_stores: [], // Will be set by backend based on user's store
       };
-      
+
       const response = await apiService.createAnnouncement(announcementData);
       if (response.success) {
         // Reset form and close modal
@@ -118,7 +118,7 @@ export default function ManagerAnnouncementsPage() {
         await fetchAnnouncements();
       }
     } catch (error) {
-      console.error('Error creating announcement:', error);
+
     } finally {
       setCreating(false);
     }
@@ -128,15 +128,15 @@ export default function ManagerAnnouncementsPage() {
     try {
       await apiService.markAnnouncementAsRead(announcementId);
              // Update local state
-       setAnnouncements(prev => 
-         prev.map(announcement => 
-           announcement.id === announcementId 
+       setAnnouncements(prev =>
+         prev.map(announcement =>
+           announcement.id === announcementId
              ? { ...announcement, is_read_by_current_user: true }
              : announcement
          )
        );
     } catch (error) {
-      console.error('Error marking announcement as read:', error);
+
     }
   };
 
@@ -144,15 +144,15 @@ export default function ManagerAnnouncementsPage() {
     try {
       await apiService.acknowledgeAnnouncement(announcementId);
              // Update local state
-       setAnnouncements(prev => 
-         prev.map(announcement => 
-           announcement.id === announcementId 
+       setAnnouncements(prev =>
+         prev.map(announcement =>
+           announcement.id === announcementId
              ? { ...announcement, is_acknowledged_by_current_user: true }
              : announcement
          )
        );
     } catch (error) {
-      console.error('Error acknowledging announcement:', error);
+
     }
   };
 
@@ -161,7 +161,7 @@ export default function ManagerAnnouncementsPage() {
                          announcement.content.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPriority = priorityFilter === 'all' || announcement.priority === priorityFilter;
     const matchesType = typeFilter === 'all' || announcement.announcement_type === typeFilter;
-    
+
     return matchesSearch && matchesPriority && matchesType;
   }) : [];
 
@@ -246,8 +246,8 @@ export default function ManagerAnnouncementsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="priority">Priority</Label>
-                  <Select 
-                    value={newAnnouncement.priority} 
+                  <Select
+                    value={newAnnouncement.priority}
                     onValueChange={(value) => setNewAnnouncement(prev => ({ ...prev, priority: value }))}
                   >
                     <SelectTrigger>
@@ -262,8 +262,8 @@ export default function ManagerAnnouncementsPage() {
                 </div>
                 <div>
                   <Label htmlFor="type">Type</Label>
-                  <Select 
-                    value={newAnnouncement.type} 
+                  <Select
+                    value={newAnnouncement.type}
                     onValueChange={(value) => setNewAnnouncement(prev => ({ ...prev, type: value }))}
                   >
                     <SelectTrigger>
@@ -278,14 +278,14 @@ export default function ManagerAnnouncementsPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setIsCreateModalOpen(false)}
                   disabled={creating}
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   onClick={createAnnouncement}
                   disabled={creating || !newAnnouncement.title || !newAnnouncement.content}
                 >
@@ -324,8 +324,8 @@ export default function ManagerAnnouncementsPage() {
 
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
-          <Input 
-            placeholder="Search announcements..." 
+          <Input
+            placeholder="Search announcements..."
             className="w-full md:w-80"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -390,8 +390,8 @@ export default function ManagerAnnouncementsPage() {
                   </div>
                                      <div className="flex gap-2 ml-4">
                      {!announcement.is_read_by_current_user && (
-                       <Button 
-                         variant="outline" 
+                       <Button
+                         variant="outline"
                          size="sm"
                          onClick={() => markAsRead(announcement.id)}
                        >
@@ -399,8 +399,8 @@ export default function ManagerAnnouncementsPage() {
                        </Button>
                      )}
                      {!announcement.is_acknowledged_by_current_user && (
-                       <Button 
-                         variant="outline" 
+                       <Button
+                         variant="outline"
                          size="sm"
                          onClick={() => acknowledgeAnnouncement(announcement.id)}
                        >
@@ -417,4 +417,4 @@ export default function ManagerAnnouncementsPage() {
       </Card>
     </div>
   );
-} 
+}

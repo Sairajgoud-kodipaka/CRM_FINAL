@@ -43,7 +43,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
   const [followUpRequired, setFollowUpRequired] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // New Advanced Features State
   const [smsMessage, setSmsMessage] = useState('');
   const [voiceMessage, setVoiceMessage] = useState('');
@@ -52,7 +52,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
   const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
   const [smsTemplates, setSmsTemplates] = useState([
     'post_call_positive',
-    'post_call_neutral', 
+    'post_call_neutral',
     'post_call_negative',
     'appointment_reminder',
     'follow_up_1_day',
@@ -75,7 +75,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
   ]);
 
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   useEffect(() => {
     if (callStatus === 'connected' && !durationIntervalRef.current) {
       startDurationTimer();
@@ -125,7 +125,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
       }
       setCallStatus('ended');
       stopDurationTimer();
-      
+
       // Save call log
       if (callRequest) {
         const callLog = {
@@ -139,7 +139,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
         onCallEnded(callLog);
       }
     } catch (err) {
-      console.error('Error ending call:', err);
+
       setError('Failed to end call');
     }
   };
@@ -169,7 +169,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
     try {
       setIsLoading(true);
       const message = template ? smsMessage : smsMessage;
-      
+
       const response = await fetch('/api/telecalling/call-requests/send_sms/', {
         method: 'POST',
         headers: {
@@ -184,16 +184,16 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         setSmsMessage('');
         // Show success notification
-        console.log('SMS sent successfully');
+
       } else {
         setError(result.error || 'Failed to send SMS');
       }
     } catch (err) {
-      console.error('Error sending SMS:', err);
+
       setError('Failed to send SMS');
     } finally {
       setIsLoading(false);
@@ -205,7 +205,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
     try {
       setIsLoading(true);
       const message = template ? voiceMessage : voiceMessage;
-      
+
       const response = await fetch('/api/telecalling/call-requests/send_voice_message/', {
         method: 'POST',
         headers: {
@@ -221,15 +221,15 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         setVoiceMessage('');
-        console.log('Voice message sent successfully');
+
       } else {
         setError(result.error || 'Failed to send voice message');
       }
     } catch (err) {
-      console.error('Error sending voice message:', err);
+
       setError('Failed to send voice message');
     } finally {
       setIsLoading(false);
@@ -240,7 +240,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
   const routeCall = async () => {
     try {
       setIsLoading(true);
-      
+
       const response = await fetch('/api/telecalling/call-requests/route_call/', {
         method: 'POST',
         headers: {
@@ -254,16 +254,16 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
-        console.log(`Call routed to ${result.agent_name} using ${result.routing_strategy}`);
+
         // Optionally initiate the routed call
         await initiateCall();
       } else {
         setError(result.error || 'Failed to route call');
       }
     } catch (err) {
-      console.error('Error routing call:', err);
+
       setError('Failed to route call');
     } finally {
       setIsLoading(false);
@@ -274,7 +274,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
   const triggerAutomation = async () => {
     try {
       setIsLoading(true);
-      
+
       const response = await fetch('/api/telecalling/call-requests/trigger_automation/', {
         method: 'POST',
         headers: {
@@ -288,14 +288,14 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
-        console.log(`Automation workflow ${automationWorkflow} triggered successfully`);
+
       } else {
         setError(result.error || 'Failed to trigger automation');
       }
     } catch (err) {
-      console.error('Error triggering automation:', err);
+
       setError('Failed to trigger automation');
     } finally {
       setIsLoading(false);
@@ -427,7 +427,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
                   onChange={(e) => setNotes(e.target.value)}
                       className="min-h-[100px]"
                     />
-                    
+
                     <div className="flex items-center gap-4">
                       <Select value={disposition} onValueChange={(value: any) => setDisposition(value)}>
                         <SelectTrigger className="w-40">
@@ -474,7 +474,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
                       className="min-h-[100px]"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="text-sm font-medium mb-2 block">Or use template</label>
                     <Select onValueChange={(template) => sendSMS(template)}>
@@ -491,8 +491,8 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
                     </Select>
               </div>
 
-                  <Button 
-                    onClick={() => sendSMS()} 
+                  <Button
+                    onClick={() => sendSMS()}
                     disabled={!smsMessage || isLoading}
                     className="w-full"
                   >
@@ -522,7 +522,7 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
                       className="min-h-[100px]"
                   />
                 </div>
-                  
+
                   <div>
                     <label className="text-sm font-medium mb-2 block">Or use template</label>
                     <Select onValueChange={(template) => sendVoiceMessage(template)}>
@@ -538,9 +538,9 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
                       </SelectContent>
                     </Select>
             </div>
-                  
-                  <Button 
-                    onClick={() => sendVoiceMessage()} 
+
+                  <Button
+                    onClick={() => sendVoiceMessage()}
                     disabled={!voiceMessage || isLoading}
                     className="w-full"
                   >
@@ -579,9 +579,9 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
                         </SelectContent>
                       </Select>
           </div>
-                    
-                    <Button 
-                      onClick={routeCall} 
+
+                    <Button
+                      onClick={routeCall}
                       disabled={isLoading}
                       className="w-full"
                     >
@@ -615,9 +615,9 @@ export function CallPanel({ lead, isOpen, onClose, onCallEnded }: CallPanelProps
                         </SelectContent>
                       </Select>
           </div>
-                    
+
               <Button
-                      onClick={triggerAutomation} 
+                      onClick={triggerAutomation}
                       disabled={!automationWorkflow || isLoading}
                       className="w-full"
                     >

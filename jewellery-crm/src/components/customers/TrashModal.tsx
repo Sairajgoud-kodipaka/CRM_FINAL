@@ -28,15 +28,15 @@ export function TrashModal({ open, onClose, onCustomerRestored }: TrashModalProp
     try {
       setLoading(true);
       const response = await apiService.getTrashedClients();
-      
+
       if (response.success && response.data) {
-        const customersData = Array.isArray(response.data) 
-          ? response.data 
+        const customersData = Array.isArray(response.data)
+          ? response.data
           : (response.data && typeof response.data === 'object' && 'results' in response.data ? (response.data as any).results : []) || (response.data && typeof response.data === 'object' && 'data' in response.data ? (response.data as any).data : []) || [];
         setTrashedCustomers(customersData);
       }
     } catch (error) {
-      console.error('Error fetching trashed customers:', error);
+
       setTrashedCustomers([]);
     } finally {
       setLoading(false);
@@ -47,17 +47,17 @@ export function TrashModal({ open, onClose, onCustomerRestored }: TrashModalProp
     try {
       setRestoring(customerId);
       const response = await apiService.restoreClient(customerId);
-      
+
       if (response.success) {
-        console.log('Customer restored successfully');
+
         onCustomerRestored();
         fetchTrashedCustomers(); // Refresh the list
       } else {
-        console.error('Failed to restore customer:', response);
+
         alert('Failed to restore customer. Please try again.');
       }
     } catch (error) {
-      console.error('Error restoring customer:', error);
+
       alert('Error restoring customer. Please check the console for details.');
     } finally {
       setRestoring(null);
@@ -66,11 +66,11 @@ export function TrashModal({ open, onClose, onCustomerRestored }: TrashModalProp
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    
+
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Invalid Date';
-      
+
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -83,7 +83,7 @@ export function TrashModal({ open, onClose, onCustomerRestored }: TrashModalProp
 
   const getStatusBadgeVariant = (status: string) => {
     if (!status) return 'outline';
-    
+
     switch (status.toLowerCase()) {
       case 'customer':
         return 'default';
@@ -180,9 +180,9 @@ export function TrashModal({ open, onClose, onCustomerRestored }: TrashModalProp
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             className="text-green-600 hover:text-green-800"
                             onClick={() => handleRestore(customer.id.toString())}
                             disabled={restoring === customer.id.toString()}
@@ -197,7 +197,7 @@ export function TrashModal({ open, onClose, onCustomerRestored }: TrashModalProp
                 </tbody>
               </table>
             </div>
-            
+
             <div className="text-sm text-gray-500 text-center py-4">
               <p>💡 Tip: Customers in trash will be automatically permanently deleted after 30 days.</p>
               <p>You can restore them anytime before then.</p>
@@ -207,4 +207,4 @@ export function TrashModal({ open, onClose, onCustomerRestored }: TrashModalProp
       </DialogContent>
     </Dialog>
   );
-} 
+}

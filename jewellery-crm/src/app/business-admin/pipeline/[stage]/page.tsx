@@ -67,18 +67,18 @@ export default function PipelineStagePage() {
   const router = useRouter();
   const params = useParams();
   const stageValue = params?.stage as string;
-  
+
   const [customers, setCustomers] = useState<CustomerInStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [stageInfo, setStageInfo] = useState<PipelineStage | null>(null);
-  
+
   // Stage transition states
   const [showStageTransitionModal, setShowStageTransitionModal] = useState(false);
   const [selectedCustomerForTransition, setSelectedCustomerForTransition] = useState<CustomerInStage | null>(null);
   const [newStage, setNewStage] = useState<string>('');
   const [transitionLoading, setTransitionLoading] = useState(false);
-  
+
   // Customer profile modal states
   const [showCustomerProfileModal, setShowCustomerProfileModal] = useState(false);
   const [selectedCustomerProfile, setSelectedCustomerProfile] = useState<CustomerInStage | null>(null);
@@ -113,11 +113,11 @@ export default function PipelineStagePage() {
     try {
       setLoading(true);
       const response = await apiService.getSalesPipeline({ stage: stageValue });
-      
+
       if (response.success) {
         const pipelineData = response.data;
         let dataArray: any[] = [];
-        
+
         if (Array.isArray(pipelineData)) {
           dataArray = pipelineData;
         } else if (pipelineData && typeof pipelineData === 'object') {
@@ -130,14 +130,13 @@ export default function PipelineStagePage() {
             dataArray = data.items;
           }
         }
-        
-        console.log('Pipeline data received:', pipelineData);
-        console.log('Sample pipeline item:', dataArray[0]);
-        
+
+
+
         const customersData = dataArray.map((pipeline: any) => {
           const expectedValue = parseFloat(pipeline.expected_value) || 0;
-          console.log(`Pipeline ${pipeline.id}: expected_value = ${pipeline.expected_value}, parsed = ${expectedValue}`);
-          
+
+
           return {
             id: pipeline.client?.id || 0,
             first_name: pipeline.client?.first_name || '',
@@ -165,13 +164,13 @@ export default function PipelineStagePage() {
             customer_interests: pipeline.customer_interests || [],
           };
         });
-        
+
         setCustomers(customersData);
       } else {
         setCustomers([]);
       }
     } catch (error) {
-      console.error('Failed to fetch customers in stage:', error);
+
       setCustomers([]);
     } finally {
       setLoading(false);
@@ -200,38 +199,38 @@ export default function PipelineStagePage() {
 
   const handleUpdateStage = async () => {
     if (!selectedCustomerForTransition || !newStage) return;
-    
+
     setTransitionLoading(true);
     try {
       // Find the pipeline ID for this customer
       const response = await apiService.getSalesPipeline({ stage: selectedCustomerForTransition.pipeline_stage });
-      
+
       if (response.success) {
         const pipelineData = response.data;
-        const dataArray = Array.isArray(pipelineData) ? pipelineData : 
-                         (pipelineData as any)?.results ? (pipelineData as any).results : 
+        const dataArray = Array.isArray(pipelineData) ? pipelineData :
+                         (pipelineData as any)?.results ? (pipelineData as any).results :
                          (pipelineData as any)?.data ? (pipelineData as any).data : [];
-        
+
         const pipeline = dataArray.find((p: any) => p.client?.id === selectedCustomerForTransition.id);
-        
+
         if (pipeline) {
           // Update the pipeline stage
           const updateResponse = await apiService.updatePipelineStage(pipeline.id.toString(), { stage: newStage });
-          
+
           if (updateResponse.success) {
             // Show success message with updated counts
             const oldStageName = pipelineStages.find(s => s.value === selectedCustomerForTransition.pipeline_stage)?.name;
             const newStageName = pipelineStages.find(s => s.value === newStage)?.name;
             alert(`Successfully moved ${selectedCustomerForTransition.full_name} from ${oldStageName} to ${newStageName} stage`);
-            
+
             // Update local state immediately for dynamic UI update
             const updatedCustomers = customers.filter(customer => customer.id !== selectedCustomerForTransition.id);
             setCustomers(updatedCustomers);
-            
+
             setShowStageTransitionModal(false);
             setSelectedCustomerForTransition(null);
             setNewStage('');
-            
+
             // Refresh data to ensure consistency
             setTimeout(() => {
               fetchCustomersInStage();
@@ -246,7 +245,7 @@ export default function PipelineStagePage() {
         alert('Failed to fetch pipeline data. Please try again.');
       }
     } catch (error) {
-      console.error('Failed to update pipeline stage:', error);
+
       alert('An error occurred while updating the pipeline stage. Please try again.');
     } finally {
       setTransitionLoading(false);
@@ -261,11 +260,11 @@ export default function PipelineStagePage() {
 
   const totalValue = customers.reduce((sum, customer) => {
     const value = customer.expected_value || 0;
-    console.log(`Customer ${customer.full_name}: expected_value = ${customer.expected_value}, adding ${value} to sum ${sum}`);
+
     return sum + value;
   }, 0);
-   
-  console.log('Total value calculation:', { customers: customers.length, totalValue, individualValues: customers.map(c => ({ name: c.full_name, value: c.expected_value })) });
+
+
 
   if (loading) {
     return (
@@ -365,8 +364,8 @@ export default function PipelineStagePage() {
                 {searchTerm ? 'No customers found matching your search' : 'No customers in this stage'}
               </div>
               {searchTerm && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setSearchTerm('')}
                   className="mt-2"
@@ -388,8 +387,8 @@ export default function PipelineStagePage() {
                 </TableHeader>
                 <TableBody>
                   {filteredCustomers.map((customer) => (
-                    <TableRow 
-                      key={customer.id} 
+                    <TableRow
+                      key={customer.id}
                       className="hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
                       onClick={() => handleCustomerProfileClick(customer)}
                     >

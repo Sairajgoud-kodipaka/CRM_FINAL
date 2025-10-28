@@ -203,7 +203,7 @@ class TelecallingApiService {
   // Lead Management
   async getLeads(filters: LeadFilters = {}): Promise<LeadListResponse> {
     const params = new URLSearchParams();
-    
+
     if (filters.status) params.append('status', filters.status);
     if (filters.city) params.append('city', filters.city);
     if (filters.source) params.append('source', filters.source);
@@ -329,14 +329,14 @@ class TelecallingApiService {
   }
 
   async transferCall(callId: string, targetNumber: string): Promise<void> {
-    await apiService.post(`${this.baseUrl}/call-requests/${callId}/transfer/`, { 
-      target_number: targetNumber 
+    await apiService.post(`${this.baseUrl}/call-requests/${callId}/transfer/`, {
+      target_number: targetNumber
     });
   }
 
   async conferenceCall(callId: string, participants: string[]): Promise<void> {
-    await apiService.post(`${this.baseUrl}/call-requests/${callId}/conference/`, { 
-      participants 
+    await apiService.post(`${this.baseUrl}/call-requests/${callId}/conference/`, {
+      participants
     });
   }
 
@@ -354,7 +354,7 @@ class TelecallingApiService {
 
   async getCallLogs(filters: CallLogFilters = {}): Promise<CallLog[]> {
     const params = new URLSearchParams();
-    
+
     if (filters.disposition) params.append('disposition', filters.disposition);
     if (filters.dateRange?.from) params.append('date_from', filters.dateRange.from);
     if (filters.dateRange?.to) params.append('date_to', filters.dateRange.to);

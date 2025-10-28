@@ -1,6 +1,6 @@
 /**
  * Form Field Synchronization Service
- * 
+ *
  * This service handles data synchronization between related forms
  * ensuring consistency and proper field mapping across the application
  */
@@ -41,7 +41,7 @@ export const FORM_SYNC_CONFIGS: Record<string, FormSyncConfig[]> = {
       ]
     }
   ],
-  
+
   // Deal form syncs to customer form
   'deal': [
     {
@@ -62,7 +62,7 @@ export const FORM_SYNC_CONFIGS: Record<string, FormSyncConfig[]> = {
       ]
     }
   ],
-  
+
   // Appointment form syncs to customer form
   'appointment': [
     {
@@ -109,25 +109,25 @@ export class FormSyncService {
     excludeFields: string[] = []
   ): Record<string, any> {
     const syncResults: Record<string, any> = {};
-    
+
     const configs = FORM_SYNC_CONFIGS[sourceFormType] || [];
-    
+
     configs.forEach(config => {
       if (targetFormTypes.includes(config.sourceForm)) {
         config.targetForms.forEach(targetForm => {
           if (!targetFormTypes.includes(targetForm)) return;
-          
+
           const mappedData = this.mapFields(
             sourceData,
             config.fieldMappings,
             excludeFields
           );
-          
+
           syncResults[targetForm] = mappedData;
         });
       }
     });
-    
+
     return syncResults;
   }
 
@@ -140,20 +140,20 @@ export class FormSyncService {
     excludeFields: string[]
   ): any {
     const mappedData: any = {};
-    
+
     fieldMappings.forEach(mapping => {
       if (excludeFields.includes(mapping.targetField)) return;
-      
+
       const sourceValue = sourceData[mapping.sourceField];
       if (sourceValue === undefined || sourceValue === null) return;
-      
+
       let targetValue = sourceValue;
-      
+
       // Apply transformation if provided
       if (mapping.transform) {
         targetValue = mapping.transform(sourceValue, mappedData[mapping.targetField]);
       }
-      
+
       // Handle field combination (e.g., first_name + last_name = customer_name)
       if (mappedData[mapping.targetField]) {
         mappedData[mapping.targetField] = targetValue;
@@ -161,7 +161,7 @@ export class FormSyncService {
         mappedData[mapping.targetField] = targetValue;
       }
     });
-    
+
     return mappedData;
   }
 
@@ -172,9 +172,9 @@ export class FormSyncService {
     if (!this.syncListeners.has(formType)) {
       this.syncListeners.set(formType, []);
     }
-    
+
     this.syncListeners.get(formType)!.push(callback);
-    
+
     // Return unsubscribe function
     return () => {
       const listeners = this.syncListeners.get(formType);
@@ -215,11 +215,11 @@ export class FormSyncService {
     relatedForms: string[]
   ): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
-    
+
     // Get field mappings for this form type
     const mappings = this.getFieldMappings(formType);
     const relevantMappings = mappings.filter(m => m.sourceField === fieldName);
-    
+
     // Check if field value is consistent with related forms
     relevantMappings.forEach(mapping => {
       if (relatedForms.includes(mapping.targetField.split('_')[0])) {
@@ -230,7 +230,7 @@ export class FormSyncService {
         }
       }
     });
-    
+
     return {
       isValid: errors.length === 0,
       errors
@@ -254,7 +254,7 @@ export const FORM_VALIDATION_RULES = {
     lead_source: { required: false, maxLength: 100 },
     summary_notes: { required: false, maxLength: 1000 },
   },
-  
+
   product: {
     name: { required: true, minLength: 3, maxLength: 200 },
     sku: { required: true, minLength: 3, maxLength: 50 },
@@ -264,7 +264,7 @@ export const FORM_VALIDATION_RULES = {
     material: { required: false, maxLength: 100 },
     color: { required: false, maxLength: 50 },
   },
-  
+
   deal: {
     title: { required: true, minLength: 3, maxLength: 200 },
     client: { required: true },
@@ -273,7 +273,7 @@ export const FORM_VALIDATION_RULES = {
     stage: { required: true },
     expected_close_date: { required: true },
   },
-  
+
   appointment: {
     client: { required: true },
     date: { required: true },
@@ -303,14 +303,14 @@ export const FORM_TRANSFORMERS = {
       return '';
     }
   },
-  
+
   // Deal form transformers
   deal: {
     customerName: (data: DealFormData) => data.customer_name || '',
     customerPhone: (data: DealFormData) => data.customer_phone || '',
     customerEmail: (data: DealFormData) => data.customer_email || '',
   },
-  
+
   // Appointment form transformers
   appointment: {
     customerName: (data: AppointmentFormData) => data.customer_name || '',

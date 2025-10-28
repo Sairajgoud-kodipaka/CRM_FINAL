@@ -41,7 +41,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
     undefined, // No need to refresh customer list from detail modal
     (updatedCustomerId) => {
       if (updatedCustomerId === customerId) {
-        console.log('🔄 Customer details updated, refreshing modal data');
+
         fetchCustomerDetails();
       }
     }
@@ -57,13 +57,13 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   useEffect(() => {
     const handleRefresh = (event: CustomEvent) => {
       if (event.detail?.customerId === customerId) {
-        console.log('🔄 Refreshing customer details due to update event');
+
         fetchCustomerDetails();
       }
     };
 
     window.addEventListener('refreshCustomerDetails', handleRefresh as EventListener);
-    
+
     return () => {
       window.removeEventListener('refreshCustomerDetails', handleRefresh as EventListener);
     };
@@ -71,26 +71,25 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
 
   const fetchCustomerDetails = async () => {
     if (!customerId) return;
-    
-    console.log('🔍 Fetching customer details for ID:', customerId);
-    
+
+
+
     try {
       setLoading(true);
       const response = await apiService.getClient(customerId);
-      
+
       if (response.success && response.data) {
-        console.log('✅ Customer data fetched successfully:', response.data);
-        console.log('📊 Customer interests count:', response.data.customer_interests?.length || 0);
+
         setCustomer(response.data);
-        
+
         // Fetch real audit logs from the API
         try {
           const auditResponse = await apiService.getClientAuditLogs(customerId);
           if (auditResponse.success && auditResponse.data) {
-            const auditData = Array.isArray(auditResponse.data) 
-              ? auditResponse.data 
+            const auditData = Array.isArray(auditResponse.data)
+              ? auditResponse.data
               : (auditResponse.data as any)?.results || (auditResponse.data as any)?.data || [];
-            
+
             // Transform audit logs to match our interface
             const transformedLogs = auditData.map((log: any) => ({
               id: log.id.toString(),
@@ -108,7 +107,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             setAuditLogs(transformedLogs);
           }
         } catch (auditError) {
-          console.error('Error fetching audit logs:', auditError);
+
           // Fallback to mock data if audit logs fail
           setAuditLogs([
             {
@@ -122,7 +121,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
         }
       }
     } catch (error) {
-      console.error('Error fetching customer details:', error);
+
     } finally {
       setLoading(false);
     }
@@ -196,8 +195,8 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent 
-        className="w-[90vw] max-w-4xl max-h-[85vh] overflow-y-auto mx-4 px-2" 
+      <DialogContent
+        className="w-[90vw] max-w-4xl max-h-[85vh] overflow-y-auto mx-4 px-2"
         showCloseButton={false}
       >
         <DialogHeader className="text-left">
@@ -210,14 +209,14 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             </div>
             <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
               {customer.status === 'exhibition' && (
-                <Button 
-                  variant="default" 
-                  size="sm" 
+                <Button
+                  variant="default"
+                  size="sm"
                   className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2 bg-green-600 hover:bg-green-700 text-white"
                   onClick={async () => {
                     try {
                       const response = await apiService.promoteExhibitionLead(customer.id.toString());
-                      
+
                       if (response.success) {
                         // Refresh customer details
                         fetchCustomerDetails();
@@ -225,7 +224,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                         alert('Customer promoted to main customer database!');
                       }
                     } catch (error) {
-                      console.error('Error promoting customer:', error);
+
                       alert('Failed to promote customer');
                     }
                   }}
@@ -234,18 +233,18 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                   Promote to Main Customer
                 </Button>
               )}
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2"
                 onClick={() => onEdit(customer)}
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2"
                 onClick={fetchCustomerDetails}
                 disabled={loading}
@@ -254,9 +253,9 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                 {loading ? 'Refreshing...' : 'Refresh'}
               </Button>
               {canDeleteCustomers && (
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
+                <Button
+                  variant="destructive"
+                  size="sm"
                   className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2"
                   onClick={handleDelete}
                 >
@@ -264,9 +263,9 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                   Delete
                 </Button>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2 ml-2"
                 onClick={onClose}
               >
@@ -330,7 +329,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                     <div className="min-w-0 flex-1">
                       <p className="text-xs sm:text-sm text-gray-500 mb-1">Created By</p>
                       <p className="font-medium text-sm sm:text-base break-all">
-                        {customer.created_by ? 
+                        {customer.created_by ?
                           `${customer.created_by.first_name || ''} ${customer.created_by.last_name || ''}`.trim() || customer.created_by.username || 'Unknown User'
                           : 'System'
                         }
@@ -443,28 +442,22 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                         parsedInterest = interest;
                       }
                     } catch (e) {
-                      console.error('Error parsing interest:', e);
+
                       parsedInterest = interest;
                     }
 
-                    console.log(`🔍 Interest ${index + 1}:`, {
-                      original: interest,
-                      parsed: parsedInterest,
-                      category: parsedInterest.category || parsedInterest.mainCategory,
-                      products: parsedInterest.products,
-                      preferences: parsedInterest.preferences
-                    });
+
 
                     // Handle both old and new interest formats
                     const category = parsedInterest.category || parsedInterest.mainCategory || 'Not specified';
                     const products = parsedInterest.products || [];
                     const preferences = parsedInterest.preferences || {};
                     const revenue = parsedInterest.revenue || '0';
-                    
+
                     // Handle new backend format (single product per interest)
                     const singleProduct = parsedInterest.product;
                     const hasSingleProduct = singleProduct && (singleProduct.name || singleProduct);
-                    
+
                     // Determine if we should show single product or products array
                     const shouldShowSingleProduct = hasSingleProduct && (!products || products.length === 0);
                     const displayProducts = shouldShowSingleProduct ? [{ product: singleProduct, revenue: revenue }] : products;
@@ -480,13 +473,13 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                               parsedInterest.status === 'interested' ? 'bg-blue-100 text-blue-800 border-blue-200' :
                               'bg-gray-100 text-gray-800 border-gray-200'
                             }`}>
-                              {parsedInterest.status === 'closed_won' ? 'Closed Won' : 
-                               parsedInterest.status === 'negotiation' ? 'Under Negotiation' : 
+                              {parsedInterest.status === 'closed_won' ? 'Closed Won' :
+                               parsedInterest.status === 'negotiation' ? 'Under Negotiation' :
                                parsedInterest.status === 'interested' ? 'Interested' : 'Unknown'}
                             </span>
                           )}
                         </div>
-                            
+
                         {/* Product Summary - More Prominent Display */}
                         {displayProducts && displayProducts.length > 0 && (
                           <div className="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
@@ -494,10 +487,10 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                               <div>
                                 <p className="text-sm text-gray-600 mb-1">Product</p>
                                 <p className="font-semibold text-blue-800 text-lg break-words">
-                                  {typeof displayProducts[0]?.product === 'object' && displayProducts[0]?.product?.name 
-                                    ? displayProducts[0].product.name 
-                                    : typeof displayProducts[0]?.product === 'string' 
-                                      ? displayProducts[0].product 
+                                  {typeof displayProducts[0]?.product === 'object' && displayProducts[0]?.product?.name
+                                    ? displayProducts[0].product.name
+                                    : typeof displayProducts[0]?.product === 'string'
+                                      ? displayProducts[0].product
                                       : 'Product Name'}
                                 </p>
                               </div>
@@ -510,15 +503,15 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                             </div>
                           </div>
                         )}
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="p-3 bg-white rounded-lg border">
                             <p className="text-sm text-gray-500 mb-1">Category</p>
                             <p className="font-medium text-lg break-words">
-                              {typeof category === 'object' && category?.name 
-                                ? category.name 
-                                : typeof category === 'string' 
-                                  ? category 
+                              {typeof category === 'object' && category?.name
+                                ? category.name
+                                : typeof category === 'string'
+                                  ? category
                                   : 'Not specified'}
                             </p>
                           </div>
@@ -529,28 +522,23 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                             </p>
                           </div>
                         </div>
-                          
+
                         {/* Products Section */}
                         {displayProducts && displayProducts.length > 0 && (
                           <div>
                             <p className="text-sm text-gray-500 mb-2">Products</p>
                             <div className="space-y-2">
                               {displayProducts.map((product: any, pIndex: number) => {
-                                console.log(`🔍 Product ${pIndex + 1}:`, {
-                                  product,
-                                  productType: typeof product.product,
-                                  productName: product.product?.name || product.product,
-                                  revenue: product.revenue
-                                });
-                                
+
+
                                 return (
                                   <div key={pIndex} className="flex items-center gap-4 p-2 bg-gray-50 rounded">
                                     <div className="flex-1">
                                       <p className="font-medium">
-                                        {typeof product.product === 'object' && product.product?.name 
-                                          ? product.product.name 
-                                          : typeof product.product === 'string' 
-                                            ? product.product 
+                                        {typeof product.product === 'object' && product.product?.name
+                                          ? product.product.name
+                                          : typeof product.product === 'string'
+                                            ? product.product
                                             : 'Product'}
                                       </p>
                                     </div>
@@ -565,17 +553,17 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                             </div>
                           </div>
                         )}
-                        
+
                         {/* Debug info for products */}
                         {(!displayProducts || displayProducts.length === 0) && (
                           <div className="text-sm text-gray-500 italic">
-                            No products found in this interest. Debug: {JSON.stringify({ 
-                              products, 
+                            No products found in this interest. Debug: {JSON.stringify({
+                              products,
                               productsLength: products?.length,
                               singleProduct,
                               hasSingleProduct,
                               shouldShowSingleProduct,
-                              displayProducts 
+                              displayProducts
                             })}
                           </div>
                         )}
@@ -671,4 +659,4 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
       </DialogContent>
     </Dialog>
   );
-} 
+}

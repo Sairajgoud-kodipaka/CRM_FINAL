@@ -17,11 +17,11 @@ export default function SalesProductsPage() {
   const [importLoading, setImportLoading] = useState(false);
 
   // Use optimized fetch hook with caching
-  const { 
-    data: products = [], 
-    loading, 
-    error, 
-    refetch 
+  const {
+    data: products = [],
+    loading,
+    error,
+    refetch
   } = useOptimizedGet<Product[]>('/products/list/', {
     cacheKey: 'sales-products',
     cacheTTL: 5 * 60 * 1000, // 5 minutes
@@ -30,30 +30,30 @@ export default function SalesProductsPage() {
   // Filter products based on search term, category, and status
   const filteredProducts = React.useMemo(() => {
     let filtered = products || [];
-    
+
     if (searchTerm) {
-      filtered = filtered.filter(product => 
+      filtered = filtered.filter(product =>
         product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    
+
     if (categoryFilter) {
       filtered = filtered.filter(product => product.category?.toString() === categoryFilter);
     }
-    
+
     if (statusFilter) {
       filtered = filtered.filter(product => product.status === statusFilter);
     }
-    
+
     return filtered;
   }, [products, searchTerm, categoryFilter, statusFilter]);
 
   // Handle import functionality
   const handleImport = async (file: File) => {
     // Import logic here
-    console.log('Importing file:', file.name);
+
   };
 
   const formatCurrency = (amount: number) => {
@@ -84,13 +84,13 @@ export default function SalesProductsPage() {
 
   const handleAddToCart = (product: Product) => {
     // This would integrate with a cart system
-    console.log('Adding to cart:', product);
+
     // In a real implementation, this would add to a cart state or send to backend
   };
 
   const handleViewProduct = (product: Product) => {
     // This would navigate to product detail page
-    console.log('Viewing product:', product);
+
     // In a real implementation, this would navigate to product detail
   };
 
@@ -132,7 +132,7 @@ export default function SalesProductsPage() {
     const csvContent = [
       'name,sku,category,selling_price,cost_price,quantity,description',
       '# Note: quantity is optional (defaults to 0 if not provided)',
-      ...template.map(item => 
+      ...template.map(item =>
         `${item.name},${item.sku},${item.category},${item.selling_price},${item.cost_price},${item.quantity},"${item.description}"`
       )
     ].join('\n');
@@ -152,19 +152,19 @@ export default function SalesProductsPage() {
 
     try {
       setImportLoading(true);
-      console.log('📁 File selected:', file.name, file.size, file.type);
-      
+
+
       const formData = new FormData();
       formData.append('file', file);
-      
-      console.log('📦 FormData created, entries:');
+
+
       for (const [key, value] of formData.entries()) {
-        console.log(`  ${key}:`, value);
+
       }
 
       // TODO: Implement import functionality
       const response = { success: true, message: 'Import successful' };
-      
+
       if (response.success) {
         alert('Products imported successfully!');
         setShowImportModal(false);
@@ -173,7 +173,7 @@ export default function SalesProductsPage() {
         alert('Import failed: ' + (response.message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Import error:', error);
+
       alert('Import failed: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setImportLoading(false);
@@ -198,14 +198,14 @@ export default function SalesProductsPage() {
         <h1 className="text-2xl font-semibold text-text-primary">Product Catalog</h1>
         <p className="text-text-secondary mt-1">Access the product catalog for recommendations</p>
       </div>
-      
+
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
           <div className="flex flex-col sm:flex-row gap-2 flex-1">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input 
-                placeholder="Search by product name, SKU, or description..." 
+              <Input
+                placeholder="Search by product name, SKU, or description..."
                 className="pl-10 w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -223,7 +223,7 @@ export default function SalesProductsPage() {
               <option value="out_of_stock">Out of Stock</option>
             </select>
           </div>
-          
+
           {/* Import/Export Buttons */}
           <div className="flex gap-2">
             <Button
@@ -246,7 +246,7 @@ export default function SalesProductsPage() {
             </Button>
           </div>
         </div>
-        
+
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
@@ -299,17 +299,17 @@ export default function SalesProductsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-blue-600 hover:text-blue-800"
                           onClick={() => handleViewProduct(product)}
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-green-600 hover:text-green-800"
                           onClick={() => handleAddToCart(product)}
                           disabled={!product.is_in_stock}
@@ -330,7 +330,7 @@ export default function SalesProductsPage() {
             </tbody>
           </table>
         </div>
-        
+
         {filteredProducts.length > 0 && (
           <div className="text-sm text-text-secondary text-center py-2">
                             Showing {filteredProducts.length} of {products?.length || 0} products
@@ -343,7 +343,7 @@ export default function SalesProductsPage() {
         <div className="fixed inset-0 bg-opacity-20 backdrop-blur-lg flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-2xl">
             <h3 className="text-lg font-semibold mb-4">Import Products</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600 mb-2">

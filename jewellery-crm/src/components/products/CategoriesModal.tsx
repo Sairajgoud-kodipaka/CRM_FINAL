@@ -55,7 +55,7 @@ export default function CategoriesModal({ isOpen, onClose, onSuccess }: Categori
         setCategories(Array.isArray(data) ? data : data.results || []);
       }
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+
       setError('Failed to load categories');
     } finally {
       setLoading(false);
@@ -88,7 +88,7 @@ export default function CategoriesModal({ isOpen, onClose, onSuccess }: Categori
         setError(response.message || `Failed to ${editingCategory ? 'update' : 'create'} category`);
       }
     } catch (error) {
-      console.error(`Failed to ${editingCategory ? 'update' : 'create'} category:`, error);
+
       setError(`Failed to ${editingCategory ? 'update' : 'create'} category. Please try again.`);
     } finally {
       setLoading(false);
@@ -117,7 +117,7 @@ export default function CategoriesModal({ isOpen, onClose, onSuccess }: Categori
         setError(response.message || 'Failed to delete category');
       }
     } catch (error) {
-      console.error('Failed to delete category:', error);
+
       setError('Failed to delete category. Please try again.');
     } finally {
       setLoading(false);
@@ -284,4 +284,4 @@ export default function CategoriesModal({ isOpen, onClose, onSuccess }: Categori
       </div>
     </div>
   );
-} 
+}

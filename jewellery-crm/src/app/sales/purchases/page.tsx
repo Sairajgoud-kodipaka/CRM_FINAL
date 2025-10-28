@@ -71,11 +71,11 @@ export default function SalesPurchasesPage() {
   const fetchPurchases = async () => {
     try {
       const response = await apiService.getPurchases();
-      console.log("Purchases API response:", response);
-      
+
+
       // Handle different response formats with proper typing
       let purchasesData: any[] = [];
-      
+
       if (response && typeof response === 'object') {
         if (response.success && response.data) {
           if (Array.isArray(response.data)) {
@@ -96,30 +96,30 @@ export default function SalesPurchasesPage() {
           purchasesData = (response.data as any).results;
         }
       }
-      
+
       if (purchasesData && Array.isArray(purchasesData)) {
         // Ensure data integrity by filtering out items with missing required properties
-        const validPurchases = purchasesData.filter((purchase: any) => 
-          purchase && 
-          purchase.client && 
-          purchase.client.full_name && 
+        const validPurchases = purchasesData.filter((purchase: any) =>
+          purchase &&
+          purchase.client &&
+          purchase.client.full_name &&
           purchase.client.full_name.trim() !== '' &&
-          purchase.product_name && 
+          purchase.product_name &&
           purchase.product_name.trim() !== ''
         );
-        
+
         // Remove duplicates based on client ID and product name
-        const uniquePurchases = validPurchases.filter((purchase: any, index: number, self: any[]) => 
-          index === self.findIndex((p: any) => 
-            p.client.id === purchase.client.id && 
+        const uniquePurchases = validPurchases.filter((purchase: any, index: number, self: any[]) =>
+          index === self.findIndex((p: any) =>
+            p.client.id === purchase.client.id &&
             p.product_name === purchase.product_name
           )
         );
-        
-        console.log("Valid unique purchases data:", uniquePurchases);
+
+
         setPurchases(uniquePurchases);
       } else {
-        console.error("Invalid purchases response format:", response);
+
         setPurchases([]);
         toast({
           title: "Warning",
@@ -128,7 +128,7 @@ export default function SalesPurchasesPage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching purchases:", error);
+
       setPurchases([]);
       toast({
         title: "Error",
@@ -141,11 +141,11 @@ export default function SalesPurchasesPage() {
   const fetchClosedWonDeals = async () => {
     try {
       const response = await apiService.getSalesPipelines();
-      console.log("Sales pipelines API response:", response);
-      
+
+
       // Handle different response formats with proper typing
       let salesData: any[] = [];
-      
+
       if (response && typeof response === 'object') {
         if (response.success && response.data) {
           if (Array.isArray(response.data)) {
@@ -166,34 +166,34 @@ export default function SalesPurchasesPage() {
           salesData = (response.data as any).results;
         }
       }
-      
+
       if (salesData && Array.isArray(salesData)) {
-        console.log("Sales pipelines data:", salesData);
+
         // Ensure data integrity by filtering out items with missing required properties
-        const validSalesData = salesData.filter((deal: any) => 
-          deal && 
-          deal.client && 
-          deal.client.full_name && 
+        const validSalesData = salesData.filter((deal: any) =>
+          deal &&
+          deal.client &&
+          deal.client.full_name &&
           deal.client.full_name.trim() !== '' &&
-          deal.title && 
+          deal.title &&
           deal.title.trim() !== ''
         );
-        
+
         // Remove duplicates based on client ID and deal title
-        const uniqueSalesData = validSalesData.filter((deal: any, index: number, self: any[]) => 
-          index === self.findIndex((d: any) => 
-            d.client.id === deal.client.id && 
+        const uniqueSalesData = validSalesData.filter((deal: any, index: number, self: any[]) =>
+          index === self.findIndex((d: any) =>
+            d.client.id === deal.client.id &&
             d.title === deal.title
           )
         );
-        
+
         const closedWon = uniqueSalesData.filter(
           (deal: any) => deal.stage === "closed_won"
         );
-        console.log("Closed won deals:", closedWon);
+
         setClosedWonDeals(closedWon as SalesPipeline[]);
       } else {
-        console.error("Invalid sales pipelines response format:", response);
+
         setClosedWonDeals([]);
         toast({
           title: "Warning",
@@ -202,7 +202,7 @@ export default function SalesPurchasesPage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching closed won deals:", error);
+
       toast({
         title: "Error",
         description: "Failed to fetch sales pipeline data",
@@ -249,18 +249,18 @@ export default function SalesPurchasesPage() {
     if (!item || !item.client || !item.client.full_name || !item.client.id) {
       return false;
     }
-    
+
     // Safe property access with null checks
     const clientName = item.client.full_name.trim();
     const productName = (item as any).product_name?.trim() || '';
     const dealTitle = (item as SalesPipeline).title?.trim() || '';
-    
+
     // Skip items with empty names
     if (clientName === '' || clientName === 'Unknown Customer') {
       return false;
     }
-    
-    const matchesSearch = 
+
+    const matchesSearch =
       clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dealTitle.toLowerCase().includes(searchTerm.toLowerCase());
@@ -268,14 +268,14 @@ export default function SalesPurchasesPage() {
     if (filterStatus === "all") return matchesSearch;
     if (filterStatus === "purchases") return "product_name" in item && matchesSearch;
     if (filterStatus === "deals") return "stage" in item && matchesSearch;
-    
+
     return matchesSearch;
   });
 
   // Remove duplicates from the final filtered data
-  const uniqueFilteredData = filteredData.filter((item, index, self) => 
-    index === self.findIndex((i) => 
-      i.client.id === item.client.id && 
+  const uniqueFilteredData = filteredData.filter((item, index, self) =>
+    index === self.findIndex((i) =>
+      i.client.id === item.client.id &&
       (("product_name" in item && "product_name" in i && (item as any).product_name === (i as any).product_name) ||
        ("title" in item && "title" in i && (item as SalesPipeline).title === (i as SalesPipeline).title))
     )
@@ -343,8 +343,8 @@ export default function SalesPurchasesPage() {
           </p>
         </div>
         <div className="flex-shrink-0">
-          <Button 
-            onClick={exportToCSV} 
+          <Button
+            onClick={exportToCSV}
             className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
             size="sm"
           >
@@ -385,7 +385,7 @@ export default function SalesPurchasesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
-              {[...purchases, ...closedWonDeals].filter(item => 
+              {[...purchases, ...closedWonDeals].filter(item =>
                 item.client.created_by?.id === user?.id
               ).length}
             </div>
@@ -451,9 +451,9 @@ export default function SalesPurchasesPage() {
           sortedData.map((item, index) => {
             // Check if this customer belongs to the current user
             const isCurrentUserCustomer = item.client.created_by?.id === user?.id;
-            
+
             return (
-              <Card 
+              <Card
                 key={`${"product_name" in item ? "purchase" : "deal"}-${item.id}`}
                 className={`${isCurrentUserCustomer ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
               >
@@ -506,7 +506,7 @@ export default function SalesPurchasesPage() {
 
                         {item.notes && (
                           <div className="mt-3 text-sm text-gray-600">
-                            <span className="font-medium">Notes:</span> 
+                            <span className="font-medium">Notes:</span>
                             <span className="break-words"> {item.notes}</span>
                           </div>
                         )}

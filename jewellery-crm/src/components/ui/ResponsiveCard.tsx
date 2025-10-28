@@ -1,11 +1,11 @@
 /**
  * ResponsiveCard Component
- * 
+ *
  * A responsive card component that adapts to different screen sizes:
  * - Mobile (≤768px): Optimized padding and spacing
  * - Tablet (768px-1024px): Medium padding and spacing
  * - Desktop (≥1024px): Full padding and spacing
- * 
+ *
  * Features:
  * - Device-aware sizing
  * - Touch-optimized interactions
@@ -85,7 +85,7 @@ export function ResponsiveCard({
           return 'p-3';
       }
     }
-    
+
     if (isTablet) {
       switch (size) {
         case 'sm':
@@ -98,7 +98,7 @@ export function ResponsiveCard({
           return 'p-5';
       }
     }
-    
+
     // Desktop
     switch (size) {
       case 'sm':

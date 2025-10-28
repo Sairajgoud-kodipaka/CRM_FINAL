@@ -6,11 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Users, 
-  TrendingUp, 
-  DollarSign, 
-  Target, 
+import {
+  Users,
+  TrendingUp,
+  DollarSign,
+  Target,
   Calendar,
   Activity,
   Trophy,
@@ -82,7 +82,7 @@ export default function SalesTeamPage() {
         setError(response.message || 'Failed to fetch team performance');
       }
     } catch (error) {
-      console.error('Error fetching team performance:', error);
+
       setError('Failed to fetch team performance');
     } finally {
       setLoading(false);
@@ -183,7 +183,7 @@ export default function SalesTeamPage() {
           </CardContent>
         </Card>
 
-       
+
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -224,8 +224,8 @@ export default function SalesTeamPage() {
           {/* Team Members Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {teamPerformance.performance_data.map((member) => (
-              <Card 
-                key={member.user_id} 
+              <Card
+                key={member.user_id}
                 className="cursor-pointer hover:shadow-lg transition-shadow"
                 onClick={() => setSelectedSalesPerson(member)}
               >
@@ -245,8 +245,8 @@ export default function SalesTeamPage() {
                         </CardDescription>
                       </div>
                     </div>
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className={getOnlineStatusColor(member.is_online)}
                     >
                       {member.is_online ? 'Online' : 'Offline'}
@@ -273,8 +273,8 @@ export default function SalesTeamPage() {
 
                   {/* Performance Score */}
                   <div className="text-center">
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className={`${getPerformanceColor(member.performance_score)} px-3 py-1`}
                     >
                       <Trophy className="w-3 h-3 mr-1" />
@@ -324,7 +324,7 @@ export default function SalesTeamPage() {
                           <div className="flex items-center">
                             {index < 3 && (
                               <Trophy className={`w-4 h-4 mr-2 ${
-                                index === 0 ? 'text-yellow-500' : 
+                                index === 0 ? 'text-yellow-500' :
                                 index === 1 ? 'text-gray-400' : 'text-orange-500'
                               }`} />
                             )}
@@ -368,10 +368,10 @@ export default function SalesTeamPage() {
                   {teamPerformance.performance_data
                     .sort((a, b) => b.total_revenue - a.total_revenue)
                     .map((member) => {
-                      const percentage = teamPerformance.summary.total_revenue > 0 
-                        ? (member.total_revenue / teamPerformance.summary.total_revenue) * 100 
+                      const percentage = teamPerformance.summary.total_revenue > 0
+                        ? (member.total_revenue / teamPerformance.summary.total_revenue) * 100
                         : 0;
-                      
+
                       return (
                         <div key={member.user_id} className="space-y-2">
                           <div className="flex justify-between text-sm">
@@ -381,7 +381,7 @@ export default function SalesTeamPage() {
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
+                            <div
                               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                               style={{ width: `${percentage}%` }}
                             ></div>
@@ -469,7 +469,7 @@ function SalesPersonDetailModal({ salesPerson, onClose }: SalesPersonDetailModal
         setDetailedProfile(response.data);
       }
     } catch (error) {
-      console.error('Error fetching detailed profile:', error);
+
     } finally {
       setLoading(false);
     }
@@ -546,7 +546,7 @@ function SalesPersonDetailModal({ salesPerson, onClose }: SalesPersonDetailModal
                   </CardContent>
                 </Card>
 
-                
+
 
                 <Card>
                   <CardHeader className="pb-2">
@@ -599,7 +599,7 @@ function SalesPersonDetailModal({ salesPerson, onClose }: SalesPersonDetailModal
                               {new Date(activity.date).toLocaleDateString()}
                             </div>
                           </div>
-                          
+
                         </div>
                       ))}
                     </div>

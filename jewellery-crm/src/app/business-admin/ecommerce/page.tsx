@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  ShoppingBag, 
-  Package, 
-  TrendingUp, 
-  Users, 
+import {
+  ShoppingBag,
+  Package,
+  TrendingUp,
+  Users,
   DollarSign,
   Plus,
   Search,
@@ -19,15 +19,15 @@ import {
   Trash2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -139,7 +139,7 @@ export default function EcommercePage() {
       delivered: { color: 'bg-green-100 text-green-800', text: 'Delivered' },
       cancelled: { color: 'bg-red-100 text-red-800', text: 'Cancelled' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig];
     return (
       <Badge className={config.color}>
@@ -170,7 +170,7 @@ export default function EcommercePage() {
             <p className="text-xs text-muted-foreground">+20.1% from last month</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
@@ -181,7 +181,7 @@ export default function EcommercePage() {
             <p className="text-xs text-muted-foreground">+180.1% from last month</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Products</CardTitle>
@@ -192,7 +192,7 @@ export default function EcommercePage() {
             <p className="text-xs text-muted-foreground">+19% from last month</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
@@ -366,7 +366,7 @@ export default function EcommercePage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Top Products</CardTitle>
@@ -396,5 +396,5 @@ export default function EcommercePage() {
     </div>
   );
 }
- 
- 
+
+

@@ -79,7 +79,7 @@ export default function ManagerEscalationsPage() {
         category: filters.category && filters.category !== 'all' ? filters.category : undefined,
         search: filters.search || undefined,
       });
-      
+
       if (response.success) {
         const data = response.data as any;
         if (Array.isArray(data)) {
@@ -93,7 +93,7 @@ export default function ManagerEscalationsPage() {
         setEscalations([]);
       }
     } catch (error) {
-      console.error('Error fetching escalations:', error);
+
       setEscalations([]);
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ export default function ManagerEscalationsPage() {
         setStats(response.data);
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+
     }
   };
 
@@ -135,7 +135,7 @@ export default function ManagerEscalationsPage() {
         });
       }
     } catch (error) {
-      console.error('Error updating escalation status:', error);
+
       toast({
         title: "Error",
         description: "Failed to update escalation status",
@@ -163,7 +163,7 @@ export default function ManagerEscalationsPage() {
         });
       }
     } catch (error) {
-      console.error('Error assigning escalation:', error);
+
       toast({
         title: "Error",
         description: "Failed to assign escalation",
@@ -240,7 +240,7 @@ export default function ManagerEscalationsPage() {
     const now = new Date();
     const date = new Date(dateString);
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) {
       return 'Just now';
     } else if (diffInHours < 24) {
@@ -420,7 +420,7 @@ export default function ManagerEscalationsPage() {
       {/* Escalations Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {escalations.map((escalation) => (
-          <Card 
+          <Card
             key={escalation.id}
             className={`transition-all duration-200 hover:shadow-lg ${
               escalation.is_overdue ? 'border-l-4 border-l-red-500' : ''
@@ -454,12 +454,12 @@ export default function ManagerEscalationsPage() {
                 </span>
               </div>
             </CardHeader>
-            
+
             <CardContent className="pt-0">
               <p className="text-sm text-text-secondary line-clamp-3 mb-3">
                 {escalation.description}
               </p>
-              
+
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-text-secondary">Category:</span>
@@ -569,4 +569,4 @@ export default function ManagerEscalationsPage() {
       )}
     </div>
   );
-} 
+}

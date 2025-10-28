@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Package, Plus, Eye, Edit, Trash2, IndianRupee, AlertTriangle, Store, Tag, TrendingUp, Upload, Download } from 'lucide-react';
 import { apiService, Product, StockTransfer } from '@/lib/api-service';
 import AuthGuard from '@/components/auth/AuthGuard';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -85,7 +85,7 @@ export default function ManagerProductsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch products with scope filter
       const productsResponse = await apiService.getProducts({
         search: searchTerm || undefined,
@@ -93,7 +93,7 @@ export default function ManagerProductsPage() {
         status: statusFilter === 'all' ? undefined : statusFilter,
         scope: scopeFilter === 'all' ? undefined : scopeFilter,
       });
-      
+
       if (productsResponse.success && productsResponse.data) {
         let productsData: Product[] = [];
         if (Array.isArray(productsResponse.data)) {
@@ -107,9 +107,9 @@ export default function ManagerProductsPage() {
           }
         }
         setProducts(productsData);
-        console.log(`Loaded ${productsData.length} products`);
+
       } else {
-        console.warn('Products response is not valid:', productsResponse.data);
+
         setProducts([]);
       }
 
@@ -117,7 +117,7 @@ export default function ManagerProductsPage() {
       const categoriesResponse = await apiService.getCategories({
         scope: scopeFilter === 'all' ? undefined : scopeFilter,
       });
-      
+
       if (categoriesResponse.success && categoriesResponse.data) {
         let categoriesData: Category[] = [];
         if (Array.isArray(categoriesResponse.data)) {
@@ -156,7 +156,7 @@ export default function ManagerProductsPage() {
         setStats(statsResponse.data);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+
       setProducts([]);
       setCategories([]);
       setInventory([]);
@@ -172,7 +172,7 @@ export default function ManagerProductsPage() {
     const matchesCategory = categoryFilter === 'all' || product.category?.toString() === categoryFilter;
     const matchesStatus = statusFilter === 'all' || product.status === statusFilter;
     const matchesScope = scopeFilter === 'all' || product.scope === scopeFilter;
-    
+
     return matchesSearch && matchesCategory && matchesStatus && matchesScope;
   }) : [];
 
@@ -213,8 +213,8 @@ export default function ManagerProductsPage() {
   const exportStockTransfers = async () => {
     try {
       setExporting(true);
-      console.log('Starting export of stock transfers...');
-      
+
+
       // First, test if the backend is accessible
       try {
         const testResponse = await fetch(`${config.API_BASE_URL}/products/transfers/`, {
@@ -223,24 +223,24 @@ export default function ManagerProductsPage() {
             'Content-Type': 'application/json',
           },
         });
-        console.log('Test response status:', testResponse.status);
-        
+
+
         if (!testResponse.ok) {
           throw new Error(`Backend responded with status: ${testResponse.status}`);
         }
       } catch (testError) {
-        console.error('Backend connection test failed:', testError);
+
         alert('Cannot connect to backend server. Please ensure the Django backend is running on port 8000.');
         return;
       }
-      
+
       // Use the existing API service to fetch stock transfer data
       const response = await apiService.getStockTransfers();
-      console.log('Export response:', response);
-      
+
+
       if (response.success && response.data) {
         let transfers: StockTransfer[] = [];
-        
+
         // Handle different response formats
         if (Array.isArray(response.data)) {
           transfers = response.data;
@@ -255,45 +255,45 @@ export default function ManagerProductsPage() {
             transfers = data.data;
           }
         }
-        
-        console.log('Number of transfers found:', transfers.length);
-        
+
+
+
         if (transfers.length === 0) {
           alert('No stock transfers found to export.');
           return;
         }
-        
+
         // Convert to CSV format
         const csvContent = convertTransfersToCSV(transfers);
-        console.log('CSV content length:', csvContent.length);
-        
+
+
         // Create and download file
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        console.log('Blob created:', blob.size, 'bytes');
-        
+
+
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
         link.setAttribute('download', `stock_transfers_${new Date().toISOString().split('T')[0]}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
-        
-        console.log('Downloading file...');
+
+
         link.click();
-        
+
         // Cleanup
         setTimeout(() => {
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
         }, 100);
-        
-        console.log('Export completed successfully');
+
+
       } else {
-        console.error('Failed to fetch transfers:', response);
+
         alert('Failed to fetch transfer data. Please check the console for details.');
       }
     } catch (error) {
-      console.error('Error exporting stock transfers:', error);
+
       alert('Error exporting transfers. Please check the console for details.');
     } finally {
       setExporting(false);
@@ -302,11 +302,11 @@ export default function ManagerProductsPage() {
 
   const convertTransfersToCSV = (transfers: StockTransfer[]) => {
     if (transfers.length === 0) return 'No transfers found';
-    
+
     const headers = [
       'ID',
       'From Store',
-      'To Store', 
+      'To Store',
       'Product Name',
       'Product SKU',
       'Quantity',
@@ -319,9 +319,9 @@ export default function ManagerProductsPage() {
       'Created At',
       'Updated At'
     ];
-    
+
     const csvRows = [headers.join(',')];
-    
+
     transfers.forEach(transfer => {
       const row = [
         transfer.id,
@@ -341,7 +341,7 @@ export default function ManagerProductsPage() {
       ];
       csvRows.push(row.join(','));
     });
-    
+
     return csvRows.join('\n');
   };
 
@@ -358,26 +358,26 @@ export default function ManagerProductsPage() {
   };
 
   const statsCards = [
-    { 
-      label: 'Total Products', 
+    {
+      label: 'Total Products',
       value: stats.total_products || 0,
       sub: 'All products in inventory',
       icon: Package
     },
-    { 
-      label: 'Low Stock', 
+    {
+      label: 'Low Stock',
       value: stats.low_stock || 0,
       sub: 'Products below minimum',
       icon: AlertTriangle
     },
-    { 
-      label: 'Categories', 
+    {
+      label: 'Categories',
       value: categories.length,
       sub: 'Product categories',
       icon: Tag
     },
-    { 
-      label: 'Total Value', 
+    {
+      label: 'Total Value',
       value: formatCurrency(stats.total_value || 0),
       sub: 'Inventory value',
       icon: IndianRupee
@@ -408,8 +408,8 @@ export default function ManagerProductsPage() {
               <Package className="w-4 h-4 mr-2" />
               Transfers
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={exportStockTransfers}
               disabled={exporting}
             >
@@ -452,7 +452,7 @@ export default function ManagerProductsPage() {
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
-                <Input 
+                <Input
                   placeholder="Search products..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -520,7 +520,7 @@ export default function ManagerProductsPage() {
                       <Package className="w-12 h-12 text-muted-foreground" />
                     </div>
                   )}
-                  
+
                   {/* Scope Badge */}
                   <div className="absolute top-2 left-2">
                     <Badge variant={getScopeBadgeVariant(product.scope)} className="text-xs">
@@ -544,7 +544,7 @@ export default function ManagerProductsPage() {
                       {product.name}
                     </h3>
                     <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
-                    
+
                     {product.category_name && (
                       <p className="text-sm text-muted-foreground">
                         Category: {product.category_name}
@@ -581,7 +581,7 @@ export default function ManagerProductsPage() {
                           <Badge variant="secondary" className="text-xs">Best Seller</Badge>
                         )}
                       </div>
-                      
+
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
@@ -687,4 +687,4 @@ export default function ManagerProductsPage() {
       </div>
     </AuthGuard>
   );
-} 
+}

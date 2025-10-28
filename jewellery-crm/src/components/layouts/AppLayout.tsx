@@ -1,9 +1,9 @@
 /**
  * Main Application Layout Component
- * 
+ *
  * This component provides the overall layout structure for the CRM application,
  * featuring a HubSpot-inspired design with a dark navy sidebar and main content area.
- * 
+ *
  * Key Features:
  * - Responsive design that adapts to mobile and desktop
  * - Fixed sidebar navigation
@@ -29,10 +29,10 @@ interface AppLayoutProps {
 
 /**
  * AppLayout Component
- * 
+ *
  * Provides the main layout structure with sidebar navigation and content area.
  * Automatically handles responsive behavior and mobile navigation.
- * 
+ *
  * @param children - The main content to render
  * @param className - Additional CSS classes
  */
@@ -51,7 +51,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
   return (
     <div className={cn('h-screen bg-background overflow-hidden', className)}>
       {/* Sidebar */}
-      <Sidebar 
+      <Sidebar
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
       />
@@ -62,7 +62,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
         'lg:ml-60' // Desktop: margin for fixed sidebar
       )}>
         {/* Header */}
-        <Header 
+        <Header
           onSidebarToggle={toggleSidebar}
           showSidebarToggle={isMobile || isTablet}
         />
@@ -90,7 +90,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
 
 /**
  * Dashboard Layout Wrapper
- * 
+ *
  * A specialized layout for dashboard pages with consistent spacing and styling.
  */
 interface DashboardLayoutProps {
@@ -101,12 +101,12 @@ interface DashboardLayoutProps {
   className?: string;
 }
 
-export function DashboardLayout({ 
-  children, 
-  title, 
-  subtitle, 
+export function DashboardLayout({
+  children,
+  title,
+  subtitle,
   actions,
-  className 
+  className
 }: DashboardLayoutProps) {
   return (
     <div className={cn('space-y-6', className)}>
@@ -145,7 +145,7 @@ export function DashboardLayout({
 
 /**
  * Container Component
- * 
+ *
  * Provides consistent spacing and max-width for content sections.
  */
 interface ContainerProps {
@@ -154,10 +154,10 @@ interface ContainerProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
 }
 
-export function Container({ 
-  children, 
-  className, 
-  size = 'full' 
+export function Container({
+  children,
+  className,
+  size = 'full'
 }: ContainerProps) {
   const sizeClasses = {
     sm: 'max-w-2xl',
@@ -180,7 +180,7 @@ export function Container({
 
 /**
  * Card Container Component
- * 
+ *
  * A reusable card component following HubSpot design patterns.
  */
 interface CardContainerProps {
@@ -192,8 +192,8 @@ interface CardContainerProps {
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
-export function CardContainer({ 
-  children, 
+export function CardContainer({
+  children,
   className,
   title,
   subtitle,
@@ -250,7 +250,7 @@ export function CardContainer({
 
 /**
  * Page Loading Component
- * 
+ *
  * Displays a loading state with skeleton UI elements.
  */
 export function PageLoading() {
@@ -277,7 +277,7 @@ export function PageLoading() {
 
 /**
  * Empty State Component
- * 
+ *
  * Displays when there's no data to show.
  */
 interface EmptyStateProps {
@@ -288,12 +288,12 @@ interface EmptyStateProps {
   className?: string;
 }
 
-export function EmptyState({ 
-  title, 
-  description, 
-  icon, 
+export function EmptyState({
+  title,
+  description,
+  icon,
   action,
-  className 
+  className
 }: EmptyStateProps) {
   return (
     <div className={cn(

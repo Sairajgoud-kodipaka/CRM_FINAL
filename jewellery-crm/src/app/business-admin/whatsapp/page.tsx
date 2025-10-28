@@ -11,10 +11,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  MessageSquare, 
-  Send, 
-  Users, 
+import {
+  MessageSquare,
+  Send,
+  Users,
   Smartphone,
   CheckCircle,
   XCircle,
@@ -66,7 +66,7 @@ export default function WhatsAppPage() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   // Customer import state
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
@@ -74,13 +74,13 @@ export default function WhatsAppPage() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomers, setSelectedCustomers] = useState<Customer[]>([]);
   const [modalType, setModalType] = useState<'single' | 'bulk'>('single');
-  
+
   // Single message form
   const [singleMessage, setSingleMessage] = useState({
     phone: '',
     message: ''
   });
-  
+
   // Bulk message form
   const [bulkMessage, setBulkMessage] = useState({
     phones: '',
@@ -88,7 +88,7 @@ export default function WhatsAppPage() {
     template_type: '',
     template_data: {}
   });
-  
+
   const [selectedTemplate, setSelectedTemplate] = useState<string>('custom');
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
 
@@ -301,7 +301,7 @@ Create memories that last forever! 💕
       const response = await apiService.getWhatsAppTemplates();
       setTemplates(response.data);
     } catch (err) {
-      console.error('Error fetching templates:', err);
+
     }
   };
 
@@ -345,14 +345,14 @@ Create memories that last forever! 💕
     try {
       setBulkLoading(true);
       const phoneList = bulkMessage.phones.split('\n').filter(phone => phone.trim());
-      
+
       const response = await apiService.sendBulkWhatsAppMessages({
         recipients: phoneList,
         message: bulkMessage.message,
         template_type: bulkMessage.template_type,
         template_data: bulkMessage.template_data
       });
-      
+
       setSuccess(`Bulk campaign completed! Sent: ${(response.data as { sent_count?: number; failed_count?: number })?.sent_count || 0}, Failed: ${(response.data as { sent_count?: number; failed_count?: number })?.failed_count || 0}`);
       setBulkMessage({ phones: '', message: '', template_type: '', template_data: {} });
     } catch (err: Error | unknown) {
@@ -431,7 +431,7 @@ Create memories that last forever! 💕
       }
     } catch (error) {
       setError('Error fetching customers');
-      console.error('Error fetching customers:', error);
+
     } finally {
       setCustomersLoading(false);
     }
@@ -481,7 +481,7 @@ Create memories that last forever! 💕
       .filter(c => c.phone)
       .map(c => c.phone)
       .join('\n');
-    
+
     setBulkMessage(prev => ({ ...prev, phones: phoneNumbers }));
     setShowCustomerModal(false);
     setSuccess(`Imported ${selectedCustomers.length} phone numbers`);
@@ -555,7 +555,7 @@ Create memories that last forever! 💕
                 </div>
                 {whatsappStatus && getStatusBadge(whatsappStatus.status)}
               </div>
-              
+
               {whatsappStatus?.me && (
                 <div className="p-4 bg-green-50 rounded-lg">
                   <div className="flex items-center gap-2">
@@ -567,7 +567,7 @@ Create memories that last forever! 💕
                   </div>
                 </div>
               )}
-              
+
               {whatsappStatus?.status === 'SCAN_QR_CODE' && (
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <div className="flex items-center gap-2">
@@ -581,7 +581,7 @@ Create memories that last forever! 💕
                   </div>
                 </div>
               )}
-              
+
               {(!whatsappStatus || whatsappStatus.status === 'NOT_FOUND') && (
                 <Button onClick={startWhatsAppSession} disabled={loading}>
                   <PlayCircle className="w-4 h-4 mr-2" />
@@ -638,7 +638,7 @@ Create memories that last forever! 💕
                     Include country code (e.g., +91 for India) or import from existing customers
                   </p>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="message">Message</Label>
                   <Textarea
@@ -650,7 +650,7 @@ Create memories that last forever! 💕
                     required
                   />
                 </div>
-                
+
                 <Button type="submit" disabled={sendLoading}>
                   {sendLoading ? (
                     <>
@@ -711,7 +711,7 @@ Create memories that last forever! 💕
                     </p>
                   </div>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="template-select">Message Template (Optional)</Label>
                   <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
@@ -738,7 +738,7 @@ Create memories that last forever! 💕
                     </div>
                   )}
                 </div>
-                
+
                 <div>
                   <Label htmlFor="bulk-message">Message</Label>
                   <Textarea
@@ -753,7 +753,7 @@ Create memories that last forever! 💕
                     Use {'{'}customer_name{'}'}, {'{'}store_name{'}'}, etc. for personalization
                   </p>
                 </div>
-                
+
                 <Button type="submit" disabled={bulkLoading}>
                   {bulkLoading ? (
                     <>
@@ -792,18 +792,18 @@ Create memories that last forever! 💕
                   </div>
                   {getCategoryBadge(template.category)}
                 </div>
-                
+
                 <div className="text-xs text-gray-500">
                   <strong>Variables:</strong> {template.fields.map(field => `{'{'}${field}{'}'}`).join(', ')}
                 </div>
-                
+
                 <div className="bg-gray-50 p-3 rounded text-sm">
                   <div className="font-medium text-gray-700 mb-2">Template Preview:</div>
                   <div className="whitespace-pre-wrap text-gray-600 text-xs leading-relaxed max-h-32 overflow-y-auto">
                     {template.template}
                   </div>
                 </div>
-                
+
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -827,7 +827,7 @@ Create memories that last forever! 💕
               </div>
             ))}
           </div>
-          
+
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <h4 className="font-medium text-blue-800 mb-2">💡 Template Usage Tips</h4>
             <ul className="text-sm text-blue-700 space-y-1">

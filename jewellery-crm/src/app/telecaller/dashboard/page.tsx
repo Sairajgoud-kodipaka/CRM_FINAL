@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  TrendingUp, Users, Percent, Phone, AlertCircle, 
+import {
+  TrendingUp, Users, Percent, Phone, AlertCircle,
   Calendar, Clock, Target, BarChart3, Activity, CheckCircle,
   AlertTriangle, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react';
@@ -14,18 +14,18 @@ import { telecallingApiService, TelecallerDashboard } from '@/services/telecalli
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
-const StatCard = ({ 
-  label, 
-  value, 
-  icon: Icon, 
-  trend, 
+const StatCard = ({
+  label,
+  value,
+  icon: Icon,
+  trend,
   isLoading,
   subtitle,
   color = "blue"
-}: { 
-  label: string; 
-  value: number | string; 
-  icon: React.ComponentType<{ className?: string }>; 
+}: {
+  label: string;
+  value: number | string;
+  icon: React.ComponentType<{ className?: string }>;
   trend?: 'up' | 'down' | 'stable';
   isLoading?: boolean;
   subtitle?: string;
@@ -132,7 +132,7 @@ export default function TelecallerDashboardPage() {
       setDashboardData(data);
       setLastSync(new Date().toLocaleTimeString());
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
+
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -144,7 +144,7 @@ export default function TelecallerDashboardPage() {
       const statusData = await telecallingApiService.getGoogleSheetsStatus();
       setGoogleSheetsStatus(statusData);
     } catch (err) {
-      console.error('Error fetching Google Sheets status:', err);
+
       // Set default status if API fails
       setGoogleSheetsStatus({
         connection_status: false,
@@ -192,31 +192,31 @@ export default function TelecallerDashboardPage() {
   }
 
   const stats = dashboardData ? [
-    { 
-      label: 'Calls Made Today', 
-      value: dashboardData.calls_today, 
+    {
+      label: 'Calls Made Today',
+      value: dashboardData.calls_today,
       icon: Phone,
       trend: dashboardData.performance_trend,
       color: 'blue' as const,
       subtitle: 'Total calls initiated'
     },
-    { 
-      label: 'Appointments Set', 
-      value: dashboardData.appointments_set, 
+    {
+      label: 'Appointments Set',
+      value: dashboardData.appointments_set,
       icon: Calendar,
       color: 'green' as const,
       subtitle: 'Successful appointments'
     },
-    { 
-      label: 'Connected Rate', 
-      value: `${dashboardData.connected_rate.toFixed(1)}%`, 
+    {
+      label: 'Connected Rate',
+      value: `${dashboardData.connected_rate.toFixed(1)}%`,
       icon: Percent,
       color: 'orange' as const,
       subtitle: 'Call success rate'
     },
-    { 
-      label: 'Follow-ups Due', 
-      value: dashboardData.follow_ups_due, 
+    {
+      label: 'Follow-ups Due',
+      value: dashboardData.follow_ups_due,
       icon: Clock,
       color: 'purple' as const,
       subtitle: 'Pending follow-ups'
@@ -296,14 +296,14 @@ export default function TelecallerDashboardPage() {
               />
             ))}
           </div>
-          
+
           {/* Follow-ups Alert */}
           {dashboardData && dashboardData.follow_ups_due > 0 && (
             <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-orange-600" />
                 <span className="font-medium text-orange-800">
-                  🔔 Follow-ups Due: {dashboardData.follow_ups_due} 
+                  🔔 Follow-ups Due: {dashboardData.follow_ups_due}
                   {dashboardData.overdue_calls > 0 && ` (${dashboardData.overdue_calls} Overdue)`}
                 </span>
               </div>
@@ -336,15 +336,15 @@ export default function TelecallerDashboardPage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Conversion Rate Progress */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Conversion Rate</span>
                 <span className="font-medium">{dashboardData?.connected_rate.toFixed(1) || 0}%</span>
               </div>
-              <Progress 
-                value={dashboardData?.connected_rate || 0} 
+              <Progress
+                value={dashboardData?.connected_rate || 0}
                 className="h-2"
               />
             </div>
@@ -362,8 +362,8 @@ export default function TelecallerDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start h-12"
               onClick={() => router.push('/telecaller/customers')}
             >
@@ -373,8 +373,8 @@ export default function TelecallerDashboardPage() {
                 <div className="text-xs text-gray-500">{dashboardData?.assigned_leads || 0} leads</div>
               </div>
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start h-12"
               onClick={() => router.push('/telecaller/call')}
             >
@@ -384,8 +384,8 @@ export default function TelecallerDashboardPage() {
                 <div className="text-xs text-gray-500">Mute / Hold / End</div>
               </div>
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start h-12"
               onClick={() => router.push('/telecaller/calls')}
             >
@@ -395,8 +395,8 @@ export default function TelecallerDashboardPage() {
                 <div className="text-xs text-gray-500">{dashboardData?.calls_today || 0} calls today</div>
               </div>
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start h-12"
               onClick={() => router.push('/telecaller/appointments')}
             >
@@ -406,7 +406,7 @@ export default function TelecallerDashboardPage() {
                 <div className="text-xs text-gray-500">{dashboardData?.appointments_set || 0} set</div>
               </div>
             </Button>
-            
+
           </CardContent>
         </Card>
 
@@ -432,7 +432,7 @@ export default function TelecallerDashboardPage() {
                 <div className="text-sm text-red-800">Overdue Calls</div>
               </div>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Follow-ups Completed:</span>
@@ -468,18 +468,18 @@ export default function TelecallerDashboardPage() {
                   <p className="text-sm text-blue-700">Click to sync leads from Google Sheets and auto-assign them to telecallers</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button 
+                  <Button
                     onClick={async () => {
                       try {
                         const result = await telecallingApiService.testGoogleSheetsConnection();
-                        console.log('Test connection result:', result);
+
                         if (result.sample_data) {
                           alert(`✅ Connection successful!\n\nSample data from Google Sheets:\n${JSON.stringify(result.sample_data, null, 2)}`);
                         } else {
                           alert(`✅ Connection successful!\n\nMessage: ${result.message}`);
                         }
                       } catch (error) {
-                        console.error('Test connection error:', error);
+
                         alert('❌ Connection test failed. Please check the logs.');
                       }
                     }}
@@ -488,7 +488,7 @@ export default function TelecallerDashboardPage() {
                   >
                     🔍 Test Connection
                   </Button>
-                  <Button 
+                  <Button
                     onClick={async () => {
                       try {
                         setIsSyncing(true);
@@ -502,7 +502,7 @@ export default function TelecallerDashboardPage() {
                           alert('❌ Manual sync failed. Please check the logs for details.');
                         }
                       } catch (error) {
-                        console.error('Manual sync error:', error);
+
                         alert('❌ Manual sync failed. Please try again.');
                       } finally {
                         setIsSyncing(false);
@@ -523,7 +523,7 @@ export default function TelecallerDashboardPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-3 gap-4 text-center">
               <div className="p-3 bg-gray-50 rounded-lg">
                 <div className="text-2xl font-bold text-gray-900">
@@ -565,10 +565,10 @@ export default function TelecallerDashboardPage() {
               </div>
               <div className="text-sm">
                 <span className="text-gray-600">Google Sheets API: </span>
-                <Badge 
-                  variant="outline" 
-                  className={googleSheetsStatus?.connection_status 
-                    ? "text-green-600 border-green-600" 
+                <Badge
+                  variant="outline"
+                  className={googleSheetsStatus?.connection_status
+                    ? "text-green-600 border-green-600"
                     : "text-red-600 border-red-600"
                   }
                 >
@@ -588,9 +588,9 @@ export default function TelecallerDashboardPage() {
             }}>
               Refresh Data
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={async () => {
                 try {
                   setIsSyncing(true);
@@ -604,7 +604,7 @@ export default function TelecallerDashboardPage() {
                     alert('❌ Manual sync failed. Please check the logs for details.');
                   }
                 } catch (error) {
-                  console.error('Manual sync error:', error);
+
                   alert('❌ Manual sync failed. Please try again.');
                 } finally {
                   setIsSyncing(false);

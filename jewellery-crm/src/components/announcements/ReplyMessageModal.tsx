@@ -40,7 +40,7 @@ export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageMo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.content.trim()) {
       toast({
         title: "Error",
@@ -52,7 +52,7 @@ export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageMo
 
     try {
       setLoading(true);
-      
+
       const response = await apiService.replyToMessage(message.id, {
         content: formData.content,
         message_type: formData.message_type,
@@ -80,7 +80,7 @@ export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageMo
         });
       }
     } catch (error) {
-      console.error('Error sending reply:', error);
+
       toast({
         title: "Error",
         description: "Failed to send reply",
@@ -113,7 +113,7 @@ export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageMo
             Reply to Message
           </DialogTitle>
         </DialogHeader>
-        
+
         {/* Original Message */}
         <div className="bg-gray-50 p-4 rounded-lg mb-4">
           <div className="text-sm text-gray-600 mb-2">
@@ -122,7 +122,7 @@ export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageMo
           <div className="font-semibold text-sm mb-2">{message.subject}</div>
           <div className="text-sm text-gray-700">{message.content}</div>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Reply Content */}
           <div className="space-y-2">
@@ -189,4 +189,4 @@ export default function ReplyMessageModal({ message, onSuccess }: ReplyMessageMo
       </DialogContent>
     </Dialog>
   );
-} 
+}

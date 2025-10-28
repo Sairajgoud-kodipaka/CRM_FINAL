@@ -10,11 +10,11 @@ import { telecallingLegacyApiService, CallLog } from '@/services/telecallingLega
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const CallLogRow = ({ 
-  callLog, 
-  onPlayRecording 
-}: { 
-  callLog: CallLog; 
+const CallLogRow = ({
+  callLog,
+  onPlayRecording
+}: {
+  callLog: CallLog;
   onPlayRecording: (url: string) => void;
 }) => {
   const getStatusColor = (status: string) => {
@@ -91,15 +91,15 @@ const CallLogRow = ({
   );
 };
 
-const StatsCard = ({ 
-  label, 
-  value, 
-  icon: Icon, 
-  isLoading 
-}: { 
-  label: string; 
-  value: number | string; 
-  icon: React.ComponentType<{ className?: string }>; 
+const StatsCard = ({
+  label,
+  value,
+  icon: Icon,
+  isLoading
+}: {
+  label: string;
+  value: number | string;
+  icon: React.ComponentType<{ className?: string }>;
   isLoading?: boolean;
 }) => (
   <Card className="flex flex-col gap-1 p-5">
@@ -149,10 +149,10 @@ export default function TelecallerCallLogsPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const logs = await telecallingLegacyApiService.getCallLogs();
-      console.log('Call logs data:', logs);
-      
+
+
       // Ensure we have an array
       if (Array.isArray(logs)) {
         setCallLogs(logs);
@@ -160,12 +160,12 @@ export default function TelecallerCallLogsPage() {
         // Handle paginated response
         setCallLogs(logs.results);
       } else {
-        console.warn('Unexpected call logs data format:', logs);
+
         setCallLogs([]);
       }
     } catch (err) {
-      console.error('Error fetching call logs:', err);
-      
+
+
       // If it's a network error or backend is down, show empty state
       if (err instanceof Error && (err.message.includes('Network') || err.message.includes('fetch'))) {
         setError('Unable to connect to the server. Please check your connection and try again.');
@@ -174,7 +174,7 @@ export default function TelecallerCallLogsPage() {
       } else {
         setError(err instanceof Error ? err.message : 'Failed to load call logs');
       }
-      
+
       setCallLogs([]); // Ensure callLogs is always an array
     } finally {
       setLoading(false);
@@ -193,15 +193,15 @@ export default function TelecallerCallLogsPage() {
   const filteredCallLogs = (Array.isArray(callLogs) ? callLogs : []).filter(log => {
     // Add safety checks for nested properties
     if (!log || !log.assignment_details || !log.assignment_details.customer_visit_details) {
-      console.warn('Invalid call log data:', log);
+
       return false;
     }
-    
+
     const customer = log.assignment_details.customer_visit_details;
     const matchesSearch = customer.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          telecallingLegacyApiService.maskPhone(customer.customer_phone || '').includes(searchTerm);
     const matchesDisposition = dispositionFilter === 'all' || log.call_status === dispositionFilter;
-    
+
     return matchesSearch && matchesDisposition;
   });
 
@@ -210,7 +210,7 @@ export default function TelecallerCallLogsPage() {
   }
 
   // Debug info (remove in production)
-  console.log('Current callLogs state:', callLogs, 'Type:', typeof callLogs, 'Is Array:', Array.isArray(callLogs));
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -225,8 +225,8 @@ export default function TelecallerCallLogsPage() {
           <div className="flex flex-col md:flex-row gap-2 md:items-center">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input 
-                placeholder="Search by name or phone..." 
+              <Input
+                placeholder="Search by name or phone..."
                 className="w-full md:w-80 pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -249,7 +249,7 @@ export default function TelecallerCallLogsPage() {
               </Select>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2 text-sm text-text-secondary">
             <Filter className="w-4 h-4" />
             <span>{filteredCallLogs.length} calls</span>

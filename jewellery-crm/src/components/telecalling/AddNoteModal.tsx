@@ -29,7 +29,7 @@ const getStatusIcon = (statusId: string) => {
     'converted_closed_won': MessageCircle,
     'lost_closed_lost': MessageCircle
   };
-  
+
   const Icon = iconMap[statusId] || MessageCircle;
   return <Icon className="w-4 h-4" />;
 };
@@ -80,7 +80,7 @@ export function AddNoteModal({ isOpen, onClose, currentStatus, onAddNote }: AddN
             <span>Add Note to {statusConfig.label}</span>
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div className={`p-3 rounded ${statusConfig.bgColor}`}>
             <p className={`text-sm ${statusConfig.textColor}`}>
@@ -145,9 +145,9 @@ export function AddNoteModal({ isOpen, onClose, currentStatus, onAddNote }: AddN
           </div>
 
           {/* Call-specific fields for relevant statuses */}
-          {(currentStatus === 'attempted_contact' || 
-            currentStatus === 'missed_call_outbound' || 
-            currentStatus === 'missed_call_inbound' || 
+          {(currentStatus === 'attempted_contact' ||
+            currentStatus === 'missed_call_outbound' ||
+            currentStatus === 'missed_call_inbound' ||
             currentStatus === 'contacted_in_progress') && (
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -186,8 +186,8 @@ export function AddNoteModal({ isOpen, onClose, currentStatus, onAddNote }: AddN
           )}
 
           {/* Next action fields for follow-up statuses */}
-          {(currentStatus === 'follow_up_scheduled' || 
-            currentStatus === 'interested_warm' || 
+          {(currentStatus === 'follow_up_scheduled' ||
+            currentStatus === 'interested_warm' ||
             currentStatus === 'qualified') && (
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
@@ -206,7 +206,7 @@ export function AddNoteModal({ isOpen, onClose, currentStatus, onAddNote }: AddN
           <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleAddNote}
             disabled={!note.trim()}
             className="bg-blue-600 hover:bg-blue-700"

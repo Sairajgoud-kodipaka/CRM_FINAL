@@ -51,35 +51,35 @@ interface ProductFormData {
   is_bestseller: boolean;
 }
 
-export default function ProductActionsModal({ 
-  isOpen, 
-  onClose, 
-  onSuccess, 
-  product, 
-  action 
+export default function ProductActionsModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  product,
+  action
 }: ProductActionsModalProps) {
   const { user, isAuthenticated, isLoading: authLoading, isHydrated } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
-  
+
   // Predefined options for dropdowns
   const materialOptions = [
     'Gold', 'Silver', 'Platinum', 'Rose Gold', 'White Gold', 'Yellow Gold',
     'Diamond', 'Pearl', 'Ruby', 'Sapphire', 'Emerald', 'Topaz', 'Amethyst',
     'Sterling Silver', 'Titanium', 'Stainless Steel', 'Brass', 'Copper'
   ];
-  
+
   const colorOptions = [
     'Yellow', 'White', 'Rose', 'Gold', 'Silver', 'Platinum', 'Black',
     'Blue', 'Red', 'Green', 'Purple', 'Pink', 'Orange', 'Brown',
     'Multi-color', 'Clear', 'Transparent'
   ];
-  
+
   const karatsOptions = [
     '9K', '10K', '14K', '18K', '22K', '24K', '925', '950', '999',
     '10K Gold', '14K Gold', '18K Gold', '22K Gold', '24K Gold',
     'Sterling Silver', 'Platinum', 'Palladium'
   ];
-  
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     sku: '',
@@ -114,13 +114,13 @@ export default function ProductActionsModal({
       if (!isHydrated) {
         return;
       }
-      
+
       // Check if user is authenticated
       if (!isAuthenticated || !user) {
         setError('Please log in to edit products.');
         return;
       }
-      
+
       fetchCategories();
       // Populate form data when editing
       if (action === 'edit') {
@@ -155,19 +155,19 @@ export default function ProductActionsModal({
         setCategories(response.data);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Prevent submission if authentication is still loading or not hydrated
     if (!isHydrated || authLoading || !isAuthenticated || !user) {
       setError('Please wait for authentication to complete or contact administrator.');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
 
@@ -216,7 +216,7 @@ export default function ProductActionsModal({
         setError(response.message || 'Failed to update product');
       }
     } catch (error) {
-      console.error('Error updating product:', error);
+
       setError('An error occurred while updating the product');
     } finally {
       setLoading(false);
@@ -236,7 +236,7 @@ export default function ProductActionsModal({
         setError(response.message || 'Failed to delete product');
       }
     } catch (error) {
-      console.error('Error deleting product:', error);
+
       setError('An error occurred while deleting the product');
     } finally {
       setLoading(false);
@@ -511,7 +511,7 @@ export default function ProductActionsModal({
               {/* Basic Information */}
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-medium text-gray-700">Product Name *</Label>
@@ -573,7 +573,7 @@ export default function ProductActionsModal({
               {/* Pricing */}
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Pricing</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="price" className="text-sm font-medium text-gray-700">Price *</Label>
@@ -631,7 +631,7 @@ export default function ProductActionsModal({
               {/* Product Specifications */}
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Specifications</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <CustomDropdown
                     label="Material"
@@ -676,7 +676,7 @@ export default function ProductActionsModal({
               {/* Inventory */}
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory</h3>
-                
+
                 <div className="flex items-center justify-between mb-4">
                   <div className="space-y-2 flex-1">
                     <Label htmlFor="quantity" className="text-sm font-medium text-gray-700">Quantity *</Label>
@@ -740,7 +740,7 @@ export default function ProductActionsModal({
               {/* Status & Features */}
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Status & Features</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="status" className="text-sm font-medium text-gray-700">Status</Label>
@@ -856,11 +856,11 @@ export default function ProductActionsModal({
 
       {/* Image Modal for Enlarged View */}
       {imageModalOpen && selectedImage && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60]"
           onClick={closeImageModal}
         >
-          <div 
+          <div
             className="relative max-w-4xl max-h-[90vh] p-4"
             onClick={(e) => e.stopPropagation()}
           >

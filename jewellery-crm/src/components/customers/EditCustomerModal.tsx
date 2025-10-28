@@ -113,7 +113,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  
+
   // State for sales pipeline
   const [showPipelineSection, setShowPipelineSection] = useState(false);
   const [pipelineOpportunities, setPipelineOpportunities] = useState<PipelineOpportunity[]>([]);
@@ -123,27 +123,26 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
   const generatePipelineOpportunities = useCallback(() => {
     // Prevent regeneration if pipeline is already created
     if (pipelineCreated) {
-      console.log('✅ Pipeline already created, skipping regeneration');
+
       return;
     }
-    
-    console.log('🔄 Generating pipeline opportunities...');
-    console.log('Current interests:', interests);
-    
+
+
+
     // Consolidate all interests into one pipeline opportunity per customer
-    const allInterests = interests.filter(interest => 
+    const allInterests = interests.filter(interest =>
       interest.mainCategory && interest.products.length > 0
     );
-    
-    console.log('Filtered interests:', allInterests);
-    
+
+
+
     if (allInterests.length === 0) {
-      console.log('No valid interests found, clearing opportunities');
+
       setPipelineOpportunities([]);
       setShowPipelineSection(false);
       return;
     }
-    
+
     // Calculate total revenue across all interests
     const totalRevenue = allInterests.reduce((sum, interest) => {
       const interestRevenue = interest.products.reduce((productSum, product) => {
@@ -151,25 +150,25 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
       }, 0);
       return sum + interestRevenue;
     }, 0);
-    
+
     // Determine overall stage and probability based on all interests
     const hasDesignSelected = allInterests.some(interest => interest.preferences?.designSelected);
     // Default to store_walkin for customers from store, not exhibition
     const stage = hasDesignSelected ? 'closed_won' : 'store_walkin';
     const probability = hasDesignSelected ? 100 : 50;
-    
+
     // Create consolidated notes with all interests
     const interestDetails = allInterests.map(interest => {
-      const categoryName = categories.find(cat => 
+      const categoryName = categories.find(cat =>
         cat.id?.toString() === interest.mainCategory || cat.name === interest.mainCategory
       )?.name || `Category ${interest.mainCategory}`;
-      
+
       const products = interest.products.map(p => p.product).join(', ');
       const designStatus = interest.preferences?.designSelected ? ' - Design Selected!' : '';
-      
+
       return `${categoryName}: ${products}${designStatus}`;
     }).join('\n');
-    
+
     // Create single consolidated opportunity
     const consolidatedOpportunity: PipelineOpportunity = {
       title: `${customer?.first_name || 'Customer'} - Complete Opportunity`,
@@ -180,10 +179,9 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
       next_action: hasDesignSelected ? 'Process complete order' : 'Follow up with customer on all interests',
       next_action_date: formData.next_follow_up || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     };
-    
-    console.log('🎯 Created consolidated opportunity:', consolidatedOpportunity);
-    console.log('Setting pipeline opportunities to:', [consolidatedOpportunity]);
-    
+
+
+
     setPipelineOpportunities([consolidatedOpportunity]);
     setShowPipelineSection(true);
   }, [interests, categories, customer, formData.next_follow_up, pipelineCreated]);
@@ -192,23 +190,9 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     if (customer && open) {
       // Reset pipeline creation flag for new customer
       setPipelineCreated(false);
-      
-      console.log('🔍 EditCustomerModal: Customer data received:', customer);
-      console.log('🔍 EditCustomerModal: Key fields check:');
-      console.log('  - sales_person:', customer.sales_person);
-      console.log('  - customer_status:', customer.customer_status);
-      console.log('  - product_type:', customer.product_type);
-      console.log('  - style:', customer.style);
-      console.log('  - material_type:', customer.material_type);
-      console.log('  - gold_range:', customer.gold_range);
-      console.log('  - diamond_range:', customer.diamond_range);
-      console.log('  - customer_preferences:', customer.customer_preferences);
-      console.log('  - design_selected:', customer.design_selected);
-      console.log('  - wants_more_discount:', customer.wants_more_discount);
-      console.log('  - checking_other_jewellers:', customer.checking_other_jewellers);
-      console.log('  - let_him_visit:', customer.let_him_visit);
-      console.log('  - design_number:', customer.design_number);
-      
+
+
+
       // Format dates properly for input fields - extract only the date part
       const formatDateForInput = (dateString: string | null | undefined) => {
         if (!dateString) return "";
@@ -282,7 +266,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             } else {
               parsedInterest = interest as ProductInterest;
             }
-            
+
             // Ensure the parsed interest has the complete structure
             return {
               mainCategory: parsedInterest.mainCategory || (parsedInterest as any).category || "",
@@ -299,7 +283,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
           });
           setInterests(parsedInterests);
         } catch {
-          console.log('Could not parse customer interests, using default');
+
           // Set default interests structure
           setInterests([{
             mainCategory: "",
@@ -324,33 +308,33 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
   const loadCategoriesAndProducts = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch categories
       const categoriesResponse = await apiService.getCategories();
       if (categoriesResponse.success && categoriesResponse.data) {
-        const categoriesData = Array.isArray(categoriesResponse.data) 
-          ? categoriesResponse.data 
+        const categoriesData = Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
           : (categoriesResponse.data as { results?: Category[]; data?: Category[] }).results || (categoriesResponse.data as { results?: Category[]; data?: Category[] }).data || [];
         setCategories(categoriesData);
       }
-      
+
       // Fetch products
       const productsResponse = await apiService.getProducts();
       if (productsResponse.success && productsResponse.data) {
-        const productsData = Array.isArray(productsResponse.data) 
-          ? productsResponse.data 
+        const productsData = Array.isArray(productsResponse.data)
+          ? productsResponse.data
           : (productsResponse.data as { results?: Product[]; data?: Product[] }).results || (productsResponse.data as { results?: Product[]; data?: Product[] }).data || [];
         setProducts(productsData);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+
     } finally {
       setLoading(false);
     }
   };
 
   const addInterest = () => {
-    console.log('➕ Adding new interest...');
+
     const newInterest = {
         mainCategory: "",
         products: [{ product: "", revenue: "" }],
@@ -363,21 +347,21 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
           other: "",
         },
     };
-    console.log('🆕 New interest structure:', newInterest);
+
     setInterests(prev => {
       const newInterests = [...prev, newInterest];
-      console.log('📊 Updated interests array:', newInterests);
+
       return newInterests;
     });
   };
 
   const addProductToInterest = (idx: number) => {
-    console.log(`➕ Adding product to interest ${idx}`);
+
     setInterests((prev) => {
       const copy = [...prev];
       const newProduct = { product: "", revenue: "" };
       copy[idx].products.push(newProduct);
-      console.log(`   Interest ${idx} now has ${copy[idx].products.length} products:`, copy[idx].products);
+
       return copy;
     });
   };
@@ -412,10 +396,8 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
 
   const createPipelineOpportunities = async (customerId: number) => {
     try {
-      console.log('🚀 Creating pipeline opportunities...');
-      console.log('Number of opportunities to create:', pipelineOpportunities.length);
-      console.log('Opportunities:', pipelineOpportunities);
-      
+
+
       // Since we now have only ONE consolidated opportunity, just create that single entry
       if (pipelineOpportunities.length === 1) {
         const opportunity = pipelineOpportunities[0];
@@ -430,21 +412,19 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
           next_action: opportunity.next_action,
           next_action_date: opportunity.next_action_date
         };
-        
-        console.log('🎯 Creating consolidated pipeline with data:', pipelineData);
+
+
         const response = await apiService.createSalesPipeline(pipelineData);
         if (response.success) {
-          console.log('✅ Consolidated pipeline opportunity created:', response.data);
+
         } else {
-          console.error('❌ Failed to create consolidated pipeline opportunity:', response);
-          console.error('Response details:', response);
+
         }
       } else {
-        console.warn('⚠️ Expected exactly 1 consolidated opportunity, but found:', pipelineOpportunities.length);
-        console.warn('This should not happen with the new consolidated approach!');
+
       }
     } catch (error) {
-      console.error('💥 Error creating consolidated pipeline opportunity:', error);
+
     }
   };
 
@@ -454,20 +434,20 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     if (!open || !customer) {
       return;
     }
-    
+
     // Skip if pipeline already created
     if (pipelineCreated) {
-      console.log('✅ Pipeline already created, skipping generation');
+
       return;
     }
-    
+
     // Generate pipeline if we have valid interests
-    const hasValidInterests = interests.some(interest => 
+    const hasValidInterests = interests.some(interest =>
       interest.mainCategory && interest.products.length > 0
     );
-    
+
     if (hasValidInterests) {
-      console.log('🔄 Generating pipeline opportunities...');
+
       generatePipelineOpportunities();
     } else {
       // Clear pipeline if no valid interests
@@ -486,8 +466,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
   const handleSubmit = async () => {
     if (!customer) return;
 
-    console.log('🚀 Starting customer update process...');
-    console.log('📊 Current interests state:', interests);
+
 
     // Minimal validation - only require first name for basic identification
     // Phone can be added later through edit modal
@@ -502,46 +481,46 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
 
     try {
       setSaving(true);
-      
+
       // Relaxed interests validation - allow partial data, can be completed later
-      console.log('🔍 Processing interests (relaxed validation)...');
+
       const hasInterests = interests.length > 0;
-      const hasInterestData = interests.some(interest => 
-        interest.mainCategory || 
+      const hasInterestData = interests.some(interest =>
+        interest.mainCategory ||
         (interest.products && interest.products.length > 0)
       );
-      
-      console.log(`   Has interests array: ${hasInterests}, Has interest data: ${hasInterestData}`);
-      
+
+
+
       // Process all interests, even if incomplete - can be updated later
       let customerInterestsInput: string[] = [];
-      
+
       if (hasInterestData) {
         // Include all interests, even if incomplete
         customerInterestsInput = interests.map(interest => {
-          console.log(`🔄 Processing interest for API (relaxed):`, interest);
-          
+
+
           // Include all products, even if incomplete
           const allProducts = interest.products.map(p => ({
             product: p.product || "",
             revenue: p.revenue || ""
           }));
-          
+
           const interestData = {
             category: interest.mainCategory || "",
             products: allProducts,
             preferences: interest.preferences
           };
-          
-          console.log(`   ✅ Creating interest data (relaxed):`, interestData);
+
+
           return JSON.stringify(interestData);
         });
       } else {
         // No interest data provided, send empty array
-        console.log(`📝 No interest data provided, sending empty interests array`);
+
         customerInterestsInput = [];
       }
-      
+
       // Prepare data for API - convert empty date strings to undefined
       const customerData = {
         ...formData,
@@ -558,25 +537,18 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         design_number: customer.design_number || "",
       };
 
-      console.log('📤 Final customer data to send:', customerData);
-      console.log('📊 customer_interests_input count:', customerData.customer_interests_input.length);
-      
+
+
       const response = await apiService.updateClient(customer.id.toString(), customerData);
-      
-      console.log('📥 Backend response received:', response);
-      
+
+
+
       if (response.success) {
-        console.log('✅ Customer updated successfully:', response.data);
-        console.log('📊 Response data details:', {
-          id: response.data?.id,
-          first_name: response.data?.first_name,
-          customer_interests: response.data?.customer_interests,
-          interests_count: response.data?.customer_interests?.length
-        });
-        
+
+
         // Create sales pipeline opportunities if customer is interested (only once)
         if (showPipelineSection && pipelineOpportunities.length > 0 && !pipelineCreated) {
-          console.log('🔄 Creating pipeline opportunities for customer:', customer.id);
+
           await createPipelineOpportunities(customer.id);
           setPipelineCreated(true); // Mark as created to prevent duplicates
           toast({
@@ -585,7 +557,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             variant: "success",
           });
         } else if (pipelineCreated) {
-          console.log('✅ Pipeline already created for this customer, skipping...');
+
         } else {
         toast({
           title: "Success!",
@@ -593,7 +565,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
           variant: "success",
         });
         }
-        
+
         // Check if follow-up date was provided and show appropriate message
         if (formData.next_follow_up) {
           toast({
@@ -602,11 +574,11 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             variant: "success",
           });
         }
-        
+
         onCustomerUpdated(response.data);
         onClose();
       } else {
-        console.error('Failed to update customer:', response);
+
         toast({
           title: "Error",
           description: "Failed to update customer. Please try again.",
@@ -614,7 +586,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         });
       }
     } catch (error) {
-      console.error('💥 Error during customer update:', error);
+
               toast({
           title: "Error",
         description: "Failed to update customer. Please try again.",
@@ -642,8 +614,8 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={loading || !formData.first_name}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -660,35 +632,35 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">First Name *</label>
-                <Input 
-                  placeholder="First name" 
-                  required 
+                <Input
+                  placeholder="First name"
+                  required
                   value={formData.first_name}
                   onChange={(e) => handleInputChange('first_name', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Last Name</label>
-                <Input 
-                  placeholder="Last name" 
+                <Input
+                  placeholder="Last name"
                   value={formData.last_name}
                   onChange={(e) => handleInputChange('last_name', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Email</label>
-                <Input 
+                <Input
                   type="email"
-                  placeholder="email@example.com" 
+                  placeholder="email@example.com"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Phone *</label>
-                <PhoneInputComponent 
-                  placeholder="+91 98XXXXXX00" 
-                  required 
+                <PhoneInputComponent
+                  placeholder="+91 98XXXXXX00"
+                  required
                   value={formData.phone}
                   onChange={(value) => handleInputChange('phone', value)}
                 />
@@ -716,39 +688,39 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Street Address</label>
-                <Input 
-                  placeholder="e.g., 123, Diamond Lane" 
+                <Input
+                  placeholder="e.g., 123, Diamond Lane"
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">City</label>
-                <Input 
-                  placeholder="e.g., Mumbai" 
+                <Input
+                  placeholder="e.g., Mumbai"
                   value={formData.city}
                   onChange={(e) => handleInputChange('city', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">State</label>
-                <Input 
-                  placeholder="e.g., Maharashtra" 
+                <Input
+                  placeholder="e.g., Maharashtra"
                   value={formData.state}
                   onChange={(e) => handleInputChange('state', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Country</label>
-                <Input 
+                <Input
                   value={formData.country}
                   disabled
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Pincode</label>
-                <Input 
-                  placeholder="e.g., 400001" 
+                <Input
+                  placeholder="e.g., 400001"
                   value={formData.pincode}
                   onChange={(e) => handleInputChange('pincode', e.target.value)}
                 />
@@ -762,32 +734,32 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Sales Person</label>
-                <Input 
-                  placeholder="Enter sales person" 
+                <Input
+                  placeholder="Enter sales person"
                   value={formData.sales_person}
                   onChange={(e) => handleInputChange('sales_person', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Customer Status</label>
-                <Input 
-                  placeholder="Enter customer status" 
+                <Input
+                  placeholder="Enter customer status"
                   value={formData.customer_status}
                   onChange={(e) => handleInputChange('customer_status', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Lead Source</label>
-                <Input 
-                  placeholder="Enter lead source" 
+                <Input
+                  placeholder="Enter lead source"
                   value={formData.lead_source}
                   onChange={(e) => handleInputChange('lead_source', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Catchment Area</label>
-                <Input 
-                  placeholder="Enter catchment area" 
+                <Input
+                  placeholder="Enter catchment area"
                   value={formData.catchment_area}
                   onChange={(e) => handleInputChange('catchment_area', e.target.value)}
                 />
@@ -798,55 +770,55 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
           {/* Product Interest */}
           <div className="border rounded-lg p-4 mb-4">
             <div className="font-semibold mb-3 text-lg">💎 Product Interest</div>
-            
+
             {/* Product Selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Product Type</label>
-                <Input 
-                  placeholder="Enter product type" 
+                <Input
+                  placeholder="Enter product type"
                   value={formData.product_type}
                   onChange={(e) => handleInputChange('product_type', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Style</label>
-                <Input 
-                  placeholder="Enter style" 
+                <Input
+                  placeholder="Enter style"
                   value={formData.style}
                   onChange={(e) => handleInputChange('style', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Material Type</label>
-                <Input 
-                  placeholder="Enter material type" 
+                <Input
+                  placeholder="Enter material type"
                   value={formData.material_type}
                   onChange={(e) => handleInputChange('material_type', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Material Weight</label>
-                <Input 
+                <Input
                   type="number"
-                  placeholder="Enter weight" 
+                  placeholder="Enter weight"
                   value={formData.material_weight}
                   onChange={(e) => handleInputChange('material_weight', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Material Value</label>
-                <Input 
+                <Input
                   type="number"
-                  placeholder="Enter value" 
+                  placeholder="Enter value"
                   value={formData.material_value}
                   onChange={(e) => handleInputChange('material_value', e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Product Subtype</label>
-                <Input 
-                  placeholder="Enter product subtype" 
+                <Input
+                  placeholder="Enter product subtype"
                   value={formData.product_subtype}
                   onChange={(e) => handleInputChange('product_subtype', e.target.value)}
                 />
@@ -859,26 +831,26 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                 <div className="font-medium">Customer Interests</div>
                 <Button variant="outline" size="sm" onClick={addInterest}>+ Add Interest</Button>
               </div>
-              
+
               {interests.map((interest, index) => (
                 <div key={index} className="border rounded-lg p-4 mb-3 bg-white">
                   <div className="flex items-center justify-between mb-3">
                     <h5 className="font-medium">Interest #{index + 1}</h5>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => removeInterest(index)}
                       className="text-red-600 hover:text-red-700"
                     >
                       Remove
                     </Button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-1">Category</label>
-                      <Select 
-                        value={interest.mainCategory} 
+                      <Select
+                        value={interest.mainCategory}
                         onValueChange={(value) => updateInterest(index, 'mainCategory', value)}
                       >
                         <SelectTrigger>
@@ -893,14 +865,14 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium mb-1">Products</label>
                       <div className="space-y-2">
                         {interest.products.map((product, pIndex) => (
                           <div key={pIndex} className="flex gap-2">
-                            <Select 
-                              value={product.product} 
+                            <Select
+                              value={product.product}
                               onValueChange={(value) => updateProductInInterest(index, pIndex, 'product', value)}
                             >
                               <SelectTrigger className="flex-1">
@@ -914,15 +886,15 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                                 ))}
                               </SelectContent>
                             </Select>
-                            <Input 
-                              placeholder="Revenue" 
+                            <Input
+                              placeholder="Revenue"
                               value={product.revenue}
                               onChange={(e) => updateProductInInterest(index, pIndex, 'revenue', e.target.value)}
                               className="w-24"
                             />
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => removeProductFromInterest(index, pIndex)}
                               className="text-red-600"
                             >
@@ -930,9 +902,9 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                             </Button>
                           </div>
                         ))}
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => addProductToInterest(index)}
                           className="w-full"
                         >
@@ -952,8 +924,8 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={formData.add_to_pipeline}
                     onChange={(e) => handleInputChange('add_to_pipeline', e.target.checked.toString())}
                     className="w-4 h-4"
@@ -984,7 +956,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
               <div className="text-sm text-gray-600 mb-3">
                 Create sales pipeline opportunities based on customer interests and revenue potential
               </div>
-              
+
               {/* Design Selected Notification */}
               {showDesignSelectedNotification && (
                 <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -999,7 +971,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                   </div>
                 </div>
               )}
-              
+
               {showPipelineSection && pipelineOpportunities.length > 0 && (
                 <div className="space-y-3">
                   <div className="text-sm font-medium text-green-700 mb-2">
@@ -1043,8 +1015,8 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
-                <Input 
-                  type="date" 
+                <Input
+                  type="date"
                   value={formData.next_follow_up}
                   onChange={(e) => handleInputChange('next_follow_up', e.target.value)}
                 />
@@ -1054,8 +1026,8 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Summary Notes</label>
-                <Textarea 
-                  placeholder="Key discussion points, items shown, next steps..." 
+                <Textarea
+                  placeholder="Key discussion points, items shown, next steps..."
                   rows={3}
                   value={formData.summary_notes}
                   onChange={(e) => handleInputChange('summary_notes', e.target.value)}

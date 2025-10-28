@@ -50,8 +50,8 @@ const getLeadColumns = (onCall: (lead: Lead) => void, onView: (lead: Lead) => vo
         'converted': 'bg-emerald-100 text-emerald-800 border-emerald-300',
       };
       return (
-        <Badge 
-          variant="outline" 
+        <Badge
+          variant="outline"
           className={statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800 border-gray-300'}
         >
           {status}
@@ -72,7 +72,7 @@ const getLeadColumns = (onCall: (lead: Lead) => void, onView: (lead: Lead) => vo
         'low': 'bg-gray-100 text-gray-800 border-gray-300',
       };
       return (
-        <Badge 
+        <Badge
           variant="outline"
           className={priorityColors[priority as keyof typeof priorityColors] || 'bg-gray-100 text-gray-800 border-gray-300'}
         >
@@ -137,13 +137,13 @@ export default function TelecallerCustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalLeads, setTotalLeads] = useState(0);
   const [pageSize] = useState(15);
-  
+
   // Call panel state
   const [callPanelOpen, setCallPanelOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -152,18 +152,18 @@ export default function TelecallerCustomersPage() {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('🔍 Fetching Google Sheets leads for telecaller...');
-      
+
+
+
       // Fetch Google Sheets leads with pagination
       const response: LeadListResponse = await telecallingApiService.getLeads({
         page: page,
         limit: pageSize,
         assignedTo: user?.id ? "me" : undefined // Only get leads assigned to current telecaller
       });
-      
-      console.log('📡 Google Sheets leads API response:', response);
-      
+
+
+
       if (response && response.results) {
         setLeads(response.results);
         // Calculate total pages from count and page size
@@ -171,15 +171,15 @@ export default function TelecallerCustomersPage() {
         setTotalPages(totalPages);
         setTotalLeads(response.count);
         setCurrentPage(page);
-        console.log(`✅ Loaded ${response.results.length} leads (page ${page}/${totalPages})`);
+
       } else {
-        console.warn('⚠️ Unexpected leads response format:', response);
+
         setLeads([]);
         setError('Unexpected response format from server');
       }
     } catch (err) {
-      console.error('❌ Error fetching Google Sheets leads:', err);
-      
+
+
       if (err instanceof Error && (err.message.includes('Network') || err.message.includes('fetch'))) {
         setError('Unable to connect to the server. Please check your connection and try again.');
       } else if (err instanceof Error && err.message.includes('403')) {
@@ -187,7 +187,7 @@ export default function TelecallerCustomersPage() {
       } else {
         setError(err instanceof Error ? err.message : 'Failed to load leads');
       }
-      
+
       setLeads([]);
     } finally {
       setLoading(false);
@@ -203,7 +203,7 @@ export default function TelecallerCustomersPage() {
       setSelectedLead(lead);
       setCallPanelOpen(true);
     } catch (err) {
-      console.error('Error preparing call:', err);
+
       alert('Failed to prepare call');
     }
   };
@@ -218,7 +218,7 @@ export default function TelecallerCustomersPage() {
     const lead = leads.find(l => l.id === callLog.lead);
     if (lead) {
       let newStatus = lead.status;
-      
+
       if (callLog.sentiment === 'positive') {
         newStatus = 'qualified';
       } else if (callLog.sentiment === 'negative') {
@@ -228,8 +228,8 @@ export default function TelecallerCustomersPage() {
       }
 
       // Update the lead in the list
-      setLeads(prev => prev.map(l => 
-        l.id === lead.id 
+      setLeads(prev => prev.map(l =>
+        l.id === lead.id
           ? { ...l, status: newStatus, notes: callLog.notes || l.notes }
           : l
       ));
@@ -243,16 +243,16 @@ export default function TelecallerCustomersPage() {
   const filteredLeads = (Array.isArray(leads) ? leads : []).filter(lead => {
     // Add safety checks for lead properties
     if (!lead) {
-      console.warn('Invalid lead data:', lead);
+
       return false;
     }
-    
+
     const matchesSearch = lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.masked_phone?.includes(searchTerm) ||
                          lead.phone?.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || lead.priority === priorityFilter;
-    
+
     return matchesSearch && matchesStatus && matchesPriority;
   });
 

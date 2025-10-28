@@ -50,7 +50,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
         },
       });
-      
+
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -62,12 +62,12 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
       } else {
-        console.error('Failed to download template');
+
         // Fallback to local generation for CSV
         if (type === 'csv') {
           const headers = [
             'first_name',
-            'last_name', 
+            'last_name',
             'email',
             'phone',
             'address',
@@ -101,7 +101,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         }
       }
     } catch (error) {
-      console.error('Error downloading template:', error);
+
       // Fallback to local generation for CSV
       if (type === 'csv') {
     const headers = [
@@ -151,11 +151,11 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         'application/vnd.ms-excel', // XLS
         'application/octet-stream' // Some systems may use this for Excel files
       ];
-      
+
       const validExtensions = ['.csv', '.xlsx', '.xls'];
       const hasValidType = validTypes.includes(selectedFile.type);
       const hasValidExtension = validExtensions.some(ext => selectedFile.name.toLowerCase().endsWith(ext));
-      
+
       if (hasValidType || hasValidExtension) {
         setFile(selectedFile);
         setError(null);
@@ -179,25 +179,25 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
       const formData = new FormData();
       formData.append('file', file);
 
-      console.log('Uploading file:', file.name, 'Size:', file.size);
+
 
       const response = await apiService.importCustomers(formData);
-      
-      console.log('Import response:', response);
-      
+
+
+
       if (response.success) {
         setSuccess(true);
         setImportResults(response.data);
         // Show more detailed success information
         const importedCount = response.data?.imported || 0;
         const failedCount = response.data?.failed || 0;
-        
+
         if (importedCount > 0) {
-          console.log(`Successfully imported ${importedCount} customers`);
+
         }
-        
+
         if (failedCount > 0) {
-          console.warn(`${failedCount} customers failed to import`);
+
           // Show errors even if some customers were imported
           if (response.data?.errors && response.data.errors.length > 0) {
             setImportResults({
@@ -209,17 +209,17 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
             return; // Don't close modal yet, let user see the errors
           }
         }
-        
+
         setTimeout(() => {
           onSuccess();
           handleClose();
         }, 2000);
       } else {
-        console.error('Import failed:', response);
+
         setError(response.message || 'Failed to import customers. Please check the console for details.');
       }
     } catch (error) {
-      console.error('Import error:', error);
+
       setError(`Failed to import customers: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the console for details.`);
     } finally {
       setUploading(false);
@@ -245,7 +245,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
 
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-800">
-            💡 <strong>Simple Import:</strong> Import customers with just basic info (name, contact, address). 
+            💡 <strong>Simple Import:</strong> Import customers with just basic info (name, contact, address).
             You can add more details later using the edit modal.
           </p>
         </div>
@@ -275,15 +275,15 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
             )}
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
               <p className="text-sm text-blue-800">
-                💡 <strong>Next Step:</strong> Use the edit modal to add more details like preferences, 
+                💡 <strong>Next Step:</strong> Use the edit modal to add more details like preferences,
                 budget, and other information for each customer.
               </p>
             </div>
-            
+
             {importResults?.errors && importResults.errors.length > 0 && (
               <div className="mt-4 flex gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setSuccess(false);
                     setImportResults(null);
@@ -293,7 +293,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                 >
                   Try Again
                 </Button>
-                <Button 
+                <Button
                   onClick={handleClose}
                   className="flex-1"
                 >
@@ -325,7 +325,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                   </div>
                 )}
                 <p className="text-xs text-text-secondary mt-1">
-                  Only essential fields are required. All other details can be added later in the edit modal. 
+                  Only essential fields are required. All other details can be added later in the edit modal.
                   Supports CSV, XLSX, and XLS files. Download the template below for the correct format.
                 </p>
               </div>
@@ -360,7 +360,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                 </Button>
                 </div>
                 <p className="text-xs text-text-secondary mt-2 text-center">
-                  Template includes: Name, Email, Phone, Address fields only. 
+                  Template includes: Name, Email, Phone, Address fields only.
                   Works with CSV, XLSX, and XLS files.
                 </p>
               </div>
@@ -398,4 +398,4 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
       </div>
     </div>
   );
-} 
+}

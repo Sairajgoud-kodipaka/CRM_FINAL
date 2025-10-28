@@ -41,47 +41,47 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.first_name.trim()) {
       newErrors.first_name = 'First name is required';
     }
-    
+
     if (!formData.last_name.trim()) {
       newErrors.last_name = 'Last name is required';
     }
-    
+
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
-    
+
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
     setSubmitError(null); // Clear previous errors
     try {
       await onSubmit(formData);
       handleClose();
     } catch (error: any) {
-      console.error('Error submitting lead:', error);
-      
+
+
       // Extract error message from the error object
       let errorMessage = 'Failed to create lead. Please try again.';
-      
+
       if (error?.response?.data) {
         const errorData = error.response.data;
         if (errorData.email && Array.isArray(errorData.email)) {
@@ -94,7 +94,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
+
       setSubmitError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -132,7 +132,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
             Capture Exhibition Lead
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Submit Error Display */}
           {submitError && (
@@ -143,7 +143,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
               </div>
             </div>
           )}
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="first_name">First Name *</Label>
@@ -158,7 +158,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
                 <p className="text-red-500 text-xs mt-1">{errors.first_name}</p>
               )}
             </div>
-            
+
             <div>
               <Label htmlFor="last_name">Last Name *</Label>
               <Input
@@ -173,7 +173,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
               )}
             </div>
           </div>
-          
+
           <div>
             <Label htmlFor="email">Email *</Label>
             <Input
@@ -188,7 +188,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
               <p className="text-red-500 text-xs mt-1">{errors.email}</p>
             )}
           </div>
-          
+
           <div>
             <Label htmlFor="phone">Phone Number *</Label>
             <PhoneInputComponent
@@ -201,7 +201,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
               <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
             )}
           </div>
-          
+
           <div>
             <Label htmlFor="city">City</Label>
             <Input
@@ -211,7 +211,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
               placeholder="Enter city"
             />
           </div>
-          
+
           <div>
             <Label htmlFor="customer_type">Customer Type</Label>
             <Select
@@ -228,7 +228,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
               </SelectContent>
             </Select>
           </div>
-          
+
           <div>
             <Label htmlFor="notes">Notes</Label>
             <Textarea
@@ -239,7 +239,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
               rows={3}
             />
           </div>
-          
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
               Cancel

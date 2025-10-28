@@ -18,11 +18,11 @@ interface TransferToSalesModalProps {
   onTransferSuccess: () => void;
 }
 
-export function TransferToSalesModal({ 
-  lead, 
-  isOpen, 
-  onClose, 
-  onTransferSuccess 
+export function TransferToSalesModal({
+  lead,
+  isOpen,
+  onClose,
+  onTransferSuccess
 }: TransferToSalesModalProps) {
   const [salesPersons, setSalesPersons] = useState<SalesPerson[]>([]);
   const [selectedSalesPerson, setSelectedSalesPerson] = useState<string>('');
@@ -45,7 +45,7 @@ export function TransferToSalesModal({
       const salesList = await telecallingApiService.getSalesPersons();
       setSalesPersons(salesList);
     } catch (err) {
-      console.error('Error fetching sales persons:', err);
+
       setError('Failed to load sales persons. Please try again.');
     } finally {
       setSalesPersonsLoading(false);
@@ -69,9 +69,9 @@ export function TransferToSalesModal({
       };
 
       const result = await telecallingApiService.transferLead(transferData);
-      
+
       setSuccess(true);
-      
+
       // Close modal after a short delay to show success message
       setTimeout(() => {
         onTransferSuccess();
@@ -80,7 +80,7 @@ export function TransferToSalesModal({
       }, 2000);
 
     } catch (err) {
-      console.error('Error transferring lead:', err);
+
       setError(err instanceof Error ? err.message : 'Failed to transfer lead. Please try again.');
     } finally {
       setLoading(false);
@@ -187,14 +187,14 @@ export function TransferToSalesModal({
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleClose}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleTransfer}
               disabled={loading || !selectedSalesPerson || salesPersonsLoading}
               className="bg-blue-600 hover:bg-blue-700"

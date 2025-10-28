@@ -50,21 +50,21 @@ export default function PipelineStageStats({ className }: PipelineStageStatsProp
       setLoading(true);
       // Try to get detailed stage data first
       let response = await apiService.getPipelineStages();
-      
+
       if (response.success) {
         const stagesData = response.data;
-        console.log('Pipeline stages data received:', stagesData);
+
         // Map the backend data to our frontend format
         const stageStats = pipelineStages.map(stage => {
           const backendStage = stagesData.find((s: { label: string; count: number; value: number }) => s.label === stage.name);
-          console.log(`Mapping stage ${stage.name}:`, backendStage);
+
           return {
             ...stage,
             count: backendStage?.count || 0,
             value_sum: backendStage?.value || 0,
           };
         });
-        console.log('Final stage stats:', stageStats);
+
         setPipelineStats(stageStats);
       } else {
         // Fallback to general pipeline stats
@@ -81,7 +81,7 @@ export default function PipelineStageStats({ className }: PipelineStageStatsProp
         }
       }
     } catch (error) {
-      console.error('Failed to fetch pipeline stats:', error);
+
       setError('Failed to load pipeline stats');
       // Fallback to empty stats
       const stageStats = pipelineStages.map(stage => ({
@@ -125,8 +125,8 @@ export default function PipelineStageStats({ className }: PipelineStageStatsProp
         <div className="flex items-center justify-center py-8">
           <div className="text-red-600 text-center">
             <div className="mb-2">{error}</div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => {
                 setError(null);
@@ -175,8 +175,8 @@ export default function PipelineStageStats({ className }: PipelineStageStatsProp
       {!loading && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {pipelineStats.map((stage) => (
-            <Card 
-              key={stage.value} 
+            <Card
+              key={stage.value}
               className={`shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 border-2 ${stage.color}`}
               onClick={() => handleStageClick(stage.value)}
             >

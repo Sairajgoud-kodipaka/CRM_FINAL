@@ -66,33 +66,28 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
   const fetchDeal = async () => {
     try {
       setLoading(true);
-      
-      console.log('=== DEBUG: Pipeline Detail Fetch ===');
-      console.log('Deal ID:', dealId);
-      console.log('Deal ID type:', typeof dealId);
-      console.log('User scope:', userScope);
-      console.log('API Base URL:', config.API_BASE_URL);
-      console.log('Full URL being called:', `${config.API_BASE_URL}/sales/pipeline/${dealId}/`);
-      
+
+
+
       // Validate the dealId
       if (!dealId || dealId === '[object Object]' || dealId === 'undefined' || dealId === 'null') {
-        console.error('❌ Invalid dealId received:', dealId);
+
         setError('Invalid pipeline ID received. Please try again.');
         return;
       }
-      
+
       // Clean the dealId
       const cleanId = String(dealId).trim();
-      console.log('Cleaned dealId:', cleanId);
-      
+
+
       // Always use the regular pipeline endpoint - backend scoped visibility handles filtering
-      console.log('Using getPipeline endpoint - backend handles scoped visibility');
+
       const response = await apiService.getPipeline(cleanId);
-      
-      console.log('API Response:', response);
-      
+
+
+
       if (response.success && response.data) {
-        console.log('✅ Pipeline fetched successfully:', response.data);
+
         setDeal(response.data);
         setFormData({
           title: response.data.title,
@@ -105,31 +100,26 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
           next_action: response.data.next_action || '',
           next_action_date: response.data.next_action_date || '',
         });
-        
+
         // Fetch client details
         if (response.data.client) {
-          console.log('Fetching client details for:', response.data.client);
+
           const clientResponse = await apiService.getClient(response.data.client.toString());
           if (clientResponse.success && clientResponse.data) {
             setClient(clientResponse.data);
-            console.log('✅ Client details fetched:', clientResponse.data);
+
           } else {
-            console.warn('❌ Failed to fetch client details:', clientResponse);
+
           }
         }
       } else {
         // Handle API response error
-        console.warn('❌ Pipeline API response indicates failure:', response);
+
         setError(`Failed to fetch pipeline: ${response.message || 'Unknown error'}`);
       }
     } catch (error: any) {
-      console.error('❌ Error fetching deal:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-      
+
+
       // Handle specific error cases
       if (error.message === 'Not found.') {
         setError('Pipeline not found. This might be because:\n• The pipeline was deleted\n• You don\'t have access to this pipeline\n• The pipeline ID is invalid');
@@ -140,7 +130,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
       } else {
         setError(`Error fetching pipeline: ${error.message || 'Unknown error occurred'}`);
       }
-      
+
       // Close modal after showing error
       setTimeout(() => {
         onClose();
@@ -159,7 +149,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.title || !formData.expected_value) {
       alert('Please fill in all required fields');
       return;
@@ -167,7 +157,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
 
     try {
       setSaving(true);
-      
+
       const pipelineData = {
         title: formData.title,
         client: formData.client || undefined,
@@ -181,18 +171,18 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
       };
 
       const response = await apiService.updatePipeline(dealId!, pipelineData);
-      
+
       if (response.success) {
-        console.log('Deal updated successfully');
+
         onDealUpdated();
         setIsEditing(false);
         fetchDeal(); // Refresh deal data
       } else {
-        console.error('Failed to update deal:', response);
+
         alert('Failed to update deal. Please try again.');
       }
     } catch (error) {
-      console.error('Error updating deal:', error);
+
       alert('Error updating deal. Please check the console for details.');
     } finally {
       setSaving(false);
@@ -203,17 +193,17 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
     try {
       setSaving(true);
       const response = await apiService.updatePipelineStage(dealId!, { stage: newStage });
-      
+
       if (response.success) {
-        console.log('Stage updated successfully');
+
         onDealUpdated();
         fetchDeal(); // Refresh deal data
       } else {
-        console.error('Failed to update stage:', response);
+
         alert('Failed to update stage. Please try again.');
       }
     } catch (error) {
-      console.error('Error updating stage:', error);
+
       alert('Error updating stage. Please check the console for details.');
     } finally {
       setSaving(false);
@@ -291,7 +281,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
               The requested deal (ID: {dealId}) could not be found. This might be because:
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="text-sm text-yellow-800">
@@ -303,13 +293,13 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                 </ul>
               </div>
             </div>
-            
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}>
                 Close
               </Button>
-              <Button 
-                variant="default" 
+              <Button
+                variant="default"
                 onClick={() => {
                   onClose();
                   // Optionally refresh the pipeline list
@@ -379,7 +369,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="client">Client ID</Label>
                   <Input
@@ -389,7 +379,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                     placeholder="Enter client ID"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="expected_value">Expected Value (₹) *</Label>
                   <Input
@@ -426,7 +416,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="expected_close_date">Expected Close Date</Label>
                   <Input
@@ -450,7 +440,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                     onChange={(e) => handleInputChange('next_action', e.target.value)}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="next_action_date">Next Action Date</Label>
                   <Input
@@ -460,7 +450,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                     onChange={(e) => handleInputChange('next_action_date', e.target.value)}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea
@@ -571,7 +561,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                     </div>
                     <CheckCircle className="w-5 h-5 text-green-500" />
                   </div>
-                  
+
                   {deal.expected_close_date && (
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
@@ -581,7 +571,7 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
                       <Calendar className="w-5 h-5 text-blue-500" />
                     </div>
                   )}
-                  
+
                   {deal.actual_close_date && (
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
@@ -638,4 +628,4 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
       </DialogContent>
     </Dialog>
   );
-} 
+}

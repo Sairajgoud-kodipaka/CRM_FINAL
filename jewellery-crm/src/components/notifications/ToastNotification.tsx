@@ -15,7 +15,7 @@ interface ToastNotificationProps {
 
 const getNotificationIcon = (type: NotificationType, priority: NotificationPriority) => {
   const iconClass = "h-5 w-5";
-  
+
   switch (type) {
     case 'appointment_reminder':
       return <Calendar className={`${iconClass} text-[#4A90E2]`} />;
@@ -144,8 +144,8 @@ export const ToastNotification: React.FC<ToastNotificationProps> = ({
                   <h4 className={`text-sm font-medium ${styles.title}`}>
                     {notification.title}
                   </h4>
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={`text-xs ${styles.container}`}
                   >
                     {getPriorityText(notification.priority)}
@@ -202,4 +202,4 @@ export const ToastNotification: React.FC<ToastNotificationProps> = ({
       )}
     </div>
   );
-}; 
+};

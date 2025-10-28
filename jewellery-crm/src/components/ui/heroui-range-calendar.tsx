@@ -27,7 +27,7 @@ export function HeroUIRangeCalendar({
   className
 }: HeroUIRangeCalendarProps) {
   const [isOpen, setIsOpen] = React.useState(false);
-  
+
   // Convert Date to CalendarDate for HeroUI
   const convertToCalendarDate = (date: Date) => {
     return parseDate(date.toISOString().split('T')[0]);
@@ -43,47 +43,47 @@ export function HeroUIRangeCalendar({
     if (dateRange?.from && dateRange?.to) {
       const start = convertToCalendarDate(dateRange.from);
       const end = convertToCalendarDate(dateRange.to);
-      console.log('Current calendar value:', { start, end, original: dateRange });
+
       return { start, end };
     }
-    console.log('No date range provided');
+
     return null;
   };
 
   const handleValueChange = (newValue: any) => {
-    console.log('Calendar value changed:', newValue);
-    
+
+
     // Apply immediately when both dates are selected
     if (newValue.start && newValue.end) {
       const from = convertToDate(newValue.start);
       const to = convertToDate(newValue.end);
-      console.log('Applying date range:', { from, to });
+
       onDateRangeChange?.({ from, to });
       setIsOpen(false);
     }
   };
 
   const handleClear = () => {
-    console.log('Clearing date range');
+
     onDateRangeChange?.(undefined);
     setIsOpen(false);
   };
 
   const formatDisplayDate = () => {
     if (!dateRange) return placeholder;
-    
+
     const start = dateRange.from.toLocaleDateString('en-GB', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
-    
+
     const end = dateRange.to.toLocaleDateString('en-GB', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
-    
+
     if (start === end) return start;
     return `${start} - ${end}`;
   };
@@ -107,7 +107,7 @@ export function HeroUIRangeCalendar({
             {formatDisplayDate()}
           </span>
           {dateRange && (
-            <X 
+            <X
               className="ml-auto h-4 w-4 opacity-50 hover:opacity-100"
               onClick={(e) => {
                 e.stopPropagation();
@@ -130,7 +130,7 @@ export function HeroUIRangeCalendar({
               <X className="h-4 w-4" />
             </Button>
           </div>
-          
+
           {/* Debug info - remove in production */}
           {currentValue && (
             <div className="mb-2 p-2 bg-gray-100 rounded text-xs">

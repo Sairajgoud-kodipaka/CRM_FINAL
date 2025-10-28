@@ -44,7 +44,7 @@ const defaultPresets = [
     }
   },
   {
-    label: "Yesterday", 
+    label: "Yesterday",
     value: "yesterday",
     getDateRange: () => {
       const yesterday = new Date()
@@ -54,7 +54,7 @@ const defaultPresets = [
   },
   {
     label: "Last 7 days",
-    value: "last7days", 
+    value: "last7days",
     getDateRange: () => {
       const today = new Date()
       const lastWeek = new Date()
@@ -139,11 +139,11 @@ export function DateRangeFilter({
 
   const formatDateRange = () => {
     if (!dateRange?.from) return placeholder
-    
+
     if (dateRange.from && dateRange.to) {
       return `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd, yyyy")}`
     }
-    
+
     return format(dateRange.from, "MMM dd, yyyy")
   }
 
@@ -164,7 +164,7 @@ export function DateRangeFilter({
           </SelectContent>
         </Select>
       )}
-      
+
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button

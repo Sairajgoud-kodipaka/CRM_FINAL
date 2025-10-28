@@ -93,7 +93,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all transfers across all stores (business admin can see everything)
       const transfersResponse = await apiService.getStockTransfers();
       if (transfersResponse.success && transfersResponse.data) {
@@ -164,7 +164,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
         setInventory(inventoryData);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+
       setTransfers([]);
       setProducts([]);
       setStores([]);
@@ -200,7 +200,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
         onSuccess();
       }
     } catch (error) {
-      console.error('Error creating transfer:', error);
+
     }
   };
 
@@ -212,7 +212,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
         onSuccess();
       }
     } catch (error) {
-      console.error('Error approving transfer:', error);
+
     }
   };
 
@@ -224,7 +224,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
         onSuccess();
       }
     } catch (error) {
-      console.error('Error completing transfer:', error);
+
     }
   };
 
@@ -236,7 +236,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
         onSuccess();
       }
     } catch (error) {
-      console.error('Error cancelling transfer:', error);
+
     }
   };
 
@@ -244,10 +244,10 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
   const exportTransfers = async () => {
     try {
       setExporting(true);
-      
+
       // Convert transfers to CSV format
       const csvContent = convertTransfersToCSV(transfers);
-      
+
       // Create and download file
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
@@ -259,7 +259,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error('Error exporting transfers:', error);
+
       alert('Failed to export transfers');
     } finally {
       setExporting(false);
@@ -317,27 +317,27 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
 
     const searchLower = productSearch.toLowerCase();
     const filtered = products.filter(product => {
-      return product.name.toLowerCase().includes(searchLower) || 
+      return product.name.toLowerCase().includes(searchLower) ||
              product.sku.toLowerCase().includes(searchLower);
     });
-    
+
     setFilteredProducts(filtered);
   };
 
   // Filter transfers based on store and status
   const getFilteredTransfers = () => {
     let filtered = transfers;
-    
+
     if (filterStore !== 'all') {
-      filtered = filtered.filter(transfer => 
+      filtered = filtered.filter(transfer =>
         transfer.from_store_name === filterStore || transfer.to_store_name === filterStore
       );
     }
-    
+
     if (filterStatus !== 'all') {
       filtered = filtered.filter(transfer => transfer.status === filterStatus);
     }
-    
+
     return filtered;
   };
 
@@ -409,8 +409,8 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                     <Package className="w-4 h-4 mr-2" />
                     Create Transfer
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={exportTransfers}
                     disabled={exporting}
                   >
@@ -481,7 +481,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                             </p>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                           <div className="text-right">
                             <p className="text-xs text-muted-foreground">
@@ -493,7 +493,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                               </p>
                             )}
                           </div>
-                          
+
                           <div className="flex gap-1">
                             {transfer.status === 'pending' && (
                               <>
@@ -557,7 +557,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
               Business Admin - Create transfers between any stores
             </p>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div>
               <Label htmlFor="from_store">From Store</Label>
@@ -574,7 +574,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="to_store">To Store</Label>
               <Select value={createForm.to_store} onValueChange={(value) => setCreateForm({ ...createForm, to_store: value })}>
@@ -590,7 +590,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="product">Product</Label>
               <div className="space-y-2">
@@ -613,7 +613,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                     </Button>
                   )}
                 </div>
-                
+
                 <div className="max-h-48 overflow-y-auto border rounded-md">
                   {filteredProducts.length > 0 ? (
                     filteredProducts.map((product) => (
@@ -641,7 +641,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                     </div>
                   )}
                 </div>
-                
+
                 {createForm.product && (
                   <div className="text-sm text-muted-foreground">
                     Selected: {products.find(p => p.id.toString() === createForm.product)?.name}
@@ -649,7 +649,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                 )}
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="quantity">Quantity</Label>
               <Input
@@ -660,7 +660,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                 onChange={(e) => setCreateForm({ ...createForm, quantity: parseInt(e.target.value) || 0 })}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="reason">Reason</Label>
               <Textarea
@@ -670,7 +670,7 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                 placeholder="Why do you need this transfer?"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
@@ -680,18 +680,18 @@ export default function BusinessAdminStockTransferModal({ isOpen, onClose, onSuc
                 placeholder="Additional notes..."
               />
             </div>
-            
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleCreateTransfer}
                 disabled={
-                  !createForm.from_store || 
-                  !createForm.to_store || 
-                  !createForm.product || 
-                  createForm.quantity <= 0 || 
+                  !createForm.from_store ||
+                  !createForm.to_store ||
+                  !createForm.product ||
+                  createForm.quantity <= 0 ||
                   createForm.reason === '' ||
                   createForm.from_store === createForm.to_store
                 }

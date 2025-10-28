@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Edit, Save, Plus, MoreHorizontal, Trash2, Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiService } from '@/lib/api-service';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -55,7 +55,7 @@ export default function StoreSettingsPage() {
         setError('Failed to load stores');
       }
     } catch (error) {
-      console.error('Failed to fetch stores:', error);
+
       setError('Failed to load stores');
       setStores([]);
     } finally {
@@ -87,7 +87,7 @@ export default function StoreSettingsPage() {
         setError('Failed to update store');
       }
     } catch (error) {
-      console.error('Failed to update store:', error);
+
       setError('Failed to update store');
     }
   };
@@ -119,7 +119,7 @@ export default function StoreSettingsPage() {
     const confirmDelete = window.confirm(
       `Are you sure you want to delete "${store.name}"?\n\nThis will permanently remove:\n• Store location and details\n• Associated staff assignments\n• Store-specific settings\n\nThis action cannot be undone.`
     );
-    
+
     if (!confirmDelete) {
       return;
     }
@@ -127,18 +127,18 @@ export default function StoreSettingsPage() {
     try {
       const response = await apiService.deleteStore(store.id.toString());
       if (response.success) {
-        console.log('Store deleted successfully');
+
         // Remove the deleted store from the local state
         setStores(prevStores => prevStores.filter(s => s.id !== store.id));
         // Show success message
         alert('Store deleted successfully!');
       } else {
-        console.error('Failed to delete store:', response);
+
         alert('Failed to delete store. Please try again.');
       }
     } catch (error: any) {
-      console.error('Error deleting store:', error);
-      
+
+
       // Handle specific error messages
       if (error.message && error.message.includes('cannot delete')) {
         alert(error.message);
@@ -164,7 +164,7 @@ export default function StoreSettingsPage() {
 
   const getStatusBadge = (isActive: boolean) => {
     return (
-      <Badge 
+      <Badge
         variant={isActive ? "default" : "secondary"}
         className={isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
       >
@@ -209,18 +209,18 @@ export default function StoreSettingsPage() {
         <h1 className="text-2xl font-semibold text-text-primary">Store Settings</h1>
         <p className="text-text-secondary mt-1">Manage your store details and locations</p>
       </div>
-      
+
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex items-center justify-between mb-2">
           <div className="font-semibold text-text-primary">Stores</div>
-          <Button 
+          <Button
             className="btn-primary text-sm flex items-center gap-1"
             onClick={() => setIsAddModalOpen(true)}
           >
             <Plus className="w-4 h-4" /> Add Store
           </Button>
         </div>
-        
+
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
@@ -308,15 +308,15 @@ export default function StoreSettingsPage() {
                     <td className="px-4 py-2">
                       {editingStore === store.id ? (
                         <div className="flex gap-1">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleSave(store.id)}
                           >
                             <Save className="w-4 h-4 mr-1" /> Save
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={handleCancel}
                           >
@@ -339,7 +339,7 @@ export default function StoreSettingsPage() {
                               <Users className="mr-2 h-4 w-4" />
                               Manage Team
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-red-600"
                               onClick={() => handleDelete(store)}
                             >
@@ -357,7 +357,7 @@ export default function StoreSettingsPage() {
           </table>
         </div>
       </Card>
-      
+
       <AddStoreModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -372,5 +372,5 @@ export default function StoreSettingsPage() {
     </div>
   );
 }
- 
- 
+
+

@@ -36,18 +36,18 @@ export default function SalesOrdersPage() {
   useEffect(() => {
     // Filter orders based on search term and status
     let filtered = orders || [];
-    
+
     if (searchTerm) {
-      filtered = filtered.filter(order => 
+      filtered = filtered.filter(order =>
         order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.client?.toString().includes(searchTerm)
       );
     }
-    
+
     if (statusFilter) {
       filtered = filtered.filter(order => order.status === statusFilter);
     }
-    
+
     setFilteredOrders(filtered);
   }, [orders, searchTerm, statusFilter]);
 
@@ -73,15 +73,15 @@ export default function SalesOrdersPage() {
     try {
       setLoading(true);
       const response = await apiService.getSales();
-      console.log('Orders API response:', response);
-      
+
+
       // Ensure we have an array of orders
       const ordersData = Array.isArray(response.data) ? response.data : [];
-      console.log('Processed orders data:', ordersData);
-      
+
+
       setOrders(ordersData);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+
       setOrders([]); // Set empty array on error
     } finally {
       setLoading(false);
@@ -139,23 +139,23 @@ export default function SalesOrdersPage() {
 
   const handleViewOrder = (order: Sale) => {
     // This would navigate to order detail page
-    console.log('Viewing order:', order);
+
     // In a real implementation, this would navigate to order detail
   };
 
   const handleCreateOrder = () => {
     // This would navigate to create order page
-    console.log('Creating new order');
+
     // In a real implementation, this would navigate to create order
   };
 
   const exportOrders = async () => {
     try {
       // This would export orders data
-      console.log('Exporting orders');
+
       // In a real implementation, this would call an export API
     } catch (error) {
-      console.error('Error exporting orders:', error);
+
     }
   };
 
@@ -208,7 +208,7 @@ export default function SalesOrdersPage() {
           </Button>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="flex flex-col gap-1 p-5">
           <div className="text-xl font-bold text-text-primary">{stats.totalOrders}</div>
@@ -227,14 +227,14 @@ export default function SalesOrdersPage() {
           <div className="text-sm text-text-secondary font-medium">Total Revenue</div>
         </Card>
       </div>
-      
+
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
           <div className="flex flex-col sm:flex-row gap-2 flex-1">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input 
-                placeholder="Search by order ID or customer..." 
+              <Input
+                placeholder="Search by order ID or customer..."
                 className="pl-10 w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -256,7 +256,7 @@ export default function SalesOrdersPage() {
             </select>
           </div>
         </div>
-        
+
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
@@ -298,9 +298,9 @@ export default function SalesOrdersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-blue-600 hover:text-blue-800"
                           onClick={() => handleViewOrder(order)}
                         >
@@ -323,7 +323,7 @@ export default function SalesOrdersPage() {
             </tbody>
           </table>
         </div>
-        
+
         {filteredOrders.length > 0 && (
           <div className="text-sm text-text-secondary text-center py-2">
             Showing {filteredOrders.length} of {orders.length} orders

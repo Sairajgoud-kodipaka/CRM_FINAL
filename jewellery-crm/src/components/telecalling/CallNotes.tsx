@@ -71,7 +71,7 @@ export function CallNotes({
         {/* Add New Note */}
         <div className="space-y-4">
           <h4 className="text-md font-medium text-gray-900">Add New Note</h4>
-          
+
           <Textarea
             value={newNote}
             onChange={(e) => onNoteChange(e.target.value)}
@@ -127,7 +127,7 @@ export function CallNotes({
         {/* Notes History */}
         <div className="space-y-4">
           <h4 className="text-md font-medium text-gray-900">Notes History</h4>
-          
+
           {notes.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               No notes yet. Add your first note above.

@@ -17,7 +17,7 @@ interface ExhibitionLeadModalProps {
 
 export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLeadModalProps) {
   const { toast } = useToast();
-  
+
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
@@ -43,7 +43,7 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
         });
         return;
       }
-      
+
       if (!formData.phone.trim()) {
         toast({
           title: "Validation Error",
@@ -52,9 +52,9 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
         });
         return;
       }
-      
+
       setLoading(true);
-      
+
       // Prepare customer data for exhibition lead
       const customerData = {
         first_name: formData.fullName.split(' ')[0] || formData.fullName,
@@ -67,20 +67,20 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
         summary_notes: formData.summaryNotes.trim() || '',
       };
 
-      console.log('Creating exhibition lead:', customerData);
-      
+
+
       // Call API to create customer
       const response = await apiService.createClient(customerData);
-      
+
       if (response.success) {
-        console.log('Exhibition lead created successfully:', response.data);
-        
+
+
         toast({
           title: "Success!",
           description: "Exhibition lead captured successfully!",
           variant: "success",
         });
-        
+
         // Reset form
         setFormData({
           fullName: "",
@@ -89,16 +89,16 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
           city: "",
           summaryNotes: "",
         });
-        
+
         onClose();
-        
+
         // Notify parent component
         if (onSuccess) {
           onSuccess();
         }
       } else {
-        console.error('Failed to create exhibition lead:', response);
-        
+
+
         toast({
           title: "Error",
           description: `Failed to capture lead: ${response.message || 'Unknown error'}`,
@@ -106,8 +106,8 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
         });
       }
     } catch (error: any) {
-      console.error('Error creating exhibition lead:', error);
-      
+
+
       toast({
         title: "Error",
         description: `Error capturing lead: ${error.message || 'Unknown error'}`,
@@ -141,9 +141,9 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
             <label className="block text-sm font-medium mb-2">Full Name *</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input 
-                placeholder="e.g., Priya Sharma" 
-                required 
+              <Input
+                placeholder="e.g., Priya Sharma"
+                required
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
                 className="pl-10"
@@ -167,8 +167,8 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
             <label className="block text-sm font-medium mb-2">Email</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input 
-                placeholder="e.g., priya.sharma@example.com" 
+              <Input
+                placeholder="e.g., priya.sharma@example.com"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 className="pl-10"
@@ -181,8 +181,8 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
             <label className="block text-sm font-medium mb-2">City</label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input 
-                placeholder="e.g., Mumbai" 
+              <Input
+                placeholder="e.g., Mumbai"
                 value={formData.city}
                 onChange={(e) => handleInputChange('city', e.target.value)}
                 className="pl-10"
@@ -195,8 +195,8 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
             <label className="block text-sm font-medium mb-2">Quick Notes</label>
             <div className="relative">
               <MessageSquare className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
-              <Textarea 
-                placeholder="What interested them? Budget? Timeline?" 
+              <Textarea
+                placeholder="What interested them? Budget? Timeline?"
                 rows={3}
                 value={formData.summaryNotes}
                 onChange={(e) => handleInputChange('summaryNotes', e.target.value)}
@@ -208,7 +208,7 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button 
+          <Button
             onClick={handleSubmit}
             disabled={loading}
             className="bg-orange-600 hover:bg-orange-700 text-white"

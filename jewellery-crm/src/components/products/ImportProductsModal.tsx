@@ -75,7 +75,7 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
       formData.append('file', file);
 
       const response = await apiService.importProducts(formData);
-      
+
       if (response.success) {
         setResult({
           success: true,
@@ -117,7 +117,7 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
   const downloadTemplate = () => {
         const csvContent = `name,sku,description,category,cost_price,selling_price,quantity,min_quantity,max_quantity,weight,dimensions,material,color,size,status,is_featured,is_bestseller
 Sample Product,SKU001,Product description,Category Name,1000.00,1500.00,10,5,100,10.5,10 x 5 x 2,Gold,Yellow,24k,active,true,false`;
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -142,8 +142,8 @@ Sample Product,SKU001,Product description,Category Name,1000.00,1500.00,10,5,100
           <Button variant="outline" onClick={handleClose} disabled={uploading}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleUpload} 
+          <Button
+            onClick={handleUpload}
             disabled={!file || uploading}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -259,4 +259,4 @@ Sample Product,SKU001,Product description,Category Name,1000.00,1500.00,10,5,100
         </div>
       </ResponsiveDialog>
   );
-} 
+}

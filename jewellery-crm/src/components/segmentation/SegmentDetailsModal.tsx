@@ -5,11 +5,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Users, 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  Users,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
   Calendar,
   Tag,
   Download,
@@ -33,11 +33,11 @@ interface SegmentDetailsModalProps {
   };
 }
 
-export default function SegmentDetailsModal({ 
-  open, 
-  onClose, 
-  segmentName, 
-  segmentData 
+export default function SegmentDetailsModal({
+  open,
+  onClose,
+  segmentName,
+  segmentData
 }: SegmentDetailsModalProps) {
   if (!segmentData) return null;
 
@@ -70,12 +70,12 @@ export default function SegmentDetailsModal({
 
   const handleEmailCampaign = () => {
     // TODO: Implement email campaign functionality
-    console.log('Email campaign for segment:', segmentData.name);
+
   };
 
   const handleWhatsAppCampaign = () => {
     // TODO: Implement WhatsApp campaign functionality
-    console.log('WhatsApp campaign for segment:', segmentData.name);
+
   };
 
   return (
@@ -111,19 +111,19 @@ export default function SegmentDetailsModal({
                   <div className="text-sm text-purple-700">Growth Rate</div>
                 </div>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold text-gray-900 mb-2">Description</h4>
                 <p className="text-gray-600">{segmentData.description}</p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold text-gray-900 mb-2">Category</h4>
                 <Badge variant="secondary" className="capitalize">
                   {segmentData.category}
                 </Badge>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold text-gray-900 mb-2">Tags</h4>
                 <div className="flex flex-wrap gap-2">
@@ -145,24 +145,24 @@ export default function SegmentDetailsModal({
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="flex items-center gap-2"
                   onClick={handleExportSegment}
                 >
                   <Download className="w-4 h-4" />
                   Export Segment Data
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="flex items-center gap-2"
                   onClick={handleEmailCampaign}
                 >
                   <Mail className="w-4 h-4" />
                   Email Campaign
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="flex items-center gap-2"
                   onClick={handleWhatsAppCampaign}
                 >

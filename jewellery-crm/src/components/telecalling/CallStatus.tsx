@@ -74,9 +74,9 @@ export function CallStatus({
           <div className="text-4xl font-mono font-bold text-gray-900">
             {formatDuration(callDuration)}
           </div>
-          
+
           {/* Status Badge */}
-          <Badge 
+          <Badge
             className={`px-4 py-2 text-sm font-medium border ${getStatusColor(callStatus)} ${
               callStatus === 'ringing' ? 'animate-pulse' : ''
             }`}
@@ -98,7 +98,7 @@ export function CallStatus({
         <Card className="p-6">
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 text-center">Call Controls</h3>
-            
+
             {/* Primary Controls */}
             <div className="flex justify-center space-x-4">
               {/* Mute Button */}

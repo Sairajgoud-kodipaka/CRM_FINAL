@@ -1,6 +1,6 @@
 /**
  * Unified Form Data Models
- * 
+ *
  * This file contains standardized interfaces for all form types
  * ensuring consistency across the application and proper data synchronization
  */
@@ -15,7 +15,7 @@ export interface CustomerCoreFields {
   last_name: string;
   email: string;
   phone: string;
-  
+
   // Address Information
   address: string;
   city: string;
@@ -23,25 +23,25 @@ export interface CustomerCoreFields {
   country: string;
   catchment_area: string;
   pincode: string;
-  
+
   // Demographics
   date_of_birth: string;
   anniversary_date: string;
   age_of_end_user: string;
   community: string;
   mother_tongue: string;
-  
+
   // Business Information
   reason_for_visit: string;
   lead_source: string;
   saving_scheme: string;
   status: string;
   customer_type: string;
-  
+
   // Assignment & Management
   assigned_to: string;
   sales_person: string;
-  
+
   // Notes & Additional Info
   summary_notes: string;
   next_follow_up: string;
@@ -53,24 +53,24 @@ export interface ProductCoreFields {
   sku: string;
   description: string;
   category: string;
-  
+
   // Pricing
   price: number;
   discount_percentage: number;
   price_after_discount: number;
-  
+
   // Inventory Management
   quantity: number;
   min_quantity: number;
   max_quantity: number;
-  
+
   // Physical Properties
   weight: number;
   dimensions: string;
   material: string;
   color: string;
   size: string;
-  
+
   // Status & Features
   status: string;
   is_featured: boolean;
@@ -85,12 +85,12 @@ export interface PipelineCoreFields {
   probability: string;
   stage: string;
   expected_close_date: string;
-  
+
   // Actions & Follow-up
   next_action: string;
   next_action_date: string;
   notes: string;
-  
+
   // Computed Fields (from Customer)
   customer_name?: string;
   customer_phone?: string;
@@ -106,11 +106,11 @@ export interface AppointmentCoreFields {
   purpose: string;
   location: string;
   notes: string;
-  
+
   // Status & Outcome
   status: string;
   outcome: string;
-  
+
   // Computed Fields (from Customer)
   customer_name?: string;
   customer_phone?: string;
@@ -122,16 +122,16 @@ export interface AnnouncementCoreFields {
   title: string;
   content: string;
   type: string;
-  
+
   // Targeting
   target_audience: string;
   target_stores: string[];
   target_roles: string[];
-  
+
   // Scheduling
   scheduled_at: string;
   expires_at: string;
-  
+
   // Status
   status: string;
   priority: string;
@@ -143,11 +143,11 @@ export interface EscalationCoreFields {
   description: string;
   priority: string;
   status: string;
-  
+
   // References
   customer_id: string;
   assigned_to: string;
-  
+
   // Computed Fields (from Customer)
   customer_name?: string;
   customer_phone?: string;
@@ -161,31 +161,31 @@ export interface EscalationCoreFields {
 export interface CustomerFormData extends CustomerCoreFields {
   // UI-specific computed fields
   fullName: string; // first_name + last_name
-  
+
   // Interest & Preferences
   customer_interests: ProductInterest[];
   customer_preferences: string;
   design_selected: boolean;
   wants_discount: boolean;
   checking_others: boolean;
-  
+
   // Pipeline Integration
   pipeline_stage: string;
   budget_range: string;
   appointment_type: string;
-  
+
   // Material & Product Preferences
   product_type: string;
   style: string;
   material_type: string;
   material_weight: number;
   material_value: number;
-  
+
   // Weight & Design
   selected_weight: number;
   weight_unit: string;
   design_number: string;
-  
+
   // Follow-up
   add_to_pipeline: boolean;
   next_follow_up_date: string;

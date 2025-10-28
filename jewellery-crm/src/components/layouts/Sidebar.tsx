@@ -1,9 +1,9 @@
 /**
  * Sidebar Navigation Component
- * 
+ *
  * This component provides the main navigation sidebar with HubSpot-inspired design.
  * Features include role-based navigation, collapsible sections, and active state management.
- * 
+ *
  * Key Features:
  * - Dark navy background matching HubSpot design
  * - Role-based menu items
@@ -19,7 +19,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { 
+import {
   BarChart3,
   Users,
   ShoppingBag,
@@ -48,7 +48,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -545,7 +545,7 @@ const getProfileRoute = (userRole: string): string | null => {
 
 /**
  * Sidebar Component
- * 
+ *
  * Comprehensive responsive sidebar that handles all device types:
  * - Desktop: Fixed sidebar always visible
  * - Tablet: Collapsible sidebar with smooth animations
@@ -555,16 +555,16 @@ export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: S
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const router = useRouter();
-  
+
   // Responsive breakpoints
   const isMobile = useMediaQuery('(max-width: 767px)');
   const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
   const isDesktop = useMediaQuery('(min-width: 1024px)');
-  
+
   // Sidebar state - use external state if provided, otherwise use internal state
   const [internalSidebarOpen, setInternalSidebarOpen] = useState(isDesktop);
   const sidebarOpen = externalIsOpen !== undefined ? externalIsOpen : internalSidebarOpen;
-  
+
   const setSidebarOpen = (open: boolean) => {
     if (externalIsOpen !== undefined && onToggle) {
       // External state management - call the toggle function
@@ -601,9 +601,9 @@ export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: S
       if ((isMobile || isTablet) && sidebarOpen) {
         const sidebar = document.getElementById('app-sidebar');
         const toggleButton = document.getElementById('sidebar-toggle');
-        
+
         if (
-          sidebar && 
+          sidebar &&
           !sidebar.contains(event.target as Node) &&
           toggleButton &&
           !toggleButton.contains(event.target as Node)
@@ -661,7 +661,7 @@ export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: S
     const isActive = isActiveRoute(item.href);
     const hasChildren = item.children && item.children.length > 0;
     const [isExpanded, setIsExpanded] = React.useState(isActive);
-    
+
     if (!canAccessItem(item)) return null;
 
     const itemClasses = cn(
@@ -693,14 +693,14 @@ export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: S
                 </Badge>
               )}
             </div>
-            <ChevronDown 
+            <ChevronDown
               className={cn(
                 'h-4 w-4 transition-transform duration-300 ease-in-out',
                 isExpanded && 'rotate-180'
-              )} 
+              )}
             />
           </button>
-          
+
           {isExpanded && (
             <div className="space-y-1 pl-4">
               {item.children?.map((child) => (
@@ -733,7 +733,7 @@ export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: S
     <>
       {/* Overlay for mobile/tablet */}
       {(isMobile || isTablet) && sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-[55]"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
@@ -803,14 +803,14 @@ export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: S
               </div>
             </Button>
           </DropdownMenuTrigger>
-          
-          <DropdownMenuContent 
-            align="end" 
+
+          <DropdownMenuContent
+            align="end"
             className="w-56 bg-card border-border shadow-xl"
           >
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            
+
             <DropdownMenuItem onClick={() => {
               const profileRoute = getProfileRoute(user.role);
               if (profileRoute) {
@@ -820,15 +820,15 @@ export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: S
               <User className="mr-2 h-4 w-4" />
               Profile Settings
             </DropdownMenuItem>
-            
+
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />
               Preferences
             </DropdownMenuItem>
-            
-            
+
+
             <DropdownMenuSeparator />
-            
+
             <DropdownMenuItem className="text-destructive" onClick={async () => {
               await logout();
               router.push('/');
@@ -851,7 +851,7 @@ export function useSidebarState() {
   const isMobile = useMediaQuery('(max-width: 767px)');
   const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
   const isDesktop = useMediaQuery('(min-width: 1024px)');
-  
+
   const [sidebarOpen, setSidebarOpen] = useState(isDesktop);
 
   useEffect(() => {

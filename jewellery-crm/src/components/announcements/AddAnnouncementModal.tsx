@@ -46,16 +46,14 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
 
   // Add debugging for user role
   const { user } = useAuth();
-  
-  console.log('AddAnnouncementModal - User:', user);
-  console.log('AddAnnouncementModal - User role:', user?.role);
-  console.log('AddAnnouncementModal - Can create announcement:', user?.role === 'manager' || user?.role === 'inhouse_sales' || user?.role === 'business_admin');
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('Submitting announcement with data:', formData);
-    
+
+
+
     if (!formData.title.trim() || !formData.content.trim()) {
       toast({
         title: "Error",
@@ -67,14 +65,14 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
 
     try {
       setLoading(true);
-      
-      console.log('Calling createAnnouncement API...');
+
+
       const response = await apiService.createAnnouncement({
         ...formData,
         expires_at: formData.expires_at || undefined,
       });
 
-      console.log('Create announcement response:', response);
+
 
       if (response.success) {
         toast({
@@ -96,7 +94,7 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
         });
         onSuccess?.();
       } else {
-        console.error('Failed to create announcement:', response);
+
         toast({
           title: "Error",
           description: response.message || 'Failed to create announcement',
@@ -104,7 +102,7 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
         });
       }
     } catch (error) {
-      console.error('Error creating announcement:', error);
+
       toast({
         title: "Error",
         description: "Failed to create announcement",
@@ -125,7 +123,7 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
   const handleRoleChange = (role: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
-      target_roles: checked 
+      target_roles: checked
         ? [...prev.target_roles, role]
         : prev.target_roles.filter(r => r !== role),
     }));
@@ -146,7 +144,7 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
             Create New Announcement
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div className="space-y-2">
@@ -297,4 +295,4 @@ export default function AddAnnouncementModal({ onSuccess }: AddAnnouncementModal
       </DialogContent>
     </Dialog>
   );
-} 
+}

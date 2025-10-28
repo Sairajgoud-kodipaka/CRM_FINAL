@@ -1,6 +1,6 @@
 /**
  * TouchOptimizedButton Component
- * 
+ *
  * A touch-optimized button component designed for mobile devices:
  * - Minimum 44px touch target (Apple HIG compliance)
  * - Proper spacing and sizing for different screen sizes
@@ -47,7 +47,7 @@ export function TouchOptimizedButton({
   // Get touch target size classes
   const getTouchTargetClasses = () => {
     if (!isMobile && !isTablet) return ''; // Desktop doesn't need touch targets
-    
+
     switch (touchTarget) {
       case 'sm':
         return 'min-h-[44px] min-w-[44px]';
@@ -74,7 +74,7 @@ export function TouchOptimizedButton({
           return 'px-4 py-3 text-base';
       }
     }
-    
+
     if (isTablet) {
       switch (size) {
         case 'sm':
@@ -87,7 +87,7 @@ export function TouchOptimizedButton({
           return 'px-4 py-2 text-base';
       }
     }
-    
+
     // Desktop
     switch (size) {
       case 'sm':
@@ -107,7 +107,7 @@ export function TouchOptimizedButton({
     if (hapticFeedback && isMobile && 'vibrate' in navigator) {
       navigator.vibrate(10); // Short vibration
     }
-    
+
     onClick?.(e);
   };
 
@@ -115,22 +115,22 @@ export function TouchOptimizedButton({
     // Base classes
     'transition-all duration-200',
     'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
-    
+
     // Touch target classes
     getTouchTargetClasses(),
-    
+
     // Size classes
     getSizeClasses(),
-    
+
     // Full width
     fullWidth && 'w-full',
-    
+
     // Press animation
     pressAnimation && 'active:scale-[0.98]',
-    
+
     // Mobile-specific optimizations
     isMobile && 'touch-manipulation', // Optimize for touch
-    
+
     className
   );
 

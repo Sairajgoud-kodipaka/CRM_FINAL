@@ -28,7 +28,7 @@ interface ManagerDashboardData {
     closed: number;
     revenue: number;
   };
-  
+
   // Store Performance for current month (Manager's store only)
   store_performance: {
     id: number;
@@ -37,7 +37,7 @@ interface ManagerDashboardData {
     sales_count: number;
     closed_deals: number;
   };
-  
+
   // Team Performance for current month (Store-scoped)
   team_performance: Array<{
     id: number;
@@ -94,14 +94,14 @@ function ManagerDashboardContent() {
     setCurrentMonth(prev => {
       const now = new Date();
       const currentDate = { year: now.getFullYear(), month: now.getMonth() };
-      
+
       // Prevent navigation to future months
-      if (prev.year > currentDate.year || 
+      if (prev.year > currentDate.year ||
           (prev.year === currentDate.year && prev.month >= currentDate.month)) {
-        console.log('⚠️ Cannot navigate to future months');
+
         return prev; // Stay on current month
       }
-      
+
       if (prev.month === 11) {
         return { year: prev.year + 1, month: 0 };
       }
@@ -120,15 +120,15 @@ function ManagerDashboardContent() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const monthRange = getCurrentMonthRange();
-      
+
       // CRITICAL: Force fresh data by clearing any cached data first
       setDashboardData(null);
-      
+
       // Add a small delay to ensure state is cleared
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Use manager dashboard API with scoped parameters
       const response = await apiService.getManagerDashboard({
         start_date: monthRange.start.toISOString(),
@@ -142,19 +142,18 @@ function ManagerDashboardContent() {
         store_id: userScope.filters.store_id || user?.store,
         user_id: userScope.filters.user_id || user?.id
       });
-      
-      console.log('📡 [MANAGER DASHBOARD] API Response:', response);
-      
+
+
+
       if (response.success) {
         setDashboardData(response.data);
-        console.log('✅ [MANAGER DASHBOARD] Monthly data loaded successfully');
-        console.log('📊 [MANAGER DASHBOARD] Data structure:', response.data);
+
       } else {
         setError(`Failed to load dashboard data: ${response.error || 'Unknown error'}`);
-        console.error('❌ [MANAGER DASHBOARD] API Error:', response.error);
+
       }
     } catch (err) {
-      console.error('❌ [MANAGER DASHBOARD] Fetch Error:', err);
+
       setError(`Failed to load dashboard data: ${err.message || 'Network error'}`);
     } finally {
       setLoading(false);
@@ -227,11 +226,11 @@ function ManagerDashboardContent() {
           </h1>
           <p className="text-text-secondary mt-1">Monthly performance overview - {userScope.description}</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {/* Scope Indicator */}
           <ScopeIndicator showDetails={false} />
-          
+
           {/* Month Navigation */}
           <Button
             variant="outline"
@@ -242,24 +241,24 @@ function ManagerDashboardContent() {
             <ChevronLeft className="w-4 h-4" />
             Previous
           </Button>
-          
+
           <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
             <CalendarIcon className="w-4 h-4 text-blue-600" />
             <span className="font-medium text-blue-800">{formatMonth()}</span>
           </div>
-          
+
           <Button
             variant="outline"
             size="sm"
             onClick={goToNextMonth}
             className="flex items-center gap-1"
-            disabled={currentMonth.year > new Date().getFullYear() || 
+            disabled={currentMonth.year > new Date().getFullYear() ||
                      (currentMonth.year === new Date().getFullYear() && currentMonth.month >= new Date().getMonth())}
           >
             Next
             <ChevronRight className="w-4 h-4" />
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -360,7 +359,7 @@ function ManagerDashboardContent() {
                       <p className="text-sm text-text-secondary">Store #{store.id}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-6">
                     <div className="text-center">
                       <div className="text-lg font-semibold text-blue-600">
@@ -419,7 +418,7 @@ function ManagerDashboardContent() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-6">
                   <div className="text-center">
                     <div className="text-lg font-semibold text-blue-600">
@@ -462,35 +461,35 @@ function ManagerDashboardContent() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="h-20 flex flex-col items-center justify-center gap-2"
               onClick={navigateToCustomers}
             >
               <Users className="w-6 h-6" />
               <span className="text-sm">Manage Customers</span>
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="h-20 flex flex-col items-center justify-center gap-2"
               onClick={navigateToAppointments}
             >
               <CalendarIcon className="w-6 h-6" />
               <span className="text-sm">Schedule Appointments</span>
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="h-20 flex flex-col items-center justify-center gap-2"
               onClick={navigateToTeam}
             >
               <Award className="w-6 h-6" />
               <span className="text-sm">Team Management</span>
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="h-20 flex flex-col items-center justify-center gap-2"
               onClick={navigateToAnalytics}
             >

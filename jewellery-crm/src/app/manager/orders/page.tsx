@@ -52,7 +52,7 @@ export default function ManagerOrdersPage() {
       //   setOrders(response.data);
       //   calculateStats(response.data);
       // }
-      
+
       // For now, show empty state
       setOrders([]);
       setStats({
@@ -62,7 +62,7 @@ export default function ManagerOrdersPage() {
         cancelled_orders: 0,
       });
     } catch (error) {
-      console.error('Error fetching orders:', error);
+
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ export default function ManagerOrdersPage() {
           <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-1" /> Export</Button>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="flex flex-col gap-1 p-5">
           <div className="text-xl font-bold text-text-primary">{stats.total_orders}</div>
@@ -147,8 +147,8 @@ export default function ManagerOrdersPage() {
 
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
-          <Input 
-            placeholder="Search by order ID or customer..." 
+          <Input
+            placeholder="Search by order ID or customer..."
             className="w-full md:w-80"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -165,7 +165,7 @@ export default function ManagerOrdersPage() {
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           {orders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">

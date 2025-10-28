@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
   Phone,
   Calendar,
   MessageCircle,
@@ -55,28 +55,28 @@ const getStatusIcon = (statusId: string) => {
     'converted_closed_won': Trophy,
     'lost_closed_lost': Ban
   };
-  
+
   const Icon = iconMap[statusId] || Clock;
   return <Icon className="w-4 h-4" />;
 };
 
-export function StatusHoverNotes({ 
-  statusId, 
-  notes, 
-  children, 
-  className = '', 
+export function StatusHoverNotes({
+  statusId,
+  notes,
+  children,
+  className = '',
   currentStatus,
   onAddNote,
   onViewNotes
 }: StatusHoverNotesProps) {
   const [isHovered, setIsHovered] = useState(false);
   const statusConfig = getStatusById(statusId);
-  
+
   if (!statusConfig) return <>{children}</>;
 
   const isCurrentStatus = currentStatus === statusId;
   const statusNotes = notes.filter(note => note.status === statusId);
-  
+
   // Determine if this is a future stage (higher priority than current)
   const currentPriority = getStatusById(currentStatus)?.priority || 0;
   const isFutureStage = statusConfig.priority > currentPriority;
@@ -95,14 +95,14 @@ export function StatusHoverNotes({
   };
 
   return (
-    <div 
+    <div
       className={`relative ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
     >
       {children}
-      
+
       {isHovered && (
         <div className="absolute z-50 top-full left-0 mt-2 w-80">
           <Card className="shadow-lg border-0 bg-white">
@@ -116,7 +116,7 @@ export function StatusHoverNotes({
                   <p className="text-xs text-gray-500">{statusConfig.description}</p>
                 </div>
               </div>
-              
+
               {/* Different content based on stage relationship */}
               {isCurrentStatus ? (
                 <div className="space-y-3">
@@ -126,7 +126,7 @@ export function StatusHoverNotes({
                     </Badge>
                     <span className="text-xs text-gray-500">Click to add/edit note</span>
                   </div>
-                  
+
                   {statusNotes.length > 0 ? (
                     <div className="space-y-2 max-h-40 overflow-y-auto">
                       <p className="text-xs font-medium text-gray-600">Recent Notes:</p>
@@ -155,7 +155,7 @@ export function StatusHoverNotes({
                     </Badge>
                     <span className="text-xs text-gray-500">Click to view all notes</span>
                   </div>
-                  
+
                   {statusNotes.length > 0 ? (
                     <div className="space-y-2 max-h-40 overflow-y-auto">
                       <p className="text-xs font-medium text-gray-600">Historical Notes:</p>
@@ -185,7 +185,7 @@ export function StatusHoverNotes({
                       Future Stage
                     </Badge>
                   </div>
-                  
+
                   <div className="text-center py-4 text-gray-500">
                     <AlertCircle className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
                     <p className="text-sm">This is a future stage</p>
@@ -202,18 +202,18 @@ export function StatusHoverNotes({
 }
 
 // Component for displaying status with hover notes in pipeline view
-export function PipelineStatusWithNotes({ 
-  statusId, 
-  notes, 
-  isActive = false, 
+export function PipelineStatusWithNotes({
+  statusId,
+  notes,
+  isActive = false,
   onClick,
   currentStatus,
   onAddNote,
   onViewNotes
-}: { 
-  statusId: string; 
-  notes: StatusNote[]; 
-  isActive?: boolean; 
+}: {
+  statusId: string;
+  notes: StatusNote[];
+  isActive?: boolean;
   onClick?: () => void;
   currentStatus?: string;
   onAddNote?: () => void;
@@ -225,14 +225,14 @@ export function PipelineStatusWithNotes({
   if (!statusConfig) return null;
 
   return (
-    <StatusHoverNotes 
-      statusId={statusId} 
+    <StatusHoverNotes
+      statusId={statusId}
       notes={notes}
       currentStatus={currentStatus}
       onAddNote={onAddNote}
       onViewNotes={onViewNotes}
     >
-      <div 
+      <div
         className={`
           flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-all
           ${isActive ? `${statusConfig.bgColor} ${statusConfig.textColor} border-2 border-current` : 'bg-gray-50 hover:bg-gray-100'}
@@ -243,7 +243,7 @@ export function PipelineStatusWithNotes({
         <div className={`p-1 rounded ${isActive ? 'bg-white/20' : statusConfig.bgColor}`}>
           {getStatusIcon(statusId)}
         </div>
-        
+
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <span className={`font-medium text-sm ${isActive ? 'text-white' : statusConfig.textColor}`}>
@@ -265,14 +265,14 @@ export function PipelineStatusWithNotes({
 }
 
 // Component for status badges with hover notes
-export function StatusBadgeWithNotes({ 
-  statusId, 
-  notes, 
-  className = '' 
-}: { 
-  statusId: string; 
-  notes: StatusNote[]; 
-  className?: string; 
+export function StatusBadgeWithNotes({
+  statusId,
+  notes,
+  className = ''
+}: {
+  statusId: string;
+  notes: StatusNote[];
+  className?: string;
 }) {
   const statusConfig = getStatusById(statusId);
   const statusNotes = notes.filter(note => note.status === statusId);
@@ -281,7 +281,7 @@ export function StatusBadgeWithNotes({
 
   return (
     <StatusHoverNotes statusId={statusId} notes={notes}>
-      <Badge 
+      <Badge
         className={`${statusConfig.bgColor} ${statusConfig.textColor} ${className}`}
       >
         <div className="flex items-center gap-1">

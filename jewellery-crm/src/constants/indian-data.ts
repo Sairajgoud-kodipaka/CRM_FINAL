@@ -66,7 +66,7 @@ export const CITY_CATCHMENT_MAP: Record<string, string[]> = {
         'Fort',
     ],
 };
-  
+
   // Catchment Area to Pincode mapping (15 popular catchments per city)
   export const CATCHMENT_PINCODE_MAP: Record<string, string> = {
     // Hyderabad Areas
@@ -85,7 +85,7 @@ export const CITY_CATCHMENT_MAP: Record<string, string[]> = {
     'Dilsukhnagar': '500060',
     'Ameerpet': '500038',
     'Mehdipatnam': '500028',
-  
+
     // Ahmedabad Areas
     'Manek Chowk': '380001',
     'CG Road': '380009',
@@ -102,7 +102,7 @@ export const CITY_CATCHMENT_MAP: Record<string, string[]> = {
     'Vasna': '380007',
     'Ghatlodia': '380061',
     'Vastral': '382418',
-  
+
     // Mumbai Areas
     'Zaveri Bazaar': '400003',
     'Borivali West': '400092',
@@ -152,12 +152,12 @@ export const unlockField = (fieldName: string, lockedFields: Set<string>): Set<s
 export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boolean => {
     return lockedFields.has(fieldName);
 };
-  
+
   // Dropdown Options
   export const INDIAN_CITIES = Object.keys(CITY_STATE_MAP).sort();
   export const INDIAN_STATES = Array.from(new Set(Object.values(CITY_STATE_MAP))).sort();
   export const INDIAN_CATCHMENT_AREAS = Object.keys(CATCHMENT_PINCODE_MAP).sort();
-  
+
   export const REASONS_FOR_VISIT = [
     'Wedding Jewellery',
     'Engagement',
@@ -170,13 +170,13 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'Inquiry',
     'Other',
   ] as const;
-  
+
   export const CUSTOMER_STATUSES = [
     'VVIP',
     'VIP',
     'GENERAL',
   ] as const;
-  
+
   export const LEAD_SOURCES = [
     'General Walk-in',
     'Referral',
@@ -193,13 +193,13 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'SMS Campaign',
     'Other',
   ] as const;
-  
+
   export const SAVING_SCHEMES = [
     'Inactive',
     'Active',
     'Pending',
   ] as const;
-  
+
   export const CUSTOMER_INTERESTS = [
     'Gold',
     'Diamond Studded',
@@ -214,7 +214,7 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'Sapphire',
     'Other Gemstones',
   ] as const;
-  
+
   export const PRODUCT_TYPES = [
     'Necklace',
     'Ring',
@@ -231,7 +231,7 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'Hair Accessories',
     'Other',
   ] as const;
-  
+
   export const STYLES = [
     'Traditional',
     'Contemporary',
@@ -244,7 +244,7 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'Victorian',
     'Other',
   ] as const;
-  
+
   export const WEIGHT_RANGES = [
     '<5g',
     '5–10g',
@@ -252,11 +252,11 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     '20–50g',
     '>50g',
   ] as const;
-  
+
   // High Priority Constants - Pipeline & Purchase Management
   export const PIPELINE_STAGES = [
     'exhibition',
-    'social_media', 
+    'social_media',
     'interested',
     'store_walkin',
     'negotiation',
@@ -265,7 +265,7 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'future_prospect',
     'not_qualified',
   ] as const;
-  
+
   export const BUDGET_RANGES = [
     '0-50000',
     '50000-100000',
@@ -274,7 +274,7 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     '500000-1000000',
     '1000000+',
   ] as const;
-  
+
   export const APPOINTMENT_TYPES = [
     'In-Person',
     'Virtual Consultation',
@@ -284,14 +284,14 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'Home Visit',
     'Exhibition Meeting',
   ] as const;
-  
+
   // Customer Classification
   export const CUSTOMER_TYPES = [
     'individual',
     'corporate',
     'wholesale',
   ] as const;
-  
+
   export const DEFAULT_SALES_PERSONS = [
     'Sales Person 1',
     'Sales Person 2',
@@ -301,7 +301,7 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
   // Age ranges for end user
   export const AGE_RANGES = [
     '18-25',
-    '25-35', 
+    '25-35',
     '35-45',
     '45-60',
     '60+',
@@ -310,7 +310,7 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
   // Product subtypes for detailed categorization
   export const PRODUCT_SUBTYPES = [
     'DI.RING',
-    'DI.EARRINGS', 
+    'DI.EARRINGS',
     'DI.NECKLACE',
     'DI.BRACELET',
     'DI.BANGLE',
@@ -361,7 +361,7 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
   // Material types for jewelry
   export const MATERIAL_TYPES = [
     'GOLD JEWELLERY',
-    'DIAMOND JEWELLERY', 
+    'DIAMOND JEWELLERY',
     'UNCUT JEWELLERY',
     'PLATINUM JEWELLERY',
     'SILVER JEWELLERY',
@@ -369,4 +369,3 @@ export const isFieldLocked = (fieldName: string, lockedFields: Set<string>): boo
     'PEARL JEWELLERY',
     'OTHER',
   ] as const;
-  

@@ -9,9 +9,9 @@ interface ScopeIndicatorProps {
   className?: string;
 }
 
-export const ScopeIndicator: React.FC<ScopeIndicatorProps> = ({ 
-  showDetails = false, 
-  className = '' 
+export const ScopeIndicator: React.FC<ScopeIndicatorProps> = ({
+  showDetails = false,
+  className = ''
 }) => {
   const { userScope, canAccessAllData, canAccessStoreData, canAccessOwnData } = useScopedVisibility();
 
@@ -47,8 +47,8 @@ export const ScopeIndicator: React.FC<ScopeIndicatorProps> = ({
 
   if (!showDetails) {
     return (
-      <Badge 
-        variant="outline" 
+      <Badge
+        variant="outline"
         className={`flex items-center gap-1 ${getScopeColor()} ${className}`}
       >
         {getScopeIcon()}
@@ -72,11 +72,11 @@ export const ScopeIndicator: React.FC<ScopeIndicatorProps> = ({
             {getScopeDisplayText(userScope)}
           </Badge>
         </div>
-        
+
         <div className="text-xs text-gray-500">
           {userScope.description}
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
             <span>All Data Access:</span>
@@ -84,14 +84,14 @@ export const ScopeIndicator: React.FC<ScopeIndicatorProps> = ({
               {canAccessAllData ? "Yes" : "No"}
             </Badge>
           </div>
-          
+
           <div className="flex items-center justify-between text-xs">
             <span>Store Data Access:</span>
             <Badge variant={canAccessStoreData ? "default" : "secondary"}>
               {canAccessStoreData ? "Yes" : "No"}
             </Badge>
           </div>
-          
+
           <div className="flex items-center justify-between text-xs">
             <span>Own Data Access:</span>
             <Badge variant={canAccessOwnData ? "default" : "secondary"}>
@@ -99,7 +99,7 @@ export const ScopeIndicator: React.FC<ScopeIndicatorProps> = ({
             </Badge>
           </div>
         </div>
-        
+
         {userScope.filters && Object.keys(userScope.filters).length > 0 && (
           <div className="pt-2 border-t">
             <div className="text-xs text-gray-500 mb-1">Active Filters:</div>
@@ -118,4 +118,4 @@ export const ScopeIndicator: React.FC<ScopeIndicatorProps> = ({
   );
 };
 
-export default ScopeIndicator; 
+export default ScopeIndicator;

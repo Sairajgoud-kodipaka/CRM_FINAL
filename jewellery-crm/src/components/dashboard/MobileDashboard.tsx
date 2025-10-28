@@ -1,12 +1,12 @@
 /**
  * MobileDashboard Component
- * 
+ *
  * A mobile-optimized dashboard component that provides:
  * - Essential KPIs visible by default
  * - Accordion/collapsible sections for detailed metrics
  * - Progressive disclosure pattern
  * - Touch-friendly interactions
- * 
+ *
  * Features:
  * - Card-based layout optimized for mobile
  * - Swipe gestures support
@@ -21,12 +21,12 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  RefreshCw, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  TrendingUp,
+  TrendingDown,
   Minus,
   MoreHorizontal,
   Eye,
@@ -77,18 +77,18 @@ export interface MobileDashboardProps {
 }
 
 // Individual Metric Component
-function MetricCard({ 
-  metric, 
-  compact = false 
-}: { 
-  metric: DashboardMetric; 
-  compact?: boolean; 
+function MetricCard({
+  metric,
+  compact = false
+}: {
+  metric: DashboardMetric;
+  compact?: boolean;
 }) {
   const Icon = metric.icon;
-  
+
   const formatValue = (value: string | number, format?: string) => {
     if (typeof value === 'string') return value;
-    
+
     switch (format) {
       case 'currency':
         return new Intl.NumberFormat('en-IN', {
@@ -148,7 +148,7 @@ function MetricCard({
                 {metric.title}
               </h3>
             </div>
-            
+
             <div className="flex items-baseline gap-2">
               <span className={cn(
                 'font-bold text-foreground',
@@ -156,7 +156,7 @@ function MetricCard({
               )}>
                 {formatValue(metric.value, metric.format)}
               </span>
-              
+
               {metric.change && (
                 <div className={cn(
                   'flex items-center gap-1',
@@ -169,7 +169,7 @@ function MetricCard({
                 </div>
               )}
             </div>
-            
+
             {metric.change && (
               <p className="text-xs text-muted-foreground mt-1">
                 vs {metric.change.period}
@@ -183,14 +183,14 @@ function MetricCard({
 }
 
 // Dashboard Section Component
-function DashboardSectionComponent({ 
-  section, 
-  isExpanded, 
+function DashboardSectionComponent({
+  section,
+  isExpanded,
   onToggle,
-  compact = false 
-}: { 
-  section: DashboardSection; 
-  isExpanded: boolean; 
+  compact = false
+}: {
+  section: DashboardSection;
+  isExpanded: boolean;
   onToggle: () => void;
   compact?: boolean;
 }) {
@@ -216,10 +216,10 @@ function DashboardSectionComponent({
               </p>
             )}
           </div>
-          
+
           <div className="flex items-center gap-2">
             {section.actions}
-            
+
             {section.collapsible && (
               <Button
                 variant="ghost"
@@ -237,7 +237,7 @@ function DashboardSectionComponent({
           </div>
         </div>
       </CardHeader>
-      
+
       {isExpanded && (
         <CardContent className="pt-0">
           <div className={cn(
@@ -259,12 +259,12 @@ function DashboardSectionComponent({
 }
 
 // Quick Actions Component
-function QuickActions({ 
-  actions, 
-  compact = false 
-}: { 
-  actions: QuickAction[]; 
-  compact?: boolean; 
+function QuickActions({
+  actions,
+  compact = false
+}: {
+  actions: QuickAction[];
+  compact?: boolean;
 }) {
   const [showAll, setShowAll] = useState(false);
   const visibleActions = showAll ? actions : actions.slice(0, 4);
@@ -276,7 +276,7 @@ function QuickActions({
           Quick Actions
         </CardTitle>
       </CardHeader>
-      
+
       <CardContent className="pt-0">
         <div className={cn(
           'grid gap-3',
@@ -302,7 +302,7 @@ function QuickActions({
             );
           })}
         </div>
-        
+
         {actions.length > 4 && (
           <div className="mt-4 text-center">
             <Button
@@ -365,7 +365,7 @@ export function MobileDashboard({
   // Handle refresh
   const handleRefresh = async () => {
     if (isRefreshing || !onRefresh) return;
-    
+
     setIsRefreshing(true);
     try {
       await onRefresh();
@@ -422,7 +422,7 @@ export function MobileDashboard({
             Overview of your key metrics
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -432,7 +432,7 @@ export function MobileDashboard({
           >
             {compactMode ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </Button>
-          
+
           {onRefresh && (
             <Button
               variant="outline"
@@ -459,7 +459,7 @@ export function MobileDashboard({
       <div className="space-y-4">
         {sortedSections.map((section) => {
           const isExpanded = expandedSections[section.id] ?? true;
-          
+
           return (
             <DashboardSectionComponent
               key={section.id}

@@ -29,7 +29,7 @@ export function WeightDropdown({
   const gramOptions = [
     '0.5', '1', '2', '3', '5', '10', '15', '20', '25', '30', '50', '100', '150', '200', '250', '300', '500', '750', '1000'
   ];
-  
+
   const kgOptions = [
     '0.1', '0.2', '0.5', '1', '1.5', '2', '2.5', '3', '4', '5', '7.5', '10', '15', '20', '25', '50', '100'
   ];
@@ -87,7 +87,7 @@ export function WeightDropdown({
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     setWeightValue(inputValue);
-    
+
     if (inputValue.trim()) {
       const numValue = parseFloat(inputValue);
       if (!isNaN(numValue)) {
@@ -117,15 +117,15 @@ export function WeightDropdown({
   return (
     <div className={`space-y-2 ${className}`}>
       <Label htmlFor="weight">{label}</Label>
-      
+
       {/* Unit Selection */}
       <div className="flex gap-2">
         <button
           type="button"
           onClick={() => handleUnitChange('g')}
           className={`px-3 py-2 text-sm rounded-md border ${
-            unit === 'g' 
-              ? 'bg-blue-500 text-white border-blue-500' 
+            unit === 'g'
+              ? 'bg-blue-500 text-white border-blue-500'
               : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -135,8 +135,8 @@ export function WeightDropdown({
           type="button"
           onClick={() => handleUnitChange('kg')}
           className={`px-3 py-2 text-sm rounded-md border ${
-            unit === 'kg' 
-              ? 'bg-blue-500 text-white border-blue-500' 
+            unit === 'kg'
+              ? 'bg-blue-500 text-white border-blue-500'
               : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -175,7 +175,7 @@ export function WeightDropdown({
                 {option} {unit}
               </button>
             ))}
-            
+
             {/* Add Custom Value Section */}
             <div className="border-t border-gray-200">
               {!isAddingCustom ? (
@@ -216,7 +216,7 @@ export function WeightDropdown({
           </div>
         )}
       </div>
-      
+
       <p className="text-xs text-gray-500">
         Current unit: {unit} (stored as grams in database)
       </p>

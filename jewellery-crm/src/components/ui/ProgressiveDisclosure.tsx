@@ -1,6 +1,6 @@
 /**
  * ProgressiveDisclosure Component
- * 
+ *
  * A progressive disclosure component for complex forms and content:
  * - Shows essential information first
  * - Reveals additional details on demand
@@ -57,7 +57,7 @@ export function ProgressiveDisclosure({
   // Handle toggle
   const handleToggle = () => {
     if (!collapsible) return;
-    
+
     const newExpanded = !isExpanded;
     setIsExpanded(newExpanded);
     onToggle?.(newExpanded);
@@ -87,7 +87,7 @@ export function ProgressiveDisclosure({
           return 'p-4';
       }
     }
-    
+
     if (isTablet) {
       switch (size) {
         case 'sm':
@@ -98,7 +98,7 @@ export function ProgressiveDisclosure({
           return 'p-5';
       }
     }
-    
+
     // Desktop
     switch (size) {
       case 'sm':
@@ -113,9 +113,9 @@ export function ProgressiveDisclosure({
   // Get toggle icon
   const getToggleIcon = () => {
     if (!showToggleIcon) return null;
-    
+
     if (customToggleIcon) return customToggleIcon;
-    
+
     switch (toggleIcon) {
       case 'plus':
         return isExpanded ? (
@@ -192,7 +192,7 @@ export function ProgressiveDisclosure({
               </p>
             )}
           </div>
-          
+
           {collapsible && (
             <div className="flex-shrink-0 ml-2">
               {getToggleIcon()}

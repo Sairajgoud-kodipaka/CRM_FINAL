@@ -12,16 +12,16 @@ import { PasswordForm } from '@/components/ui/password-form';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/lib/api-service';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
-  Shield, 
-  Edit2, 
-  Save, 
-  X, 
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Shield,
+  Edit2,
+  Save,
+  X,
   CheckCircle,
   Building2,
   Store,
@@ -84,7 +84,7 @@ export default function SalesProfilePage() {
           setError('Failed to load profile data');
         }
       } catch (err: any) {
-        console.error('Error fetching profile:', err);
+
         setError('Failed to load profile data');
     } finally {
       setLoading(false);
@@ -108,7 +108,7 @@ export default function SalesProfilePage() {
       setError(null);
 
       const response = await apiService.updateProfile(editFormData);
-      
+
       if (response.success) {
         setProfileData(response.data);
         setEditMode(false);
@@ -118,7 +118,7 @@ export default function SalesProfilePage() {
         throw new Error(response.message || 'Failed to update profile');
       }
     } catch (err: any) {
-      console.error('Error updating profile:', err);
+
       setError(err.message || 'Failed to update profile');
     } finally {
       setSaving(false);
@@ -234,7 +234,7 @@ export default function SalesProfilePage() {
           <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
           <p className="text-gray-600 mt-1">Manage your account settings and personal information</p>
         </div>
-          <Button 
+          <Button
           variant={editMode ? "outline" : "default"}
           onClick={() => editMode ? handleCancelEdit() : setEditMode(true)}
           disabled={saving}
@@ -307,7 +307,7 @@ export default function SalesProfilePage() {
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Personal Information */}
@@ -316,7 +316,7 @@ export default function SalesProfilePage() {
                     <User className="w-5 h-5" />
                     Personal Information
                   </h3>
-                  
+
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
@@ -418,7 +418,7 @@ export default function SalesProfilePage() {
                     <Building2 className="w-5 h-5" />
                     Organization
                   </h3>
-                  
+
                   <div className="space-y-3">
                   <div>
                       <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -468,8 +468,8 @@ export default function SalesProfilePage() {
               {/* Action Buttons */}
               {editMode && (
                 <div className="flex items-center gap-3 mt-6 pt-6 border-t">
-                  <Button 
-                    onClick={handleSaveProfile} 
+                  <Button
+                    onClick={handleSaveProfile}
                     disabled={saving}
                     className="flex items-center gap-2"
                   >
@@ -485,9 +485,9 @@ export default function SalesProfilePage() {
                       </>
                     )}
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleCancelEdit} 
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEdit}
                     disabled={saving}
                   >
                     Cancel
@@ -499,7 +499,7 @@ export default function SalesProfilePage() {
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
-          <PasswordForm 
+          <PasswordForm
             onSuccess={handlePasswordChangeSuccess}
             onError={handlePasswordChangeError}
           />

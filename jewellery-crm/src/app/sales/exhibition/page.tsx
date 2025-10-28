@@ -59,21 +59,17 @@ export default function SalesExhibitionPage() {
   const fetchExhibitionLeads = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Starting to fetch exhibition leads...');
-      
+
+
       const response = await apiService.getExhibitionLeads();
-      
+
       // Debug logging
-      console.log('📡 API Response:', response);
-      console.log('📊 Response success:', response.success);
-      console.log('📋 Response data type:', typeof response.data);
-      console.log('📄 Response data:', response.data);
-      console.log('📏 Is array?', Array.isArray(response.data));
-      
+
+
       if (response.success && response.data) {
         // Handle different data formats
         let leadsData: any[] = [];
-        
+
         if (Array.isArray(response.data)) {
           leadsData = response.data;
         } else if (response.data && typeof response.data === 'object') {
@@ -87,15 +83,12 @@ export default function SalesExhibitionPage() {
             leadsData = [data];
           }
         }
-        
-        console.log('✅ Processed leads data:', leadsData);
+
+
         setExhibitionLeads(leadsData);
       } else {
-        console.error('❌ Failed to fetch exhibition leads:', response);
-        console.error('❌ Success:', response.success);
-        console.error('❌ Data exists:', !!response.data);
-        console.error('❌ Is array:', Array.isArray(response.data));
-        
+
+
         // Ensure exhibitionLeads is always an array
         setExhibitionLeads([]);
         toast({
@@ -105,11 +98,8 @@ export default function SalesExhibitionPage() {
         });
       }
     } catch (error: any) {
-      console.error('💥 Error fetching exhibition leads:', error);
-      console.error('💥 Error type:', typeof error);
-      console.error('💥 Error message:', error.message);
-      console.error('💥 Error stack:', error.stack);
-      
+
+
       // Ensure exhibitionLeads is always an array even on error
       setExhibitionLeads([]);
       toast({
@@ -134,14 +124,14 @@ export default function SalesExhibitionPage() {
         });
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+
     }
   };
 
   const promoteLead = async (clientId: string) => {
     try {
       const response = await apiService.promoteExhibitionLead(clientId);
-      
+
       if (response.success) {
         toast({
           title: "Success",
@@ -157,7 +147,7 @@ export default function SalesExhibitionPage() {
         });
       }
     } catch (error) {
-      console.error('Error promoting lead:', error);
+
       toast({
         title: "Error",
         description: "Failed to promote lead",
@@ -185,7 +175,7 @@ export default function SalesExhibitionPage() {
 
     try {
       setSubmitting(true);
-      
+
       // Create new client with exhibition status
       const response = await apiService.createExhibitionLead({
         first_name: formData.fullName.split(' ')[0] || formData.fullName,
@@ -202,7 +192,7 @@ export default function SalesExhibitionPage() {
           title: "Success",
           description: "Exhibition lead captured successfully!",
         });
-        
+
         // Reset form and close modal
         setFormData({
           fullName: '',
@@ -211,7 +201,7 @@ export default function SalesExhibitionPage() {
           city: ''
         });
         setShowAddModal(false);
-        
+
         // Refresh the leads list and stats
         fetchExhibitionLeads();
         fetchStats();
@@ -223,7 +213,7 @@ export default function SalesExhibitionPage() {
         });
       }
     } catch (error) {
-      console.error('Error capturing lead:', error);
+
       toast({
         title: "Error",
         description: "Failed to capture lead",
@@ -246,7 +236,7 @@ export default function SalesExhibitionPage() {
 
   const filteredLeads = Array.isArray(exhibitionLeads) ? exhibitionLeads.filter(lead => {
     const fullName = `${lead.first_name} ${lead.last_name}`.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       fullName.includes(searchTerm.toLowerCase()) ||
       lead.phone?.includes(searchTerm) ||
       lead.email?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -256,7 +246,7 @@ export default function SalesExhibitionPage() {
     if (filterStatus === 'all') return lead.status === 'exhibition' && matchesSearch;
     if (filterStatus === 'exhibition') return lead.status === 'exhibition' && matchesSearch;
     if (filterStatus === 'promoted') return false; // No promoted leads in this view
-    
+
     return lead.status === 'exhibition' && matchesSearch;
   }) : [];
 
@@ -437,8 +427,8 @@ export default function SalesExhibitionPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-              <Input 
-                placeholder="Enter full name" 
+              <Input
+                placeholder="Enter full name"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
                 required
@@ -446,7 +436,7 @@ export default function SalesExhibitionPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-              <PhoneInputComponent 
+              <PhoneInputComponent
                 value={formData.phone}
                 onChange={(value) => handleInputChange('phone', value)}
                 placeholder="9876543210"
@@ -455,8 +445,8 @@ export default function SalesExhibitionPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
-              <Input 
-                placeholder="Enter email address" 
+              <Input
+                placeholder="Enter email address"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
@@ -464,22 +454,22 @@ export default function SalesExhibitionPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-              <Input 
-                placeholder="Enter city" 
+              <Input
+                placeholder="Enter city"
                 value={formData.city}
                 onChange={(e) => handleInputChange('city', e.target.value)}
               />
             </div>
             <div className="flex gap-3 pt-4">
-              <Button 
-                onClick={resetForm} 
-                variant="outline" 
+              <Button
+                onClick={resetForm}
+                variant="outline"
                 className="flex-1"
                 disabled={submitting}
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleSubmitLead}
                 className="flex-1 bg-orange-600 hover:bg-orange-700"
                 disabled={submitting}

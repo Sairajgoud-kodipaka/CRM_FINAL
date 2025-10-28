@@ -80,7 +80,7 @@ export default function ManagerAppointmentsPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
-  
+
   // Add Appointment Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -102,68 +102,68 @@ export default function ManagerAppointmentsPage() {
     const checkTodayAppointments = () => {
       checkTodayAppointmentsNotification();
     };
-    
+
     // Check immediately
     checkTodayAppointments();
-    
+
     // Check every hour
     const interval = setInterval(checkTodayAppointments, 60 * 60 * 1000);
-    
+
     return () => clearInterval(interval);
   }, [dateRange]);
 
   useEffect(() => {
     // Filter appointments based on search term, status, and date
     let filtered = appointments || [];
-    
+
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(appointment => 
+      filtered = filtered.filter(appointment =>
         appointment.purpose?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         appointment.client?.toString().includes(searchTerm) ||
         appointment.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    
+
     // Filter by status
     if (statusFilter) {
       filtered = filtered.filter(appointment => appointment.status === statusFilter);
     }
-    
+
     // Filter by date - show today + future + incomplete past
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+
     filtered = filtered.filter(appointment => {
       const appointmentDate = new Date(appointment.date);
       const appointmentDateTime = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
-      
+
       // Always show today and future appointments
       if (appointmentDateTime >= today) {
         return true;
       }
-      
+
       // Show past appointments only if they're incomplete and user wants to see overdue
       if (showOverdue && appointment.status !== 'completed' && appointment.status !== 'cancelled') {
         return true;
       }
-      
+
       return false;
     });
-    
+
     // Sort appointments: today first, then by date
     filtered.sort((a, b) => {
       const aDate = new Date(a.date);
       const bDate = new Date(b.date);
       const aIsToday = aDate.toDateString() === today.toDateString();
       const bIsToday = bDate.toDateString() === today.toDateString();
-      
+
       if (aIsToday && !bIsToday) return -1;
       if (!aIsToday && bIsToday) return 1;
-      
+
       return aDate.getTime() - bDate.getTime();
     });
-    
+
     setFilteredAppointments(filtered);
   }, [appointments, searchTerm, statusFilter, showOverdue]);
 
@@ -172,21 +172,21 @@ export default function ManagerAppointmentsPage() {
     const appointmentsArray = appointments || [];
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+
     const totalAppointments = appointmentsArray.length;
     const todayAppointments = appointmentsArray.filter(a => {
       const appointmentDate = new Date(a.date);
       return appointmentDate.toDateString() === today.toDateString();
     }).length;
-    
+
     const upcomingAppointments = appointmentsArray.filter(a => {
       const appointmentDate = new Date(a.date);
       return appointmentDate >= today && (a.status === 'scheduled' || a.status === 'confirmed');
     }).length;
-    
+
     const completedAppointments = appointmentsArray.filter(a => a.status === 'completed').length;
     const cancelledAppointments = appointmentsArray.filter(a => a.status === 'cancelled').length;
-    
+
     const overdueAppointments = appointmentsArray.filter(a => {
       const appointmentDate = new Date(a.date);
       return appointmentDate < today && a.status !== 'completed' && a.status !== 'cancelled';
@@ -206,13 +206,13 @@ export default function ManagerAppointmentsPage() {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const currentHour = now.getHours();
-    
+
     const todayAppointments = appointments.filter(a => {
       const appointmentDate = new Date(a.date);
-      return appointmentDate.toDateString() === today.toDateString() && 
+      return appointmentDate.toDateString() === today.toDateString() &&
              a.status === 'scheduled' || a.status === 'confirmed';
     });
-    
+
     if (todayAppointments.length > 0) {
       // Check if any appointment is within the next hour
       const upcomingAppointments = todayAppointments.filter(a => {
@@ -221,16 +221,16 @@ export default function ManagerAppointmentsPage() {
         const appointmentMinute = parseInt(minutes);
         const appointmentTime = appointmentHour * 60 + appointmentMinute;
         const currentTime = currentHour * 60 + now.getMinutes();
-        
+
         // Show notification if appointment is within the next hour
         return (appointmentTime - currentTime) <= 60 && (appointmentTime - currentTime) > 0;
       });
-      
+
       if (upcomingAppointments.length > 0) {
         upcomingAppointments.forEach(appointment => {
           const [hours, minutes] = appointment.time.split(':');
           const appointmentTime = `${hours}:${minutes}`;
-          
+
           toast({
             title: "🔔 Upcoming Appointment",
             description: `${appointment.client_name || 'Customer'} has an appointment at ${appointmentTime}`,
@@ -238,7 +238,7 @@ export default function ManagerAppointmentsPage() {
           });
         });
       }
-      
+
       // Show summary notification for today's appointments
       if (currentHour === 9) { // Show at 9 AM
         toast({
@@ -253,26 +253,22 @@ export default function ManagerAppointmentsPage() {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      console.log('🔍 [MANAGER APPOINTMENTS] Fetching appointments with params:', {
-        start_date: dateRange?.from?.toISOString(),
-        end_date: dateRange?.to?.toISOString(),
-      });
-      
+
+
       const response = await apiService.getAppointments({
         start_date: dateRange?.from?.toISOString(),
         end_date: dateRange?.to?.toISOString(),
       });
-      
-      console.log('📊 [MANAGER APPOINTMENTS] API Response:', response);
-      
+
+
+
       // Ensure we have an array of appointments
       const appointmentsData = Array.isArray(response.data) ? response.data : [];
-      console.log('Processed appointments data:', appointmentsData);
-      console.log('Appointments count:', appointmentsData.length);
-      
+
+
       setAppointments(appointmentsData);
     } catch (error) {
-      console.error('Error fetching appointments:', error);
+
       setAppointments([]); // Set empty array on error
     } finally {
       setLoading(false);
@@ -287,7 +283,7 @@ export default function ManagerAppointmentsPage() {
         setCustomers(customersData);
       }
     } catch (error) {
-      console.error('Error fetching customers:', error);
+
       setCustomers([]);
     }
   };
@@ -297,7 +293,7 @@ export default function ManagerAppointmentsPage() {
     const time = timeString ? timeString : '00:00';
     const [hours, minutes] = time.split(':');
     date.setHours(parseInt(hours), parseInt(minutes));
-    
+
     return date.toLocaleString('en-IN', {
       year: 'numeric',
       month: 'short',
@@ -346,7 +342,7 @@ export default function ManagerAppointmentsPage() {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const appointmentDate = new Date(appointment.date);
     const appointmentDateTime = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
-    
+
     return appointmentDateTime < today && appointment.status !== 'completed' && appointment.status !== 'cancelled';
   };
 
@@ -355,7 +351,7 @@ export default function ManagerAppointmentsPage() {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const appointmentDate = new Date(appointment.date);
     const appointmentDateTime = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
-    
+
     return appointmentDateTime.toDateString() === today.toDateString();
   };
 
@@ -366,7 +362,7 @@ export default function ManagerAppointmentsPage() {
 
   const handleRescheduleAppointment = async (appointment: Appointment) => {
     // TODO: Implement reschedule functionality
-    console.log('Reschedule appointment:', appointment);
+
     toast({
       title: "Reschedule Appointment",
       description: "Reschedule functionality will be implemented soon",
@@ -409,7 +405,7 @@ export default function ManagerAppointmentsPage() {
 
     try {
       setIsCreating(true);
-      
+
       const appointmentData = {
         client: parseInt(appointmentForm.client),
         date: appointmentForm.date,
@@ -421,21 +417,21 @@ export default function ManagerAppointmentsPage() {
         status: appointmentForm.status
       };
 
-      console.log('Creating appointment with data:', appointmentData);
-      
+
+
       const response = await apiService.createAppointment(appointmentData);
-      
+
       if (response.success) {
         toast({
           title: "Success!",
           description: "Appointment created successfully",
           variant: "default",
         });
-        
+
         // Close modal and refresh appointments
         setIsAddModalOpen(false);
         fetchAppointments();
-        
+
         // Reset form
         setAppointmentForm({
           client: '',
@@ -455,7 +451,7 @@ export default function ManagerAppointmentsPage() {
         });
       }
     } catch (error) {
-      console.error('Error creating appointment:', error);
+
       toast({
         title: "Error",
         description: "Failed to create appointment. Please try again.",
@@ -487,9 +483,9 @@ export default function ManagerAppointmentsPage() {
             onDateRangeChange={setDateRange}
             placeholder="Filter by date range"
           />
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={fetchAppointments}
             className="flex items-center gap-1"
           >
@@ -565,8 +561,8 @@ export default function ManagerAppointmentsPage() {
         <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input 
-            placeholder="Search by customer or type..." 
+          <Input
+            placeholder="Search by customer or type..."
               className="pl-10 w-full md:w-80"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -586,7 +582,7 @@ export default function ManagerAppointmentsPage() {
             <option value="no_show">No Show</option>
           </select>
         </div>
-        
+
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
@@ -604,10 +600,10 @@ export default function ManagerAppointmentsPage() {
                 filteredAppointments.map((appointment) => {
                   const isOverdue = isAppointmentOverdue(appointment);
                   const isToday = isAppointmentToday(appointment);
-                  
+
                   return (
-                    <tr 
-                      key={appointment.id} 
+                    <tr
+                      key={appointment.id}
                       className={`border-t border-border hover:bg-gray-50 ${
                         isToday ? 'bg-blue-50' : ''
                       } ${
@@ -652,9 +648,9 @@ export default function ManagerAppointmentsPage() {
                     </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                            size="sm" 
+                      <Button
+                        variant="ghost"
+                            size="sm"
                             className="text-blue-600 hover:text-blue-800"
                             onClick={() => handleViewAppointment(appointment)}
                         title="View appointment details"
@@ -662,9 +658,9 @@ export default function ManagerAppointmentsPage() {
                         <Eye className="w-4 h-4" />
                       </Button>
                           {isOverdue && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="text-orange-600 border-orange-300 hover:bg-orange-50"
                               onClick={() => handleRescheduleAppointment(appointment)}
                               title="Reschedule overdue appointment"
@@ -687,7 +683,7 @@ export default function ManagerAppointmentsPage() {
             </tbody>
           </table>
         </div>
-        
+
         {filteredAppointments.length > 0 && (
           <div className="text-sm text-text-secondary text-center py-2">
             Showing {filteredAppointments.length} of {appointments.length} appointments
@@ -709,7 +705,7 @@ export default function ManagerAppointmentsPage() {
               Schedule a new appointment with a customer
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Customer Selection */}
             <div>

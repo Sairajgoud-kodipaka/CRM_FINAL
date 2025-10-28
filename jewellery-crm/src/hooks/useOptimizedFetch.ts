@@ -61,13 +61,13 @@ export function useOptimizedFetch<T>({
           // Access cache through public method or use a workaround
           const cachedData = (apiService as any).getFromCache?.(requestCacheKey);
           if (cachedData) {
-            console.log('⚡ Using cached data for:', endpoint);
+
             setState(prev => ({ ...prev, data: cachedData as T, loading: false }));
             onSuccess?.(cachedData as T);
             return;
           }
         } catch (error) {
-          console.log('Cache check failed, proceeding with API call');
+
         }
       }
 
@@ -102,7 +102,7 @@ export function useOptimizedFetch<T>({
       }
     } catch (error) {
       if (signal?.aborted) return;
-      
+
       const errorMsg = error instanceof Error ? error.message : 'An unexpected error occurred';
       setState(prev => ({ ...prev, error: errorMsg, loading: false }));
       onError?.(errorMsg);
@@ -114,7 +114,7 @@ export function useOptimizedFetch<T>({
     try {
       (apiService as any).invalidateCache?.(requestCacheKey);
     } catch (error) {
-      console.log('Cache invalidation failed');
+
     }
     await fetchData();
   }, [fetchData, requestCacheKey]);
@@ -127,7 +127,7 @@ export function useOptimizedFetch<T>({
     try {
       (apiService as any).invalidateCache?.(requestCacheKey);
     } catch (error) {
-      console.log('Cache invalidation failed');
+
     }
   }, [requestCacheKey]);
 

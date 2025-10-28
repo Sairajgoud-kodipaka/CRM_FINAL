@@ -27,16 +27,16 @@ export default function TelecallerExhibitionPage() {
     try {
       setLoading(true);
       const response = await apiService.getExhibitionLeads();
-      
+
       if (response.success && response.data) {
-        const clients = Array.isArray(response.data) 
-          ? response.data 
+        const clients = Array.isArray(response.data)
+          ? response.data
           : (response.data as { results?: Client[]; data?: Client[] })?.results || (response.data as { results?: Client[]; data?: Client[] })?.data || [];
-        
+
         setExhibitionLeads(clients);
       }
     } catch (error) {
-      console.error('Error fetching exhibition leads:', error);
+
       toast({
         title: "Error",
         description: "Failed to fetch exhibition leads",
@@ -50,17 +50,17 @@ export default function TelecallerExhibitionPage() {
   const promoteToMainCustomer = async (customerId: number) => {
     try {
       setPromotingCustomer(customerId);
-      
+
       // Use the exhibition-specific promotion API
       const response = await apiService.promoteExhibitionLead(customerId.toString());
-      
+
       if (response.success) {
         toast({
           title: "Success!",
           description: "Customer promoted to main customer database",
           variant: "success",
         });
-        
+
         // Refresh the list
         fetchExhibitionLeads();
       } else {
@@ -71,7 +71,7 @@ export default function TelecallerExhibitionPage() {
         });
       }
     } catch (error) {
-      console.error('Error promoting customer:', error);
+
       toast({
         title: "Error",
         description: "Failed to promote customer",
@@ -83,14 +83,14 @@ export default function TelecallerExhibitionPage() {
   };
 
   const filteredLeads = exhibitionLeads.filter(lead => {
-    const matchesSearch = 
+    const matchesSearch =
       lead.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.phone?.includes(searchTerm) ||
       lead.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -127,14 +127,14 @@ export default function TelecallerExhibitionPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
+          <Button
             onClick={() => setShowLeadModal(true)}
             className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Capture Lead
           </Button>
-          <Button 
+          <Button
             onClick={fetchExhibitionLeads}
             variant="outline"
             className="flex items-center gap-2"
@@ -230,7 +230,7 @@ export default function TelecallerExhibitionPage() {
               <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No exhibition leads found</h3>
               <p className="text-gray-500">
-                {searchTerm || statusFilter !== "all" 
+                {searchTerm || statusFilter !== "all"
                   ? "Try adjusting your search or filters"
                   : "Exhibition leads will appear here when customers are added with 'Exhibition' as their lead source"
                 }
@@ -255,7 +255,7 @@ export default function TelecallerExhibitionPage() {
                           </Badge>
                         )}
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4" />
@@ -302,7 +302,7 @@ export default function TelecallerExhibitionPage() {
                           )}
                         </Button>
                       )}
-                      
+
                       {lead.status === 'lead' && (
                         <Badge variant="default" className="bg-green-100 text-green-800">
                           ✓ Already Promoted

@@ -8,12 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { 
-  ArrowLeft, 
-  Send, 
-  Clock, 
-  User, 
-  MessageSquare, 
+import {
+  ArrowLeft,
+  Send,
+  Clock,
+  User,
+  MessageSquare,
   AlertCircle,
   CheckCircle,
   XCircle,
@@ -69,7 +69,7 @@ export default function PlatformSupportTicketDetailPage() {
   const params = useParams();
   const { isAuthenticated, user } = useAuth();
   const ticketId = params?.ticketId as string;
-  
+
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,33 +82,32 @@ export default function PlatformSupportTicketDetailPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [ticketResponse, messagesResponse] = await Promise.all([
         apiService.getSupportTicket(ticketId),
         apiService.getTicketMessages(ticketId)
       ]);
-      
-      console.log('Ticket Response:', ticketResponse);
-      console.log('Messages Response:', messagesResponse);
-      
+
+
+
       if (ticketResponse.success && ticketResponse.data) {
         setTicket(ticketResponse.data);
       } else {
         setError('Failed to load ticket details');
         return;
       }
-      
+
       // Ensure messages is always an array
       if (messagesResponse.success && messagesResponse.data) {
         const messagesData = Array.isArray(messagesResponse.data) ? messagesResponse.data : (messagesResponse.data as any).results || [];
-        console.log('Messages data:', messagesData);
+
         setMessages(messagesData);
       } else {
-        console.log('No messages data, setting empty array');
+
         setMessages([]);
       }
     } catch (err) {
-      console.error('Failed to fetch ticket details:', err);
+
       setError('Failed to load ticket details');
     } finally {
       setLoading(false);
@@ -117,7 +116,7 @@ export default function PlatformSupportTicketDetailPage() {
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
-    
+
     try {
       setSending(true);
       await apiService.createTicketMessage(ticketId, {
@@ -125,7 +124,7 @@ export default function PlatformSupportTicketDetailPage() {
         is_internal: false,
         message_type: 'text'
       });
-      
+
       setNewMessage('');
       // Refresh messages
       const messagesResponse = await apiService.getTicketMessages(ticketId);
@@ -134,7 +133,7 @@ export default function PlatformSupportTicketDetailPage() {
         setMessages(messagesData);
       }
     } catch (err) {
-      console.error('Failed to send message:', err);
+
       setError('Failed to send message');
     } finally {
       setSending(false);
@@ -147,7 +146,7 @@ export default function PlatformSupportTicketDetailPage() {
       await fetchTicketDetails(); // Refresh ticket data
       setStatusUpdate('');
     } catch (err) {
-      console.error('Failed to update ticket status:', err);
+
       setError('Failed to update ticket status');
     }
   };
@@ -157,7 +156,7 @@ export default function PlatformSupportTicketDetailPage() {
       await apiService.assignTicketToMe(ticketId);
       await fetchTicketDetails(); // Refresh ticket data
     } catch (err) {
-      console.error('Failed to assign ticket:', err);
+
       setError('Failed to assign ticket');
     }
   };
@@ -167,7 +166,7 @@ export default function PlatformSupportTicketDetailPage() {
       await apiService.resolveTicket(ticketId);
       await fetchTicketDetails(); // Refresh ticket data
     } catch (err) {
-      console.error('Failed to resolve ticket:', err);
+
       setError('Failed to resolve ticket');
     }
   };
@@ -177,62 +176,62 @@ export default function PlatformSupportTicketDetailPage() {
       await apiService.closeTicket(ticketId);
       await fetchTicketDetails(); // Refresh ticket data
     } catch (err) {
-      console.error('Failed to close ticket:', err);
+
       setError('Failed to close ticket');
     }
   };
 
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log('User not authenticated, redirecting to login');
+
       router.push('/');
       return;
     }
-    
+
     if (user?.role !== 'platform_admin') {
-      console.log('User is not platform admin, redirecting');
+
       router.push('/select-role');
       return;
     }
-    
+
     if (ticketId) {
-      console.log('Platform admin authenticated, fetching ticket details:', { user, isAuthenticated });
+
       fetchTicketDetails();
     }
   }, [ticketId, isAuthenticated, user, router]);
 
   const getStatusConfig = (status: string) => {
     const configs = {
-      'open': { 
-        icon: AlertCircle, 
+      'open': {
+        icon: AlertCircle,
         color: 'bg-blue-50 text-blue-700 border-blue-200',
         textColor: 'text-blue-700',
         bgColor: 'bg-blue-50',
         borderColor: 'border-blue-200'
       },
-      'in_progress': { 
-        icon: Clock, 
+      'in_progress': {
+        icon: Clock,
         color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
         textColor: 'text-yellow-700',
         bgColor: 'bg-yellow-50',
         borderColor: 'border-yellow-200'
       },
-      'resolved': { 
-        icon: CheckCircle, 
+      'resolved': {
+        icon: CheckCircle,
         color: 'bg-green-50 text-green-700 border-green-200',
         textColor: 'text-green-700',
         bgColor: 'bg-green-50',
         borderColor: 'border-green-200'
       },
-      'closed': { 
-        icon: XCircle, 
+      'closed': {
+        icon: XCircle,
         color: 'bg-gray-50 text-gray-700 border-gray-200',
         textColor: 'text-gray-700',
         bgColor: 'bg-gray-50',
         borderColor: 'border-gray-200'
       },
-      'reopened': { 
-        icon: AlertTriangle, 
+      'reopened': {
+        icon: AlertTriangle,
         color: 'bg-orange-50 text-orange-700 border-orange-200',
         textColor: 'text-orange-700',
         bgColor: 'bg-orange-50',
@@ -254,11 +253,11 @@ export default function PlatformSupportTicketDetailPage() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    
+
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Invalid Date';
-      
+
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -308,8 +307,8 @@ export default function PlatformSupportTicketDetailPage() {
       {/* Enhanced Header */}
       <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={() => router.push('/platform/support')}
             className="hover:bg-gray-100"
           >
@@ -359,7 +358,7 @@ export default function PlatformSupportTicketDetailPage() {
               <Info className="w-5 h-5 text-gray-600" />
               <h2 className="text-lg font-semibold text-gray-900">Ticket Information</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-2">
@@ -402,31 +401,31 @@ export default function PlatformSupportTicketDetailPage() {
               <Settings className="w-5 h-5 text-gray-600" />
               <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
             </div>
-            
+
             <div className="space-y-3">
               {ticket.status === 'open' && (
-                <Button 
-                  onClick={assignToMe} 
+                <Button
+                  onClick={assignToMe}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <UserCheck className="w-4 h-4 mr-2" />
                   Assign to Me
                 </Button>
               )}
-              
+
               {ticket.status === 'in_progress' && (
-                <Button 
-                  onClick={resolveTicket} 
+                <Button
+                  onClick={resolveTicket}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
                   <CheckSquare className="w-4 h-4 mr-2" />
                   Mark as Resolved
                 </Button>
               )}
-              
+
               {ticket.status === 'resolved' && (
-                <Button 
-                  onClick={closeTicket} 
+                <Button
+                  onClick={closeTicket}
                   className="w-full bg-gray-600 hover:bg-gray-700 text-white"
                 >
                   <Square className="w-4 h-4 mr-2" />
@@ -447,8 +446,8 @@ export default function PlatformSupportTicketDetailPage() {
                   </SelectContent>
                 </Select>
                 {statusUpdate && (
-                  <Button 
-                    onClick={() => updateTicketStatus(statusUpdate)} 
+                  <Button
+                    onClick={() => updateTicketStatus(statusUpdate)}
                     disabled={statusUpdate === ticket.status}
                     className="bg-primary hover:bg-primary/90"
                   >
@@ -467,7 +466,7 @@ export default function PlatformSupportTicketDetailPage() {
               <MessageSquare className="w-5 h-5 text-gray-600" />
               <h2 className="text-lg font-semibold text-gray-900">Conversation</h2>
             </div>
-            
+
             {/* Messages List */}
             <div className="space-y-4 mb-6 max-h-96 overflow-y-auto pr-2">
               {!Array.isArray(messages) || messages.length === 0 ? (
@@ -489,8 +488,8 @@ export default function PlatformSupportTicketDetailPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          message.is_system_message 
-                            ? 'bg-blue-100 text-blue-600' 
+                          message.is_system_message
+                            ? 'bg-blue-100 text-blue-600'
                             : 'bg-gray-100 text-gray-600'
                         }`}>
                           <User className="w-4 h-4" />
@@ -523,8 +522,8 @@ export default function PlatformSupportTicketDetailPage() {
                   className="flex-1 resize-none border-gray-300 focus:border-primary focus:ring-primary"
                   rows={3}
                 />
-                <Button 
-                  onClick={sendMessage} 
+                <Button
+                  onClick={sendMessage}
                   disabled={!newMessage.trim() || sending}
                   className="self-end bg-primary hover:bg-primary/90 px-6"
                 >
@@ -553,5 +552,4 @@ export default function PlatformSupportTicketDetailPage() {
     </div>
   );
 }
- 
- 
+

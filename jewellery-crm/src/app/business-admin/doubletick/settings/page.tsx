@@ -10,12 +10,12 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-    Settings as SettingsIcon, 
-  Save, 
-  Shield, 
-  Bell, 
-  Globe, 
+import {
+    Settings as SettingsIcon,
+  Save,
+  Shield,
+  Bell,
+  Globe,
   Database,
   Zap,
   Users,
@@ -51,7 +51,7 @@ export default function Settings() {
 
   const handleSave = () => {
     // Save settings logic
-    console.log('Saving settings:', settings);
+
   };
 
   return (

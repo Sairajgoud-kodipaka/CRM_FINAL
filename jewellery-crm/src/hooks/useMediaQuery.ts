@@ -1,9 +1,9 @@
 /**
  * useMediaQuery Hook
- * 
+ *
  * Custom React hook for responsive design that listens to CSS media queries.
  * Provides a clean way to conditionally render components based on screen size.
- * 
+ *
  * Key Features:
  * - SSR-safe with proper hydration handling
  * - Automatic cleanup of event listeners
@@ -17,15 +17,15 @@ import { useState, useEffect } from 'react';
 
 /**
  * Custom hook to track media query matches
- * 
+ *
  * @param query - CSS media query string (e.g., '(max-width: 768px)')
  * @returns boolean - Whether the media query currently matches
- * 
+ *
  * @example
  * ```tsx
  * const isMobile = useMediaQuery('(max-width: 768px)');
  * const isLarge = useMediaQuery('(min-width: 1024px)');
- * 
+ *
  * return (
  *   <div>
  *     {isMobile ? <MobileNav /> : <DesktopNav />}
@@ -47,7 +47,7 @@ export function useMediaQuery(query: string): boolean {
 
     // Create media query list
     const mediaQuery = window.matchMedia(query);
-    
+
     // Set initial value
     setMatches(mediaQuery.matches);
 
@@ -163,7 +163,7 @@ export function useBreakpoint() {
   if (isDesktop) return 'md';
   if (isTablet) return 'sm';
   if (isMobile) return 'xs';
-  
+
   return 'unknown';
 }
 

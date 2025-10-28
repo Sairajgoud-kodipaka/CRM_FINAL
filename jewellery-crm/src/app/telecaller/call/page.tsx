@@ -8,18 +8,18 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  Phone, 
-  PhoneOff, 
-  Mic, 
-  MicOff, 
-  Volume2, 
-  VolumeX, 
-  Pause, 
-  Play, 
-  MessageSquare, 
-  Clock, 
-  User, 
+import {
+  Phone,
+  PhoneOff,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Pause,
+  Play,
+  MessageSquare,
+  Clock,
+  User,
   ArrowLeft,
   PhoneCall,
   PhoneMissed,
@@ -112,7 +112,7 @@ function CallPageContent() {
   const [webrtcEnabled, setWebrtcEnabled] = useState(false);
   const [webrtcInitialized, setWebrtcInitialized] = useState(false);
   const [webrtcConfig, setWebrtcConfig] = useState<WebRTCConfig | null>(null);
-  
+
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
   const connectingTimeout = useRef<NodeJS.Timeout | null>(null);
   const dialingInterval = useRef<NodeJS.Timeout | null>(null);
@@ -124,26 +124,21 @@ function CallPageContent() {
   const leadId = searchParams?.get('leadId') || '';
 
   // Debug logging for URL parameters
-  console.log('🔍 Call page URL parameters:', {
-    phoneNumber,
-    customerName,
-    leadId,
-    fullUrl: typeof window !== 'undefined' ? window.location.href : 'SSR'
-  });
+
 
   useEffect(() => {
     // Initialize WebRTC
     initializeWebRTC();
-    
+
     // Load call logs and team members
     loadCallLogs();
     loadTeamMembers();
-    
+
     // Load lead data and notes if leadId is provided
     if (leadId) {
       loadLeadData();
     }
-    
+
     // If phone number is provided, start the call process
     if (phoneNumber) {
       initiateCall();
@@ -162,7 +157,7 @@ function CallPageContent() {
       if (statusPollingInterval.current) {
         clearInterval(statusPollingInterval.current);
       }
-      
+
       // Cleanup WebRTC
       exotelWebRTCService.cleanup();
     };
@@ -172,7 +167,7 @@ function CallPageContent() {
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       const key = event.key;
-      
+
       // Allow digits, *, #, and special keys
       if (/^[0-9*#]$/.test(key)) {
         setDialPadNumber(prev => prev + key);
@@ -191,11 +186,11 @@ function CallPageContent() {
 
   const initializeWebRTC = async () => {
     try {
-      console.log('🚀 Initializing WebRTC...');
-      
+
+
       // Get WebRTC configuration from backend
       const response = await telecallingApiService.getWebRTCConfig();
-      
+
       if (response.success && response.config) {
         const config: WebRTCConfig = {
           clientId: response.config.clientId,
@@ -206,20 +201,20 @@ function CallPageContent() {
           sipUsername: response.config.sipUsername,
           sipPassword: response.config.sipPassword,
         };
-        
+
         setWebrtcConfig(config);
-        
+
         // Initialize WebRTC SDK
         const initialized = await exotelWebRTCService.initialize(config);
-        
+
         if (initialized) {
           setWebrtcInitialized(true);
           setWebrtcEnabled(true);
-          
+
           // Setup WebRTC status callbacks
           exotelWebRTCService.onStatusChange((status: WebRTCCallStatus) => {
-            console.log('📞 WebRTC Status Update:', status);
-            
+
+
             // Map WebRTC status to our call status
             switch (status.status) {
               case 'connecting':
@@ -254,24 +249,24 @@ function CallPageContent() {
                 stopCallTimer();
                 break;
             }
-            
+
             // Update call duration
             if (status.duration > 0) {
               setCallDuration(status.duration);
             }
           });
-          
-          console.log('✅ WebRTC initialized successfully');
+
+
         } else {
-          console.warn('⚠️ WebRTC initialization failed');
+
           setWebrtcEnabled(false);
         }
       } else {
-        console.warn('⚠️ WebRTC not available:', response.error);
+
         setWebrtcEnabled(false);
       }
     } catch (error) {
-      console.error('❌ Error initializing WebRTC:', error);
+
       setWebrtcEnabled(false);
     }
   };
@@ -280,7 +275,7 @@ function CallPageContent() {
     try {
       // Load real call logs from API
       const apiCallLogs = await telecallingApiService.getCallLogs();
-      
+
       // Convert API CallLog to LocalCallLog format
       const localCallLogs: LocalCallLog[] = apiCallLogs.map((log: ApiCallLog) => ({
         id: log.id,
@@ -292,10 +287,10 @@ function CallPageContent() {
         disposition: log.sentiment || 'neutral',
         recording_url: log.recording_url
       }));
-      
+
       setCallLogs(localCallLogs);
     } catch (error) {
-      console.error('Error loading call logs:', error);
+
       setCallLogs([]);
     }
   };
@@ -313,11 +308,11 @@ function CallPageContent() {
         }));
         setTeamMembers(members);
       } else {
-        console.warn('No team members found');
+
         setTeamMembers([]);
       }
     } catch (error) {
-      console.error('Error loading team members:', error);
+
       setTeamMembers([]);
     }
   };
@@ -328,12 +323,12 @@ function CallPageContent() {
       try {
         const status = await telecallingApiService.getRealTimeCallStatus(callRequestId);
         setRealTimeStatus(status.status);
-        
+
         // Update Exotel call ID if available
         if (status.exotel_call_id) {
           setExotelCallId(status.exotel_call_id);
         }
-        
+
         // Update call status based on Exotel status
         switch (status.status) {
           case 'initiated':
@@ -374,23 +369,23 @@ function CallPageContent() {
             stopStatusPolling(); // Stop polling when no answer
             break;
         }
-        
+
         // Update call duration from server
         if (status.duration_seconds) {
           setCallDuration(status.duration_seconds);
         }
-        
+
         // Update recording URL if available
         if (status.recording_url && currentCall) {
           setCurrentCall((prev: any) => ({ ...prev, recording_url: status.recording_url }));
         }
-        
+
       } catch (error: any) {
-        console.error('Error polling call status:', error);
-        
+
+
         // If it's a 404 or the call doesn't exist, stop polling
         if (error.message?.includes('404') || error.message?.includes('not found')) {
-          console.log('Call not found, stopping status polling');
+
           stopStatusPolling();
           setCallStatus('ended');
           setIsCallActive(false);
@@ -409,15 +404,15 @@ function CallPageContent() {
 
   const loadLeadData = async () => {
     if (!leadId) return;
-    
+
     setIsLoadingNotes(true);
     try {
       const data = await telecallingApiService.getLeadNotes(leadId);
       setLeadData(data);
-      
+
       // Convert API data to call notes format
       const notes: CallNotes[] = [];
-      
+
       // Add status history as notes
       if (data.status_history) {
         data.status_history.forEach((history: any) => {
@@ -431,7 +426,7 @@ function CallPageContent() {
           });
         });
       }
-      
+
       // Add call logs as notes
       if (data.call_logs) {
         data.call_logs.forEach((log: any) => {
@@ -445,7 +440,7 @@ function CallPageContent() {
           });
         });
       }
-      
+
       // Add call requests as notes
       if (data.call_requests) {
         data.call_requests.forEach((request: any) => {
@@ -461,10 +456,10 @@ function CallPageContent() {
           }
         });
       }
-      
+
       setCallNotes(notes);
     } catch (error) {
-      console.error('Error loading lead data:', error);
+
     } finally {
       setIsLoadingNotes(false);
     }
@@ -473,7 +468,7 @@ function CallPageContent() {
   const initiateCall = async () => {
     // Validate leadId before making the API call
     if (!leadId || leadId.trim() === '') {
-      console.error('❌ Lead ID is missing or empty');
+
       setCallStatus('ended');
       setIsConnecting(false);
       return;
@@ -482,21 +477,21 @@ function CallPageContent() {
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(leadId)) {
-      console.error('❌ Lead ID is not a valid UUID:', leadId);
+
       setCallStatus('ended');
       setIsConnecting(false);
       return;
     }
 
-    console.log('📞 Initiating call with lead ID:', leadId);
-    
+
+
     setIsConnecting(true);
     setCallStatus('connecting');
-    
+
     // Check if WebRTC is available and initialized
     if (webrtcEnabled && webrtcInitialized && phoneNumber) {
-      console.log('🚀 Using WebRTC for direct browser-to-phone calling');
-      
+
+
       try {
         // Use WebRTC for direct calling
         const success = await exotelWebRTCService.makeCall({
@@ -505,30 +500,30 @@ function CallPageContent() {
           callType: 'outbound',
           customField: leadId
         });
-        
+
         if (success) {
-          console.log('✅ WebRTC call initiated successfully');
+
           setIsCallActive(true);
           addCallNote(`WebRTC call initiated to ${phoneNumber}`, 'system');
         } else {
-          console.error('❌ WebRTC call failed');
+
           setCallStatus('failed');
           setIsConnecting(false);
           addCallNote(`WebRTC call failed to ${phoneNumber}`, 'system');
         }
       } catch (error) {
-        console.error('❌ WebRTC call error:', error);
+
         setCallStatus('failed');
         setIsConnecting(false);
         addCallNote(`WebRTC call error: ${error}`, 'system');
       }
-      
+
       return;
     }
-    
+
     // Fallback to traditional API calling
-    console.log('📞 Using traditional API calling (WebRTC not available)');
-    
+
+
     // Show connecting message for 2 seconds
     connectingTimeout.current = setTimeout(async () => {
       try {
@@ -540,48 +535,48 @@ function CallPageContent() {
           setCallStatus('ringing');
           setIsCallActive(true);
           setExotelCallId(response.call_request_id);
-          
+
           // Start real-time status polling
           startStatusPolling(response.call_request_id);
-          
+
           // Add call note
           addCallNote(`Call initiated to ${phoneNumber}`, 'system');
         } else if (response.error === 'Call already in progress') {
           // Handle existing call - resume it
-          console.log('Resuming existing call:', response.call_id);
+
           setCurrentCall(response);
           setCallStatus(response.status === 'answered' ? 'answered' : 'ringing');
           setIsCallActive(true);
           setExotelCallId(response.exotel_call_id || '');
-          
+
           // Start polling for the existing call
           startStatusPolling(response.call_request_id || '');
-          
+
           addCallNote(`Resumed existing call to ${phoneNumber}`, 'system');
         } else {
           setCallStatus('failed');
-          console.error('Call initiation failed:', response);
+
           addCallNote(`Call failed: ${response.error_message || response.error || 'Unknown error'}`, 'system');
         }
       } catch (error: any) {
-        console.error('Error initiating call:', error);
+
         setCallStatus('failed');
         setIsConnecting(false);
-        
+
         // Handle specific error cases
         if (error.response?.status === 409 && error.response?.data?.error === 'Call already in progress') {
           // Handle 409 Conflict - existing call
           const responseData = error.response.data;
-          console.log('Resuming existing call from 409 response:', responseData);
-          
+
+
           setCurrentCall(responseData);
           setCallStatus(responseData.status === 'answered' ? 'answered' : 'ringing');
           setIsCallActive(true);
           setExotelCallId(responseData.exotel_call_id || '');
-          
+
           // Start polling for the existing call
           startStatusPolling(responseData.call_request_id || '');
-          
+
           addCallNote(`Resumed existing call to ${phoneNumber}`, 'system');
           return; // Successfully resumed existing call
         } else if (error.message?.includes('Call already in progress')) {
@@ -589,8 +584,8 @@ function CallPageContent() {
           const callIdMatch = error.message.match(/call_id["']?\s*:\s*["']?([^"',\s]+)/);
           if (callIdMatch) {
             const existingCallId = callIdMatch[1];
-            console.log('Found existing call:', existingCallId);
-            
+
+
             // Try to get the existing call status
             try {
               const existingCallStatus = await telecallingApiService.getRealTimeCallStatus(existingCallId);
@@ -598,17 +593,17 @@ function CallPageContent() {
               setCallStatus(existingCallStatus.status === 'answered' ? 'answered' : 'connecting');
               setIsCallActive(true);
               setExotelCallId(existingCallStatus.exotel_call_id);
-              
+
               // Start polling for the existing call
               startStatusPolling(existingCallId);
-              
+
               addCallNote(`Resumed existing call to ${phoneNumber}`, 'system');
               return; // Successfully resumed existing call
             } catch (statusError) {
-              console.error('Error getting existing call status:', statusError);
+
             }
           }
-          
+
           // Show dialog to handle existing call
           setExistingCallId(existingCallId);
           setShowExistingCallDialog(true);
@@ -627,11 +622,11 @@ function CallPageContent() {
     setIsDialing(true);
     setShowDialPadInCenter(true);
     setCallStatus('connecting');
-    
+
     // Simulate interactive dialing with visual feedback
     let currentDigit = 0;
     const digits = number.split('');
-    
+
     dialingInterval.current = setInterval(() => {
       if (currentDigit < digits.length) {
         setDialPadNumber(prev => prev + digits[currentDigit]);
@@ -671,39 +666,39 @@ function CallPageContent() {
     try {
       // Check if WebRTC call is active
       if (webrtcEnabled && exotelWebRTCService.isCallActive()) {
-        console.log('📞 Ending WebRTC call...');
+
         const success = await exotelWebRTCService.endCall();
-        
+
         if (success) {
-          console.log('✅ WebRTC call ended successfully');
+
           addCallNote(`WebRTC call ended manually. Duration: ${formatDuration(callDuration)}`, 'call');
         } else {
-          console.error('❌ Failed to end WebRTC call');
+
           addCallNote(`Failed to end WebRTC call`, 'system');
         }
       } else if (currentCall) {
         // Use traditional API call ending
         const callRequestId = currentCall.call_request_id || currentCall.id;
-        console.log('Ending traditional call with ID:', callRequestId);
-        
+
+
         await telecallingApiService.endCall(callRequestId);
-        
+
         // Add call note
         if (callDuration > 0) {
           addCallNote(`Call ended manually. Duration: ${formatDuration(callDuration)}`, 'call');
         }
       } else {
-        console.warn('No current call to end');
+
       }
     } catch (error) {
-      console.error('Error ending call:', error);
+
       addCallNote(`Error ending call: ${error}`, 'system');
     } finally {
       setIsCallActive(false);
       setCallStatus('ended');
       stopCallTimer();
       stopStatusPolling();
-      
+
       // Clear current call
       setCurrentCall(null);
       setExotelCallId('');
@@ -720,13 +715,13 @@ function CallPageContent() {
       } else if (currentCall) {
         const newMuteState = !isMuted;
         setIsMuted(newMuteState);
-        
+
         // Call Exotel API to mute/unmute
         await telecallingApiService.muteCall(currentCall.id, newMuteState);
         addCallNote(`Call ${newMuteState ? 'muted' : 'unmuted'}`, 'system');
       }
     } catch (error) {
-      console.error('Error toggling mute:', error);
+
       // Revert state on error
       setIsMuted(!isMuted);
     }
@@ -742,13 +737,13 @@ function CallPageContent() {
       } else if (currentCall) {
         const newHoldState = !isOnHold;
         setIsOnHold(newHoldState);
-        
+
         // Call Exotel API to hold/resume
         await telecallingApiService.holdCall(currentCall.id, newHoldState);
         addCallNote(`Call ${newHoldState ? 'put on hold' : 'resumed from hold'}`, 'system');
       }
     } catch (error) {
-      console.error('Error toggling hold:', error);
+
       // Revert state on error
       setIsOnHold(!isOnHold);
     }
@@ -773,7 +768,7 @@ function CallPageContent() {
         addCallNote('Recording started', 'system');
       }
     } catch (error) {
-      console.error('Error starting recording:', error);
+
     }
   };
 
@@ -785,7 +780,7 @@ function CallPageContent() {
         addCallNote('Recording stopped', 'system');
       }
     } catch (error) {
-      console.error('Error stopping recording:', error);
+
     }
   };
 
@@ -796,7 +791,7 @@ function CallPageContent() {
 
   const handleTransfer = async () => {
     if (!selectedTeamMember) return;
-    
+
     try {
       const member = teamMembers.find(m => m.id === selectedTeamMember);
       if (currentCall && member) {
@@ -805,7 +800,7 @@ function CallPageContent() {
         setShowTransferDialog(false);
       }
     } catch (error) {
-      console.error('Error transferring call:', error);
+
     }
   };
 
@@ -823,7 +818,7 @@ function CallPageContent() {
 
   const handleSaveNote = async () => {
     if (!newNote.trim() || !leadId) return;
-    
+
     try {
       // Add note via API
       await telecallingApiService.addLeadNote({
@@ -833,16 +828,16 @@ function CallPageContent() {
         disposition: disposition,
         follow_up_required: followUpRequired
       });
-      
+
       // Add to local notes
       addCallNote(newNote.trim(), 'manual');
       setNewNote('');
-      
+
       // Reload lead data to get updated notes
       await loadLeadData();
-      
+
     } catch (error) {
-      console.error('Error saving note:', error);
+
       // Still add to local notes as fallback
       addCallNote(newNote.trim(), 'manual');
       setNewNote('');
@@ -1018,7 +1013,7 @@ function CallPageContent() {
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">Ready to Call</h2>
                   <p className="text-gray-600">Enter a number below to start dialing</p>
                 </div>
-                
+
                 {/* Center Dial Pad */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 max-w-lg mx-auto shadow-lg">
                   <div className="text-center mb-8">
@@ -1063,7 +1058,7 @@ function CallPageContent() {
                       Clear All
                     </Button>
                   </div>
-                  
+
                   <Button
                     onClick={handleCallNow}
                     disabled={!dialPadNumber || isDialing}
@@ -1131,7 +1126,7 @@ function CallPageContent() {
                     {formatDuration(callDuration)}
                   </div>
                   <p className="text-sm text-gray-600 mb-4">Call Duration</p>
-                  
+
                   {/* Real-time Status */}
                   {realTimeStatus && (
                     <div className="mb-4">
@@ -1148,7 +1143,7 @@ function CallPageContent() {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Call Quality Indicator */}
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-xs text-gray-500 font-medium">Quality:</span>
@@ -1197,7 +1192,7 @@ function CallPageContent() {
                     </Badge>
                   </div>
                 )}
-                
+
                 <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${
                   callStatus === 'connecting' ? 'bg-blue-100 text-blue-800' :
                   callStatus === 'ringing' ? 'bg-yellow-100 text-yellow-800' :
@@ -1224,7 +1219,7 @@ function CallPageContent() {
                   {callStatus === 'no-answer' && 'No Answer'}
                   {callStatus === 'ended' && 'Call Ended'}
                 </div>
-                
+
                 {/* Prominent End Call Button */}
                 {isCallActive && (callStatus === 'answered' || callStatus === 'connecting' || callStatus === 'ringing') && (
                   <div className="mt-6">
@@ -1239,7 +1234,7 @@ function CallPageContent() {
                     </Button>
                   </div>
                 )}
-                
+
                 {/* Exotel Call ID */}
                 {exotelCallId && (
                   <p className="text-xs text-gray-500 mt-2">
@@ -1275,7 +1270,7 @@ function CallPageContent() {
                     </Button>
                     <span className="text-xs font-medium text-gray-600">Mute</span>
                   </div>
-                  
+
                   <div className="flex flex-col items-center gap-2">
                     <Button
                       size="lg"
@@ -1287,7 +1282,7 @@ function CallPageContent() {
                     </Button>
                     <span className="text-xs font-medium text-gray-600">Hold</span>
                   </div>
-                  
+
                   <div className="flex flex-col items-center gap-2">
                     <Button
                       size="lg"
@@ -1301,7 +1296,7 @@ function CallPageContent() {
                     </Button>
                     <span className="text-xs font-medium text-gray-600">Speaker</span>
                   </div>
-                  
+
                   <div className="flex flex-col items-center gap-2">
                     <Button
                       size="lg"
@@ -1328,7 +1323,7 @@ function CallPageContent() {
                       Transfer
                     </Button>
                   </div>
-                  
+
                   <div className="flex flex-col items-center gap-2">
                     <Button
                       size="sm"
@@ -1340,15 +1335,15 @@ function CallPageContent() {
                       History
                     </Button>
                   </div>
-                  
+
                   <div className="flex flex-col items-center gap-2">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={isRecording ? handleStopRecording : handleStartRecording}
                       className={`px-4 py-2 ${
-                        isRecording 
-                          ? 'bg-red-50 border-red-200 hover:bg-red-100 text-red-700' 
+                        isRecording
+                          ? 'bg-red-50 border-red-200 hover:bg-red-100 text-red-700'
                           : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
@@ -1400,7 +1395,7 @@ function CallPageContent() {
                     <SelectItem value="callback">Callback Required</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -1420,7 +1415,7 @@ function CallPageContent() {
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold mb-4">Notes</h3>
-              
+
               {/* Lead Details */}
               <div className="space-y-2 mb-6">
                 <div className="text-sm">
@@ -1430,7 +1425,7 @@ function CallPageContent() {
                   <span className="font-medium">Lead ID:</span> {leadId || 'N/A'}
                 </div>
                 <div className="text-sm">
-                  <span className="font-medium">Lead Status:</span> 
+                  <span className="font-medium">Lead Status:</span>
                   <Badge variant="outline" className="ml-2">Current</Badge>
                 </div>
               </div>
@@ -1467,8 +1462,8 @@ function CallPageContent() {
                     Follow-up
                   </label>
                 </div>
-                <Button 
-                  onClick={handleSaveNote} 
+                <Button
+                  onClick={handleSaveNote}
                   className="w-full"
                   disabled={!newNote.trim() || !leadId}
                 >
@@ -1507,8 +1502,8 @@ function CallPageContent() {
                       </div>
                       <p className="text-sm text-gray-700">{note.note}</p>
                       {note.disposition && (
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className={`text-xs mt-2 ${
                             note.disposition === 'positive' ? 'text-green-600 border-green-300' :
                             note.disposition === 'negative' ? 'text-red-600 border-red-300' :
@@ -1598,7 +1593,7 @@ function CallPageContent() {
                     <p className="text-xs text-gray-500 mt-1">{formatTime(log.timestamp)}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     {log.duration > 0 && (
@@ -1612,7 +1607,7 @@ function CallPageContent() {
                       </Badge>
                     )}
                   </div>
-                  
+
                   <div className="flex gap-2">
                     {log.notes && (
                       <Button size="sm" variant="outline">
@@ -1620,8 +1615,8 @@ function CallPageContent() {
                         Notes
                       </Button>
                     )}
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="outline"
                       onClick={() => handlePlayRecording(log.recording_url || '')}
                     >
@@ -1630,7 +1625,7 @@ function CallPageContent() {
                     </Button>
                   </div>
                 </div>
-                
+
                 {log.notes && (
                   <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
                     {log.notes}
@@ -1655,7 +1650,7 @@ function CallPageContent() {
               </div>
               <p className="text-sm text-gray-600">Playing call recording...</p>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="outline">
@@ -1671,17 +1666,17 @@ function CallPageContent() {
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
-              
+
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div className="bg-blue-600 h-2 rounded-full" style={{width: '30%'}}></div>
               </div>
-              
+
               <div className="flex justify-between text-xs text-gray-500">
                 <span>0:45</span>
                 <span>2:30</span>
               </div>
             </div>
-            
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowRecordingPlayer(false)}>
                 Close
@@ -1713,15 +1708,15 @@ function CallPageContent() {
                 Call ID: {existingCallId}
               </p>
             </div>
-            
+
             <div className="flex justify-center gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowExistingCallDialog(false)}
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 variant="destructive"
                 onClick={async () => {
                   try {
@@ -1733,7 +1728,7 @@ function CallPageContent() {
                       initiateCall();
                     }, 1000);
                   } catch (error) {
-                    console.error('Error ending existing call:', error);
+
                     addCallNote(`Failed to end existing call: ${error}`, 'system');
                   }
                 }}

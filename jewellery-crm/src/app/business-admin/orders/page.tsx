@@ -65,18 +65,18 @@ export default function OrdersPage() {
         page: currentPage,
         status: statusFilter === 'all' ? undefined : statusFilter,
       });
-      
+
       if (response.success) {
         const data = response.data as any;
         const ordersData = Array.isArray(data) ? data : data.results || [];
         setOrders(ordersData);
-        
+
         // Calculate stats with proper typing
         const totalOrders = ordersData.length;
         const pendingOrders = ordersData.filter((order: { status?: string }) => order.status === 'pending').length;
         const completedOrders = ordersData.filter((order: { status?: string }) => order.status === 'completed').length;
         const cancelledOrders = ordersData.filter((order: { status?: string }) => order.status === 'cancelled').length;
-        
+
         setStats({
           total_orders: totalOrders,
           pending_orders: pendingOrders,
@@ -85,7 +85,7 @@ export default function OrdersPage() {
         });
       }
     } catch (error) {
-      console.error('Failed to fetch orders:', error);
+
       setOrders([]);
     } finally {
       setLoading(false);
@@ -115,7 +115,7 @@ export default function OrdersPage() {
       processing: { color: 'bg-blue-100 text-blue-800', text: 'Processing' },
       shipped: { color: 'bg-purple-100 text-purple-800', text: 'Shipped' },
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig] || { color: 'bg-gray-100 text-gray-800', text: status };
     return (
       <Badge className={config.color}>
@@ -184,8 +184,8 @@ export default function OrdersPage() {
         <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by order ID or customer..." 
+            <Input
+              placeholder="Search by order ID or customer..."
               className="w-full md:w-80 pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -249,5 +249,5 @@ export default function OrdersPage() {
     </div>
   );
 }
- 
- 
+
+

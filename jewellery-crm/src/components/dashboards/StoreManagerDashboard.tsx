@@ -1,9 +1,9 @@
 /**
  * Store Manager Dashboard Component
- * 
+ *
  * Store-specific overview for jewellery store managers with scoped visibility.
  * Features store analytics, team performance, local operations, and customer management.
- * 
+ *
  * Key Features:
  * - Store-specific revenue and sales metrics (scoped to manager's store)
  * - Sales team performance tracking (store-scoped)
@@ -17,17 +17,17 @@
 'use client';
 
 import React from 'react';
-import { 
-  DashboardLayout, 
+import {
+  DashboardLayout,
   CardContainer,
 } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
+import {
   Store,
-  Users, 
+  Users,
   ShoppingBag,
   Calendar,
   Package,
@@ -138,7 +138,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
   });
-  
+
   const [storeMetrics, setStoreMetrics] = React.useState<StoreMetrics>({
     store: {
       name: 'Loading...',
@@ -153,11 +153,11 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
   const [storeActivities, setStoreActivities] = React.useState<StoreActivity[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-  
+
   // Manager Dashboard Data with scoped visibility
   const [dashboardData, setDashboardData] = React.useState<any>(null);
   const [dashboardError, setDashboardError] = React.useState<string | null>(null);
-  
+
   const { user, isAuthenticated, login } = useAuth();
   const { userScope, canAccessStoreData } = useScopedVisibility();
   const router = useRouter();
@@ -270,31 +270,29 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
 
   const checkAuthAndFetchData = async () => {
     try {
-      console.log('🔐 Checking authentication...');
-      console.log('Auth state:', { isAuthenticated, user });
-      console.log('🔍 User scope:', userScope);
-      
+
+
       if (!isAuthenticated || !user) {
-        console.log('⚠️ User not authenticated, attempting auto-login...');
+
         const loginSuccess = await login('rara', 'password123');
         if (loginSuccess) {
-          console.log('✅ Auto-login successful');
+
           fetchDashboardData();
         } else {
-          console.log('❌ Auto-login failed, redirecting to login');
+
           router.push('/');
           return;
         }
       } else if (!canAccessStoreData) {
-        console.log('❌ User does not have store access permissions');
+
         router.push('/unauthorized');
         return;
       } else {
-        console.log('✅ User is authenticated with store access, fetching data...');
+
         fetchDashboardData();
       }
     } catch (error) {
-      console.error('❌ Error in auth check:', error);
+
       router.push('/login');
     }
   };
@@ -302,26 +300,24 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Starting to fetch dashboard data with scoped visibility...');
-      console.log('🔐 Auth token check:', !!localStorage.getItem('auth-storage'));
-      console.log('🔍 User scope:', userScope);
-      
+
+
       // Get current month range for API calls
       const monthRange = getCurrentMonthRange();
-      
+
       // Use authenticated user from auth hook
       const authenticatedUser = user;
-      console.log('👤 Using authenticated user:', authenticatedUser);
+
       if (authenticatedUser) {
         setCurrentUser(authenticatedUser as User);
-        console.log('✅ Current user set:', authenticatedUser);
+
       } else {
-        console.log('❌ No authenticated user available');
+
         return;
       }
 
       // Fetch manager dashboard data with scoped parameters
-      console.log('📊 Fetching manager dashboard data...');
+
       const managerDashboardResponse = await apiService.getManagerDashboard({
         start_date: monthRange.start.toISOString(),
         end_date: monthRange.end.toISOString(),
@@ -337,10 +333,9 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
 
       if (managerDashboardResponse.success) {
         setDashboardData(managerDashboardResponse.data);
-        console.log('✅ Manager dashboard data loaded successfully');
-        console.log('📊 Manager dashboard data:', managerDashboardResponse.data);
+
       } else {
-        console.log('❌ Failed to load manager dashboard data');
+
         setDashboardError('Failed to load dashboard data');
       }
 
@@ -354,7 +349,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
       let monthlyRevenue = 0;
       let todaysAppointmentsData: AppointmentDisplay[] = [];
       let appointmentsCount = 0;
-      
+
       // Initialize API response variables
       let teamResponse: any = null;
       let customersResponse: any = null;
@@ -363,19 +358,19 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
       let appointmentsResponse: any = null;
 
       // Fetch team members with scoped parameters
-      console.log('👥 Fetching team members with store scope...');
+
       try {
         // Add store filter for team members
         const teamParams: any = {};
         if (userScope.filters.store_id) {
           teamParams.store_id = userScope.filters.store_id;
         }
-        
+
         teamResponse = await apiService.listTeamMembers(teamParams);
-        console.log('Team response:', teamResponse);
+
         if (teamResponse.success && teamResponse.data) {
           const teamMembers = Array.isArray(teamResponse.data) ? teamResponse.data : [];
-          console.log('Team members found:', teamMembers.length);
+
           const teamPerformanceData: TeamMember[] = teamMembers.map((member: User) => ({
             id: member.id,
             name: `${member.first_name} ${member.last_name}`,
@@ -387,60 +382,55 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
             status: 'present' as const,
           }));
           setTeamPerformance(teamPerformanceData);
-          console.log('✅ Team performance data set:', teamPerformanceData);
+
         } else {
-          console.log('❌ Failed to get team members:', teamResponse);
+
         }
       } catch (error) {
-        console.error('❌ Error fetching team members:', error);
+
       }
 
       // Fetch customers with scoped parameters
-      console.log('👥 Fetching customers with store scope...');
+
       try {
         // Add store filter for customers
         const customerParams: any = {};
         if (userScope.filters.store_id) {
           customerParams.store_id = userScope.filters.store_id;
         }
-        
+
         customersResponse = await apiService.getClients({
           ...customerParams,
           start_date: dateRange?.from?.toISOString(),
           end_date: dateRange?.to?.toISOString(),
         });
-        console.log('Customers response:', customersResponse);
+
         if (customersResponse.success && customersResponse.data) {
           const customers = Array.isArray(customersResponse.data) ? customersResponse.data : [];
           totalCustomers = customers.length;
-          console.log('Total customers found:', totalCustomers);
+
           // Calculate new customers today (simplified logic)
           const today = new Date().toISOString().split('T')[0];
-          newTodayCustomers = customers.filter((customer: Client) => 
+          newTodayCustomers = customers.filter((customer: Client) =>
             customer.created_at?.startsWith(today)
           ).length;
-          console.log('New customers today:', newTodayCustomers);
+
         } else {
-          console.log('❌ Failed to get customers:', customersResponse);
+
         }
       } catch (error) {
-        console.error('❌ Error fetching customers:', error);
+
       }
 
       // Fetch products
-      console.log('📦 Fetching products...');
+
       try {
         productsResponse = await apiService.getProducts();
-        console.log('Products response:', productsResponse);
-        console.log('Products response success:', productsResponse?.success);
-        console.log('Products response data:', productsResponse?.data);
-        console.log('Products response message:', productsResponse?.message);
-        console.log('Products response data type:', typeof productsResponse?.data);
-        console.log('Products response data is array:', Array.isArray(productsResponse?.data));
+
         if (productsResponse?.data && typeof productsResponse.data === 'object') {
-          console.log('Products response data keys:', Object.keys(productsResponse.data));
+
         }
-        
+
         if (productsResponse.success && productsResponse.data) {
           // Handle different response formats like the inventory page
           let products: Product[] = [];
@@ -454,31 +444,30 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
               products = data.data;
             }
           }
-          
+
           totalProducts = products.length;
-          console.log('Total products found:', totalProducts);
-          console.log('Products data:', products);
-          
-          lowStockProducts = products.filter((product: Product) => 
+
+
+          lowStockProducts = products.filter((product: Product) =>
             product.quantity <= product.min_quantity
           ).length;
-          console.log('Low stock products:', lowStockProducts);
-          
+
+
           // Calculate new arrivals (products created in last 7 days)
           const weekAgo = new Date();
           weekAgo.setDate(weekAgo.getDate() - 7);
-          newArrivals = products.filter((product: Product) => 
+          newArrivals = products.filter((product: Product) =>
             new Date(product.created_at) > weekAgo
           ).length;
-          console.log('New arrivals:', newArrivals);
+
         } else {
-          console.log('❌ Failed to get products:', productsResponse);
+
           totalProducts = 0;
           lowStockProducts = 0;
           newArrivals = 0;
         }
       } catch (error) {
-        console.error('❌ Error fetching products:', error);
+
         // Set sample data for demonstration
         totalProducts = 0;
         lowStockProducts = 0;
@@ -486,7 +475,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
       }
 
       // Fetch sales
-      console.log('💰 Fetching sales...');
+
       try {
         // Use the new manager dashboard API that includes purchased pipelines with date parameters
         const dashboardResponse = await apiService.getManagerDashboard({
@@ -494,81 +483,80 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
           end_date: dateRange?.to?.toISOString(),
           filter_type: 'custom'
         });
-        console.log('Manager Dashboard response:', dashboardResponse);
-        
+
+
         if (dashboardResponse.success && dashboardResponse.data) {
           const dashboardData = dashboardResponse.data;
-          
+
           // Update revenue with combined sales + purchased pipelines
           todaySales = 0; // Today's sales would need separate calculation
           monthlyRevenue = dashboardData.monthly_revenue || 0;
-          
-          console.log('Manager dashboard data:', dashboardData);
-          console.log('Monthly revenue (including purchased):', monthlyRevenue);
+
+
         } else {
-          console.log('❌ Failed to get manager dashboard:', dashboardResponse);
+
           // Fallback to old sales API
           salesResponse = await apiService.getSales();
-          console.log('Sales response:', salesResponse);
+
           if (salesResponse.success && salesResponse.data) {
             const sales = Array.isArray(salesResponse.data) ? salesResponse.data : [];
-            console.log('Total sales found:', sales.length);
+
             const today = new Date().toISOString().split('T')[0];
             const thisMonth = new Date().getMonth();
             const thisYear = new Date().getFullYear();
-            
-            todaySales = sales.filter((sale: Sale) => 
+
+            todaySales = sales.filter((sale: Sale) =>
               sale.order_date?.startsWith(today)
             ).reduce((sum: number, sale: Sale) => sum + sale.total_amount, 0);
-            console.log('Today sales:', todaySales);
-            
+
+
             monthlyRevenue = sales.filter((sale: Sale) => {
               const saleDate = new Date(sale.order_date);
               return saleDate.getMonth() === thisMonth && saleDate.getFullYear() === thisYear;
             }).reduce((sum: number, sale: Sale) => sum + sale.total_amount, 0);
-            console.log('Monthly revenue:', monthlyRevenue);
+
           } else {
-            console.log('❌ Failed to get sales:', salesResponse);
+
             // Set default values when no sales data
             todaySales = 0;
             monthlyRevenue = 0;
           }
         }
       } catch (error) {
-        console.error('❌ Error fetching sales:', error);
+
         // Set default values when no sales data
         todaySales = 0;
         monthlyRevenue = 0;
       }
 
       // Fetch Business Admin Dashboard Data for Manager's Store
-      console.log('📊 Fetching business admin dashboard data...');
+
       try {
         const businessDashboardResponse = await apiService.getBusinessAdminDashboard();
-        console.log('Business Admin Dashboard response:', businessDashboardResponse);
-        
+
+
         if (businessDashboardResponse.success && businessDashboardResponse.data) {
           setDashboardData(businessDashboardResponse.data);
-          console.log('✅ Business admin dashboard data set');
+
         } else {
-          console.log('❌ Failed to get business admin dashboard:', businessDashboardResponse);
+
           setDashboardError('Failed to load dashboard data');
         }
       } catch (error) {
-        console.error('❌ Error fetching business admin dashboard:', error);
+
         setDashboardError('Failed to load dashboard data');
       }
 
       // Fetch appointments
-      console.log('📅 Fetching appointments...');
+
       try {
         appointmentsResponse = await apiService.getAppointments();
-        console.log('Appointments response:', appointmentsResponse);
+
         if (appointmentsResponse.success && appointmentsResponse.data) {
           const appointments = Array.isArray(appointmentsResponse.data) ? appointmentsResponse.data : [];
-          console.log('Total appointments found:', appointments.length);
+
           const today = new Date().toISOString().split('T')[0];
-          
+
           todaysAppointmentsData = appointments
             .filter((appointment: Appointment) => appointment.date === today)
             .map((appointment: Appointment) => ({
@@ -580,39 +568,39 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
               status: appointment.status as 'confirmed' | 'completed' | 'pending' | 'cancelled',
             }));
           appointmentsCount = todaysAppointmentsData.length;
-          console.log('Today appointments:', appointmentsCount);
+
         } else {
-          console.log('❌ Failed to get appointments:', appointmentsResponse);
+
         }
       } catch (error) {
-        console.error('❌ Error fetching appointments:', error);
+
       }
 
       // Update store metrics with the fetched data
-      console.log('📊 Updating store metrics...');
+
       setStoreMetrics({
         store: {
           name: (authenticatedUser as any)?.store_name || authenticatedUser?.first_name || 'Store Dashboard',
-          revenue: { 
-            today: todaySales, 
-            thisMonth: monthlyRevenue, 
-            target: 1000000, 
-            growth: 0 
+          revenue: {
+            today: todaySales,
+            thisMonth: monthlyRevenue,
+            target: 1000000,
+            growth: 0
           },
-          customers: { 
-            total: totalCustomers, 
-            newToday: newTodayCustomers, 
-            appointments: appointmentsCount 
+          customers: {
+            total: totalCustomers,
+            newToday: newTodayCustomers,
+            appointments: appointmentsCount
           },
-          team: { 
-            total: teamPerformance.length, 
-            present: teamPerformance.length, 
-            topPerformer: teamPerformance[0]?.name || '' 
+          team: {
+            total: teamPerformance.length,
+            present: teamPerformance.length,
+            topPerformer: teamPerformance[0]?.name || ''
           },
-          inventory: { 
-            totalProducts, 
-            lowStock: lowStockProducts, 
-            newArrivals 
+          inventory: {
+            totalProducts,
+            lowStock: lowStockProducts,
+            newArrivals
           },
         },
       });
@@ -648,10 +636,10 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
       ];
       setStoreActivities(activities);
 
-      console.log('✅ Dashboard data fetch completed successfully!');
+
 
     } catch (error) {
-      console.error('❌ Error fetching dashboard data:', error);
+
     } finally {
       setLoading(false);
     }
@@ -676,7 +664,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
         <div className="flex items-center space-x-2">
           {/* Scope Indicator */}
           <ScopeIndicator showDetails={false} />
-          
+
           {/* Month Navigation */}
           <Button
             variant="outline"
@@ -687,12 +675,12 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
             <ChevronLeft className="w-4 h-4" />
             Previous
           </Button>
-          
+
           <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
             <CalendarIcon className="w-4 h-4 text-blue-600" />
             <span className="font-medium text-blue-800">{formatMonth()}</span>
           </div>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -702,7 +690,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
             Next
             <ChevronRight className="w-4 h-4" />
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -711,30 +699,30 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
           >
             Current Month
           </Button>
-          
+
           <DateRangeFilter
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
             placeholder="Filter by date range"
           />
-          
+
           <div className="flex items-center space-x-2 px-3 py-1 bg-blue-50 rounded-lg border">
             <Store className="w-4 h-4 text-blue-600" />
             <span className="text-sm font-medium text-blue-700">
               {user?.store_name || 'Your Store'}
             </span>
           </div>
-          
+
           <Button variant="outline" size="sm" onClick={() => fetchDashboardData()}>
             <TrendingUp className="w-4 h-4 mr-2" />
             Refresh Data
           </Button>
-          
+
           <Button variant="outline" size="sm" onClick={navigateToAppointments}>
             <Calendar className="w-4 h-4 mr-2" />
             Schedule Appointment
           </Button>
-          
+
           <Button size="sm" onClick={navigateToCustomers}>
             <UserPlus className="w-4 h-4 mr-2" />
             Add Customer
@@ -781,7 +769,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
                         {dashboardData.total_sales?.month_count || 0}
                       </p>
                       <p className="text-xs text-text-secondary">
-                        Today: {dashboardData.total_sales?.today_count || 0} | 
+                        Today: {dashboardData.total_sales?.today_count || 0} |
                         Week: {dashboardData.total_sales?.week_count || 0}
                       </p>
                       <p className="text-xs text-green-600 font-medium">
@@ -794,7 +782,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
                   </div>
                 </CardContent>
               </Card>
-              
+
               {/* Purchased Pipeline */}
               <Card className="shadow-sm">
                 <CardContent className="p-4">
@@ -813,7 +801,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
                   </div>
                 </CardContent>
               </Card>
-              
+
               {/* How Many in Pipeline */}
               <Card className="shadow-sm">
                 <CardContent className="p-4">
@@ -845,7 +833,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dashboardData.store_performance?.filter((store: any) => 
+                {dashboardData.store_performance?.filter((store: any) =>
                   store.name === user?.store_name
                 ).map((store: any, index: number) => (
                   <div key={store.id} className="border rounded-lg p-4">
@@ -894,7 +882,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
               View Reports
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             {teamPerformance.length > 0 ? (
               teamPerformance.map((member) => (
@@ -971,7 +959,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-foreground">{appointment.time}</p>
-                    <Badge 
+                    <Badge
                       variant={
                         appointment.status === 'completed' ? 'default' :
                         appointment.status === 'confirmed' ? 'secondary' : 'outline'
@@ -1011,8 +999,8 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
               </p>
               <p className="text-sm text-muted-foreground">of monthly target</p>
             </div>
-            <Progress 
-              value={(storeMetrics.store.revenue.thisMonth / storeMetrics.store.revenue.target) * 100} 
+            <Progress
+              value={(storeMetrics.store.revenue.thisMonth / storeMetrics.store.revenue.target) * 100}
               className="h-3"
             />
             <div className="flex justify-between text-sm text-muted-foreground">
@@ -1052,9 +1040,9 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
                 <Package className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
                 <p className="text-sm text-muted-foreground">No inventory data available</p>
                 <p className="text-xs text-muted-foreground mt-1">Add products to see inventory status</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="mt-2"
                   onClick={navigateToInventory}
                 >
@@ -1103,27 +1091,27 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
             <UserPlus className="w-5 h-5" />
             <span className="text-xs">Add Customer</span>
           </Button>
-          
+
           <Button variant="outline" className="h-20 flex-col space-y-2" onClick={navigateToAppointments}>
             <Calendar className="w-5 h-5" />
             <span className="text-xs">Book Appointment</span>
           </Button>
-          
+
           <Button variant="outline" className="h-20 flex-col space-y-2" onClick={navigateToInventory}>
             <Package className="w-5 h-5" />
             <span className="text-xs">Check Inventory</span>
           </Button>
-          
+
           <Button variant="outline" className="h-20 flex-col space-y-2" onClick={navigateToTeam}>
             <Users className="w-5 h-5" />
             <span className="text-xs">Team Reports</span>
           </Button>
-          
+
           <Button variant="outline" className="h-20 flex-col space-y-2" onClick={navigateToAnalytics}>
             <TrendingUp className="w-5 h-5" />
             <span className="text-xs">Sales Analytics</span>
           </Button>
-          
+
           <Button variant="outline" className="h-20 flex-col space-y-2" onClick={navigateToOrders}>
             <ShoppingBag className="w-5 h-5" />
             <span className="text-xs">Process Order</span>

@@ -1,11 +1,11 @@
 /**
  * ResponsiveDialog Component
- * 
+ *
  * A responsive dialog component that adapts to different screen sizes:
  * - Mobile (≤768px): Full-screen modal
  * - Tablet (768px-1024px): Centered modal with proper sizing
  * - Desktop (≥1024px): Standard modal with max-width
- * 
+ *
  * Features:
  * - Touch-optimized interactions
  * - Proper backdrop handling
@@ -45,12 +45,12 @@ export interface ResponsiveDialogProps {
 }
 
 // Backdrop Component
-function Backdrop({ 
-  onClick, 
-  className 
-}: { 
-  onClick?: () => void; 
-  className?: string; 
+function Backdrop({
+  onClick,
+  className
+}: {
+  onClick?: () => void;
+  className?: string;
 }) {
   return (
     <div
@@ -65,16 +65,16 @@ function Backdrop({
 }
 
 // Dialog Content Component
-function DialogContent({ 
-  children, 
-  className, 
+function DialogContent({
+  children,
+  className,
   size = 'md',
   isMobile,
   isTablet,
-  isDesktop 
-}: { 
-  children: React.ReactNode; 
-  className?: string; 
+  isDesktop
+}: {
+  children: React.ReactNode;
+  className?: string;
   size: string;
   isMobile: boolean;
   isTablet: boolean;
@@ -84,7 +84,7 @@ function DialogContent({
     if (isMobile) {
       return 'w-full h-full max-w-none max-h-none rounded-none';
     }
-    
+
     if (isTablet) {
       switch (size) {
         case 'sm':
@@ -99,7 +99,7 @@ function DialogContent({
           return 'w-full max-w-lg';
       }
     }
-    
+
     // Desktop
     switch (size) {
       case 'sm':
@@ -217,14 +217,14 @@ export function ResponsiveDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <Backdrop onClick={handleBackdropClick} />
-      
+
       {/* Dialog */}
       <div
         ref={dialogRef}
         className={cn(
           'relative z-50 flex flex-col',
-          shouldBeFullScreen 
-            ? 'w-full h-full' 
+          shouldBeFullScreen
+            ? 'w-full h-full'
             : 'max-h-[90vh]',
           className
         )}
@@ -251,7 +251,7 @@ export function ResponsiveDialog({
             )}>
               <div className="flex-1 min-w-0">
                 {title && (
-                  <h2 
+                  <h2
                     id="dialog-title"
                     className={cn(
                       'font-semibold text-foreground',
@@ -262,7 +262,7 @@ export function ResponsiveDialog({
                   </h2>
                 )}
                 {description && (
-                  <p 
+                  <p
                     id="dialog-description"
                     className="text-sm text-muted-foreground mt-1"
                   >
@@ -270,7 +270,7 @@ export function ResponsiveDialog({
                   </p>
                 )}
               </div>
-              
+
               {showCloseButton && (
                 <Button
                   variant="ghost"

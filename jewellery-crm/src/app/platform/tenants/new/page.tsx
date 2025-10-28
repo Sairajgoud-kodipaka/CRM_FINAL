@@ -50,18 +50,18 @@ export default function NewTenantPage() {
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const value = e.target.value;
-    
+
     // Auto-format website URL if it doesn't have a scheme
     if (e.target.name === 'website' && value && !value.startsWith('http://') && !value.startsWith('https://')) {
       // Don't auto-add https:// here, let the backend handle it
       // Just ensure it's not empty and has some content
     }
-    
+
     // Clear error when user starts typing
     if (error) {
       setError(null);
     }
-    
+
     setForm({ ...form, [e.target.name]: value });
   }
 
@@ -70,7 +70,7 @@ export default function NewTenantPage() {
     if (error) {
       setError(null);
     }
-    
+
     setForm({ ...form, phone: value });
   }
 
@@ -79,7 +79,7 @@ export default function NewTenantPage() {
     if (error) {
       setError(null);
     }
-    
+
     setForm({ ...form, [name]: value });
   }
 
@@ -92,13 +92,13 @@ export default function NewTenantPage() {
       // Enhanced validation
       const requiredFields = ['name', 'admin_username', 'admin_email', 'admin_password'];
       const missingFields = requiredFields.filter(field => !form[field as keyof TenantFormData]);
-      
+
       if (missingFields.length > 0) {
         setError(`Missing required fields: ${missingFields.join(', ')}`);
         setSubmitting(false);
         return;
       }
-      
+
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(form.admin_email)) {
@@ -106,30 +106,30 @@ export default function NewTenantPage() {
         setSubmitting(false);
         return;
       }
-      
+
       // Validate password strength
       if (form.admin_password.length < 8) {
         setError('Admin password must be at least 8 characters long');
         setSubmitting(false);
         return;
       }
-      
+
       // Validate business name
       if (form.name.trim().length < 2) {
         setError('Business name must be at least 2 characters long');
         setSubmitting(false);
         return;
       }
-      
+
       const response = await apiService.createTenant(form);
-      
+
       if (response.success) {
         router.push('/platform/tenants');
       } else {
         setError(`Failed to create tenant: ${response.message}`);
       }
     } catch (err) {
-      console.error('Error creating tenant:', err);
+
       setError(`Failed to create tenant: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setSubmitting(false);
@@ -152,7 +152,7 @@ export default function NewTenantPage() {
             <Building className="h-5 w-5 mr-2" />
             Business Information
           </h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="name">Business Name *</Label>
@@ -231,7 +231,7 @@ export default function NewTenantPage() {
             <Mail className="h-5 w-5 mr-2" />
             Contact Information
           </h2>
-          
+
           <div className="space-y-4">
             <div>
               <Label htmlFor="email">Business Email *</Label>
@@ -286,7 +286,7 @@ export default function NewTenantPage() {
             <User className="h-5 w-5 mr-2" />
             Admin Account
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="admin_username">Admin Username *</Label>
@@ -338,9 +338,9 @@ export default function NewTenantPage() {
 
       {/* Submit Button */}
       <div className="flex gap-2 mt-6">
-        <Button 
-          onClick={handleSubmit} 
-          className="btn-primary" 
+        <Button
+          onClick={handleSubmit}
+          className="btn-primary"
           disabled={submitting}
         >
           {submitting ? (
@@ -359,5 +359,5 @@ export default function NewTenantPage() {
     </div>
   );
 }
- 
- 
+
+

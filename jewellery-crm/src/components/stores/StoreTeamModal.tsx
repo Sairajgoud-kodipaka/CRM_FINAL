@@ -72,7 +72,7 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
 
   const fetchStoreTeam = async () => {
     if (!store) return;
-    
+
     try {
       const response = await apiService.getStoreTeam(store.id.toString());
       if (response.success) {
@@ -86,44 +86,42 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
           user_details: assignment.user_details
         })));
       } else {
-        console.error('Failed to fetch store team:', response);
+
         setStoreTeam([]);
       }
     } catch (error) {
-      console.error('Failed to fetch store team:', error);
+
       setStoreTeam([]);
     }
   };
 
   const fetchAllAvailableMembers = async () => {
     if (!store) return;
-    
+
     try {
       // Fetch all team members from the tenant
       const response = await apiService.listTeamMembers();
       if (response.success) {
         const data = response.data as any;
         const allMembers = Array.isArray(data) ? data : data.results || [];
-        
+
         // Get the current store team user IDs
         const currentStoreUserIds = storeTeam.map(assignment => assignment.user);
-        
+
         // Filter out members already assigned to this store
         const availableMembers = allMembers.filter((member: TeamMember) => {
           // Check if member is already assigned to this store
           return !currentStoreUserIds.includes(member.id);
         });
-        
-        console.log('Store team user IDs:', currentStoreUserIds);
-        console.log('All members:', allMembers.length);
-        console.log('Available members:', availableMembers.length);
-        
+
+
+
         setAllAvailableMembers(availableMembers);
       } else {
         setAllAvailableMembers([]);
       }
     } catch (error) {
-      console.error('Failed to fetch available team members:', error);
+
       setAllAvailableMembers([]);
     }
   };
@@ -133,7 +131,7 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
 
     try {
       setAssigningMember(true);
-      
+
       // Check if member is already assigned to this store
       const alreadyAssigned = storeTeam.find(assignment => assignment.user === selectedMember.id);
       if (alreadyAssigned) {
@@ -160,13 +158,13 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
         setSelectedMember(null);
         setSelectedRole('');
         setCanViewAll(false);
-        
+
         alert('Team member assigned successfully!');
       } else {
         alert('Failed to assign team member. Please try again.');
       }
     } catch (error) {
-      console.error('Failed to assign team member:', error);
+
       alert('Failed to assign team member. Please try again.');
     } finally {
       setAssigningMember(false);
@@ -187,7 +185,7 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
       }, 100);
       alert('Team member removed successfully!');
     } catch (error) {
-      console.error('Failed to remove team member:', error);
+
       alert('Failed to remove team member. Please try again.');
     }
   };
@@ -216,7 +214,7 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
   };
 
   // Filter available team members based on search term
-  const filteredAvailableMembers = allAvailableMembers.filter(member => 
+  const filteredAvailableMembers = allAvailableMembers.filter(member =>
     member.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -243,7 +241,7 @@ export default function StoreTeamModal({ isOpen, onClose, store }: StoreTeamModa
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Current Team Members</h3>
-              <Button 
+              <Button
                 onClick={() => setShowAssignModal(true)}
                 className="flex items-center gap-2"
               >

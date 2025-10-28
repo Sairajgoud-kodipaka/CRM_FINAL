@@ -10,14 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Bot, 
-  Plus, 
-  Save, 
-  Trash2, 
-  Play, 
-  Pause, 
-  Settings, 
+import {
+  Bot,
+  Plus,
+  Save,
+  Trash2,
+  Play,
+  Pause,
+  Settings,
   MessageSquare,
   Zap,
   Users,
@@ -137,8 +137,8 @@ export default function BotBuilder() {
         requires_human_handoff: newTrigger.requires_human_handoff || false
       };
 
-      setBots(bots.map(b => 
-        b.id === selectedBot.id 
+      setBots(bots.map(b =>
+        b.id === selectedBot.id
           ? { ...b, triggers: [...b.triggers, trigger] }
           : b
       ));
@@ -149,8 +149,8 @@ export default function BotBuilder() {
 
   const handleDeleteTrigger = (triggerId: string) => {
     if (selectedBot) {
-      setBots(bots.map(b => 
-        b.id === selectedBot.id 
+      setBots(bots.map(b =>
+        b.id === selectedBot.id
           ? { ...b, triggers: b.triggers.filter(t => t.id !== triggerId) }
           : b
       ));
@@ -443,8 +443,8 @@ export default function BotBuilder() {
                               <Button variant="outline" size="sm">
                                 <Settings className="w-4 h-4" />
                               </Button>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 onClick={() => handleDeleteTrigger(trigger.id)}
                               >

@@ -47,28 +47,28 @@ export default function SalesDashboardPage() {
       try {
         setLoading(true);
       setError(null);
-      
-      console.log('Fetching real sales dashboard data...');
-        
+
+
+
       // Get date range for filtering
       const startDate = dateRange?.from || new Date();
       const endDate = dateRange?.to || new Date();
-      
+
       // Fetch sales dashboard data with date range
         const dashboardResponse = await apiService.getSalesDashboard({
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString()
         });
-      console.log('Sales Dashboard response:', dashboardResponse);
-        
+
+
         if (dashboardResponse.success && dashboardResponse.data) {
           const dashboardData = dashboardResponse.data;
-        console.log('Dashboard data:', dashboardData);
-        
+
+
         // Fetch recent appointments for activities
         const appointmentsResponse = await apiService.getAppointments();
-        console.log('Appointments response:', appointmentsResponse);
-        
+
+
         let recentActivities: Array<{
           type: string;
           title: string;
@@ -76,10 +76,10 @@ export default function SalesDashboardPage() {
           time: string;
         }> = [];
         if (appointmentsResponse.success && appointmentsResponse.data) {
-          const appointments = Array.isArray(appointmentsResponse.data) 
-            ? appointmentsResponse.data 
+          const appointments = Array.isArray(appointmentsResponse.data)
+            ? appointmentsResponse.data
             : (appointmentsResponse.data as any)?.results || [];
-          
+
           recentActivities = appointments.slice(0, 6).map((appointment: any) => ({
             type: 'appointment',
             title: appointment.purpose || 'Appointment',
@@ -87,11 +87,11 @@ export default function SalesDashboardPage() {
             time: appointment.time || 'N/A'
           }));
         }
-        
+
         // Fetch recent sales for activities
         const salesResponse = await apiService.getSales();
-        console.log('Sales response:', salesResponse);
-        
+
+
         let salesActivities: Array<{
           type: string;
           title: string;
@@ -100,10 +100,10 @@ export default function SalesDashboardPage() {
           amount: number;
         }> = [];
         if (salesResponse.success && salesResponse.data) {
-          const sales = Array.isArray(salesResponse.data) 
-            ? salesResponse.data 
+          const sales = Array.isArray(salesResponse.data)
+            ? salesResponse.data
             : (salesResponse.data as any)?.results || [];
-          
+
           salesActivities = sales.slice(0, 3).map((sale: any) => ({
             type: 'sale',
             title: `Sale #${sale.order_number}`,
@@ -112,26 +112,26 @@ export default function SalesDashboardPage() {
             amount: sale.total_amount
           }));
         }
-        
+
         // Combine and sort activities
         const allActivities = [...recentActivities, ...salesActivities];
         allActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
+
         // Get top products from customer interests instead of sales
         let topProducts: Array<{name: string, sales: number, rank: number}> = [];
-        
+
         // Fetch customers to get their interests
         const customersResponse = await apiService.getClients();
-        console.log('Customers response:', customersResponse);
-        
+
+
         if (customersResponse.success && customersResponse.data) {
-          const customers = Array.isArray(customersResponse.data) 
-            ? customersResponse.data 
+          const customers = Array.isArray(customersResponse.data)
+            ? customersResponse.data
             : (customersResponse.data as any)?.results || [];
-          
+
           // Group customer interests by product and calculate popularity
           const productInterests = new Map();
-          
+
           customers.forEach((customer: any) => {
             if (customer.customer_interests && Array.isArray(customer.customer_interests)) {
               customer.customer_interests.forEach((interest: any) => {
@@ -143,13 +143,13 @@ export default function SalesDashboardPage() {
               });
             }
           });
-          
+
           // Convert to array and sort by interest count
           const productArray = Array.from(productInterests.entries()).map(([name, count]) => ({
             name,
             sales: count as number // Using 'sales' field for consistency, but it's actually interest count
           }));
-          
+
           // Sort by interest count (descending) and take top 4
           topProducts = productArray
             .sort((a, b) => b.sales - a.sales)
@@ -158,17 +158,17 @@ export default function SalesDashboardPage() {
               ...product,
               rank: index + 1
             }));
-          
-          console.log('Top products from customer interests:', topProducts);
+
+
         }
-        
+
         // If no customer interests data, show a message
         if (topProducts.length === 0) {
           topProducts = [
             { name: 'No customer interests available', rank: 1, sales: 0 }
           ];
         }
-        
+
         setStats({
           total_sales: dashboardData.sales_count || 0,
           total_revenue: dashboardData.total_sales || 0,  // This is the revenue amount
@@ -177,16 +177,16 @@ export default function SalesDashboardPage() {
           recent_activities: allActivities.slice(0, 6),
           top_products: topProducts
         });
-        
+
         setLastUpdated(new Date());
-        
+
         toast({
           title: "Dashboard Updated",
           description: "Successfully loaded real sales data",
           variant: "default",
         });
       } else {
-        console.error('Failed to fetch dashboard data:', dashboardResponse);
+
         setError('Failed to fetch sales dashboard data');
         toast({
           title: "Error",
@@ -195,7 +195,7 @@ export default function SalesDashboardPage() {
         });
       }
       } catch (error: any) {
-      console.error('Error fetching sales data:', error);
+
       setError('Failed to fetch sales data. Please try again.');
       toast({
         title: "Error",
@@ -389,7 +389,7 @@ export default function SalesDashboardPage() {
           <h1 className="text-2xl font-semibold text-text-primary">Sales Dashboard</h1>
           <p className="text-text-secondary mt-1">Track your personal sales performance</p>
         </div>
-        
+
         <Card className="p-8 text-center">
           <div className="text-red-500 mb-4">
             <Activity className="w-16 h-16 mx-auto" />
@@ -431,9 +431,9 @@ export default function SalesDashboardPage() {
           <p className="text-text-secondary mt-2 text-lg">Track your personal sales performance and achievements</p>
           {lastUpdated && (
             <p className="text-xs text-text-muted mt-2">
-              Last updated: {lastUpdated.toLocaleString('en-IN', { 
-                dateStyle: 'medium', 
-                timeStyle: 'short' 
+              Last updated: {lastUpdated.toLocaleString('en-IN', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
               })}
             </p>
           )}
@@ -453,7 +453,7 @@ export default function SalesDashboardPage() {
           </button>
         </div>
       </div>
-      
+
       {/* Key Performance Indicators */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="p-6 border-l-4 border-l-green-500">
@@ -468,7 +468,7 @@ export default function SalesDashboardPage() {
             </div>
           </div>
         </Card>
-        
+
         <Card className="p-6 border-l-4 border-l-blue-500">
           <div className="flex items-center justify-between">
             <div>
@@ -481,7 +481,7 @@ export default function SalesDashboardPage() {
             </div>
           </div>
         </Card>
-        
+
         <Card className="p-6 border-l-4 border-l-purple-500">
           <div className="flex items-center justify-between">
             <div>
@@ -494,7 +494,7 @@ export default function SalesDashboardPage() {
             </div>
           </div>
         </Card>
-        
+
         <Card className="p-6 border-l-4 border-l-orange-500">
           <div className="flex items-center justify-between">
             <div>
@@ -508,7 +508,7 @@ export default function SalesDashboardPage() {
           </div>
         </Card>
       </div>
-      
+
       {/* Bottom Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
@@ -543,7 +543,7 @@ export default function SalesDashboardPage() {
             ))}
           </div>
         </Card>
-        
+
         {/* Top Products */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -572,8 +572,8 @@ export default function SalesDashboardPage() {
                   <div className="text-right">
                     {product.sales > 0 && (
                       <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-blue-500 rounded-full" 
+                        <div
+                          className="h-full bg-blue-500 rounded-full"
                           style={{ width: `${(product.sales / stats.top_products[0].sales) * 100}%` }}
                         ></div>
                       </div>

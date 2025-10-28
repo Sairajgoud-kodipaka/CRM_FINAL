@@ -9,12 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Settings, 
-  Shield, 
+import {
+  Settings,
+  Shield,
   Users,
   Building2,
-  Mail, 
+  Mail,
   Bell,
   Save,
   ArrowLeft,
@@ -85,7 +85,7 @@ export default function PlatformSettingsPage() {
             <Settings className="w-5 h-5 text-primary" />
             <h3 className="text-lg sm:text-xl font-semibold">General Settings</h3>
           </div>
-          
+
           <div className="space-y-4">
             <div>
               <Label htmlFor="platform_name">Platform Name</Label>
@@ -97,7 +97,7 @@ export default function PlatformSettingsPage() {
                 className="mt-1"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="default_plan">Default Subscription Plan</Label>
               <Select value={settings.defaultPlan} onValueChange={(value) => setSettings(prev => ({ ...prev, defaultPlan: value }))}>
@@ -111,7 +111,7 @@ export default function PlatformSettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="max_users">Default Max Users per Tenant</Label>
               <Input
@@ -132,32 +132,32 @@ export default function PlatformSettingsPage() {
             <Shield className="w-5 h-5 text-primary" />
             <h3 className="text-lg sm:text-xl font-semibold">Security Settings</h3>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
               <div className="flex-1">
                 <Label>Two-Factor Authentication</Label>
                 <p className="text-sm text-muted-foreground">Require 2FA for all users</p>
               </div>
-              <Switch 
+              <Switch
                 checked={settings.twoFactorAuth}
                 onCheckedChange={(checked) => setSettings(prev => ({ ...prev, twoFactorAuth: checked }))}
                 className="sm:ml-4"
               />
             </div>
-            
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
               <div className="flex-1">
                 <Label>Session Timeout</Label>
                 <p className="text-sm text-muted-foreground">Auto-logout after inactivity</p>
               </div>
-              <Switch 
+              <Switch
                 checked={settings.sessionTimeout}
                 onCheckedChange={(checked) => setSettings(prev => ({ ...prev, sessionTimeout: checked }))}
                 className="sm:ml-4"
               />
             </div>
-            
+
             {settings.sessionTimeout && (
               <div>
                 <Label htmlFor="session_timeout">Session Timeout (minutes)</Label>
@@ -180,7 +180,7 @@ export default function PlatformSettingsPage() {
             <Building2 className="w-5 h-5 text-primary" />
             <h3 className="text-lg sm:text-xl font-semibold">Tenant Management</h3>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
               <div className="flex-1">
@@ -190,13 +190,13 @@ export default function PlatformSettingsPage() {
                 </div>
                 <p className="text-sm text-muted-foreground">Allow platform admins to deactivate tenants</p>
               </div>
-              <Switch 
+              <Switch
                 checked={settings.tenantDeactivationEnabled}
                 onCheckedChange={handleTenantDeactivationToggle}
                 className="sm:ml-4"
               />
             </div>
-            
+
             {settings.tenantDeactivationEnabled && (
               <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start space-x-2">
@@ -208,13 +208,13 @@ export default function PlatformSettingsPage() {
                 </div>
               </div>
             )}
-            
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
               <div className="flex-1">
                 <Label>New Tenant Notifications</Label>
                 <p className="text-sm text-muted-foreground">Notify when new tenants join</p>
               </div>
-              <Switch 
+              <Switch
                 checked={settings.newTenantNotifications}
                 onCheckedChange={(checked) => setSettings(prev => ({ ...prev, newTenantNotifications: checked }))}
                 className="sm:ml-4"
@@ -229,26 +229,26 @@ export default function PlatformSettingsPage() {
             <Bell className="w-5 h-5 text-primary" />
             <h3 className="text-lg sm:text-xl font-semibold">Notification Settings</h3>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
               <div className="flex-1">
                 <Label>System Alerts</Label>
                 <p className="text-sm text-muted-foreground">Receive system health alerts</p>
               </div>
-              <Switch 
+              <Switch
                 checked={settings.systemAlerts}
                 onCheckedChange={(checked) => setSettings(prev => ({ ...prev, systemAlerts: checked }))}
                 className="sm:ml-4"
               />
             </div>
-            
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
               <div className="flex-1">
                 <Label>Billing Notifications</Label>
                 <p className="text-sm text-muted-foreground">Notify about payment issues</p>
               </div>
-              <Switch 
+              <Switch
                 checked={settings.billingNotifications}
                 onCheckedChange={(checked) => setSettings(prev => ({ ...prev, billingNotifications: checked }))}
                 className="sm:ml-4"
@@ -268,7 +268,7 @@ export default function PlatformSettingsPage() {
             </div>
             <Badge variant="outline" className="text-xs w-fit">Optional</Badge>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="smtp_host">SMTP Host</Label>
@@ -280,7 +280,7 @@ export default function PlatformSettingsPage() {
                 className="mt-1"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="smtp_port">SMTP Port</Label>
               <Input
@@ -292,7 +292,7 @@ export default function PlatformSettingsPage() {
                 className="mt-1"
               />
             </div>
-            
+
             <div className="sm:col-span-2 lg:col-span-1">
               <Label htmlFor="from_email">From Email</Label>
               <Input
@@ -309,4 +309,4 @@ export default function PlatformSettingsPage() {
       </div>
     </DashboardLayout>
   );
-} 
+}

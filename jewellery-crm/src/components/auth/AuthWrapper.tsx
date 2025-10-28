@@ -15,17 +15,17 @@ export function AuthWrapper({ children, requiredRole }: AuthWrapperProps) {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('AuthWrapper state:', { user, isLoading, isHydrated });
-    
+
+
     if (isHydrated && !isLoading) {
       if (!user) {
-        console.log('No user found, redirecting to login');
+
         router.push('/');
         return;
       }
 
       if (requiredRole && user.role !== requiredRole) {
-        console.log(`User role ${user.role} doesn't match required role ${requiredRole}, redirecting`);
+
         // Redirect to appropriate dashboard based on user role
         const roleRoutes = {
           platform_admin: '/platform/dashboard',
@@ -35,7 +35,7 @@ export function AuthWrapper({ children, requiredRole }: AuthWrapperProps) {
           marketing_team: '/marketing/dashboard',
           telecaller: '/telecaller/dashboard',
         };
-        
+
         const redirectPath = roleRoutes[user.role as keyof typeof roleRoutes] || '/dashboard';
         router.push(redirectPath);
         return;
@@ -63,4 +63,4 @@ export function AuthWrapper({ children, requiredRole }: AuthWrapperProps) {
   }
 
   return <>{children}</>;
-} 
+}

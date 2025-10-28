@@ -11,9 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { PhoneInputComponent } from "@/components/ui/phone-input";
 import { apiService } from "@/lib/api-service";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
-import { 
-  INDIAN_CITIES, 
-  INDIAN_STATES, 
+import {
+  INDIAN_CITIES,
+  INDIAN_STATES,
   INDIAN_CATCHMENT_AREAS,
   REASONS_FOR_VISIT,
   CUSTOMER_STATUSES,
@@ -78,20 +78,20 @@ interface FormData {
   nextFollowUpDate: string;
   nextFollowUpTime: string;
   summaryNotes: string;
-  
+
   // High Priority Fields - Pipeline & Purchase Management
   pipelineStage: string;
   budgetRange: string;
   appointmentType: string;
-  
+
   // Customer Classification & Assignment
   customerType: string;
-  
+
   // New Critical Fields
   ageOfEndUser: string;
   productSubtype: string;
   ageingPercentage: string;
-  
+
   // Material Selection Fields
   materialType: string;
   materialWeight: number;
@@ -126,7 +126,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
-  
+
   // Form state with strict typing
   const [formData, setFormData] = useState<FormData>({
     fullName: "",
@@ -157,20 +157,20 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     nextFollowUpDate: "",
     nextFollowUpTime: "10:00",
     summaryNotes: "",
-    
+
     // High Priority Fields - Pipeline & Purchase Management
     pipelineStage: "interested",
     budgetRange: "0-50000",
     appointmentType: "In-Person",
-    
+
     // Customer Classification & Assignment
     customerType: "individual",
-    
+
     // New Critical Fields
     ageOfEndUser: "",
     productSubtype: "",
     ageingPercentage: "",
-    
+
     // Material Selection Fields
     materialType: "",
     materialWeight: 0,
@@ -180,33 +180,33 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
   // State for field locking (autofill enforcement)
   const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
-  
+
   // State for API data
   const [salesPersons, setSalesPersons] = useState<string[]>([]);
   const [salesPersonOptions, setSalesPersonOptions] = useState<Array<{id: number, name: string, username: string}>>([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // State for products data
   const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
-  
+
   // Debug: Log products state changes
   useEffect(() => {
     // Products state updated
   }, [products]);
-  
+
   // Debug: Log when component renders
   useEffect(() => {
     // Component rendered
   });
-  
+
   // State for categories data
   const [categories, setCategories] = useState<any[]>([]);
-  
+
   // State for selected product
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  
+
   // State for interests
       const [interests, setInterests] = useState<ProductInterest[]>([
       {
@@ -222,7 +222,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         },
       },
     ]);
-  
+
   // State for existing customer check
   const [existingCustomerInfo, setExistingCustomerInfo] = useState<{
     name: string;
@@ -252,7 +252,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const suggestAlternativeEmails = (email: string) => {
     const [base, domain] = email.split('@');
     if (!domain) return [];
-    
+
     return [
       `${base}1@${domain}`,
       `${base}2@${domain}`,
@@ -264,13 +264,13 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // Check if customer exists before submitting
   const checkCustomerExists = async (email: string) => {
     if (!email) return null;
-    
+
     try {
       // This would need to be implemented in the API service
       // For now, we'll just return null
       return null;
     } catch (error) {
-      console.error('Error checking customer existence:', error);
+
       return null;
     }
   };
@@ -278,7 +278,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // Ensure selectedWeight is always a number
   useEffect(() => {
     if (typeof formData.selectedWeight !== 'number' || isNaN(formData.selectedWeight)) {
-      console.warn('Invalid selectedWeight detected, fixing:', formData.selectedWeight);
+
       setFormData(prev => ({
         ...prev,
         selectedWeight: Number(prev.selectedWeight) || 3.5
@@ -289,23 +289,23 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // Deterministic autofill logic for City -> State with contextual catchment filtering
   const handleCitySelection = (city: string) => {
     const state = getStateFromCity(city);
-    
+
     if (state) {
-      setFormData(prev => ({ 
-        ...prev, 
-        city, 
+      setFormData(prev => ({
+        ...prev,
+        city,
         state,
         // Clear catchment area and pincode when city changes
         catchmentArea: "",
         pincode: ""
       }));
-      
+
       // Lock the state field after autofill
       setLockedFields(prev => lockField('state', prev));
-      
+
       // Unlock catchment area and pincode fields for new selection
       setLockedFields(prev => unlockField('catchmentArea', unlockField('pincode', prev)));
-      
+
       // Log the autofill action
       const autofillLog: AutofillLog = {
         fieldName: 'state',
@@ -316,7 +316,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         newValue: state
       };
       setAutofillLogs(prev => [...prev, autofillLog]);
-      
+
       // Log catchment area filtering
       const catchmentAreas = getCatchmentAreasForCity(city);
       const catchmentFilterLog: AutofillLog = {
@@ -328,24 +328,24 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         newValue: `${catchmentAreas.length} filtered options for ${city}`
       };
       setAutofillLogs(prev => [...prev, catchmentFilterLog]);
-      
+
       toast({
         title: "City Selection Updated",
         description: `State set to ${state}. ${catchmentAreas.length} catchment areas available for ${city}.`,
         variant: "default",
       });
     } else {
-      setFormData(prev => ({ 
-        ...prev, 
-        city, 
+      setFormData(prev => ({
+        ...prev,
+        city,
         state: "",
         catchmentArea: "",
         pincode: ""
       }));
-      
+
       // Unlock state field if city doesn't have mapping
       setLockedFields(prev => unlockField('state', prev));
-      
+
       toast({
         title: "City Selected",
         description: `City "${city}" selected. Please manually select state and catchment area.`,
@@ -359,10 +359,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     const pincode = getPincodeFromCatchment(catchmentArea);
     if (pincode) {
       setFormData(prev => ({ ...prev, catchmentArea, pincode }));
-      
+
       // Lock the pincode field after autofill
       setLockedFields(prev => lockField('pincode', prev));
-      
+
       // Log the autofill action
       const autofillLog: AutofillLog = {
         fieldName: 'pincode',
@@ -373,7 +373,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         newValue: pincode
       };
       setAutofillLogs(prev => [...prev, autofillLog]);
-      
+
       toast({
         title: "Pincode Auto-filled",
         description: `Pincode automatically set to ${pincode} based on selected catchment area.`,
@@ -399,7 +399,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // Handle form input changes with validation
   const handleInputChange = (field: keyof FormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear existing customer info when email changes
     if (field === 'email') {
       setExistingCustomerInfo(null);
@@ -409,60 +409,60 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // Validate form before submission
   const validateForm = (): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
-    
+
     if (!formData.fullName.trim()) {
       errors.push("Full Name is required");
     }
-    
+
     if (!formData.phone.trim()) {
       errors.push("Phone Number is required");
     }
-    
+
     if (!formData.city) {
       errors.push("City is required");
     }
-    
+
     if (!formData.state) {
       errors.push("State is required");
     }
-    
+
     if (!formData.catchmentArea) {
       errors.push("Catchment Area is required");
     }
-    
+
     if (!formData.pincode) {
       errors.push("Pincode is required");
     }
-    
+
     // Sales person validation - required for all roles
     if (!formData.salesPerson) {
       errors.push("Sales Person is required");
     }
-    
+
     if (!formData.reasonForVisit) {
       errors.push("Reason for Visit is required");
     }
-    
+
     if (!formData.customerStatus) {
       errors.push("Customer Status is required");
     }
-    
+
     if (!formData.leadSource) {
       errors.push("Lead Source is required");
     }
-    
+
     if (!formData.savingScheme) {
       errors.push("Monthly Saving Scheme is required");
     }
-    
+
     // Customer Interests validation removed - now handled by Product Interests structure
-    
+
     if (!formData.productType) {
       errors.push("Product Type is required");
     }
-    
+
     // Style and Material Type are optional
-    
+
     // Validate material-specific fields
     if (formData.materialType) {
       if (['GOLD JEWELLERY', 'SILVER JEWELLERY', 'PLATINUM JEWELLERY'].includes(formData.materialType)) {
@@ -476,7 +476,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       }
     }
 
-    
+
     return {
       isValid: errors.length === 0,
       errors
@@ -486,12 +486,12 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // Auto-create sales pipeline entry when customer is created
   const createAutoPipelineEntry = async (customerData: any) => {
     try {
-      console.log('🚀 Creating auto pipeline entry for customer:', customerData);
-      
+
+
       // Determine pipeline stage based on customer status and lead source
       let pipelineStage = 'interested'; // Default stage
       let probability = 20; // Default probability
-      
+
       if (formData.leadSource === 'exhibition') {
         pipelineStage = 'exhibition';
         probability = 5;
@@ -505,7 +505,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         pipelineStage = 'store_walkin';
         probability = 30;
       }
-      
+
       // Calculate expected value from product interests
       let expectedValue = 0;
       if (interests && interests.length > 0) {
@@ -514,7 +514,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           return total + revenue;
         }, 0);
       }
-      
+
       // If no expected value from interests, use budget range
       if (expectedValue === 0 && formData.budgetRange) {
         const budgetRanges: { [key: string]: number } = {
@@ -526,7 +526,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         };
         expectedValue = budgetRanges[formData.budgetRange] || 50000;
       }
-      
+
       // Create pipeline data
       const pipelineData = {
         title: `${customerData.first_name} ${customerData.last_name} - ${formData.productType || 'Jewelry'}`,
@@ -538,20 +538,20 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         next_action: formData.nextFollowUpDate ? `Follow up on ${formData.nextFollowUpDate}` : 'Schedule follow-up call',
         next_action_date: formData.nextFollowUpDate ? new Date(formData.nextFollowUpDate).toISOString() : undefined
       };
-      
-      console.log('🎯 Creating pipeline with data:', pipelineData);
-      
+
+
+
       // Call API to create pipeline
       const pipelineResponse = await apiService.createSalesPipeline(pipelineData);
-      
+
       if (pipelineResponse.success) {
-        console.log('✅ Auto pipeline entry created successfully:', pipelineResponse.data);
+
       } else {
-        console.error('❌ Failed to create auto pipeline entry:', pipelineResponse);
+
       }
-      
+
     } catch (error) {
-      console.error('💥 Error creating auto pipeline entry:', error);
+
       throw error; // Re-throw to be caught by the calling function
     }
   };
@@ -559,16 +559,16 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      
+
       // Ensure selectedWeight is a valid number before submission
       if (typeof formData.selectedWeight !== 'number' || isNaN(formData.selectedWeight)) {
-        console.warn('Fixing invalid selectedWeight before submission:', formData.selectedWeight);
+
         setFormData(prev => ({
           ...prev,
           selectedWeight: Number(prev.selectedWeight) || 3.5
         }));
       }
-      
+
       // Validate form
       const validation = validateForm();
       if (!validation.isValid) {
@@ -579,9 +579,9 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         });
         return;
       }
-      
+
               // Submitting customer data
-      
+
       // Format dates properly for API
       const formatDateForAPI = (dateString: string) => {
         if (!dateString) return undefined;
@@ -590,16 +590,16 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           if (isNaN(date.getTime())) return undefined;
           return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD format
         } catch (error) {
-          console.warn('Invalid date format:', dateString);
+
           return undefined;
         }
       };
-      
+
       // Clean string fields - return empty string for empty values instead of undefined
       const cleanStringField = (value: string) => {
         return value && value.trim() ? value.trim() : '';
       };
-      
+
       // Create assignment audit trail with enhanced tracking
       const assignmentAudit = {
         assignedByUserId: user?.id || 0,
@@ -607,7 +607,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         assignedToUserId: 0, // Will be set based on selection
         assignedToName: formData.salesPerson,
         assignmentType: (user?.role === 'manager' ? 'manager' : 'admin') as 'self' | 'manager' | 'admin',
-        assignmentScope: (user?.role === 'manager' ? 'team' : 
+        assignmentScope: (user?.role === 'manager' ? 'team' :
                          user?.role === 'business_admin' ? 'tenant' : 'global') as 'self' | 'team' | 'tenant' | 'global',
         timestamp: new Date().toISOString(),
         overrideReason: 'Manual assignment',
@@ -638,19 +638,17 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         sales_person: formData.salesPerson,
         sales_person_id: (() => {
           // Find the selected salesperson's ID from the options
-          console.log('🔍 DEBUG: Calculating sales_person_id');
-          console.log('🔍 DEBUG: formData.salesPerson:', formData.salesPerson);
-          console.log('🔍 DEBUG: salesPersonOptions:', salesPersonOptions);
-          
+
+
           const selectedOption = salesPersonOptions.find(option => {
-            console.log(`🔍 DEBUG: Comparing "${option.name}" with "${formData.salesPerson}"`);
+
             return option.name === formData.salesPerson;
           });
-          console.log('🔍 DEBUG: selectedOption:', selectedOption);
-          
+
+
           const salesPersonId = selectedOption ? selectedOption.id : null;
-          console.log('🔍 DEBUG: sales_person_id result:', salesPersonId);
-          
+
+
           return salesPersonId;
         })(),
         reason_for_visit: formData.reasonForVisit,
@@ -668,74 +666,70 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         next_follow_up: formatDateForAPI(formData.nextFollowUpDate),
         next_follow_up_time: formData.nextFollowUpTime,
         summary_notes: cleanStringField(formData.summaryNotes),
-        
+
         // New Critical Fields
         age_of_end_user: formData.ageOfEndUser,
         ageing_percentage: cleanStringField(formData.ageingPercentage),
-        
+
         // Material Selection Fields
         material_type: formData.materialType,
         material_weight: formData.materialWeight,
         material_value: formData.materialValue,
         material_unit: formData.materialUnit,
-        
+
         autofill_audit_trail: autofillLogs, // Include audit trail
         assignment_audit: assignmentAudit, // Include assignment audit
       };
 
-      console.log('🔍 DEBUG: Final customerData being sent:', customerData);
-      console.log('🔍 DEBUG: sales_person_id in customerData:', customerData.sales_person_id);
-      console.log('🔍 DEBUG: sales_person in customerData:', customerData.sales_person);
+
 
       // Remove undefined values to avoid sending them to API
       const cleanedCustomerData = Object.fromEntries(
         Object.entries(customerData).filter(([_, value]) => value !== undefined)
       );
 
-      console.log('🔍 DEBUG: cleanedCustomerData being sent to API:', cleanedCustomerData);
-      console.log('🔍 DEBUG: sales_person_id in cleaned data:', cleanedCustomerData.sales_person_id);
-      console.log('🔍 DEBUG: sales_person in cleaned data:', cleanedCustomerData.sales_person);
+
 
               // Sending customer data to API
-      
+
       // Call API to create customer
       const response = await apiService.createClient(cleanedCustomerData);
-      
+
       // Check if API call succeeded AND no business logic errors
       if (response.success && !response.errors && response.data) {
         // Customer created successfully
-        
+
         // Log assignment override for audit trail
         if (assignmentAudit.assignmentType !== 'self') {
           try {
             await apiService.logAssignmentOverride(assignmentAudit);
           } catch (error) {
-            console.error('Failed to log assignment override:', error);
+
           }
         }
-        
+
         // Auto-create sales pipeline entry
         try {
           await createAutoPipelineEntry(response.data);
         } catch (error) {
-          console.error('Failed to create auto pipeline entry:', error);
+
           // Don't fail the customer creation if pipeline creation fails
         }
-        
+
         toast({
           title: "Success!",
           description: `Customer added successfully! Assigned to ${assignmentAudit.assignedToName}.`,
           variant: "success",
         });
-        
+
         // Call the callback with the created customer data
         if (typeof onCustomerCreated === 'function') {
-          console.log('📞 Calling onCustomerCreated with data:', response.data);
+
           onCustomerCreated(response.data);
         } else {
-          console.warn('onCustomerCreated callback not provided');
+
         }
-        
+
         onClose();
         // Reset form
         setFormData({
@@ -766,20 +760,20 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           nextFollowUpDate: "",
           nextFollowUpTime: "10:00",
           summaryNotes: "",
-          
+
           // High Priority Fields - Pipeline & Purchase Management
           pipelineStage: "interested",
           budgetRange: "0-50000",
           appointmentType: "In-Person",
-          
+
           // Customer Classification & Assignment
           customerType: "individual",
-          
+
           // New Critical Fields
           ageOfEndUser: "",
           productSubtype: "",
           ageingPercentage: "",
-          
+
           // Material Selection Fields
           materialType: "",
           materialWeight: 0,
@@ -801,8 +795,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         setLockedFields(new Set());
         setAutofillLogs([]);
       } else {
-        console.error('Failed to create customer:', response);
-        
+
+
         // Handle specific error cases
         if (response.errors && response.errors.email) {
           // Handle duplicate email error
@@ -835,8 +829,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         }
       }
     } catch (error: any) {
-      console.error('Error creating customer:', error);
-      
+
+
       if (error.message && error.message.includes('duplicate key value violates unique constraint')) {
         if (error.message.includes('email')) {
           const suggestions = suggestAlternativeEmails(formData.email);
@@ -877,7 +871,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       const result = await apiCall();
       return result;
     } catch (error) {
-      console.warn('API call failed, using fallback:', error);
+
       return fallbackValue;
     }
   };
@@ -886,85 +880,79 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   useEffect(() => {
     if (open && user) {
       // Always fetch fresh data when modal opens
-      console.log('🔄 Modal opened, fetching fresh data...');
+
         const fetchData = async () => {
           try {
             setLoading(true);
-          console.log('🔄 Fetching data for AddCustomerModal...');
-            
+
+
             // Load salesperson options based on role
-          console.log('👥 Loading salesperson options...');
+
             await loadSalesPersonOptions();
-          console.log('✅ Salesperson options loaded');
-            
+
+
             // Load products
-          console.log('📦 Loading products...');
+
             await loadProducts();
-          console.log('✅ Products loading completed');
-          
+
+
           // Load categories
-          console.log('📂 Loading categories...');
+
           await loadCategories();
-          console.log('✅ Categories loading completed');
-            
+
+
           } catch (error) {
-          console.error('💥 Error fetching data:', error);
+
             // Fallback to default options
             setSalesPersons(['Sales Person 1', 'Sales Person 2', 'Sales Person 3']);
           } finally {
             setLoading(false);
-          console.log('🏁 fetchData completed');
+
           }
         };
-        
+
         fetchData();
     }
   }, [open, user]);
 
   // Load salesperson options when user changes
   useEffect(() => {
-    console.log('🔄 useEffect triggered for loadSalesPersonOptions');
-    console.log('🔄 User in useEffect:', user);
+
     if (!user) {
-      console.log('❌ No user in useEffect, returning');
+
       return;
     }
-    
+
     // Load salesperson options based on role
-    console.log('🔄 Calling loadSalesPersonOptions...');
+
     loadSalesPersonOptions();
   }, [user]);
 
   // Monitor salesPersons state changes
   useEffect(() => {
     if (salesPersons.length > 0) {
-      console.log('✅ Sales persons loaded:', salesPersons.length, 'options');
+
     }
   }, [salesPersons]);
 
   const loadSalesPersonOptions = async () => {
     if (!user) {
-      console.log('❌ No user found, cannot load salesperson options');
+
       return;
     }
-    
+
     try {
-      console.log('🔍 DEBUG: Starting loadSalesPersonOptions');
-      console.log('🔍 DEBUG: User:', user);
-      console.log('🔍 DEBUG: User ID:', user.id);
-      console.log('🔍 DEBUG: User Role:', user.role);
-      console.log('🔍 DEBUG: User Tenant:', user.tenant);
-      console.log('🔍 DEBUG: User Store:', user.store);
-      
+
+
       // Use the new context-aware API method
-      console.log('🎯 Using context-aware salespersons API...');
+
       const apiResponse = await apiService.getSalesPersonsForContext();
-      
-      console.log('🔍 DEBUG: API Response:', apiResponse);
-      
+
+
+
       if (apiResponse?.success && apiResponse.data) {
         let options: any[] = [];
-        
+
         // Handle different response formats
         if (Array.isArray(apiResponse.data)) {
           options = apiResponse.data;
@@ -973,33 +961,32 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         } else if (apiResponse.data && typeof apiResponse.data === 'object' && 'results' in apiResponse.data && Array.isArray((apiResponse.data as any).results)) {
           options = (apiResponse.data as any).results;
         }
-        
-        console.log(`✅ Loaded ${options.length} salespersons for current context`);
-        console.log('🔍 DEBUG: Salespersons:', options);
-        
+
+
+
         if (options.length > 0) {
           // Filter to only include inhouse_sales role users (exclude tele_calling)
-          const salesRoleUsers = options.filter((u: any) => 
+          const salesRoleUsers = options.filter((u: any) =>
             u.role === 'inhouse_sales'
           );
-          
-          console.log(`✅ Filtered to ${salesRoleUsers.length} sales role users`);
-          
+
+
+
           // Create display names with context information and store user data
           const names = salesRoleUsers.map((u: any) => {
             const fullName = `${u.first_name || ''} ${u.last_name || ''}`.trim();
             const displayName = fullName || u.username || u.name || `User ${u.id}`;
-            
+
             // Add context information for managers and admins
             if (['manager', 'business_admin', 'platform_admin'].includes(user.role)) {
               const storeInfo = u.store ? ` (${u.store})` : '';
               const tenantInfo = u.tenant ? ` [${u.tenant}]` : '';
               return `${displayName}${storeInfo}${tenantInfo}`;
             }
-            
+
             return displayName;
           });
-          
+
           // Store both display names and user data
           setSalesPersons(names);
           setSalesPersonOptions(salesRoleUsers.map((u: any) => ({
@@ -1007,9 +994,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || `User ${u.id}`,
             username: u.username
           })));
-          console.log(`✅ Set ${names.length} salesperson options:`, names);
-          console.log(`✅ Stored salesperson data:`, salesRoleUsers.map(u => ({id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), username: u.username})));
-          
+
+
           // Show context info to user based on their role
           let contextMessage = '';
           if (user.role === 'platform_admin') {
@@ -1021,13 +1007,13 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           } else if (['inhouse_sales', 'tele_calling', 'sales'].includes(user.role)) {
             contextMessage = `Found ${names.length} salespersons in your ${user.store ? `store (${user.store})` : 'tenant'}`;
           }
-          
+
           // Removed toast notification - no need to show this on every modal open
         } else {
           // No salespersons found
           setSalesPersons([]);
-          console.log('⚠️ No salespersons found for current context');
-          
+
+
           let noSalesMessage = '';
           if (user.role === 'platform_admin') {
             noSalesMessage = 'No salespersons found across all tenants.';
@@ -1038,70 +1024,67 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           } else {
             noSalesMessage = 'No salespersons available for assignment.';
           }
-          
+
           // Removed toast notification - no need to show this on every modal open
         }
       } else {
-        console.log('❌ API Response validation failed');
-        console.log('❌ Success:', apiResponse?.success);
-        console.log('❌ Data:', apiResponse?.data);
-        
+
+
         // Fallback for sales users - they can see all salespersons in their store
         if (['inhouse_sales', 'tele_calling', 'sales'].includes(user.role)) {
           const selfOption = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Current User';
           setSalesPersons([selfOption]);
-          console.log('🔄 Using fallback for sales user:', selfOption);
+
         } else {
           setSalesPersons([]);
-          console.log('⚠️ No fallback available for current role');
-          
+
+
           // Removed toast notification - no need to show this on every modal open
         }
       }
-      
+
     } catch (error) {
-      console.error('Salesperson options loading failed:', error);
-      
+
+
       // Fallback for sales users
       if (['inhouse_sales', 'tele_calling', 'sales'].includes(user.role)) {
         const selfOption = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Current User';
         setSalesPersons([selfOption]);
-        console.log('🔄 Using fallback for sales user:', selfOption);
+
       } else {
         setSalesPersons([]);
-        console.log('❌ No fallback available');
-        
+
+
         // Removed toast notification - no need to show this on every modal open
       }
     }
   };
 
   const loadProducts = async () => {
-    console.log('🚀 loadProducts function called');
+
     try {
       setProductsLoading(true);
-      console.log('📡 Calling API for products...');
+
       // Use authenticated API to get products for the current user's tenant
       const response = await apiService.getProducts();
-      console.log('📦 Products API Response:', response);
+
       if (response.success && response.data) {
         // Handle paginated response from Django REST Framework
-        const productsData = Array.isArray(response.data) 
-          ? response.data 
+        const productsData = Array.isArray(response.data)
+          ? response.data
           : (response.data as { results?: any[]; data?: any[] }).results || (response.data as { results?: any[]; data?: any[] }).data || [];
         setProducts(productsData);
-        console.log('✅ Products loaded successfully:', productsData.length, 'products');
-        console.log('📋 First product:', productsData[0]);
+
       } else {
-        console.error('❌ Failed to load products:', response);
+
         setProducts([]);
       }
     } catch (error) {
-      console.error('💥 Error loading products:', error);
+
       setProducts([]);
     } finally {
       setProductsLoading(false);
-      console.log('🏁 loadProducts completed');
+
     }
   };
 
@@ -1109,13 +1092,13 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     try {
       const response = await apiService.getCategories();
       if (response.success && response.data) {
-        const categoriesData = Array.isArray(response.data) 
-          ? response.data 
+        const categoriesData = Array.isArray(response.data)
+          ? response.data
           : (response.data as any).results || (response.data as any).data || [];
         setCategories(categoriesData);
-        console.log('✅ Categories loaded successfully:', categoriesData.length, 'categories');
+
       } else {
-        console.error('❌ Failed to load categories:', response);
+
         // Fallback to sample categories if API fails
         const fallbackCategories = [
           { id: 1, name: "Necklaces" },
@@ -1128,10 +1111,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           { id: 8, name: "Anklets" }
         ];
         setCategories(fallbackCategories);
-        console.log('🔄 Using fallback categories:', fallbackCategories.length, 'categories');
+
       }
     } catch (error) {
-      console.error('Error loading categories:', error);
+
       // Fallback to sample categories if API fails
       const fallbackCategories = [
         { id: 1, name: "Necklaces" },
@@ -1144,12 +1127,12 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         { id: 8, name: "Anklets" }
       ];
       setCategories(fallbackCategories);
-      console.log('🔄 Using fallback categories due to error:', fallbackCategories.length, 'categories');
+
     }
   };
 
   const addInterest = () => {
-    console.log('➕ Adding new interest...');
+
     const newInterest = {
         mainCategory: "",
         products: [{ product: "", revenue: "" }],
@@ -1162,21 +1145,21 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           other: "",
         },
     };
-    console.log('🆕 New interest structure:', newInterest);
+
     setInterests(prev => {
       const newInterests = [...prev, newInterest];
-      console.log('📊 Updated interests array:', newInterests);
+
       return newInterests;
     });
   };
 
   const addProductToInterest = (idx: number) => {
-    console.log(`➕ Adding product to interest ${idx}`);
+
     setInterests((prev) => {
       const copy = [...prev];
       const newProduct = { product: "", revenue: "" };
       copy[idx].products.push(newProduct);
-      console.log(`   Interest ${idx} now has ${copy[idx].products.length} products:`, copy[idx].products);
+
       return copy;
     });
   };
@@ -1202,8 +1185,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={loading || !formData.fullName || !formData.phone}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -1226,26 +1209,26 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           <div className={`grid grid-cols-1 ${isMobile ? 'gap-3' : isTablet ? 'md:grid-cols-2 gap-4' : 'md:grid-cols-2 gap-4'}`}>
             <div>
               <label className="block text-sm font-medium mb-1">Full Name *</label>
-              <Input 
-                placeholder="e.g., Priya Sharma" 
-                required 
+              <Input
+                placeholder="e.g., Priya Sharma"
+                required
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
               />
             </div>
             <div className="w-full overflow-hidden">
               <label className="block text-sm font-medium mb-1">Phone Number *</label>
-              <PhoneInputComponent 
-                placeholder="+91 98XXXXXX00" 
-                required 
+              <PhoneInputComponent
+                placeholder="+91 98XXXXXX00"
+                required
                 value={formData.phone}
                 onChange={(value) => handleInputChange('phone', value)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>
-              <Input 
-                placeholder="e.g., priya.sharma@example.com" 
+              <Input
+                placeholder="e.g., priya.sharma@example.com"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 onBlur={async () => {
@@ -1269,8 +1252,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Age of End User</label>
-              <Select 
-                value={formData.ageOfEndUser} 
+              <Select
+                value={formData.ageOfEndUser}
                 onValueChange={(value) => handleInputChange('ageOfEndUser', value)}
               >
                 <SelectTrigger>
@@ -1294,16 +1277,16 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Street Address</label>
-              <Input 
-                placeholder="e.g., 123, Diamond Lane" 
+              <Input
+                placeholder="e.g., 123, Diamond Lane"
                 value={formData.streetAddress}
                 onChange={(e) => handleInputChange('streetAddress', e.target.value)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">City *</label>
-              <Select 
-                value={formData.city} 
+              <Select
+                value={formData.city}
                 onValueChange={handleCitySelection}
               >
                 <SelectTrigger>
@@ -1320,8 +1303,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">State *</label>
-              <Select 
-                value={formData.state} 
+              <Select
+                value={formData.state}
                 onValueChange={(value) => handleInputChange('state', value)}
                 disabled={isFieldLocked('state', lockedFields)}
               >
@@ -1344,8 +1327,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Catchment Area *</label>
-              <Select 
-                value={formData.catchmentArea} 
+              <Select
+                value={formData.catchmentArea}
                 onValueChange={handleCatchmentSelection}
                 disabled={!formData.city}
               >
@@ -1374,8 +1357,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Pincode *</label>
-              <Select 
-                value={formData.pincode} 
+              <Select
+                value={formData.pincode}
                 onValueChange={(value) => handleInputChange('pincode', value)}
                 disabled={isFieldLocked('pincode', lockedFields)}
               >
@@ -1405,8 +1388,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Sales Person *</label>
-              <Select 
-                value={formData.salesPerson} 
+              <Select
+                value={formData.salesPerson}
                 onValueChange={(value) => handleInputChange('salesPerson', value)}
               >
                 <SelectTrigger>
@@ -1430,8 +1413,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Customer Status *</label>
-              <Select 
-                value={formData.customerStatus} 
+              <Select
+                value={formData.customerStatus}
                 onValueChange={(value) => handleInputChange('customerStatus', value)}
               >
                 <SelectTrigger>
@@ -1448,8 +1431,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Reason for Visit *</label>
-              <Select 
-                value={formData.reasonForVisit} 
+              <Select
+                value={formData.reasonForVisit}
                 onValueChange={(value) => handleInputChange('reasonForVisit', value)}
               >
                 <SelectTrigger>
@@ -1466,8 +1449,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Lead Source *</label>
-              <Select 
-                value={formData.leadSource} 
+              <Select
+                value={formData.leadSource}
                 onValueChange={(value) => handleInputChange('leadSource', value)}
               >
                 <SelectTrigger>
@@ -1490,16 +1473,16 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         {/* Product Interest */}
         <div className="border rounded-lg p-4 mb-4">
           <div className="font-semibold mb-3 text-lg">💎 Product Interest</div>
-          
+
           {/* Product Selection */}
               <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Select Product *</label>
-                <Select 
+                <Select
                   onValueChange={(productId) => {
                     const selectedProduct = products.find(p => p.id.toString() === productId);
                     if (selectedProduct) {
                       setSelectedProduct(selectedProduct);
-                      
+
                       // Auto-populate Product Type based on category
                       let productType = '';
                       if (selectedProduct.category_name) {
@@ -1509,11 +1492,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       } else if (selectedProduct.product_type) {
                         productType = selectedProduct.product_type;
                       }
-                      
+
                       if (productType) {
                         setFormData(prev => ({ ...prev, productType }));
                       }
-                      
+
                   // Auto-populate the first interest item
                       setInterests(prev => {
                         const copy = [...prev];
@@ -1529,7 +1512,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                         }
                         return copy;
                       });
-                      
+
                       // Removed toast notification - no need to show this on every product selection
                     }
                   }}
@@ -1558,8 +1541,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
                 <label className="block text-sm font-medium mb-1">Product Type *</label>
-                <Select 
-                  value={formData.productType} 
+                <Select
+                  value={formData.productType}
                   onValueChange={(value) => handleInputChange('productType', value)}
                   disabled={!formData.productType}
                 >
@@ -1581,8 +1564,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </div>
             <div>
                 <label className="block text-sm font-medium mb-1">Style</label>
-                <Select 
-                  value={formData.style} 
+                <Select
+                  value={formData.style}
                   onValueChange={(value) => handleInputChange('style', value)}
                 >
                   <SelectTrigger>
@@ -1599,8 +1582,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               </div>
             <div>
               <label className="block text-sm font-medium mb-1">Material Type</label>
-                <Select 
-                value={formData.materialType} 
+                <Select
+                value={formData.materialType}
                 onValueChange={(value) => handleInputChange('materialType', value)}
                 >
                   <SelectTrigger>
@@ -1631,8 +1614,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                           onChange={(e) => setFormData(prev => ({ ...prev, materialWeight: parseFloat(e.target.value) || 0 }))}
                           className="w-32"
                         />
-                        <Select 
-                          value={formData.materialUnit} 
+                        <Select
+                          value={formData.materialUnit}
                           onValueChange={(value) => handleInputChange('materialUnit', value)}
                         >
                           <SelectTrigger className="w-20">
@@ -1668,7 +1651,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Expected Revenue (₹) *</label>
                         <Input
-                          placeholder="e.g., 50000" 
+                          placeholder="e.g., 50000"
               value={interests[0]?.products[0]?.revenue || ''}
                           onChange={(e) => {
                             setInterests(prev => {
@@ -1682,7 +1665,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               className="w-48"
                         />
                       </div>
-              
+
           {/* Product Interests */}
           <div className="border rounded-lg p-4 bg-gray-50">
             <div className="flex items-center justify-between mb-4">
@@ -1691,20 +1674,20 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 + Add Interest
               </Button>
             </div>
-            
+
             {interests.map((interest, idx) => {
               if (!interest || !interest.preferences) {
                 return null;
               }
-              
+
               return (
                 <div key={idx} className="border rounded-lg p-4 mb-4 bg-white shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <div className="font-medium text-base">Interest #{idx + 1}</div>
                     {interests.length > 1 && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="text-red-500 hover:text-red-700 text-sm"
                         onClick={() => {
                           setInterests(prev => prev.filter((_, i) => i !== idx));
@@ -1714,7 +1697,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       </Button>
                     )}
                   </div>
-                  
+
                   {/* Category Selection for this interest */}
                   <div className="mb-4">
                     <label className="block text-sm font-medium mb-2">Category</label>
@@ -1740,7 +1723,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   {/* Product Selection for this interest */}
                   <div className="mb-4">
                     <label className="block text-sm font-medium mb-2">Product</label>
@@ -1753,7 +1736,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                             copy[idx].products[0] = { product: "", revenue: "" };
                           }
                           copy[idx].products[0].product = value;
-                          
+
                           // Auto-populate revenue if product is selected
                           const selectedProduct = products.find(p => p.id.toString() === value);
                           if (selectedProduct) {
@@ -1776,12 +1759,12 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   {/* Revenue for this interest */}
                   <div className="mb-4">
                     <label className="block text-sm font-medium mb-2">Expected Revenue (₹)</label>
                     <Input
-                      placeholder="e.g., 50000" 
+                      placeholder="e.g., 50000"
                       value={interest.products[0]?.revenue || ''}
                       onChange={(e) => {
                         setInterests(prev => {
@@ -1796,13 +1779,13 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       className="w-full"
                     />
                   </div>
-                  
+
                   {/* Customer Preferences for this interest */}
                   <div className="space-y-3">
                     <div className="text-sm font-medium text-gray-700 mb-2">Customer Preferences:</div>
                     <div className="space-y-2">
                       <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
-                        <Checkbox 
+                        <Checkbox
                           checked={interest.preferences?.designSelected || false}
                           onCheckedChange={(checked) => {
                             setInterests(prev => {
@@ -1821,11 +1804,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                               return copy;
                             });
                           }}
-                        /> 
+                        />
                         <span className="text-sm">Design Selected</span>
                       </label>
                       <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
-                        <Checkbox 
+                        <Checkbox
                           checked={interest.preferences?.wantsDiscount || false}
                           onCheckedChange={(checked) => {
                             setInterests(prev => {
@@ -1844,11 +1827,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                               return copy;
                             });
                           }}
-                        /> 
+                        />
                         <span className="text-sm">Wants Discount</span>
                       </label>
                       <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
-                        <Checkbox 
+                        <Checkbox
                           checked={interest.preferences?.checkingOthers || false}
                           onCheckedChange={(checked) => {
                             setInterests(prev => {
@@ -1867,11 +1850,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                               return copy;
                             });
                           }}
-                        /> 
+                        />
                         <span className="text-sm">Checking Others</span>
                       </label>
                       <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
-                        <Checkbox 
+                        <Checkbox
                           checked={interest.preferences?.lessVariety || false}
                           onCheckedChange={(checked) => {
                             setInterests(prev => {
@@ -1890,11 +1873,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                               return copy;
                             });
                           }}
-                        /> 
+                        />
                         <span className="text-sm">Less Variety</span>
                       </label>
                       <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
-                        <Checkbox 
+                        <Checkbox
                           checked={interest.preferences?.purchased || false}
                           onCheckedChange={(checked) => {
                             setInterests(prev => {
@@ -1913,16 +1896,16 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                               return copy;
                             });
                           }}
-                        /> 
+                        />
                         <span className="text-sm">Purchased</span>
                       </label>
                     </div>
                   </div>
-                  
+
                   <div className="mt-4">
                     <label className="block text-sm font-medium mb-2">Other Preferences</label>
-                    <Input 
-                      placeholder="Other preferences for this interest..." 
+                    <Input
+                      placeholder="Other preferences for this interest..."
                       className="w-full"
                       value={interest.preferences?.other || ""}
                       onChange={(e) => {
@@ -1982,24 +1965,24 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Design Number</label>
-              <Input 
-                placeholder="e.g., DES-2024-001" 
+              <Input
+                placeholder="e.g., DES-2024-001"
                 value={formData.designNumber}
                 onChange={(e) => handleInputChange('designNumber', e.target.value)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
-              <Input 
-                type="date" 
+              <Input
+                type="date"
                 value={formData.nextFollowUpDate}
                 onChange={(e) => handleInputChange('nextFollowUpDate', e.target.value)}
               />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Notes</label>
-              <Textarea 
-                placeholder="Key discussion points, customer preferences, next steps..." 
+              <Textarea
+                placeholder="Key discussion points, customer preferences, next steps..."
                 rows={3}
                 value={formData.summaryNotes}
                 onChange={(e) => handleInputChange('summaryNotes', e.target.value)}

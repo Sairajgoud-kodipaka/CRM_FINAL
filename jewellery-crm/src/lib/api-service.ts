@@ -110,7 +110,7 @@ interface Client {
   weight_range?: string;
   customer_preference?: string;
   design_number?: string;
-  
+
   // Additional fields from AddCustomerModal
   sales_person?: string;
   sales_person_id?: number;
@@ -128,7 +128,7 @@ interface Client {
   checking_other_jewellers?: string;
   let_him_visit?: string;
   add_to_pipeline?: boolean;
-  
+
   tenant?: number;
   store?: number;
   tags: number[];
@@ -386,7 +386,7 @@ class ApiService {
   private pendingRequests = new Map<string, PendingRequest<any>>();
   private readonly DEFAULT_CACHE_TTL = 2 * 60 * 1000; // 2 minutes (reduced for real-time updates)
   private readonly REQUEST_DEDUP_WINDOW = 1000; // 1 second
-  
+
   // Real-time update system
   private cacheInvalidationListeners = new Set<(keys: string[]) => void>();
   private mutationCallbacks = new Map<string, Set<(data: any) => void>>();
@@ -399,14 +399,14 @@ class ApiService {
         const authStorage = localStorage.getItem('auth-storage');
         if (authStorage) {
           const parsed = JSON.parse(authStorage);
-          
+
           // Try different possible structures - prioritize state.token
           const token = parsed.state?.token || parsed.token || null;
           if (token) {
             return token;
           }
         }
-        
+
         // Also try to get from Zustand store directly
         try {
           const authStore = JSON.parse(localStorage.getItem('auth-storage') || '{}');
@@ -416,7 +416,7 @@ class ApiService {
         } catch (e) {
           // Ignore parsing errors for Zustand store
         }
-        
+
         return null;
       } catch (error) {
         // Error parsing auth storage
@@ -436,12 +436,12 @@ class ApiService {
   private getFromCache<T>(cacheKey: string): T | null {
     const entry = this.cache.get(cacheKey);
     if (!entry) return null;
-    
+
     if (Date.now() - entry.timestamp > entry.ttl) {
       this.cache.delete(cacheKey);
       return null;
     }
-    
+
     return entry.data;
   }
 
@@ -469,14 +469,14 @@ class ApiService {
   private invalidateCache(pattern: string | string[]): void {
     const patterns = Array.isArray(pattern) ? pattern : [pattern];
     const keysToInvalidate: string[] = [];
-    
+
     for (const [key] of this.cache) {
       if (patterns.some(p => key.includes(p))) {
         keysToInvalidate.push(key);
         this.cache.delete(key);
       }
     }
-    
+
     if (keysToInvalidate.length > 0) {
       this.cacheInvalidationListeners.forEach(listener => listener(keysToInvalidate));
     }
@@ -506,7 +506,7 @@ class ApiService {
       this.mutationCallbacks.set(mutationType, new Set());
     }
     this.mutationCallbacks.get(mutationType)!.add(callback);
-    
+
     return () => {
       const listeners = this.mutationCallbacks.get(mutationType);
       if (listeners) {
@@ -524,11 +524,11 @@ class ApiService {
 
   // Request deduplication
   private async deduplicateRequest<T>(
-    cacheKey: string, 
+    cacheKey: string,
     requestFn: () => Promise<ApiResponse<T>>
   ): Promise<ApiResponse<T>> {
     const pending = this.pendingRequests.get(cacheKey);
-    
+
     if (pending && Date.now() - pending.timestamp < this.REQUEST_DEDUP_WINDOW) {
       return pending.promise;
     }
@@ -565,10 +565,10 @@ class ApiService {
     }
 
     const cacheKey = this.getCacheKey(endpoint, options);
-    
+
     // Start performance monitoring
     performanceMonitor.startTiming(endpoint);
-    
+
     // Check cache for GET requests
     if (!options.method || options.method === 'GET') {
       const cachedData = this.getFromCache<T>(cacheKey);
@@ -578,12 +578,12 @@ class ApiService {
         return { data: cachedData, success: true };
       }
     }
-    
+
     const token = this.getAuthToken();
-    
+
     // Check if the request body is FormData
     const isFormData = options.body instanceof FormData;
-    
+
     const defaultHeaders: Record<string, string> = {
       // Only set Content-Type for JSON requests, let browser set it for FormData
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
@@ -601,15 +601,15 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         // Try to get the error response body
         let errorMessage = `API Error: ${response.status} ${response.statusText}`;
         let errorData: any = null;
-        
+
         try {
           const errorBody = await response.text();
-          
+
           // Try to parse the error body as JSON
           try {
             errorData = JSON.parse(errorBody);
@@ -631,7 +631,7 @@ class ApiService {
         } catch (e) {
           // Could not read error response body
         }
-        
+
         // Only redirect for 401 errors that are NOT login attempts
         if (response.status === 401 && !url.includes('/login/')) {
           // Token expired or invalid, redirect to login
@@ -640,7 +640,7 @@ class ApiService {
             window.location.href = '/';
           }
         }
-        
+
         // For 400 validation errors, return them in the response instead of throwing
         if (response.status === 400 && errorData && (errorData.email || errorData.phone || errorData.errors)) {
           return {
@@ -650,16 +650,16 @@ class ApiService {
             errors: errorData
           };
         }
-        
+
         throw new Error(errorMessage);
       }
 
       // Check if response is a file download
       const contentType = response.headers.get('content-type');
       const contentDisposition = response.headers.get('content-disposition');
-      
 
-      
+
+
       // Check if this is a file download response
       if (contentDisposition && contentDisposition.includes('attachment')) {
         // This is a file download, return the blob
@@ -669,10 +669,10 @@ class ApiService {
           success: true,
         };
       }
-      
+
       // Also check for specific content types that indicate file downloads
       if (contentType && (
-        contentType.includes('text/csv') || 
+        contentType.includes('text/csv') ||
         contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       )) {
         // This is a file download, return the blob
@@ -687,7 +687,7 @@ class ApiService {
       let data;
       try {
         const responseText = await response.text();
-        
+
         if (responseText.trim() === '') {
           // Empty response, return success
           data = null;
@@ -698,7 +698,7 @@ class ApiService {
         // If JSON parsing fails, return success with empty data
         data = null;
       }
-      
+
       // Check if the response is already in ApiResponse format
       let result: ApiResponse<T>;
       if (data && typeof data === 'object' && 'success' in data) {
@@ -711,12 +711,12 @@ class ApiService {
           success: true,
         };
       }
-      
+
       // Cache successful GET responses
       if ((!options.method || options.method === 'GET') && result.success) {
         this.setCache(cacheKey, result.data);
       }
-      
+
       // End performance monitoring for successful requests
       performanceMonitor.endTiming(endpoint, false);
       return result;
@@ -730,17 +730,17 @@ class ApiService {
   // Generic HTTP methods with deduplication
   async get<T>(endpoint: string): Promise<ApiResponse<T>> {
     const cacheKey = this.getCacheKey(endpoint, { method: 'GET' });
-    return this.deduplicateRequest(cacheKey, () => 
+    return this.deduplicateRequest(cacheKey, () =>
       this.request<T>(endpoint, { method: 'GET' })
     );
   }
 
   async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    const cacheKey = this.getCacheKey(endpoint, { 
-      method: 'POST', 
-      body: data ? JSON.stringify(data) : undefined 
+    const cacheKey = this.getCacheKey(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined
     });
-    return this.deduplicateRequest(cacheKey, () => 
+    return this.deduplicateRequest(cacheKey, () =>
       this.request<T>(endpoint, {
         method: 'POST',
         body: data ? JSON.stringify(data) : undefined,
@@ -749,11 +749,11 @@ class ApiService {
   }
 
   async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    const cacheKey = this.getCacheKey(endpoint, { 
-      method: 'PUT', 
-      body: data ? JSON.stringify(data) : undefined 
+    const cacheKey = this.getCacheKey(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined
     });
-    return this.deduplicateRequest(cacheKey, () => 
+    return this.deduplicateRequest(cacheKey, () =>
       this.request<T>(endpoint, {
         method: 'PUT',
         body: data ? JSON.stringify(data) : undefined,
@@ -763,7 +763,7 @@ class ApiService {
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     const cacheKey = this.getCacheKey(endpoint, { method: 'DELETE' });
-    return this.deduplicateRequest(cacheKey, () => 
+    return this.deduplicateRequest(cacheKey, () =>
       this.request<T>(endpoint, { method: 'DELETE' })
     );
   }
@@ -854,12 +854,12 @@ class ApiService {
         // Logout error
       }
     }
-    
+
     // Clear local storage
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth-storage');
     }
-    
+
     return { data: undefined, success: true };
   }
 
@@ -885,12 +885,12 @@ class ApiService {
     if (params?.month) queryParams.append('month', params.month.toString());
     if (params?.month_name) queryParams.append('month_name', params.month_name);
     if (params?.timezone) queryParams.append('timezone', params.timezone);
-    
+
     // Enhanced cache-busting with month-specific timestamp
     const cacheKey = `${params?.year || 'current'}_${params?.month || 'current'}_${Date.now()}`;
     queryParams.append('_cache', cacheKey);
     queryParams.append('_t', Date.now().toString());
-    
+
     const url = `/tenants/dashboard/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.request(url);
   }
@@ -908,7 +908,7 @@ class ApiService {
     if (params?.start_date) queryParams.append('start_date', params.start_date);
     if (params?.end_date) queryParams.append('end_date', params.end_date);
     if (params?.filter_type) queryParams.append('filter_type', params.filter_type);
-    
+
     const url = `/tenants/manager-dashboard/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.request(url);
   }
@@ -950,12 +950,12 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(clientData),
     });
-    
+
     // Invalidate cache and notify listeners on success
     if (response.success) {
       this.invalidateCache(['/clients/clients/', '/clients/audit-logs/']);
       this.notifyMutationListeners('client:created', response.data);
-      
+
       // Dispatch custom event for backward compatibility
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('refreshCustomerDetails', {
@@ -963,7 +963,7 @@ class ApiService {
         }));
       }
     }
-    
+
     return response;
   }
 
@@ -972,12 +972,12 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(clientData),
     });
-    
+
     // Invalidate cache and notify listeners on success
     if (response.success) {
       this.invalidateCache([`/clients/clients/${id}/`, '/clients/clients/', '/clients/audit-logs/']);
       this.notifyMutationListeners('client:updated', response.data);
-      
+
       // Dispatch custom event for backward compatibility
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('refreshCustomerDetails', {
@@ -985,7 +985,7 @@ class ApiService {
         }));
       }
     }
-    
+
     return response;
   }
 
@@ -993,12 +993,12 @@ class ApiService {
     const response = await this.request<void>(`/clients/clients/${id}/`, {
       method: 'DELETE',
     });
-    
+
     // Invalidate cache and notify listeners on success
     if (response.success) {
       this.invalidateCache([`/clients/clients/${id}/`, '/clients/clients/', '/clients/audit-logs/']);
       this.notifyMutationListeners('client:deleted', { id });
-      
+
       // Dispatch custom event for backward compatibility
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('refreshCustomerDetails', {
@@ -1006,7 +1006,7 @@ class ApiService {
         }));
       }
     }
-    
+
     return response;
   }
 
@@ -1231,7 +1231,7 @@ class ApiService {
 
   async createProduct(productData: Partial<Product> | FormData): Promise<ApiResponse<Product>> {
     const isFormData = productData instanceof FormData;
-    
+
     return this.request('/products/create/', {
       method: 'POST',
       body: isFormData ? productData : JSON.stringify(productData),
@@ -1243,7 +1243,7 @@ class ApiService {
 
   async updateProduct(id: string, productData: Partial<Product> | FormData): Promise<ApiResponse<Product>> {
     const isFormData = productData instanceof FormData;
-    
+
     return this.request(`/products/${id}/update/`, {
       method: 'PUT',
       body: isFormData ? productData : JSON.stringify(productData),
@@ -1606,10 +1606,10 @@ class ApiService {
   async rescheduleAppointment(id: string, newDate: string, newTime: string, reason?: string): Promise<ApiResponse<Appointment>> {
     return this.request(`/clients/appointments/${id}/reschedule/`, {
       method: 'POST',
-      body: JSON.stringify({ 
-        new_date: newDate, 
-        new_time: newTime, 
-        reason 
+      body: JSON.stringify({
+        new_date: newDate,
+        new_time: newTime,
+        reason
       }),
     });
   }
@@ -1638,12 +1638,12 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(memberData),
     });
-    
+
     // Invalidate cache for team members and related data
     if (response.success) {
       this.invalidateCache(['/users/team-members/', '/users/', '/stores/']);
     }
-    
+
     return response;
   }
 
@@ -1652,12 +1652,12 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(memberData),
     });
-    
+
     // Invalidate cache for team members and related data
     if (response.success) {
       this.invalidateCache([`/users/team-members/${id}/`, '/users/team-members/', '/users/', '/stores/']);
     }
-    
+
     return response;
   }
 
@@ -1665,12 +1665,12 @@ class ApiService {
     const response = await this.request(`/users/team-members/${id}/delete/`, {
       method: 'DELETE',
     });
-    
+
     // Invalidate cache for team members and related data
     if (response.success) {
       this.invalidateCache([`/users/team-members/${id}/`, '/users/team-members/', '/users/', '/stores/']);
     }
-    
+
     return response;
   }
 
@@ -1810,12 +1810,12 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(storeData),
     });
-    
+
     // Invalidate cache for stores and related data
     if (response.success) {
       this.invalidateCache(['/stores/', '/users/team-members/', '/users/']);
     }
-    
+
     return response;
   }
 
@@ -1824,12 +1824,12 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(storeData),
     });
-    
+
     // Invalidate cache for stores and related data
     if (response.success) {
       this.invalidateCache([`/stores/${id}/`, '/stores/', '/users/team-members/', '/users/']);
     }
-    
+
     return response;
   }
 
@@ -1837,12 +1837,12 @@ class ApiService {
     const response = await this.request(`/stores/${id}/`, {
       method: 'DELETE',
     });
-    
+
     // Invalidate cache for stores and related data
     if (response.success) {
       this.invalidateCache([`/stores/${id}/`, '/stores/', '/users/team-members/', '/users/']);
     }
-    
+
     return response;
   }
 
@@ -2331,12 +2331,12 @@ class ApiService {
   async getTeamMembers(managerId: number): Promise<ApiResponse<User[]>> {
     return this.request(`/users/team-members/${managerId}/`);
   }
-  
+
   // Get sales users in a specific tenant
   async getTenantSalesUsers(tenantId: number): Promise<ApiResponse<User[]>> {
     return this.request(`/users/tenant/${tenantId}/sales-users/`);
   }
-  
+
   // Get all sales users (platform admin only)
   async getAllSalesUsers(): Promise<ApiResponse<User[]>> {
     return this.request('/users/sales-users/');
@@ -2346,7 +2346,7 @@ class ApiService {
   async getSalesPersonsForContext(): Promise<ApiResponse<User[]>> {
     return this.request('/users/salespersons/context/');
   }
-  
+
   // Log assignment override for audit trail
   async logAssignmentOverride(audit: {
     assignedByUserId: number;
@@ -2393,7 +2393,7 @@ class ApiService {
   async exportBillingReport(): Promise<Blob> {
     const token = this.getAuthToken();
     const url = getApiUrl('/tenants/billing/export/');
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -2422,4 +2422,4 @@ class ApiService {
 
 export const apiService = new ApiService();
 export { ApiService };
-export type { User, Client, Product, ProductInventory, StockTransfer, Sale, SalesPipeline, Appointment, Category, DashboardStats, Store, SupportTicket }; 
+export type { User, Client, Product, ProductInventory, StockTransfer, Sale, SalesPipeline, Appointment, Category, DashboardStats, Store, SupportTicket };

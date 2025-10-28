@@ -17,10 +17,10 @@ export default function CustomerFooter() {
           <div className="space-y-4">
             <div className="text-2xl font-bold">💎 Jewellery Store</div>
             <p className="text-gray-300 leading-relaxed">
-              Discover exquisite jewellery crafted with precision and designed for elegance. 
+              Discover exquisite jewellery crafted with precision and designed for elegance.
               From traditional to contemporary, find pieces that tell your story.
             </p>
-            
+
             {/* Social Links */}
             <div className="flex space-x-4">
               <a href="#" className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gold hover:text-gray-900 transition-all duration-200">
@@ -113,7 +113,7 @@ export default function CustomerFooter() {
                   <p className="text-gray-300">+91 98765 43210</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start space-x-3">
                 <Mail className="w-5 h-5 text-gold mt-0.5" />
                 <div>
@@ -121,7 +121,7 @@ export default function CustomerFooter() {
                   <p className="text-gray-300">support@jewellerystore.com</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start space-x-3">
                 <MapPin className="w-5 h-5 text-gold mt-0.5" />
                 <div>
@@ -156,7 +156,7 @@ export default function CustomerFooter() {
             <div className="text-gray-300 text-sm">
               © 2024 Jewellery Store. All rights reserved.
             </div>
-            
+
             <div className="flex space-x-6 text-sm">
               <Link href={`/store/${tenant}/privacy`} className="text-gray-300 hover:text-gold transition-colors">
                 Privacy Policy
@@ -201,4 +201,4 @@ export default function CustomerFooter() {
       </div>
     </footer>
   );
-} 
+}

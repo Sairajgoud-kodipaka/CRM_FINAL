@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Building2, 
-  Users, 
-  MapPin, 
+import {
+  Building2,
+  Users,
+  MapPin,
   Phone,
   Mail,
   Clock,
@@ -34,15 +34,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -123,7 +123,7 @@ export default function StoreDetailPage() {
       router.push('/');
       return;
     }
-    
+
     if (storeId) {
       fetchStoreData();
     }
@@ -136,23 +136,22 @@ export default function StoreDetailPage() {
 
       // Fetch store details
       const storeResponse = await apiService.getStore(storeId);
-      
+
       if (storeResponse.success) {
         setStore(storeResponse.data);
       } else {
-        console.error('❌ Store API failed:', storeResponse);
+
         throw new Error('Failed to fetch store details');
       }
 
       // Fetch store performance
       try {
         const performanceResponse = await apiService.getStorePerformance(storeId);
-        
+
         if (performanceResponse.success) {
           setPerformance(performanceResponse.data);
         } else {
-          console.error('❌ Performance API failed:', performanceResponse);
-          console.error('❌ Performance API error message:', performanceResponse.message);
+
           // Set default performance data to show something
           setPerformance({
             store_id: 0,
@@ -171,8 +170,7 @@ export default function StoreDetailPage() {
           });
         }
       } catch (error) {
-        console.error('❌ Failed to fetch store performance:', error);
-        console.error('❌ Performance error details:', error);
+
         // Set default performance data on error
         setPerformance({
           store_id: 0,
@@ -194,40 +192,35 @@ export default function StoreDetailPage() {
       // Fetch store staff
       try {
         const staffResponse = await apiService.getStoreStaff(storeId);
-        
+
         if (staffResponse.success) {
           setStaff(staffResponse.data);
         } else {
-          console.error('❌ Staff API failed:', staffResponse);
-          console.error('❌ Staff API error message:', staffResponse.message);
+
           setStaff([]); // Set empty array on failure
         }
       } catch (error) {
-        console.error('❌ Failed to fetch store staff:', error);
-        console.error('❌ Staff error details:', error);
+
         setStaff([]); // Set empty array on error
       }
 
       // Fetch recent sales
       try {
         const salesResponse = await apiService.getStoreRecentSales(storeId);
-        
+
         if (salesResponse.success) {
           setRecentSales(salesResponse.data);
         } else {
-          console.error('❌ Sales API failed:', salesResponse);
-          console.error('❌ Sales API error message:', salesResponse.message);
+
           setRecentSales([]); // Set empty array on failure
         }
       } catch (error) {
-        console.error('❌ Failed to fetch recent sales:', error);
-        console.error('❌ Sales error details:', error);
+
         setRecentSales([]); // Set empty array on error
       }
 
     } catch (error) {
-      console.error('❌ Error fetching store data:', error);
-      console.error('❌ Error details:', error);
+
       setError('Failed to load store data');
     } finally {
       setLoading(false);
@@ -307,9 +300,9 @@ export default function StoreDetailPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleBackToDashboard}
             className="flex items-center gap-2"
           >
@@ -324,7 +317,7 @@ export default function StoreDetailPage() {
               Store Code: {store.code} • {store.city}, {store.state}
             </p>
             <div className="flex items-center gap-2 mt-2">
-              <Badge 
+              <Badge
                 variant={store.is_active ? "default" : "secondary"}
                 className={getStatusColor(store.is_active ? 'active' : 'inactive')}
               >
@@ -522,7 +515,7 @@ export default function StoreDetailPage() {
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-text-secondary">Status</Label>
-                    <Badge 
+                    <Badge
                       variant={store.is_active ? "default" : "secondary"}
                       className={`mt-1 ${getStatusColor(store.is_active ? 'active' : 'inactive')}`}
                     >
@@ -643,7 +636,7 @@ export default function StoreDetailPage() {
                         <TableCell>{formatCurrency(sale.total_amount)}</TableCell>
                         <TableCell>{formatDate(sale.order_date || sale.created_at)}</TableCell>
                         <TableCell>
-                          <Badge 
+                          <Badge
                             variant={sale.status === 'delivered' ? "default" : "secondary"}
                             className={sale.status === 'delivered' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
                           >
@@ -697,9 +690,9 @@ export default function StoreDetailPage() {
                     </Card>
                   </div>
                   <div className="text-center">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handleViewInventory}
                     >
                       View Full Inventory

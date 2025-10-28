@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Phone, 
-  Eye, 
-  Search, 
-  Filter, 
-  Users, 
+import {
+  Phone,
+  Eye,
+  Search,
+  Filter,
+  Users,
   TrendingUp,
   Clock,
   CheckCircle,
@@ -31,7 +31,7 @@ interface PipelineTableProps {
 export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
   const { user } = useAuth();
   const router = useRouter();
-  
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [qualityFilter, setQualityFilter] = useState('all');
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -50,18 +50,18 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('🔍 Fetching Google Sheets leads for pipeline...');
-      
+
+
+
       // Fetch Google Sheets leads with pagination
       const response: LeadListResponse = await telecallingApiService.getLeads({
         page: page,
         limit: pageSize,
         assignedTo: user?.id?.toString() // Only get leads assigned to current telecaller
       });
-      
-      console.log('📡 Pipeline leads API response:', response);
-      
+
+
+
           if (response && response.results) {
             setLeads(response.results);
             // Calculate total pages from count and page size
@@ -69,15 +69,15 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
             setTotalPages(totalPages);
             setTotalLeads(response.count);
             setCurrentPage(page);
-            console.log(`✅ Loaded ${response.results.length} leads for pipeline (page ${page}/${totalPages})`);
+
           } else {
-            console.warn('⚠️ Unexpected pipeline leads response format:', response);
+
             setLeads([]);
             setError('Unexpected response format from server');
           }
     } catch (err) {
-      console.error('❌ Error fetching pipeline leads:', err);
-      
+
+
       if (err instanceof Error && (err.message.includes('Network') || err.message.includes('fetch'))) {
         setError('Unable to connect to the server. Please check your connection and try again.');
       } else if (err instanceof Error && err.message.includes('403')) {
@@ -85,7 +85,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
       } else {
         setError(err instanceof Error ? err.message : 'Failed to load leads');
       }
-      
+
       setLeads([]);
     } finally {
       setLoading(false);
@@ -106,7 +106,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
 
   const handleCall = (lead: Lead) => {
     // Implement call functionality
-    console.log('Calling:', lead.name);
+
     router.push(`/telecaller/call?phone=${lead.phone}&name=${lead.name}&leadId=${lead.id}`);
   };
 
@@ -118,20 +118,20 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
 
   const filteredLeads = leads.filter(lead => {
     // Search filter
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.phone.includes(searchTerm) ||
       lead.masked_phone?.includes(searchTerm);
-    
+
     // Status filter
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-    
+
     // Priority filter
     const matchesPriority = priorityFilter === 'all' || lead.priority === priorityFilter;
-    
+
     // Quality filter (using source as quality indicator)
     const matchesQuality = qualityFilter === 'all' || lead.source === qualityFilter;
-    
+
     return matchesSearch && matchesStatus && matchesPriority && matchesQuality;
   });
 
@@ -140,7 +140,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
     if (!statusConfig) {
       return <Badge variant="outline">{status}</Badge>;
     }
-    
+
     return (
       <Badge className={`${statusConfig.bgColor} ${statusConfig.textColor} border-0`}>
         {statusConfig.label}
@@ -224,7 +224,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -236,7 +236,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -248,7 +248,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -275,7 +275,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
                 className="pl-10"
               />
             </div>
-            
+
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="All Status" />
@@ -289,7 +289,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
                 ))}
               </SelectContent>
             </Select>
-            
+
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="All Priority" />
@@ -301,7 +301,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
                 <SelectItem value="low">Low</SelectItem>
               </SelectContent>
             </Select>
-            
+
             <Select value={qualityFilter} onValueChange={setQualityFilter}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="All Quality" />
@@ -431,7 +431,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
                 })}
               </tbody>
             </table>
-            
+
             {filteredLeads.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -440,7 +440,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
             )}
           </div>
         </CardContent>
-        
+
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
@@ -463,7 +463,7 @@ export function PipelineTable({ onViewPipeline }: PipelineTableProps) {
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
                     if (pageNum > totalPages) return null;
-                    
+
                     return (
                       <Button
                         key={pageNum}

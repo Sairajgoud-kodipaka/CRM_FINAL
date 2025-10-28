@@ -9,14 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Search, 
-  Filter, 
-  RefreshCw, 
-  AlertCircle, 
-  CheckCircle, 
-  Clock, 
-  User, 
+import {
+  Search,
+  Filter,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  User,
   Building2,
   MessageSquare,
   Eye,
@@ -72,25 +72,25 @@ export default function PlatformSupportTicketsPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await apiService.getSupportTickets({
         search: searchTerm || undefined,
         status: statusFilter === 'all' ? undefined : statusFilter || undefined,
         priority: priorityFilter === 'all' ? undefined : priorityFilter || undefined,
       });
-      
-      console.log('API Response:', response);
-      
+
+
+
       if (response.success && response.data) {
         const ticketsData = Array.isArray(response.data) ? response.data : (response.data as any).results || [];
-        console.log('Tickets data:', ticketsData);
+
         setTickets(ticketsData);
       } else {
-        console.log('No tickets data, setting empty array');
+
         setTickets([]);
       }
     } catch (err) {
-      console.error('Failed to fetch tickets:', err);
+
       setError('Failed to load support tickets');
     } finally {
       setLoading(false);
@@ -101,20 +101,20 @@ export default function PlatformSupportTicketsPage() {
     if (!isHydrated) {
       return;
     }
-    
+
     if (!isAuthenticated) {
-      console.log('User not authenticated, redirecting to login');
+
       router.push('/');
       return;
     }
-    
+
     if (user?.role !== 'platform_admin') {
-      console.log('User is not platform admin, redirecting');
+
       router.push('/select-role');
       return;
     }
-    
-    console.log('Platform admin authenticated, fetching tickets:', { user, isAuthenticated });
+
+
     fetchTickets();
   }, [searchTerm, statusFilter, priorityFilter, isAuthenticated, user, router, isHydrated]);
 
@@ -517,8 +517,8 @@ function TicketCard({ ticket, compact = false }: { ticket: SupportTicket; compac
 
           {/* Priority */}
           <div className="flex items-center justify-between">
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={`text-xs px-2 py-1 ${getPriorityColor(ticket.priority)}`}
             >
               {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
@@ -536,7 +536,7 @@ function TicketCard({ ticket, compact = false }: { ticket: SupportTicket; compac
               <Calendar className="w-3 h-3" />
               <span>{new Date(ticket.created_at).toLocaleDateString()}</span>
             </div>
-            <Link 
+            <Link
               href={`/platform/support/${ticket.id}`}
               className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700"
             >
@@ -549,5 +549,5 @@ function TicketCard({ ticket, compact = false }: { ticket: SupportTicket; compac
     </Card>
   );
 }
- 
- 
+
+

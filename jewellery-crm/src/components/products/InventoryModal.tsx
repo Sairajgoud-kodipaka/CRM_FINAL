@@ -61,7 +61,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
     try {
       setLoading(true);
       const response = await apiService.getInventory();
-      
+
       if (response.success && response.data) {
         let inventoryData: ProductInventory[] = [];
         if (Array.isArray(response.data)) {
@@ -77,7 +77,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
         setInventory(inventoryData);
       }
     } catch (error) {
-      console.error('Error fetching inventory:', error);
+
       setInventory([]);
     } finally {
       setLoading(false);
@@ -104,7 +104,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
         onSuccess();
       }
     } catch (error) {
-      console.error('Error updating inventory:', error);
+
     }
   };
 
@@ -243,7 +243,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
                               <p className="text-sm text-muted-foreground">Location: {item.location}</p>
                             )}
                           </div>
-                          
+
                           <div className="flex items-center gap-4">
                             <div className="text-right">
                               <div className="flex items-center gap-2">
@@ -259,7 +259,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
                                 Min: {item.reorder_point} | Max: {item.max_stock}
                               </p>
                             </div>
-                            
+
                             <Button
                               variant="outline"
                               size="sm"
@@ -270,7 +270,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
                             </Button>
                           </div>
                         </div>
-                        
+
                         <div className="mt-2 text-xs text-muted-foreground">
                           Last updated: {formatDate(item.last_updated)}
                         </div>
@@ -298,7 +298,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
           <DialogHeader>
             <DialogTitle>Update Inventory</DialogTitle>
           </DialogHeader>
-          
+
           {selectedItem && (
             <div className="space-y-4">
               <div>
@@ -306,7 +306,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
                 <p className="text-sm font-medium">{selectedItem.product_name}</p>
                 <p className="text-xs text-muted-foreground">SKU: {selectedItem.product_sku}</p>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="quantity">Current Quantity</Label>
@@ -327,7 +327,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="reorder_point">Reorder Point</Label>
@@ -348,7 +348,7 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
                   />
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsUpdateModalOpen(false)}>
                   Cancel
@@ -363,4 +363,4 @@ export default function InventoryModal({ isOpen, onClose, onSuccess }: Inventory
       </Dialog>
     </>
   );
-} 
+}

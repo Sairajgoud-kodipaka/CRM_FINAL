@@ -381,38 +381,38 @@ export const API_ENDPOINTS = {
   REGISTER: '/api/register',
   FORGOT_PASSWORD: '/api/forgot-password',
   RESET_PASSWORD: '/api/reset-password',
-  
+
   // Users
   USERS: '/api/users',
   USER_PROFILE: '/api/users/profile',
-  
+
   // Customers
   CUSTOMERS: '/api/clients/clients',
   CUSTOMER_SEARCH: '/api/clients/clients',
-  
+
   // Products
   PRODUCTS: '/api/products/list',
   PRODUCT_CATEGORIES: '/api/products/categories',
-  
+
   // Orders
   ORDERS: '/api/sales',
   ORDER_ITEMS: '/api/sales/items',
-  
+
   // Appointments
   APPOINTMENTS: '/api/clients/appointments',
   APPOINTMENT_SLOTS: '/api/clients/appointments/slots',
-  
+
   // Sales
   DEALS: '/api/sales/pipeline',
   PIPELINE: '/api/sales/pipeline',
-  
+
   // Analytics
   DASHBOARD: '/api/analytics/dashboard',
   REPORTS: '/api/analytics/reports',
-  
+
   // File uploads
   UPLOAD: '/api/upload',
-  
+
   // WhatsApp
   WHATSAPP_SEND: '/api/whatsapp/send',
   WHATSAPP_TEMPLATES: '/api/whatsapp/templates',

@@ -11,10 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
-import { 
-  MessageSquare, 
-  Send, 
-  Users, 
+import {
+  MessageSquare,
+  Send,
+  Users,
   Smartphone,
   CheckCircle,
   XCircle,
@@ -41,7 +41,7 @@ export default function ManagerWhatsAppPage() {
   const [sendLoading, setSendLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   const [singleMessage, setSingleMessage] = useState({
     phone: '',
     message: '',
@@ -60,7 +60,7 @@ export default function ManagerWhatsAppPage() {
         setWhatsappStatus(response.data);
       }
     } catch (error) {
-      console.error('Error fetching WhatsApp status:', error);
+
       setError('Failed to fetch WhatsApp status');
     } finally {
       setLoading(false);
@@ -91,7 +91,7 @@ export default function ManagerWhatsAppPage() {
         setError(response.message || 'Failed to start WhatsApp session');
       }
     } catch (error) {
-      console.error('Error starting WhatsApp session:', error);
+
       setError('Failed to start WhatsApp session');
     } finally {
       setLoading(false);
@@ -112,7 +112,7 @@ export default function ManagerWhatsAppPage() {
         message: singleMessage.message,
         type: 'text'
       });
-      
+
       if (response.success) {
         setSuccess('Message sent successfully');
         setSingleMessage({ phone: '', message: '', recipient_type: 'customer' });
@@ -120,7 +120,7 @@ export default function ManagerWhatsAppPage() {
         setError(response.message || 'Failed to send message');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+
       setError('Failed to send message');
     } finally {
       setSendLoading(false);
@@ -179,7 +179,7 @@ export default function ManagerWhatsAppPage() {
                 <Label htmlFor="recipient_type">Recipient Type</Label>
                 <Select
                   value={singleMessage.recipient_type}
-                  onValueChange={(value: 'customer' | 'team') => 
+                  onValueChange={(value: 'customer' | 'team') =>
                     setSingleMessage(prev => ({ ...prev, recipient_type: value }))
                   }
                 >
@@ -202,7 +202,7 @@ export default function ManagerWhatsAppPage() {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="message">Message</Label>
               <Textarea
@@ -230,7 +230,7 @@ export default function ManagerWhatsAppPage() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
+
       {success && (
         <Alert>
           <CheckCircle className="h-4 w-4" />

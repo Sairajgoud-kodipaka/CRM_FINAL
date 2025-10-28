@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { DashboardLayout, CardContainer } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  CreditCard, 
-  TrendingUp, 
+import {
+  CreditCard,
+  TrendingUp,
   TrendingDown,
   DollarSign,
   Users,
@@ -56,14 +56,14 @@ export default function PlatformBillingPage() {
       setLoading(true);
       setError(null);
       const response = await apiService.getBillingOverview();
-      
+
       if (response.success) {
         setBillingData(response.data);
       } else {
         setError('Failed to load billing data');
       }
     } catch (err) {
-      console.error('Error fetching billing data:', err);
+
       setError('Failed to load billing data');
     } finally {
       setLoading(false);
@@ -74,7 +74,7 @@ export default function PlatformBillingPage() {
     try {
       setExporting(true);
       const blob = await apiService.exportBillingReport();
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -84,9 +84,9 @@ export default function PlatformBillingPage() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
     } catch (err) {
-      console.error('Error exporting report:', err);
+
       setError('Failed to export report');
     } finally {
       setExporting(false);
@@ -163,9 +163,9 @@ export default function PlatformBillingPage() {
               Back to Dashboard
             </Button>
           </Link>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleExportReport}
             disabled={exporting}
           >
@@ -245,7 +245,7 @@ export default function PlatformBillingPage() {
               <p className="text-sm text-muted-foreground">Distribution across plans</p>
             </div>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center space-x-3">
@@ -302,7 +302,7 @@ export default function PlatformBillingPage() {
               View All
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             {billingData.recent_transactions.map((transaction) => (
               <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
@@ -346,7 +346,7 @@ export default function PlatformBillingPage() {
             </Button>
           </div>
         </div>
-        
+
         <div className="h-64 bg-muted/20 rounded-lg flex items-center justify-center">
           <div className="text-center">
             <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -358,5 +358,5 @@ export default function PlatformBillingPage() {
     </DashboardLayout>
   );
 }
- 
- 
+
+

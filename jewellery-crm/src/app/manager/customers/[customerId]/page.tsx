@@ -29,7 +29,7 @@ export default function ManagerCustomerDetailPage() {
         setCustomer(foundCustomer || null);
       }
     } catch (error) {
-      console.error('Error fetching customer details:', error);
+
     } finally {
       setLoading(false);
     }

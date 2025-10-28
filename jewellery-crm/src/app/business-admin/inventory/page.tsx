@@ -71,18 +71,18 @@ export default function InventoryPage() {
       const response = await apiService.getProducts({
         search: searchTerm || undefined,
       });
-      
+
       if (response.success) {
         const data = response.data as any;
         const productsData = Array.isArray(data) ? data : data.results || [];
         setProducts(productsData);
-        
+
         // Calculate stats
         const totalItems = productsData.length;
         const lowStock = productsData.filter((product: Product) => product.quantity <= product.min_quantity && product.quantity > 0).length;
         const outOfStock = productsData.filter((product: Product) => product.quantity === 0).length;
         const inventoryValue = productsData.reduce((sum: number, product: Product) => sum + (product.cost_price * product.quantity), 0);
-        
+
         setStats({
           total_items: totalItems,
           low_stock: lowStock,
@@ -91,7 +91,7 @@ export default function InventoryPage() {
         });
       }
     } catch (error) {
-      console.error('Failed to fetch inventory:', error);
+
       setProducts([]);
     } finally {
       setLoading(false);
@@ -121,14 +121,14 @@ export default function InventoryPage() {
 
   const getFilteredProducts = () => {
     let filtered = products;
-    
+
     if (statusFilter !== 'all') {
       filtered = products.filter(product => {
         const stockStatus = getStockStatus(product);
         return stockStatus.status === statusFilter;
       });
     }
-    
+
     return filtered;
   };
 
@@ -170,7 +170,7 @@ export default function InventoryPage() {
             <div className="text-xl font-bold text-text-primary">{stats.out_of_stock}</div>
             <div className="text-sm text-text-secondary font-medium">Out of Stock</div>
           </Card>
-        
+
         </div>
 
         {/* Table Controls */}
@@ -178,8 +178,8 @@ export default function InventoryPage() {
           <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search by product or SKU..." 
+              <Input
+                placeholder="Search by product or SKU..."
                 className="w-full md:w-80 pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -243,5 +243,5 @@ export default function InventoryPage() {
     </AuthGuard>
   );
 }
- 
- 
+
+

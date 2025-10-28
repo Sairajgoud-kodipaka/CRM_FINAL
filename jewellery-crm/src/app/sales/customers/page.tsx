@@ -47,24 +47,20 @@ export default function SalesCustomersPage() {
   const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔍 [SALES] Fetching customers with params:', {
-        start_date: dateRange?.from?.toISOString(),
-        end_date: dateRange?.to?.toISOString(),
-        userScope: userScope.type,
-      });
-      
+
+
       const response = await apiService.getClients({
         start_date: dateRange?.from?.toISOString(),
         end_date: dateRange?.to?.toISOString(),
       });
-      console.log('📊 [SALES] API Response:', response);
-      
+
+
       const customersData = Array.isArray(response.data) ? response.data : [];
-      console.log(`✅ [SALES] Loaded ${customersData.length} customers`);
-      
+
+
       setCustomers(customersData);
     } catch (error) {
-      console.error('Error fetching customers:', error);
+
       toast({
         title: "Error",
         description: "Failed to fetch customers. Please try again.",
@@ -83,68 +79,68 @@ export default function SalesCustomersPage() {
   useEffect(() => {
     // Filter customers based on search term, status, and my data filter
     let filtered = customers || [];
-    
+
     // Apply "My Data" filter first
     if (showMyDataOnly) {
       filtered = filtered.filter(customer => customer.created_by?.id === user?.id);
     }
-    
+
     if (searchTerm) {
-      filtered = filtered.filter(customer => 
+      filtered = filtered.filter(customer =>
         customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.phone?.includes(searchTerm)
       );
     }
-    
+
     if (statusFilter) {
       filtered = filtered.filter(customer => customer.status === statusFilter);
     }
-    
+
     setFilteredCustomers(filtered);
   }, [customers, searchTerm, statusFilter, showMyDataOnly, user?.id]);
 
   // Optimistic update for customer creation
   const handleCustomerCreated = useCallback((newCustomer: Client) => {
-    console.log('🔄 handleCustomerCreated called with:', newCustomer);
+
     setModalOpen(false);
-    
+
     // Optimistically add the new customer to the list
     setCustomers(prev => {
-      console.log('📝 Previous customers count:', prev.length);
+
       const updated = [newCustomer, ...prev];
-      console.log('📝 Updated customers count:', updated.length);
+
       return updated;
     });
-    
+
     toast({
       title: "Success!",
       description: "Customer created successfully!",
       variant: "success",
     });
-    
+
     // Don't call fetchCustomers() immediately - it hits cache and overwrites optimistic update
     // The optimistic update should be sufficient for immediate UI update
-    console.log('✅ Customer added optimistically - no background refresh needed');
+
   }, [toast]);
 
   // Optimistic update for customer editing
   const handleCustomerUpdated = useCallback((updatedCustomer: Client) => {
     setEditModalOpen(false);
     setSelectedCustomer(null);
-    
+
     // Optimistically update the customer in the list
-    setCustomers(prev => prev.map(customer => 
+    setCustomers(prev => prev.map(customer =>
       customer.id?.toString() === updatedCustomer.id?.toString() ? updatedCustomer : customer
     ));
-    
+
     toast({
       title: "Success!",
       description: "Customer updated successfully!",
       variant: "success",
     });
-    
+
     // Refresh data in background to ensure consistency
     fetchCustomers();
   }, [fetchCustomers, toast]);
@@ -153,25 +149,25 @@ export default function SalesCustomersPage() {
   const handleDeleteCustomer = useCallback(async (customerId: string) => {
     try {
       setDeletingCustomer(customerId);
-      
+
       // Optimistically remove the customer from the list
       setCustomers(prev => prev.filter(customer => customer.id?.toString() !== customerId));
-      
+
       const response = await apiService.deleteClient(customerId);
-      
+
       if (response.success) {
-        console.log('Customer deleted successfully');
+
         toast({
           title: "Success!",
           description: "Customer permanently deleted from database!",
           variant: "success",
         });
       } else {
-        console.error('Failed to delete customer:', response);
-        
+
+
         // Revert optimistic update on failure
         fetchCustomers();
-        
+
         toast({
           title: "Error",
           description: "Failed to delete customer. Please try again.",
@@ -179,11 +175,11 @@ export default function SalesCustomersPage() {
         });
       }
     } catch (error: any) {
-      console.error('Error deleting customer:', error);
-      
+
+
       // Revert optimistic update on error
       fetchCustomers();
-      
+
       // Handle specific permission errors
       if (error.message && error.message.includes('You do not have permission to delete customers')) {
         toast({
@@ -250,10 +246,10 @@ export default function SalesCustomersPage() {
         format,
         fields: ['first_name', 'last_name', 'email', 'phone', 'status', 'created_at']
       });
-      
+
       // Create download link
-      const blob = new Blob([response.data], { 
-        type: format === 'csv' ? 'text/csv' : 'application/json' 
+      const blob = new Blob([response.data], {
+        type: format === 'csv' ? 'text/csv' : 'application/json'
       });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -263,14 +259,14 @@ export default function SalesCustomersPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast({
         title: "Export Successful",
         description: `Customers exported as ${format.toUpperCase()} successfully!`,
         variant: "success",
       });
     } catch (error) {
-      console.error('Error exporting customers:', error);
+
       toast({
         title: "Export Failed",
         description: "Failed to export customers. Please try again.",
@@ -304,30 +300,30 @@ export default function SalesCustomersPage() {
 
   return (
     <div className="flex flex-col gap-8">
-              <AddCustomerModal 
-          open={modalOpen} 
+              <AddCustomerModal
+          open={modalOpen}
           onClose={() => setModalOpen(false)}
           onCustomerCreated={handleCustomerCreated}
         />
-      <CustomerDetailModal 
-        open={detailModalOpen} 
+      <CustomerDetailModal
+        open={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
         customerId={selectedCustomerId}
         onEdit={handleEditCustomer}
         onDelete={handleDeleteCustomer}
       />
-      <EditCustomerModal 
-        open={editModalOpen} 
+      <EditCustomerModal
+        open={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         customer={selectedCustomer}
         onCustomerUpdated={handleCustomerUpdated}
       />
-      <TrashModal 
-        open={trashModalOpen} 
+      <TrashModal
+        open={trashModalOpen}
         onClose={() => setTrashModalOpen(false)}
         onCustomerRestored={handleCustomerRestored}
       />
-      
+
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
           <div>
             <h1 className="text-2xl font-semibold text-text-primary">Customers</h1>
@@ -366,9 +362,9 @@ export default function SalesCustomersPage() {
               onDateRangeChange={setDateRange}
               placeholder="Filter by date range"
             />
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setTrashModalOpen(true)}
               className="text-orange-600 hover:text-orange-700"
             >
@@ -406,14 +402,14 @@ export default function SalesCustomersPage() {
           </div>
         </CardContent>
       </Card>
-      
+
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
           <div className="flex flex-col sm:flex-row gap-2 flex-1">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input 
-                placeholder="Search by name, email, or phone..." 
+              <Input
+                placeholder="Search by name, email, or phone..."
                 className="pl-10 w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -432,7 +428,7 @@ export default function SalesCustomersPage() {
             </select>
           </div>
         </div>
-        
+
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
@@ -451,10 +447,10 @@ export default function SalesCustomersPage() {
                 filteredCustomers.map((customer) => {
                   // Check if this customer belongs to the current user
                   const isCurrentUserCustomer = customer.created_by?.id === user?.id;
-                  
+
                   return (
-                    <tr 
-                      key={customer.id} 
+                    <tr
+                      key={customer.id}
                       className={`border-t border-border hover:bg-gray-50 ${
                         isCurrentUserCustomer ? 'bg-orange-50 border-l-4 border-l-orange-500' : ''
                       }`}
@@ -490,18 +486,18 @@ export default function SalesCustomersPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="text-blue-600 hover:text-blue-800"
                             onClick={() => handleViewCustomer(customer.id.toString())}
                           >
                             <Eye className="w-4 h-4 mr-1" />
                             View
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="text-green-600 hover:text-green-800"
                             onClick={() => handleEditCustomer(customer)}
                             disabled={updatingCustomer === customer.id?.toString()}
@@ -514,9 +510,9 @@ export default function SalesCustomersPage() {
                             {updatingCustomer === customer.id.toString() ? 'Updating...' : 'Edit'}
                           </Button>
                           {canDeleteCustomers && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="text-red-600 hover:text-red-800"
                               onClick={() => {
                                 if (window.confirm(`Are you sure you want to move ${customer.first_name} ${customer.last_name} to trash? You can restore them later from the Trash section.`)) {
@@ -548,7 +544,7 @@ export default function SalesCustomersPage() {
             </tbody>
           </table>
         </div>
-        
+
         {filteredCustomers.length > 0 && (
           <div className="text-sm text-text-secondary text-center py-2">
             Showing {filteredCustomers.length} of {customers.length} customers

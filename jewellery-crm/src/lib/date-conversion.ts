@@ -6,10 +6,10 @@ import { DateRange } from 'react-day-picker';
  */
 export function heroUIToDateRange(heroUIValue: { start: CalendarDate | null; end: CalendarDate | null }): DateRange | undefined {
   if (!heroUIValue.start) return undefined;
-  
+
   const startDate = new Date(heroUIValue.start.toString());
   const endDate = heroUIValue.end ? new Date(heroUIValue.end.toString()) : undefined;
-  
+
   return {
     from: startDate,
     to: endDate
@@ -21,10 +21,10 @@ export function heroUIToDateRange(heroUIValue: { start: CalendarDate | null; end
  */
 export function dateRangeToHeroUI(dateRange: DateRange | undefined): { start: CalendarDate | null; end: CalendarDate | null } {
   if (!dateRange?.from) return { start: null, end: null };
-  
+
   const startDate = CalendarDate.fromAbsolute(dateRange.from.getTime(), 'UTC');
   const endDate = dateRange.to ? CalendarDate.fromAbsolute(dateRange.to.getTime(), 'UTC') : null;
-  
+
   return {
     start: startDate,
     end: endDate

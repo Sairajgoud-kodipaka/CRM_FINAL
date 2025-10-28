@@ -1,8 +1,8 @@
 /**
  * useAuth Hook
- * 
+ *
  * Authentication hook with role-based access and localStorage persistence.
- * 
+ *
  * Key Features:
  * - User state management
  * - Role-based access
@@ -64,25 +64,25 @@ export const useAuth = create<AuthState & AuthActions>()(
       login: async (username: string, password: string) => {
         try {
           // Clear any existing tokens before login attempt
-          set({ 
-            isLoading: true, 
-            error: null, 
-            token: null, 
+          set({
+            isLoading: true,
+            error: null,
+            token: null,
             refreshTokenString: null,
-            isAuthenticated: false 
+            isAuthenticated: false
           });
-          
+
           // Clear localStorage to remove any stale tokens
           if (typeof window !== 'undefined') {
             localStorage.removeItem('auth-storage');
           }
-          
+
           const response = await apiService.login(username, password);
-          
+
           if (response.success) {
             // The response from login API has the data directly, not wrapped in a data property
             const loginData = response as any;
-            
+
             // Store the token and user data
             const authData = {
               user: loginData.user,
@@ -92,17 +92,17 @@ export const useAuth = create<AuthState & AuthActions>()(
               isLoading: false,
               error: null,
             };
-            
+
             set(authData);
-            
+
             // Also store in localStorage as backup
             if (typeof window !== 'undefined') {
               localStorage.setItem('auth-storage', JSON.stringify({
                 state: authData
               }));
             }
-            
-            console.log('✅ Login successful, token stored:', loginData.token ? 'Present' : 'Missing');
+
+
             return true;
           } else {
             set({
@@ -112,7 +112,7 @@ export const useAuth = create<AuthState & AuthActions>()(
             return false;
           }
         } catch (error: any) {
-          console.error('Login error:', error);
+
           set({
             isLoading: false,
             error: error.message || 'Login failed',
@@ -125,7 +125,7 @@ export const useAuth = create<AuthState & AuthActions>()(
         try {
           await apiService.logout();
         } catch (error) {
-          console.error('Logout error:', error);
+
         } finally {
           set({
             user: null,
@@ -141,16 +141,16 @@ export const useAuth = create<AuthState & AuthActions>()(
       refreshToken: async () => {
         try {
           const { refreshTokenString } = get();
-          
+
           if (!refreshTokenString) {
             return false;
           }
-          
+
           // For now, we'll just return false and let the user login again
           // In a real app, you'd implement token refresh logic here
           return false;
         } catch (error) {
-          console.error('Token refresh error:', error);
+
           set({
             user: null,
             token: null,

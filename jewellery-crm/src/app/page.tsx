@@ -14,7 +14,7 @@ export default function HomePage() {
   const router = useRouter();
   const { login, isLoading, error, user, setError } = useAuth();
   const { theme, setTheme } = useTheme();
-  
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +30,7 @@ export default function HomePage() {
     e.preventDefault();
     setLoginError('');
     setError(null); // Clear any previous errors from the auth hook
-    
+
     if (!username || !password) {
       setLoginError('Please enter both username and password');
       return;
@@ -38,11 +38,11 @@ export default function HomePage() {
 
     try {
       const success = await login(username, password);
-      
+
       if (success) {
         // Get the current user state after login
         const currentUser = useAuth.getState().user;
-        
+
         if (currentUser) {
           // Redirect based on user role from backend
           switch (currentUser.role) {
@@ -73,7 +73,7 @@ export default function HomePage() {
         }
       }
     } catch (error) {
-      console.error('Login error:', error);
+
       setLoginError('An unexpected error occurred. Please try again.');
     }
   };
@@ -126,7 +126,7 @@ export default function HomePage() {
               Sign in to your Jewellery CRM account
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             {/* Login Form */}
             <form onSubmit={handleLogin} className="space-y-4">

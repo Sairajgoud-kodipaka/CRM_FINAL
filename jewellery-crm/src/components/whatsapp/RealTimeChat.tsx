@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Send, 
-  Phone, 
-  User, 
-  Clock, 
-  MessageSquare, 
+import {
+  Send,
+  Phone,
+  User,
+  Clock,
+  MessageSquare,
   AlertTriangle,
   CheckCircle,
   X,
@@ -22,7 +22,7 @@ import {
   Image,
   Paperclip
 } from 'lucide-react';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -141,26 +141,26 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const ws = new WebSocket(getWsUrl('/ws/whatsapp/'));
-      
+
       ws.onopen = () => {
-        console.log('WebSocket connected');
+
       };
-      
+
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         handleWebSocketMessage(data);
       };
-      
+
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+
       };
-      
+
       ws.onclose = () => {
-        console.log('WebSocket disconnected');
+
       };
-      
+
       setWsConnection(ws);
-      
+
       return () => {
         ws.close();
       };
@@ -182,38 +182,38 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
         handleConversationUpdate(data.conversation);
         break;
       default:
-        console.log('Unknown message type:', data.type);
+
     }
   };
 
   const handleNewMessage = (message: Message) => {
     setMessages(prev => [...prev, message]);
     scrollToBottom();
-    
+
     // Update conversation last message
-    setConversations(prev => prev.map(conv => 
-      conv.id === selectedConversation?.id 
+    setConversations(prev => prev.map(conv =>
+      conv.id === selectedConversation?.id
         ? { ...conv, last_message: message, unread_count: conv.unread_count + 1 }
         : conv
     ));
   };
 
   const handleMessageStatusUpdate = (messageId: string, status: string) => {
-    setMessages(prev => prev.map(msg => 
+    setMessages(prev => prev.map(msg =>
       msg.id === messageId ? { ...msg, status: status as any } : msg
     ));
   };
 
   const handleContactTyping = (contactId: string, isTyping: boolean) => {
-    setConversations(prev => prev.map(conv => 
-      conv.contact.id === contactId 
+    setConversations(prev => prev.map(conv =>
+      conv.contact.id === contactId
         ? { ...conv, contact: { ...conv.contact, status: isTyping ? 'typing' : 'online' } }
         : conv
     ));
   };
 
   const handleConversationUpdate = (conversation: Conversation) => {
-    setConversations(prev => prev.map(conv => 
+    setConversations(prev => prev.map(conv =>
       conv.id === conversation.id ? conversation : conv
     ));
   };
@@ -256,18 +256,18 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
       if (response.ok) {
         const result = await response.json();
         // Update message with server response
-        setMessages(prev => prev.map(msg => 
+        setMessages(prev => prev.map(msg =>
           msg.id === message.id ? { ...msg, id: result.message_id, status: 'sent' } : msg
         ));
       } else {
         // Mark message as failed
-        setMessages(prev => prev.map(msg => 
+        setMessages(prev => prev.map(msg =>
           msg.id === message.id ? { ...msg, status: 'failed' } : msg
         ));
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages(prev => prev.map(msg => 
+
+      setMessages(prev => prev.map(msg =>
         msg.id === message.id ? { ...msg, status: 'failed' } : msg
       ));
     }
@@ -277,9 +277,9 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
     setSelectedConversation(conversation);
     // Load messages for this conversation
     loadMessages(conversation.id);
-    
+
     // Mark as read
-    setConversations(prev => prev.map(conv => 
+    setConversations(prev => prev.map(conv =>
       conv.id === conversation.id ? { ...conv, unread_count: 0 } : conv
     ));
   };
@@ -293,7 +293,7 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
         scrollToBottom();
       }
     } catch (error) {
-      console.error('Error loading messages:', error);
+
     }
   };
 
@@ -332,7 +332,7 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
           <h3 className="text-lg font-semibold">Conversations</h3>
           <p className="text-sm text-gray-500">{conversations.length} active</p>
         </div>
-        
+
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-2">
             {conversations.map((conversation) => (
@@ -355,7 +355,7 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
                     </Avatar>
                     <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(conversation.contact.status)}`} />
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-medium text-gray-900 truncate">
@@ -367,11 +367,11 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
                         </Badge>
                       )}
                     </div>
-                    
+
                     <p className="text-xs text-gray-500 truncate">
                       {conversation.last_message.content}
                     </p>
-                    
+
                     <div className="flex items-center space-x-2 mt-1">
                       <Badge className={`text-xs ${getPriorityColor(conversation.priority)}`}>
                         {conversation.priority}
@@ -402,7 +402,7 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
                       {selectedConversation.contact.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
-                  
+
                   <div>
                     <h3 className="font-medium">{selectedConversation.contact.name}</h3>
                     <div className="flex items-center space-x-2">
@@ -413,7 +413,7 @@ export function RealTimeChat({ conversationId, onClose }: RealTimeChatProps) {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Button variant="ghost" size="sm">
                     <Phone className="w-4 h-4" />

@@ -312,7 +312,7 @@ export const canTransitionTo = (fromStatus: string, toStatus: string): boolean =
 export const getNextPossibleStatuses = (currentStatus: string): PipelineStatus[] => {
   const status = getStatusById(currentStatus);
   if (!status) return [];
-  
+
   return status.allowedTransitions
     .map(id => getStatusById(id))
     .filter(Boolean) as PipelineStatus[];

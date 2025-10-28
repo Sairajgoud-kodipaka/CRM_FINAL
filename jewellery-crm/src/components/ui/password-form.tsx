@@ -127,7 +127,7 @@ export function PasswordForm({ onSuccess, onError }: PasswordFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -148,7 +148,7 @@ export function PasswordForm({ onSuccess, onError }: PasswordFormProps) {
           newPassword: '',
           confirmPassword: '',
         });
-        
+
         if (onSuccess) {
           onSuccess();
         }
@@ -236,7 +236,7 @@ export function PasswordForm({ onSuccess, onError }: PasswordFormProps) {
                 {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            
+
             {/* Password Strength Indicator */}
             {formData.newPassword && (
               <div className="space-y-2">
@@ -248,13 +248,13 @@ export function PasswordForm({ onSuccess, onError }: PasswordFormProps) {
                     passwordStrength.color === 'yellow' ? 'text-yellow-600' :
                     'text-red-600'
                   }`}>
-                    {passwordStrength.score <= 2 ? 'Weak' : 
-                     passwordStrength.score <= 3 ? 'Fair' : 
+                    {passwordStrength.score <= 2 ? 'Weak' :
+                     passwordStrength.score <= 3 ? 'Fair' :
                      passwordStrength.score <= 4 ? 'Good' : 'Strong'}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className={`h-2 rounded-full transition-all duration-300 ${
                       passwordStrength.color === 'green' ? 'bg-green-600' :
                       passwordStrength.color === 'orange' ? 'bg-orange-600' :
@@ -264,7 +264,7 @@ export function PasswordForm({ onSuccess, onError }: PasswordFormProps) {
                     style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
                   />
                 </div>
-                
+
                 {/* Password Requirements */}
                 {passwordStrength.feedback.length > 0 && (
                   <div className="text-sm text-gray-600">
@@ -306,7 +306,7 @@ export function PasswordForm({ onSuccess, onError }: PasswordFormProps) {
                 {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            
+
             {/* Password Match Indicator */}
             {formData.confirmPassword && (
               <div className="flex items-center gap-2 text-sm">

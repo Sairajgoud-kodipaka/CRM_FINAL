@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { 
-  Users, 
-  TrendingUp, 
-  Target, 
-  DollarSign, 
-  UserCheck, 
-  ShoppingBag, 
-  Heart, 
+import {
+  Users,
+  TrendingUp,
+  Target,
+  DollarSign,
+  UserCheck,
+  ShoppingBag,
+  Heart,
   MapPin,
   Calendar,
   Wand2,
@@ -111,18 +111,18 @@ export default function CustomerSegmentationPage() {
   const fetchSegmentationData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch real segmentation data from API
       const response = await apiService.getSegmentationAnalytics();
-      
+
       if (response.success && response.data) {
         const analytics: BackendAnalytics = response.data.analytics;
-        
+
         // Transform backend data to frontend format
         const segments: CustomerSegment[] = Object.entries(analytics.segment_counts).map(([segmentName, count]) => {
           const percentage = analytics.total_customers > 0 ? (count / analytics.total_customers) * 100 : 0;
           const growth = analytics.segment_growth[segmentName] || 0;
-          
+
           // Map segment names to categories and tags
           const segmentMapping = {
             'High-Value Buyer': { category: 'transactional' as const, tags: ['VIP', 'Premium', 'High-Spend'] },
@@ -138,12 +138,12 @@ export default function CustomerSegmentationPage() {
             'New Customer': { category: 'demographic' as const, tags: ['New', 'Recent', 'Onboarding'] },
             'Loyal Patron': { category: 'behavioral' as const, tags: ['Loyal', 'VIP', 'Long-term'] }
           };
-          
+
           const mapping = segmentMapping[segmentName as keyof typeof segmentMapping] || {
             category: 'behavioral' as const,
             tags: ['General']
           };
-          
+
           return {
             id: segmentName.toLowerCase().replace(/\s+/g, '-'),
             name: segmentName,
@@ -156,17 +156,17 @@ export default function CustomerSegmentationPage() {
             lastUpdated: new Date().toISOString().split('T')[0]
           };
         });
-        
+
         const transformedData: SegmentationData = {
           segments,
           totalCustomers: analytics.total_customers,
           activeCustomers: analytics.active_customers,
           viewType: 'table'
         };
-        
+
         setSegmentationData(transformedData);
       } else {
-        console.error('Failed to fetch segmentation data:', response);
+
         // Set empty data if API fails
         setSegmentationData({
           segments: [],
@@ -176,7 +176,7 @@ export default function CustomerSegmentationPage() {
         });
       }
     } catch (error) {
-      console.error('Failed to fetch segmentation data:', error);
+
       // Set empty data on error
       setSegmentationData({
         segments: [],
@@ -204,7 +204,7 @@ export default function CustomerSegmentationPage() {
       'New Customer': 'Customers acquired in last 3 months',
       'Loyal Patron': 'Long-term customers with high loyalty'
     };
-    
+
     return descriptions[segmentName as keyof typeof descriptions] || 'Customer segment';
   };
 
@@ -234,18 +234,18 @@ export default function CustomerSegmentationPage() {
       setSelectedSegment(segmentName);
       setShowSegmentModal(true);
     } catch (error) {
-      console.error('Error viewing segment:', error);
+
     }
   };
 
   const handleExportSegments = async () => {
     try {
       setExporting(true);
-      
+
       // Create CSV data
       const csvData = [];
       csvData.push(['Segment Name', 'Customer Count', 'Percentage', 'Growth %', 'Category', 'Tags', 'Last Updated']);
-      
+
       if (segmentationData?.segments) {
         segmentationData.segments.forEach(segment => {
           csvData.push([
@@ -262,7 +262,7 @@ export default function CustomerSegmentationPage() {
 
       // Convert to CSV string
       const csvContent = csvData.map(row => row.join(',')).join('\n');
-      
+
       // Download file
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
@@ -273,10 +273,10 @@ export default function CustomerSegmentationPage() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
-      console.log('Segments exported successfully');
+
+
     } catch (error) {
-      console.error('Error exporting segments:', error);
+
     } finally {
       setExporting(false);
     }
@@ -331,14 +331,14 @@ export default function CustomerSegmentationPage() {
             </Button>
           </div>
         </div>
-        
+
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <div className="text-gray-600 mb-2">No segmentation data available</div>
             <div className="text-sm text-gray-500 mb-4">
-              {segmentationData?.totalCustomers === 0 
-                ? "No customers found in the system" 
+              {segmentationData?.totalCustomers === 0
+                ? "No customers found in the system"
                 : "Segmentation data is being processed"}
             </div>
             <Button variant="outline" onClick={fetchSegmentationData}>
@@ -364,9 +364,9 @@ export default function CustomerSegmentationPage() {
             <RefreshCw className="w-4 h-4" />
             Refresh
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="flex items-center gap-2"
             onClick={handleExportSegments}
             disabled={exporting}
@@ -374,8 +374,8 @@ export default function CustomerSegmentationPage() {
             <Download className="w-4 h-4" />
             {exporting ? 'Exporting...' : 'Export'}
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             className="flex items-center gap-2"
             onClick={handleCreateSegment}
           >
@@ -398,7 +398,7 @@ export default function CustomerSegmentationPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -410,7 +410,7 @@ export default function CustomerSegmentationPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -439,7 +439,7 @@ export default function CustomerSegmentationPage() {
                 />
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="w-48">
@@ -453,7 +453,7 @@ export default function CustomerSegmentationPage() {
                   <SelectItem value="engagement">Engagement</SelectItem>
                 </SelectContent>
               </Select>
-              
+
               <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                 <Button
                   variant={viewType === 'table' ? 'default' : 'ghost'}
@@ -503,7 +503,7 @@ export default function CustomerSegmentationPage() {
                     const categoryColor = getCategoryColor(segment.category);
                     const growthIcon = segment.growth > 0 ? ArrowUpRight : segment.growth < 0 ? ArrowDownRight : Minus;
                     const growthColor = segment.growth > 0 ? 'text-green-600' : segment.growth < 0 ? 'text-red-600' : 'text-gray-600';
-                    
+
                     return (
                       <tr key={segment.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
@@ -526,8 +526,8 @@ export default function CustomerSegmentationPage() {
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <div className="w-16 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full" 
+                              <div
+                                className="bg-blue-600 h-2 rounded-full"
                                 style={{ width: `${segment.percentage}%` }}
                               ></div>
                             </div>
@@ -555,16 +555,16 @@ export default function CustomerSegmentationPage() {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => handleViewSegment(segment.name)}
                               title="View segment details"
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => handleExportSegments()}
                               title="Export segment data"
@@ -591,7 +591,7 @@ export default function CustomerSegmentationPage() {
             const categoryColor = getCategoryColor(segment.category);
             const growthIcon = segment.growth > 0 ? ArrowUpRight : segment.growth < 0 ? ArrowDownRight : Minus;
             const growthColor = segment.growth > 0 ? 'text-green-600' : segment.growth < 0 ? 'text-red-600' : 'text-gray-600';
-            
+
             return (
               <Card key={segment.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
@@ -609,9 +609,9 @@ export default function CustomerSegmentationPage() {
                       {segment.percentage.toFixed(1)}%
                     </Badge>
                   </div>
-                  
+
                   <p className="text-sm text-gray-600 mb-3">{segment.description}</p>
-                  
+
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-lg font-bold text-gray-900">{segment.customerCount.toLocaleString()}</span>
@@ -620,14 +620,14 @@ export default function CustomerSegmentationPage() {
                         <span className="text-xs font-medium">{Math.abs(segment.growth).toFixed(1)}%</span>
                       </div>
                     </div>
-                    
+
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
                         style={{ width: `${segment.percentage}%` }}
                       ></div>
                     </div>
-                    
+
                     <div className="flex flex-wrap gap-1">
                       {segment.tags.map((tag, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
@@ -636,13 +636,13 @@ export default function CustomerSegmentationPage() {
                         </Badge>
                       ))}
                     </div>
-                    
+
                     <div className="flex items-center justify-between pt-2">
                       <span className="text-xs text-gray-500">Updated: {segment.lastUpdated}</span>
                       <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-6 px-2"
                           onClick={() => handleViewSegment(segment.name)}
                           title="View segment details"
@@ -650,9 +650,9 @@ export default function CustomerSegmentationPage() {
                           <Eye className="w-3 h-3 mr-1" />
                           View
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-6 px-2"
                           onClick={() => handleExportSegments()}
                           title="Export segment data"
@@ -660,9 +660,9 @@ export default function CustomerSegmentationPage() {
                           <Download className="w-3 h-3 mr-1" />
                           Export
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-6 px-2"
                           title="More actions"
                         >
@@ -677,7 +677,7 @@ export default function CustomerSegmentationPage() {
           })}
         </div>
       )}
-      
+
       {/* Segment Details Modal */}
       <SegmentDetailsModal
         open={showSegmentModal}

@@ -84,11 +84,11 @@ export default function BusinessAdminPurchasesPage() {
   const fetchPurchases = async () => {
     try {
       const response = await apiService.getPurchases();
-      console.log("Purchases API response:", response);
-      
+
+
       // Handle different response formats
       let purchasesData = null;
-      
+
       if (response.success && response.data) {
         if (Array.isArray(response.data)) {
           // Standard ApiResponse format with direct array
@@ -107,14 +107,12 @@ export default function BusinessAdminPurchasesPage() {
         // Paginated response without success property
         purchasesData = (response.data as any).results;
       }
-      
+
       if (purchasesData && Array.isArray(purchasesData)) {
-        console.log("Purchases data:", purchasesData);
+
         setPurchases(purchasesData);
       } else {
-        console.error("Invalid purchases response format:", response);
-        console.error("Response type:", typeof response);
-        console.error("Response keys:", response ? Object.keys(response) : 'No response');
+
         setPurchases([]);
         toast({
           title: "Warning",
@@ -123,7 +121,7 @@ export default function BusinessAdminPurchasesPage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching purchases:", error);
+
       setPurchases([]);
       toast({
         title: "Error",
@@ -136,11 +134,11 @@ export default function BusinessAdminPurchasesPage() {
   const fetchClosedWonDeals = async () => {
     try {
       const response = await apiService.getSalesPipelines();
-      console.log("Sales pipelines API response:", response);
-      
+
+
       // Handle different response formats
       let salesData = null;
-      
+
       if (response.success && response.data) {
         if (Array.isArray(response.data)) {
           // Standard ApiResponse format with direct array
@@ -159,18 +157,16 @@ export default function BusinessAdminPurchasesPage() {
         // Paginated response without success property
         salesData = (response.data as any).results;
       }
-      
+
       if (salesData && Array.isArray(salesData)) {
-        console.log("Sales pipelines data:", salesData);
+
         const closedWon = salesData.filter(
           (deal: SalesPipeline) => deal.stage === "closed_won"
         );
-        console.log("Closed won deals:", closedWon);
+
         setClosedWonDeals(closedWon);
       } else {
-        console.error("Invalid sales pipelines response format:", response);
-        console.error("Response type:", typeof response);
-        console.error("Response keys:", response ? Object.keys(response) : 'No response');
+
         setClosedWonDeals([]);
         toast({
           title: "Warning",
@@ -179,7 +175,7 @@ export default function BusinessAdminPurchasesPage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching closed won deals:", error);
+
       setClosedWonDeals([]);
       toast({
         title: "Error",
@@ -194,10 +190,10 @@ export default function BusinessAdminPurchasesPage() {
   const fetchStores = async () => {
     try {
       const response = await apiService.getStores();
-      console.log("Stores API response:", response);
-      
+
+
       let storesData = [];
-      
+
       if (response.success && response.data) {
         if (Array.isArray(response.data)) {
           storesData = response.data;
@@ -211,16 +207,16 @@ export default function BusinessAdminPurchasesPage() {
       } else if (response.data && typeof response.data === 'object' && 'results' in response.data && Array.isArray((response.data as any).results)) {
         storesData = (response.data as any).results;
       }
-      
+
       if (Array.isArray(storesData)) {
-        console.log("Stores data:", storesData);
+
         setStores(storesData);
       } else {
-        console.error("Invalid stores response format:", response);
+
         setStores([]);
       }
     } catch (error) {
-      console.error("Error fetching stores:", error);
+
       setStores([]);
     }
   };
@@ -262,18 +258,18 @@ export default function BusinessAdminPurchasesPage() {
       return false;
     }
 
-    const matchesSearch = 
+    const matchesSearch =
       item.client.full_name.toLowerCase().includes((searchTerm || "").toLowerCase()) ||
       (item as any).product_name?.toLowerCase()?.includes((searchTerm || "").toLowerCase()) ||
       (item as SalesPipeline).title?.toLowerCase()?.includes((searchTerm || "").toLowerCase());
 
-    const matchesStore = filterStore === "all" || 
+    const matchesStore = filterStore === "all" ||
       (item.client.store && item.client.store.id.toString() === filterStore);
 
     if (filterStatus === "all") return matchesSearch && matchesStore;
     if (filterStatus === "purchases") return "product_name" in item && matchesSearch && matchesStore;
     if (filterStatus === "deals") return "stage" in item && matchesSearch && matchesStore;
-    
+
     return matchesSearch && matchesStore;
   });
 

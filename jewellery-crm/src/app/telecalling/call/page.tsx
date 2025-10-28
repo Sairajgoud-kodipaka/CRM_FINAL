@@ -8,19 +8,19 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  Phone, 
-  PhoneOff, 
-  Mic, 
-  MicOff, 
-  Volume2, 
-  VolumeX, 
-  Pause, 
-  Play, 
-  Users, 
-  MessageSquare, 
-  Clock, 
-  User, 
+import {
+  Phone,
+  PhoneOff,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Pause,
+  Play,
+  Users,
+  MessageSquare,
+  Clock,
+  User,
   ArrowLeft,
   PhoneCall,
   PhoneMissed,
@@ -91,7 +91,7 @@ function CallPageContent() {
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string>('');
-  
+
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
   const connectingTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -104,12 +104,12 @@ function CallPageContent() {
     // Load call logs and team members
     loadCallLogs();
     loadTeamMembers();
-    
+
     // Load lead data and notes if leadId is provided
     if (leadId) {
       loadLeadData();
     }
-    
+
     // If phone number is provided, start the call process
     if (phoneNumber) {
       initiateCall();
@@ -161,7 +161,7 @@ function CallPageContent() {
       ];
       setCallLogs(mockLogs);
     } catch (error) {
-      console.error('Error loading call logs:', error);
+
     }
   };
 
@@ -190,21 +190,21 @@ function CallPageContent() {
       ];
       setTeamMembers(mockMembers);
     } catch (error) {
-      console.error('Error loading team members:', error);
+
     }
   };
 
   const loadLeadData = async () => {
     if (!leadId) return;
-    
+
     setIsLoadingNotes(true);
     try {
       const data = await telecallingApiService.getLeadNotes(leadId);
       setLeadData(data);
-      
+
       // Convert API data to call notes format
       const notes: CallNotes[] = [];
-      
+
       // Add status history as notes
       if (data.status_history) {
         data.status_history.forEach((history: any) => {
@@ -218,7 +218,7 @@ function CallPageContent() {
           });
         });
       }
-      
+
       // Add call logs as notes
       if (data.call_logs) {
         data.call_logs.forEach((log: any) => {
@@ -232,7 +232,7 @@ function CallPageContent() {
           });
         });
       }
-      
+
       // Add call requests as notes
       if (data.call_requests) {
         data.call_requests.forEach((request: any) => {
@@ -248,10 +248,10 @@ function CallPageContent() {
           }
         });
       }
-      
+
       setCallNotes(notes);
     } catch (error) {
-      console.error('Error loading lead data:', error);
+
     } finally {
       setIsLoadingNotes(false);
     }
@@ -260,7 +260,7 @@ function CallPageContent() {
   const initiateCall = async () => {
     setIsConnecting(true);
     setCallStatus('connecting');
-    
+
     // Show connecting message for 2 seconds
     connectingTimeout.current = setTimeout(async () => {
       try {
@@ -271,7 +271,7 @@ function CallPageContent() {
           setCurrentCall(response);
           setCallStatus('ringing');
           setIsCallActive(true);
-          
+
           // Simulate call being answered after 3 seconds
           setTimeout(() => {
             setCallStatus('answered');
@@ -279,11 +279,11 @@ function CallPageContent() {
           }, 3000);
         } else {
           setCallStatus('ended');
-          console.error('Call initiation failed:', response);
+
         }
       } catch (error) {
         setCallStatus('ended');
-        console.error('Error initiating call:', error);
+
       } finally {
         setIsConnecting(false);
       }
@@ -309,12 +309,12 @@ function CallPageContent() {
         await telecallingApiService.endCall(currentCall.id);
       }
     } catch (error) {
-      console.error('Error ending call:', error);
+
     } finally {
       setIsCallActive(false);
       setCallStatus('ended');
       stopCallTimer();
-      
+
       // Add call note
       if (callDuration > 0) {
         addCallNote(`Call ended. Duration: ${formatDuration(callDuration)}`, 'call');
@@ -330,7 +330,7 @@ function CallPageContent() {
         addCallNote(`Call ${!isMuted ? 'muted' : 'unmuted'}`, 'system');
       }
     } catch (error) {
-      console.error('Error toggling mute:', error);
+
     }
   };
 
@@ -342,13 +342,13 @@ function CallPageContent() {
         addCallNote(`Call ${!isOnHold ? 'put on hold' : 'resumed from hold'}`, 'system');
       }
     } catch (error) {
-      console.error('Error toggling hold:', error);
+
     }
   };
 
   const handleTransfer = async () => {
     if (!selectedTeamMember) return;
-    
+
     try {
       const member = teamMembers.find(m => m.id === selectedTeamMember);
       if (currentCall && member) {
@@ -357,7 +357,7 @@ function CallPageContent() {
         setShowTransferDialog(false);
       }
     } catch (error) {
-      console.error('Error transferring call:', error);
+
     }
   };
 
@@ -375,7 +375,7 @@ function CallPageContent() {
 
   const handleSaveNote = async () => {
     if (!newNote.trim() || !leadId) return;
-    
+
     try {
       // Add note via API
       await telecallingApiService.addLeadNote({
@@ -385,16 +385,16 @@ function CallPageContent() {
         disposition: disposition,
         follow_up_required: followUpRequired
       });
-      
+
       // Add to local notes
       addCallNote(newNote.trim(), 'manual');
       setNewNote('');
-      
+
       // Reload lead data to get updated notes
       await loadLeadData();
-      
+
     } catch (error) {
-      console.error('Error saving note:', error);
+
       // Still add to local notes as fallback
       addCallNote(newNote.trim(), 'manual');
       setNewNote('');
@@ -556,7 +556,7 @@ function CallPageContent() {
                       >
                         {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
                       </Button>
-                      
+
                       <Button
                         size="lg"
                         variant={isOnHold ? "secondary" : "outline"}
@@ -565,7 +565,7 @@ function CallPageContent() {
                       >
                         {isOnHold ? <Play className="w-6 h-6" /> : <Pause className="w-6 h-6" />}
                       </Button>
-                      
+
                       <Button
                         size="lg"
                         variant="outline"
@@ -574,7 +574,7 @@ function CallPageContent() {
                       >
                         {isSpeakerOn ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
                       </Button>
-                      
+
                       <Button
                         size="lg"
                         variant="outline"
@@ -583,7 +583,7 @@ function CallPageContent() {
                       >
                         <ArrowRightLeft className="w-6 h-6" />
                       </Button>
-                      
+
                       <Button
                         size="lg"
                         variant="destructive"
@@ -609,7 +609,7 @@ function CallPageContent() {
                           <SelectItem value="callback">Callback Required</SelectItem>
                         </SelectContent>
                       </Select>
-                      
+
                       <label className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -689,7 +689,7 @@ function CallPageContent() {
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold mb-4">Call Notes & History</h3>
-              
+
               {/* Add Note */}
               <div className="space-y-3">
                 <Textarea
@@ -722,8 +722,8 @@ function CallPageContent() {
                     Follow-up
                   </label>
                 </div>
-                <Button 
-                  onClick={handleSaveNote} 
+                <Button
+                  onClick={handleSaveNote}
                   className="w-full"
                   disabled={!newNote.trim() || !leadId}
                 >
@@ -762,8 +762,8 @@ function CallPageContent() {
                       </div>
                       <p className="text-sm text-gray-700">{note.note}</p>
                       {note.disposition && (
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className={`text-xs mt-2 ${
                             note.disposition === 'positive' ? 'text-green-600 border-green-300' :
                             note.disposition === 'negative' ? 'text-red-600 border-red-300' :

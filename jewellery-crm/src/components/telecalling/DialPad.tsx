@@ -39,7 +39,7 @@ export function DialPad({
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (disabled) return;
-    
+
     const key = e.key;
     if (key === 'Backspace') {
       onBackspace();
@@ -54,7 +54,7 @@ export function DialPad({
     <Card className="p-6">
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900 text-center">Dial Pad</h3>
-        
+
         {/* Phone Number Display */}
         <div className="text-center">
           <Input
@@ -97,7 +97,7 @@ export function DialPad({
             <ArrowLeft className="w-4 h-4" />
             <span>Back</span>
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -116,8 +116,8 @@ export function DialPad({
             onClick={onCall}
             disabled={disabled || phoneNumber.length === 0 || isCalling}
             className={`w-full h-12 text-lg font-semibold ${
-              isCalling 
-                ? 'bg-orange-600 hover:bg-orange-700' 
+              isCalling
+                ? 'bg-orange-600 hover:bg-orange-700'
                 : 'bg-green-600 hover:bg-green-700'
             } text-white`}
           >

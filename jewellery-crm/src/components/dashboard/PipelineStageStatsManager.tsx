@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { 
+import {
   CUSTOMER_INTERESTS,
   PRODUCT_TYPES,
   STYLES,
@@ -113,21 +113,21 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
       setLoading(true);
       // Try to get detailed stage data first
       let response = await apiService.getPipelineStages();
-      
+
       if (response.success) {
         const stagesData = response.data;
-        console.log('Pipeline stages data received:', stagesData);
+
         // Map the backend data to our frontend format
         const stageStats = pipelineStages.map(stage => {
           const backendStage = stagesData.find((s: { label: string; count: number; value: number }) => s.label === stage.name);
-          console.log(`Mapping stage ${stage.name}:`, backendStage);
+
           return {
             ...stage,
             count: backendStage?.count || 0,
             value_sum: backendStage?.value || 0,
           };
         });
-        console.log('Final stage stats:', stageStats);
+
         setPipelineStats(stageStats);
       } else {
         // Fallback to general pipeline stats
@@ -144,7 +144,7 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
         }
       }
     } catch (error) {
-      console.error('Failed to fetch pipeline stats:', error);
+
       setError('Failed to load pipeline stats');
       // Fallback to empty stats
       const stageStats = pipelineStages.map(stage => ({
@@ -192,24 +192,24 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
 
   const handleUpdateStage = async () => {
     if (!selectedCustomerForTransition || !newStage) return;
-    
+
     setTransitionLoading(true);
     try {
       // Find the pipeline ID for this customer
       const response = await apiService.getSalesPipeline({ stage: selectedCustomerForTransition.pipeline_stage });
-      
+
       if (response.success) {
         const pipelineData = response.data;
-        const dataArray = Array.isArray(pipelineData) ? pipelineData : 
-                         (pipelineData as { results?: Array<{ id: number; client?: { id: number } | null }> })?.results ? (pipelineData as { results?: Array<{ id: number; client?: { id: number } | null }> }).results : 
+        const dataArray = Array.isArray(pipelineData) ? pipelineData :
+                         (pipelineData as { results?: Array<{ id: number; client?: { id: number } | null }> })?.results ? (pipelineData as { results?: Array<{ id: number; client?: { id: number } | null }> }).results :
                          (pipelineData as { data?: Array<{ id: number; client?: { id: number } | null }> })?.data ? (pipelineData as { data?: Array<{ id: number; client?: { id: number } | null }> }).data : [];
-        
+
         const pipeline = dataArray?.find((p: { id: number; client?: { id: number } | null }) => p.client?.id === selectedCustomerForTransition.id);
-        
+
         if (pipeline) {
           // Update the pipeline stage
           const updateResponse = await apiService.updatePipelineStage(pipeline.id.toString(), { stage: newStage });
-          
+
           if (updateResponse.success) {
             // Show success message with updated counts
             const oldStageName = pipelineStages.find(s => s.value === selectedCustomerForTransition.pipeline_stage)?.name;
@@ -219,11 +219,11 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
           description: `Successfully moved ${selectedCustomerForTransition.full_name} from ${oldStageName} to ${newStageName} stage`,
           variant: "success",
         });
-            
+
             // Update local state immediately for dynamic UI update
             const updatedCustomers = customersInStage.filter(customer => customer.id !== selectedCustomerForTransition.id);
             setCustomersInStage(updatedCustomers);
-            
+
             // Update pipeline stats immediately
             const updatedStats = pipelineStats.map(stage => {
               if (stage.value === selectedCustomerForTransition.pipeline_stage) {
@@ -234,11 +234,11 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
               return stage;
             });
             setPipelineStats(updatedStats);
-            
+
             setShowStageTransitionModal(false);
             setSelectedCustomerForTransition(null);
             setNewStage('');
-            
+
             // Refresh pipeline stats in background to ensure data consistency
             setTimeout(() => {
               fetchPipelineStats();
@@ -265,7 +265,7 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
         });
       }
     } catch (error) {
-      console.error('Failed to update pipeline stage:', error);
+
       alert('An error occurred while updating the pipeline stage. Please try again.');
     } finally {
       setTransitionLoading(false);
@@ -276,17 +276,17 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
     try {
       // Here you would typically call an API to update the customer
       // For now, we'll just update the local state
-      const updatedCustomers = customersInStage.map(customer => 
+      const updatedCustomers = customersInStage.map(customer =>
         customer.id === updatedCustomer.id ? updatedCustomer : customer
       );
       setCustomersInStage(updatedCustomers);
       setShowEditModal(false);
       setEditingCustomer(null);
-      
+
       // Show success message
       alert(`Successfully updated ${updatedCustomer.full_name}`);
     } catch (error) {
-      console.error('Failed to save customer:', error);
+
       alert('Failed to save customer. Please try again.');
     }
   };
@@ -323,8 +323,8 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
         <div className="flex items-center justify-center py-8">
           <div className="text-red-600 text-center">
             <div className="mb-2">{error}</div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => {
                 setError(null);
@@ -341,8 +341,8 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
       {!loading && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {pipelineStats.map((stage) => (
-            <Card 
-              key={stage.value} 
+            <Card
+              key={stage.value}
               className={`shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 border-2 ${stage.color}`}
               onClick={() => handleStageClick(stage.value)}
             >
@@ -399,7 +399,7 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
               </Button>
             </div>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Search and Filter */}
             <div className="flex items-center gap-2">
@@ -440,8 +440,8 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
                   This could mean either there are no customers in this pipeline stage, or there was an issue fetching the data.
                 </div>
                 {searchTerm && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setSearchTerm('')}
                   >
@@ -449,8 +449,8 @@ export function PipelineStageStatsManager({ className }: PipelineStageStatsProps
                   </Button>
                 )}
                 <div className="mt-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => handleStageClick(selectedStage!)}
                   >

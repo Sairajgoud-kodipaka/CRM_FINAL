@@ -79,7 +79,7 @@ class PerformanceMonitor {
 
     // Log slow API calls
     if (duration > 1000) {
-      console.warn(`🐌 Slow API call detected: ${endpoint} took ${duration.toFixed(2)}ms`);
+
     }
   }
 
@@ -148,7 +148,7 @@ class PerformanceMonitor {
 
   // Log performance summary to console
   logSummary(): void {
-    console.log(this.generateReport());
+
   }
 
   // Export metrics for external monitoring
@@ -172,7 +172,7 @@ export function monitorPerformance(target: any, propertyName: string, descriptor
   descriptor.value = async function (...args: any[]) {
     const endpoint = args[0] || 'unknown';
     performanceMonitor.startTiming(endpoint);
-    
+
     try {
       const result = await method.apply(this, args);
       performanceMonitor.endTiming(endpoint, false);
@@ -189,22 +189,22 @@ export function monitorPerformance(target: any, propertyName: string, descriptor
 // Utility function to measure function execution time
 export function measureExecutionTime<T>(fn: () => T | Promise<T>, label: string): T | Promise<T> {
   const start = performance.now();
-  
+
   try {
     const result = fn();
     if (result instanceof Promise) {
       return result.finally(() => {
         const duration = performance.now() - start;
-        console.log(`⏱️ ${label} took ${duration.toFixed(2)}ms`);
+
       });
     } else {
       const duration = performance.now() - start;
-      console.log(`⏱️ ${label} took ${duration.toFixed(2)}ms`);
+
       return result;
     }
   } catch (error) {
     const duration = performance.now() - start;
-    console.error(`❌ ${label} failed after ${duration.toFixed(2)}ms:`, error);
+
     throw error;
   }
 }

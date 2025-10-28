@@ -1,11 +1,11 @@
 /**
  * ResponsiveGrid Component
- * 
+ *
  * A responsive grid component that adapts to different screen sizes:
  * - Mobile (≤768px): Single column or 2 columns for small items
  * - Tablet (768px-1024px): 2-3 columns based on content
  * - Desktop (≥1024px): 3-4 columns based on content
- * 
+ *
  * Features:
  * - Automatic responsive breakpoints
  * - Gap control
@@ -73,14 +73,14 @@ export function ResponsiveGrid({
   // Get item size classes
   const getItemSizeClasses = () => {
     if (itemSize === 'auto') return '';
-    
+
     const sizeMap = {
       sm: 'min-h-[100px]',
       md: 'min-h-[150px]',
       lg: 'min-h-[200px]',
       xl: 'min-h-[250px]',
     };
-    
+
     return sizeMap[itemSize];
   };
 

@@ -78,28 +78,28 @@ export default function ManagerTeamPage() {
     // Check if user is logged in first
     const authStorage = localStorage.getItem('auth-storage');
     if (!authStorage) {
-      console.log('User not logged in, attempting auto-login...');
+
       // Try to auto-login with demo credentials
       const autoLogin = async () => {
         try {
           const loginResponse = await apiService.login('rara', 'password123');
           if (loginResponse.success) {
-            console.log('Auto-login successful');
+
             fetchTeam();
             fetchCurrentUser();
           } else {
-            console.log('Auto-login failed, redirecting to login page');
+
             router.push('/');
           }
         } catch (error) {
-          console.error('Auto-login error:', error);
+
           router.push('/login');
         }
       };
       autoLogin();
       return;
     }
-    
+
     fetchTeam();
     fetchCurrentUser();
   }, [router]);
@@ -107,28 +107,28 @@ export default function ManagerTeamPage() {
 
   const fetchCurrentUser = async () => {
     try {
-      console.log('Attempting to fetch current user...');
-      
+
+
       const response = await apiService.getCurrentUser();
       if (response.success && response.data) {
         setCurrentUser(response.data);
-        console.log('Current user:', response.data);
+
       } else {
-        console.log('Failed to get current user:', response);
+
       }
     } catch (error) {
-      console.error('Error fetching current user:', error);
+
     }
   };
 
   const fetchTeam = async () => {
     try {
       setLoading(true);
-      console.log('Fetching team members...');
-      
+
+
       const response = await apiService.listTeamMembers();
-      console.log('Team members response:', response);
-      
+
+
       if (response.success && response.data) {
         // Handle paginated response
         let teamMembers: User[] = [];
@@ -137,15 +137,15 @@ export default function ManagerTeamPage() {
         } else if (typeof response.data === 'object' && response.data !== null && 'results' in response.data && Array.isArray((response.data as { results: User[] }).results)) {
           teamMembers = (response.data as { results: User[] }).results;
         }
-        
-        console.log('Setting team members:', teamMembers);
+
+
         setTeam(teamMembers);
       } else {
-        console.warn('Team members response is not valid:', response.data);
+
         setTeam([]);
       }
     } catch (error) {
-      console.error('Error fetching team members:', error);
+
       setTeam([]);
     } finally {
       setLoading(false);
@@ -157,16 +157,16 @@ export default function ManagerTeamPage() {
     setInviteLoading(true);
 
     try {
-      console.log('Inviting member with data:', inviteData);
+
       // Remove store field since backend will auto-assign it
       const { store, ...memberData } = inviteData;
-      
+
       // Ensure all required fields are present
       const requiredFields = ['username', 'email', 'first_name', 'last_name', 'password', 'role'];
       const missingFields = requiredFields.filter(field => !memberData[field as keyof typeof memberData]);
-      
+
       if (missingFields.length > 0) {
-        console.error('Missing required fields:', missingFields);
+
         toast({
           title: "Error",
           description: `Missing required fields: ${missingFields.join(', ')}`,
@@ -174,12 +174,12 @@ export default function ManagerTeamPage() {
         });
         return;
       }
-      
-      console.log('Sending member data to API:', memberData);
+
+
       const response = await apiService.createTeamMember(memberData);
-      
+
       if (response.success) {
-        console.log('Member invited successfully:', response.data);
+
         setShowInviteModal(false);
         setInviteData({
           username: '',
@@ -197,7 +197,7 @@ export default function ManagerTeamPage() {
         // Refresh team members
         await fetchTeam();
       } else {
-        console.error('Failed to invite member:', response);
+
         const errorMessage = typeof response.errors === 'string' ? response.errors : response.message || 'Failed to add member. Please try again.';
         toast({
           title: "Error",
@@ -206,9 +206,9 @@ export default function ManagerTeamPage() {
         });
       }
     } catch (error: any) {
-      console.error('Error inviting member:', error);
+
       let errorMessage = 'Error adding member. Please try again.';
-      
+
       if (error.message) {
         errorMessage = error.message;
       } else if (error.response?.data?.message) {
@@ -216,7 +216,7 @@ export default function ManagerTeamPage() {
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       }
-      
+
       toast({
         title: "Error",
         description: errorMessage,
@@ -243,15 +243,15 @@ export default function ManagerTeamPage() {
   const handleUpdateMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMember) return;
-    
+
     setEditLoading(true);
     try {
-      console.log('Updating member with data:', editData);
+
       // Use the team member ID for updates
       const response = await apiService.updateTeamMember(selectedMember.id.toString(), editData);
-      
+
       if (response.success) {
-        console.log('Member updated successfully:', response.data);
+
         setShowEditModal(false);
         setSelectedMember(null);
         setEditData({
@@ -270,7 +270,7 @@ export default function ManagerTeamPage() {
         // Refresh team members
         await fetchTeam();
       } else {
-        console.error('Failed to update member:', response);
+
         toast({
           title: "Error",
           description: "Failed to update member. Please try again.",
@@ -278,7 +278,7 @@ export default function ManagerTeamPage() {
         });
       }
     } catch (error) {
-      console.error('Error updating member:', error);
+
       toast({
         title: "Error",
         description: "Error updating member. Please try again.",
@@ -296,17 +296,17 @@ export default function ManagerTeamPage() {
 
   const confirmDelete = async () => {
     if (!memberToDelete) return;
-    
+
     setDeleteLoading(memberToDelete.id.toString());
     setShowDeleteConfirm(false);
-    
+
     try {
-      console.log('Deleting member:', memberToDelete.id);
+
       // Use the team member ID (not user_id) for deletion
       const response = await apiService.deleteTeamMember(memberToDelete.id.toString());
-      
+
       if (response.success) {
-        console.log('Member deleted successfully');
+
         toast({
           title: "Success",
           description: "Team member permanently deleted from database!",
@@ -315,7 +315,7 @@ export default function ManagerTeamPage() {
         // Refresh team members
         await fetchTeam();
       } else {
-        console.error('Failed to delete member:', response);
+
         toast({
           title: "Error",
           description: "Failed to delete member. Please try again.",
@@ -323,7 +323,7 @@ export default function ManagerTeamPage() {
         });
       }
     } catch (error) {
-      console.error('Error deleting member:', error);
+
       toast({
         title: "Error",
         description: "Error deleting member. Please try again.",
@@ -373,7 +373,7 @@ export default function ManagerTeamPage() {
             </div>
           )}
         </div>
-        <Button 
+        <Button
           onClick={() => setShowInviteModal(true)}
           className="btn-primary text-sm flex items-center gap-1"
         >
@@ -383,8 +383,8 @@ export default function ManagerTeamPage() {
 
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
-          <Input 
-            placeholder="Search by name or email..." 
+          <Input
+            placeholder="Search by name or email..."
             className="w-full md:w-80"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -431,16 +431,16 @@ export default function ManagerTeamPage() {
                       </Badge>
                     </td>
                                          <td className="px-4 py-2 flex gap-2">
-                       <Button 
-                         variant="ghost" 
+                       <Button
+                         variant="ghost"
                          size="icon"
                          onClick={() => handleEditMember(member)}
                          title="Edit member"
                        >
                          <Edit className="w-4 h-4" />
                        </Button>
-                       <Button 
-                         variant="ghost" 
+                       <Button
+                         variant="ghost"
                          size="icon"
                          onClick={() => handleDeleteMember(member)}
                          disabled={deleteLoading === member.id.toString()}
@@ -475,7 +475,7 @@ export default function ManagerTeamPage() {
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            
+
             <form onSubmit={handleInviteMember} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -495,7 +495,7 @@ export default function ManagerTeamPage() {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-1">Username</label>
                 <Input
@@ -504,7 +504,7 @@ export default function ManagerTeamPage() {
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-1">Email</label>
                 <Input
@@ -514,7 +514,7 @@ export default function ManagerTeamPage() {
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-1">Password</label>
                 <div className="flex gap-2">
@@ -534,7 +534,7 @@ export default function ManagerTeamPage() {
                   </Button>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-1">Role</label>
                 <select
@@ -548,7 +548,7 @@ export default function ManagerTeamPage() {
                   <option value="marketing">Marketing</option>
                 </select>
               </div>
-              
+
               <div className="flex gap-2 pt-4">
                 <Button
                   type="submit"
@@ -588,7 +588,7 @@ export default function ManagerTeamPage() {
                  <X className="w-4 h-4" />
                </Button>
              </div>
-             
+
              <form onSubmit={handleUpdateMember} className="space-y-4">
                <div className="grid grid-cols-2 gap-4">
                  <div>
@@ -608,7 +608,7 @@ export default function ManagerTeamPage() {
                    />
                  </div>
                </div>
-               
+
                <div>
                  <label className="block text-sm font-medium mb-1">Email</label>
                  <Input
@@ -618,7 +618,7 @@ export default function ManagerTeamPage() {
                    required
                  />
                </div>
-               
+
                <div>
                  <label className="block text-sm font-medium mb-1">Phone</label>
                  <PhoneInputComponent
@@ -626,7 +626,7 @@ export default function ManagerTeamPage() {
                    onChange={(value) => setEditData({...editData, phone: value})}
                  />
                </div>
-               
+
                <div>
                  <label className="block text-sm font-medium mb-1">Address</label>
                  <Input
@@ -634,7 +634,7 @@ export default function ManagerTeamPage() {
                    onChange={(e) => setEditData({...editData, address: e.target.value})}
                  />
                </div>
-               
+
                <div>
                  <label className="block text-sm font-medium mb-1">Role</label>
                  <select
@@ -649,7 +649,7 @@ export default function ManagerTeamPage() {
                    <option value="manager">Manager</option>
                  </select>
                </div>
-               
+
                <div className="flex gap-2 pt-4">
                  <Button
                    type="submit"
@@ -692,7 +692,7 @@ export default function ManagerTeamPage() {
                  <X className="w-4 h-4" />
                </Button>
              </div>
-             
+
              <div className="space-y-4">
                <p className="text-gray-700">
                  Are you sure you want to delete <strong>{memberToDelete.first_name} {memberToDelete.last_name}</strong>?
@@ -700,7 +700,7 @@ export default function ManagerTeamPage() {
                <p className="text-sm text-gray-500">
                  This action cannot be undone. The team member will be permanently removed from the system.
                </p>
-               
+
                <div className="flex gap-2 pt-4">
                  <Button
                    onClick={confirmDelete}

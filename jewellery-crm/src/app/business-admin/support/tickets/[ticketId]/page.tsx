@@ -8,12 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { 
-  ArrowLeft, 
-  Send, 
-  Clock, 
-  User, 
-  MessageSquare, 
+import {
+  ArrowLeft,
+  Send,
+  Clock,
+  User,
+  MessageSquare,
   AlertCircle,
   CheckCircle,
   XCircle,
@@ -66,7 +66,7 @@ export default function TicketDetailPage() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuth();
   const ticketId = params?.ticketId as string;
-  
+
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,13 +76,13 @@ export default function TicketDetailPage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log('User not authenticated, redirecting to login');
+
       router.push('/');
       return;
     }
-    
+
     if (ticketId) {
-      console.log('User authenticated, fetching ticket details:', { user, isAuthenticated });
+
       fetchTicketDetails();
     }
   }, [ticketId, isAuthenticated, user, router]);
@@ -94,28 +94,27 @@ export default function TicketDetailPage() {
         apiService.getSupportTicket(ticketId),
         apiService.getTicketMessages(ticketId)
       ]);
-      
-      console.log('Ticket Response:', ticketResponse);
-      console.log('Messages Response:', messagesResponse);
-      
+
+
+
       if (ticketResponse.success && ticketResponse.data) {
         setTicket(ticketResponse.data);
       } else {
         setError('Failed to load ticket details');
         return;
       }
-      
+
       // Ensure messages is always an array
       if (messagesResponse.success && messagesResponse.data) {
         const messagesData = Array.isArray(messagesResponse.data) ? messagesResponse.data : (messagesResponse.data as any).results || [];
-        console.log('Messages data:', messagesData);
+
         setMessages(messagesData);
       } else {
-        console.log('No messages data, setting empty array');
+
         setMessages([]);
       }
     } catch (error) {
-      console.error('Failed to fetch ticket details:', error);
+
       setError('Failed to load ticket details');
     } finally {
       setLoading(false);
@@ -124,7 +123,7 @@ export default function TicketDetailPage() {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
-    
+
     try {
       setSendingMessage(true);
       const response = await apiService.createTicketMessage(ticketId, {
@@ -132,7 +131,7 @@ export default function TicketDetailPage() {
         is_internal: false,
         message_type: 'text'
       });
-      
+
       if (response.success) {
         setNewMessage('');
         // Refresh messages
@@ -145,7 +144,7 @@ export default function TicketDetailPage() {
         setError('Failed to send message');
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
+
       setError('Failed to send message');
     } finally {
       setSendingMessage(false);
@@ -154,36 +153,36 @@ export default function TicketDetailPage() {
 
   const getStatusConfig = (status: string) => {
     const configs = {
-      'open': { 
-        icon: AlertCircle, 
+      'open': {
+        icon: AlertCircle,
         color: 'bg-blue-50 text-blue-700 border-blue-200',
         textColor: 'text-blue-700',
         bgColor: 'bg-blue-50',
         borderColor: 'border-blue-200'
       },
-      'in_progress': { 
-        icon: Clock, 
+      'in_progress': {
+        icon: Clock,
         color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
         textColor: 'text-yellow-700',
         bgColor: 'bg-yellow-50',
         borderColor: 'border-yellow-200'
       },
-      'resolved': { 
-        icon: CheckCircle, 
+      'resolved': {
+        icon: CheckCircle,
         color: 'bg-green-50 text-green-700 border-green-200',
         textColor: 'text-green-700',
         bgColor: 'bg-green-50',
         borderColor: 'border-green-200'
       },
-      'closed': { 
-        icon: XCircle, 
+      'closed': {
+        icon: XCircle,
         color: 'bg-gray-50 text-gray-700 border-gray-200',
         textColor: 'text-gray-700',
         bgColor: 'bg-gray-50',
         borderColor: 'border-gray-200'
       },
-      'reopened': { 
-        icon: AlertTriangle, 
+      'reopened': {
+        icon: AlertTriangle,
         color: 'bg-orange-50 text-orange-700 border-orange-200',
         textColor: 'text-orange-700',
         bgColor: 'bg-orange-50',
@@ -205,11 +204,11 @@ export default function TicketDetailPage() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    
+
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Invalid Date';
-      
+
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -256,8 +255,8 @@ export default function TicketDetailPage() {
       {/* Enhanced Header */}
       <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={() => router.back()}
             className="hover:bg-gray-100"
           >
@@ -297,7 +296,7 @@ export default function TicketDetailPage() {
               <Info className="w-5 h-5 text-gray-600" />
               <h2 className="text-lg font-semibold text-gray-900">Ticket Information</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-2">
@@ -342,7 +341,7 @@ export default function TicketDetailPage() {
               <MessageSquare className="w-5 h-5 text-gray-600" />
               <h2 className="text-lg font-semibold text-gray-900">Conversation</h2>
             </div>
-            
+
             {/* Messages List */}
             <div className="space-y-4 mb-6 max-h-96 overflow-y-auto pr-2">
               {!Array.isArray(messages) || messages.length === 0 ? (
@@ -366,8 +365,8 @@ export default function TicketDetailPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          message.is_system_message 
-                            ? 'bg-blue-100 text-blue-600' 
+                          message.is_system_message
+                            ? 'bg-blue-100 text-blue-600'
                             : message.is_internal
                             ? 'bg-purple-100 text-purple-600'
                             : 'bg-gray-100 text-gray-600'
@@ -442,4 +441,4 @@ export default function TicketDetailPage() {
       </Card>
     </div>
   );
-} 
+}

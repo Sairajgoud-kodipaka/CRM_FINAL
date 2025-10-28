@@ -73,9 +73,7 @@ export default function AnnouncementsPage() {
   const [filter, setFilter] = useState<'all' | 'unread' | 'urgent'>('all');
 
   // Add debugging for user role
-  console.log('AnnouncementsPage - User:', user);
-  console.log('AnnouncementsPage - User role:', user?.role);
-  console.log('AnnouncementsPage - Can create announcement:', user?.role === 'manager' || user?.role === 'inhouse_sales' || user?.role === 'business_admin');
+
 
   // Check if user can create announcements
   const canCreateAnnouncement = user?.role === 'manager' || user?.role === 'inhouse_sales' || user?.role === 'business_admin';
@@ -88,45 +86,43 @@ export default function AnnouncementsPage() {
   const fetchAnnouncements = async () => {
     try {
       const response = await apiService.getAnnouncements();
-      console.log('Announcements response:', response);
-      
+
+
       // Handle both response formats
       let announcementsData: any;
-      
+
       if (response.success && response.data) {
         // Expected format: {success: true, data: [...]}
         announcementsData = response.data;
-        console.log('Using response.data format');
+
       } else if (Array.isArray(response)) {
         // Direct format: [...] (current backend format)
         announcementsData = response;
-        console.log('Using direct array format');
+
       } else if (response && Array.isArray(response)) {
         // Fallback: response is already an array
         announcementsData = response;
-        console.log('Using fallback array format');
+
       } else {
-        console.warn('Unexpected announcements response format:', response);
+
         setAnnouncements([]);
         return;
       }
-      
-      console.log('Announcements data:', announcementsData);
-      console.log('Data type:', typeof announcementsData);
-      console.log('Is array:', Array.isArray(announcementsData));
-      
+
+
+
       if (Array.isArray(announcementsData)) {
-        console.log('Setting announcements from array:', announcementsData.length, 'items');
+
         setAnnouncements(announcementsData);
       } else if (announcementsData && announcementsData.results && Array.isArray(announcementsData.results)) {
-        console.log('Setting announcements from results:', announcementsData.results.length, 'items');
+
         setAnnouncements(announcementsData.results);
       } else {
-        console.warn('Unexpected announcements data format:', announcementsData);
+
         setAnnouncements([]);
       }
     } catch (error) {
-      console.error('Error fetching announcements:', error);
+
       setAnnouncements([]);
     }
   };
@@ -134,39 +130,39 @@ export default function AnnouncementsPage() {
   const fetchTeamMessages = async () => {
     try {
       const response = await apiService.getTeamMessages();
-      console.log('Team messages response:', response);
-      
+
+
       // Handle both response formats
       let messagesData: any;
-      
+
       if (response.success && response.data) {
         // Expected format: {success: true, data: [...]}
         messagesData = response.data;
-        console.log('Using response.data format for messages');
+
       } else if (Array.isArray(response)) {
         // Direct format: [...] (current backend format)
         messagesData = response;
-        console.log('Using direct array format for messages');
+
       } else if (response && Array.isArray(response)) {
         // Fallback: response is already an array
         messagesData = response;
-        console.log('Using fallback array format for messages');
+
       } else {
-        console.warn('Unexpected team messages response format:', response);
+
         setTeamMessages([]);
         return;
       }
-      
+
       if (Array.isArray(messagesData)) {
         setTeamMessages(messagesData);
       } else if (messagesData && messagesData.results && Array.isArray(messagesData.results)) {
         setTeamMessages(messagesData.results);
       } else {
-        console.warn('Unexpected team messages data format:', messagesData);
+
         setTeamMessages([]);
       }
     } catch (error) {
-      console.error('Error fetching team messages:', error);
+
       setTeamMessages([]);
     } finally {
       setLoading(false);
@@ -182,15 +178,15 @@ export default function AnnouncementsPage() {
     try {
       await apiService.markAnnouncementAsRead(announcementId);
       // Update local state
-      setAnnouncements(prev => 
-        prev.map(ann => 
-          ann.id === announcementId 
+      setAnnouncements(prev =>
+        prev.map(ann =>
+          ann.id === announcementId
             ? { ...ann, is_read: true }
             : ann
         )
       );
     } catch (error) {
-      console.error('Error marking announcement as read:', error);
+
     }
   };
 
@@ -198,15 +194,15 @@ export default function AnnouncementsPage() {
     try {
       await apiService.acknowledgeAnnouncement(announcementId);
       // Update local state
-      setAnnouncements(prev => 
-        prev.map(ann => 
-          ann.id === announcementId 
+      setAnnouncements(prev =>
+        prev.map(ann =>
+          ann.id === announcementId
             ? { ...ann, is_acknowledged: true }
             : ann
         )
       );
     } catch (error) {
-      console.error('Error acknowledging announcement:', error);
+
     }
   };
 
@@ -214,15 +210,15 @@ export default function AnnouncementsPage() {
     try {
       await apiService.markMessageAsRead(messageId);
       // Update local state
-      setTeamMessages(prev => 
-        prev.map(msg => 
-          msg.id === messageId 
+      setTeamMessages(prev =>
+        prev.map(msg =>
+          msg.id === messageId
             ? { ...msg, is_read: true }
             : msg
         )
       );
     } catch (error) {
-      console.error('Error marking message as read:', error);
+
     }
   };
 
@@ -279,28 +275,28 @@ export default function AnnouncementsPage() {
     if (!Array.isArray(announcements)) {
       return [];
     }
-    
+
     // Filter by publish date (announcements are already filtered by backend)
     let filtered = announcements;
-    
+
     if (filter === 'unread') {
       filtered = filtered.filter(ann => !ann.is_read_by_current_user);
     } else if (filter === 'urgent') {
       filtered = filtered.filter(ann => ann.priority === 'urgent' || ann.priority === 'high');
     }
-    
+
     return filtered.sort((a, b) => {
       // Pinned announcements first
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;
-      
+
       // Then by priority
       const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
       const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 3;
       const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 3;
-      
+
       if (aPriority !== bPriority) return aPriority - bPriority;
-      
+
       // Then by creation date
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
@@ -310,20 +306,20 @@ export default function AnnouncementsPage() {
     if (!Array.isArray(teamMessages)) {
       return [];
     }
-    
+
     let filtered = teamMessages;
-    
+
     if (filter === 'unread') {
       filtered = filtered.filter(msg => !msg.is_read_by_current_user);
     } else if (filter === 'urgent') {
       filtered = filtered.filter(msg => msg.is_urgent);
     }
-    
+
     return filtered.sort((a, b) => {
       // Urgent messages first
       if (a.is_urgent && !b.is_urgent) return -1;
       if (!a.is_urgent && b.is_urgent) return 1;
-      
+
       // Then by creation date
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
@@ -376,11 +372,9 @@ export default function AnnouncementsPage() {
             <>
               <AddAnnouncementModal onSuccess={handleRefresh} />
               <AddMessageModal onSuccess={handleRefresh} />
-              <Button 
+              <Button
                 onClick={() => {
-                  console.log('Test button clicked');
-                  console.log('User role:', user?.role);
-                  console.log('Can create:', canCreateAnnouncement);
+
                 }}
                 variant="outline"
                 size="sm"
@@ -466,8 +460,8 @@ export default function AnnouncementsPage() {
       {activeTab === 'announcements' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {getFilteredAnnouncements().map((announcement) => (
-            <Card 
-              key={announcement.id} 
+            <Card
+              key={announcement.id}
                              className={`transition-all duration-200 hover:shadow-lg ${
                  !announcement.is_read_by_current_user ? 'ring-2 ring-blue-200' : ''
                } ${announcement.is_pinned ? 'border-l-4 border-l-blue-500' : ''}`}
@@ -533,7 +527,7 @@ export default function AnnouncementsPage() {
       ) : (
         <div className="space-y-4">
           {getFilteredMessages().map((message) => (
-            <Card 
+            <Card
               key={message.id}
                              className={`transition-all duration-200 hover:shadow-lg ${
                  !message.is_read_by_current_user ? 'ring-2 ring-blue-200' : ''
@@ -568,8 +562,8 @@ export default function AnnouncementsPage() {
                     </div>
                   </div>
                                      <div className="flex items-center gap-2">
-                     <ReplyMessageModal 
-                       message={message} 
+                     <ReplyMessageModal
+                       message={message}
                        onSuccess={handleRefresh}
                      />
                      {!message.is_read_by_current_user && (
@@ -614,4 +608,4 @@ export default function AnnouncementsPage() {
       )}
     </div>
   );
-} 
+}

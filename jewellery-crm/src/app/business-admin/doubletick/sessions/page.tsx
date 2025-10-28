@@ -7,13 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Phone, 
-  Plus, 
-  Settings, 
-  Play, 
-  Pause, 
-  Trash2, 
+import {
+  Phone,
+  Plus,
+  Settings,
+  Play,
+  Pause,
+  Trash2,
   RefreshCw,
   CheckCircle,
   XCircle,
@@ -114,16 +114,16 @@ export default function SessionsManagement() {
   };
 
   const handleConnectSession = (sessionId: string) => {
-    setSessions(sessions.map(s => 
-      s.id === sessionId 
+    setSessions(sessions.map(s =>
+      s.id === sessionId
         ? { ...s, status: 'connecting' }
         : s
     ));
-    
+
     // Simulate connection process
     setTimeout(() => {
-      setSessions(sessions.map(s => 
-        s.id === sessionId 
+      setSessions(sessions.map(s =>
+        s.id === sessionId
           ? { ...s, status: 'connected', is_online: true }
           : s
       ));
@@ -131,8 +131,8 @@ export default function SessionsManagement() {
   };
 
   const handleDisconnectSession = (sessionId: string) => {
-    setSessions(sessions.map(s => 
-      s.id === sessionId 
+    setSessions(sessions.map(s =>
+      s.id === sessionId
         ? { ...s, status: 'disconnected', is_online: false }
         : s
     ));
@@ -264,8 +264,8 @@ export default function SessionsManagement() {
                           <Settings className="w-4 h-4 mr-2" />
                           Settings
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleDisconnectSession(session.id)}
                         >
@@ -274,7 +274,7 @@ export default function SessionsManagement() {
                         </Button>
                       </div>
                     </div>
-                    
+
                     {/* Session Stats */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-gray-50 rounded-lg">
                       <div className="text-center">
@@ -335,7 +335,7 @@ export default function SessionsManagement() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Button 
+                        <Button
                           size="sm"
                           onClick={() => handleConnectSession(session.id)}
                         >

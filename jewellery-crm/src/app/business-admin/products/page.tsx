@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Plus, Filter, MoreHorizontal, Package, Tag, TrendingUp, Eye, Edit, Trash2, X, Store, Globe, ArrowRight } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -90,7 +90,7 @@ export default function ProductsPage() {
   const [globalCatalogue, setGlobalCatalogue] = useState<any>(null);
   const [showGlobalCatalogue, setShowGlobalCatalogue] = useState(false);
   const [isTransfersModalOpen, setIsTransfersModalOpen] = useState(false);
-  
+
   // Get user scope for scoped visibility
   const { userScope, canAccessAllData, canAccessStoreData } = useScopedVisibility();
 
@@ -102,7 +102,7 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      
+
       // Use scoped endpoint based on user role
       let response;
       if (userScope.type === 'own') {
@@ -135,22 +135,22 @@ export default function ProductsPage() {
             productsData = data.data;
           }
         }
-        
+
         // Apply store filter if needed
         if (storeFilter !== 'all') {
-          productsData = productsData.filter(product => 
+          productsData = productsData.filter(product =>
             product.store_name === storeFilter
           );
         }
-        
+
         setProducts(productsData);
-        console.log(`Loaded ${productsData.length} products`);
+
       } else {
-        console.warn('Products response is not valid:', response.data);
+
         setProducts([]);
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
+
       setProducts([]);
     } finally {
       setLoading(false);
@@ -162,7 +162,7 @@ export default function ProductsPage() {
       const response = await apiService.getCategories({
         scope: scopeFilter === 'all' ? undefined : scopeFilter,
       });
-      
+
       if (response.success && response.data) {
         let categoriesData: Category[] = [];
         if (Array.isArray(response.data)) {
@@ -178,7 +178,7 @@ export default function ProductsPage() {
         setCategories(categoriesData);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+
       setCategories([]);
     }
   };
@@ -190,7 +190,7 @@ export default function ProductsPage() {
         setGlobalCatalogue(response.data);
       }
     } catch (error) {
-      console.error('Error fetching global catalogue:', error);
+
     }
   };
 
@@ -290,15 +290,15 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => setIsTransfersModalOpen(true)}
           >
             <ArrowRight className="w-4 h-4 mr-2" />
             Product Transfers
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => {
               setShowGlobalCatalogue(!showGlobalCatalogue);
               if (!showGlobalCatalogue && !globalCatalogue) {
@@ -346,7 +346,7 @@ export default function ProductsPage() {
                 <div className="text-sm text-muted-foreground">Product Types</div>
               </div>
             </div>
-            
+
             {globalCatalogue.catalogue && globalCatalogue.catalogue.length > 0 && (
               <div className="space-y-2">
                 <h4 className="font-semibold">Product Distribution:</h4>
@@ -441,7 +441,7 @@ export default function ProductsPage() {
                             referrerPolicy="no-referrer"
                             onClick={() => handleImageClick(product.main_image_url || PLACEHOLDER_IMAGE)}
                           />
-                
+
                 {/* Scope Badge */}
                 <div className="absolute top-2 left-2">
                   <Badge variant={getScopeBadgeVariant(product.scope)} className="text-xs">
@@ -473,7 +473,7 @@ export default function ProductsPage() {
                     {product.name}
                   </h3>
                   <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
-                  
+
                   {product.category_name && (
                     <p className="text-sm text-muted-foreground">
                       Category: {product.category_name}
@@ -498,7 +498,7 @@ export default function ProductsPage() {
                         <Badge variant="secondary" className="text-xs">Best Seller</Badge>
                       )}
                           </div>
-                    
+
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
@@ -545,14 +545,14 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
       )}
-      
+
       {/* Modals */}
       <AddProductModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={handleAddProductSuccess}
       />
-      
+
       <CategoriesModal
         isOpen={isCategoriesModalOpen}
         onClose={() => setIsCategoriesModalOpen(false)}
@@ -561,7 +561,7 @@ export default function ProductsPage() {
           fetchCategories();
         }}
       />
-      
+
       <ImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
@@ -570,7 +570,7 @@ export default function ProductsPage() {
           fetchProducts();
         }}
       />
-      
+
       {selectedProduct && (
       <ProductActionsModal
         isOpen={isActionsModalOpen}

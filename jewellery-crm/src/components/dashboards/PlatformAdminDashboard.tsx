@@ -1,9 +1,9 @@
 /**
  * Platform Admin Dashboard Component
- * 
+ *
  * System-wide overview for platform administrators managing multiple tenants.
  * Features tenant management, billing overview, and system analytics.
- * 
+ *
  * Key Features:
  * - Multi-tenant overview and metrics
  * - Billing and subscription management
@@ -16,15 +16,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  DashboardLayout, 
+import {
+  DashboardLayout,
   CardContainer,
 } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
   Building2,
-  Users, 
+  Users,
   CreditCard,
   TrendingUp,
   Database,
@@ -78,16 +78,16 @@ export function PlatformAdminDashboard() {
       try {
         setLoading(true);
         setError(null);
-        
+
         const response = await apiService.getPlatformAdminDashboard();
-        
+
         if (response.success && response.data) {
           setMetrics(response.data);
         } else {
           setError('Failed to fetch platform data');
         }
       } catch (err) {
-        console.error('Error fetching platform data:', err);
+
         setError('Failed to load platform dashboard data');
       } finally {
         setLoading(false);
@@ -149,8 +149,8 @@ export function PlatformAdminDashboard() {
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <p className="text-red-600 mb-2">Error loading platform data</p>
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button 
-              onClick={() => window.location.reload()} 
+            <Button
+              onClick={() => window.location.reload()}
               className="mt-4"
               variant="outline"
             >
@@ -270,7 +270,7 @@ export function PlatformAdminDashboard() {
               View All
             </Button>
           </div>
-          
+
           <div className="space-y-3 sm:space-y-4">
             {metrics.recent_tenants.map((tenant) => (
               <div key={tenant.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors space-y-2 sm:space-y-0">
@@ -362,35 +362,35 @@ export function PlatformAdminDashboard() {
       <CardContainer>
         <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4 sm:mb-6">Quick Actions</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors p-2"
             onClick={handleAddTenant}
           >
             <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="text-xs sm:text-sm">Add Tenant</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors p-2"
             onClick={handleManageUsers}
           >
             <Users className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="text-xs sm:text-sm">Manage Users</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors p-2"
             onClick={handleBillingOverview}
           >
             <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="text-xs sm:text-sm">Billing</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors p-2"
             onClick={handleSystemSettings}
           >

@@ -45,47 +45,44 @@ export default function ManagerCustomersPage() {
   useEffect(() => {
     // Filter customers based on search term and status
     let filtered = customers || [];
-    
+
     if (searchTerm) {
-      filtered = filtered.filter(customer => 
+      filtered = filtered.filter(customer =>
         customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.phone?.includes(searchTerm)
       );
     }
-    
+
     if (statusFilter && statusFilter !== 'all') {
       filtered = filtered.filter(customer => customer.status === statusFilter);
     }
-    
+
     setFilteredCustomers(filtered);
   }, [customers, searchTerm, statusFilter]);
 
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      console.log('🔍 [MANAGER] Fetching customers with params:', {
-        start_date: dateRange?.from?.toISOString(),
-        end_date: dateRange?.to?.toISOString(),
-      });
-      
+
+
       const response = await apiService.getClients({
         start_date: dateRange?.from?.toISOString(),
         end_date: dateRange?.to?.toISOString(),
       });
-      
-      console.log('📊 [MANAGER] API Response:', response);
-      
+
+
+
       if (response.success && response.data && Array.isArray(response.data)) {
-        console.log(`✅ [MANAGER] Loaded ${response.data.length} customers`);
+
         setCustomers(response.data);
       } else {
-        console.warn('Customers response is not an array:', response.data);
+
         setCustomers([]);
       }
     } catch (error) {
-      console.error('Error fetching customers:', error);
+
       setCustomers([]);
     } finally {
       setLoading(false);
@@ -106,16 +103,16 @@ export default function ManagerCustomersPage() {
     try {
       const response = await apiService.deleteClient(customerId);
       if (response.success) {
-        console.log('Customer deleted successfully');
+
         alert('Customer permanently deleted from database!');
         fetchCustomers(); // Refresh the list
       } else {
-        console.error('Failed to delete customer:', response);
+
         alert('Failed to delete customer. Please try again.');
       }
     } catch (error: any) {
-      console.error('Error deleting customer:', error);
-      
+
+
       // Handle specific permission errors
       if (error.message && error.message.includes('You do not have permission to delete customers')) {
         alert('You do not have permission to delete customers. Only business admins can delete customers.');
@@ -196,9 +193,9 @@ export default function ManagerCustomersPage() {
       mobileLabel: 'Salesperson',
       render: (value, row) => {
         const customer = row as Client;
-        const salespersonName = customer.created_by 
+        const salespersonName = customer.created_by
           ? `${customer.created_by.first_name} ${customer.created_by.last_name}`
-          : customer.assigned_to 
+          : customer.assigned_to
             ? `User ID: ${customer.assigned_to}`
             : '-';
         return <span className="text-text-primary">{salespersonName}</span>;
@@ -212,8 +209,8 @@ export default function ManagerCustomersPage() {
       render: (value) => {
         const status = value as string || 'unknown';
         return (
-          <Badge 
-            variant={getStatusBadgeVariant(status)} 
+          <Badge
+            variant={getStatusBadgeVariant(status)}
             className="capitalize text-xs"
           >
             {status}
@@ -240,11 +237,11 @@ export default function ManagerCustomersPage() {
         format,
         fields: ['first_name', 'last_name', 'email', 'phone', 'status', 'customer_type', 'created_at']
       });
-      
+
       if (response.success && response.data) {
         // Create and download the file
-        const blob = new Blob([response.data], { 
-          type: format === 'csv' ? 'text/csv' : 'application/json' 
+        const blob = new Blob([response.data], {
+          type: format === 'csv' ? 'text/csv' : 'application/json'
         });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -256,7 +253,7 @@ export default function ManagerCustomersPage() {
         document.body.removeChild(a);
       }
     } catch (error) {
-      console.error('Export failed:', error);
+
       alert('Failed to export customers');
     }
   };
@@ -286,8 +283,8 @@ export default function ManagerCustomersPage() {
   }
   return (
     <div className="flex flex-col gap-8">
-      <AddCustomerModal 
-        open={modalOpen} 
+      <AddCustomerModal
+        open={modalOpen}
         onClose={() => {
           setModalOpen(false);
           fetchCustomers(); // Refresh the list when modal closes
@@ -320,12 +317,12 @@ export default function ManagerCustomersPage() {
         customer={selectedCustomer}
         onCustomerUpdated={handleCustomerUpdated}
       />
-      <TrashModal 
-        open={trashModalOpen} 
+      <TrashModal
+        open={trashModalOpen}
         onClose={() => setTrashModalOpen(false)}
         onCustomerRestored={handleCustomerRestored}
       />
-      
+
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">Customers</h1>
@@ -337,9 +334,9 @@ export default function ManagerCustomersPage() {
             onDateRangeChange={setDateRange}
             placeholder="Filter by date range"
           />
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setTrashModalOpen(true)}
             className="text-orange-600 hover:text-orange-700"
           >
@@ -381,14 +378,14 @@ export default function ManagerCustomersPage() {
           </div>
         </CardContent>
       </Card>
-      
+
       <Card className="p-4 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
           <div className="flex flex-col sm:flex-row gap-2 flex-1">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input 
-                placeholder="Search by name, email, or phone..." 
+              <Input
+                placeholder="Search by name, email, or phone..."
                 className="pl-10 w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -407,7 +404,7 @@ export default function ManagerCustomersPage() {
             </select>
           </div>
         </div>
-        
+
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           <ResponsiveTable
             data={filteredCustomers as unknown as Record<string, unknown>[]}
@@ -444,9 +441,9 @@ export default function ManagerCustomersPage() {
               const client = customer as unknown as Client;
               return (
                       <div className="flex gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleViewCustomer(client.id.toString());
@@ -455,9 +452,9 @@ export default function ManagerCustomersPage() {
                         >
                     <Eye className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleEditCustomer(client);
@@ -467,9 +464,9 @@ export default function ManagerCustomersPage() {
                     <Edit className="w-4 h-4" />
                         </Button>
                         {canDeleteCustomers && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (window.confirm(`Are you sure you want to move ${client.first_name} ${client.last_name} to trash? You can restore them later from the Trash section.`)) {
@@ -493,7 +490,7 @@ export default function ManagerCustomersPage() {
             }
           />
         </div>
-        
+
         {filteredCustomers.length > 0 && (
           <div className="text-sm text-text-secondary text-center py-2">
             Showing {filteredCustomers.length} of {customers.length} customers

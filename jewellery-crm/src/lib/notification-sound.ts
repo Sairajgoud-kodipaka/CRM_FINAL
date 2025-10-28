@@ -1,6 +1,6 @@
 /**
  * Notification Sound Utility
- * 
+ *
  * Handles playing notification sounds when new notifications arrive
  */
 
@@ -46,7 +46,7 @@ class NotificationSound {
       // Store the audio context for reuse
       this.audio = new HTMLAudioElement();
     } catch (error) {
-      console.warn('Could not initialize notification sound:', error);
+
     }
   }
 
@@ -77,7 +77,7 @@ class NotificationSound {
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.3);
     } catch (error) {
-      console.warn('Could not play notification sound:', error);
+
     }
   }
 
@@ -120,24 +120,24 @@ export const notificationSound = {
     }
     return notificationSoundInstance;
   },
-  
+
   play() {
     this.instance?.play();
   },
-  
+
   setEnabled(enabled: boolean) {
     this.instance?.setEnabled(enabled);
   },
-  
+
   setVolume(volume: number) {
     this.instance?.setVolume(volume);
   },
-  
+
   getVolume(): number {
     return this.instance?.getVolume() || 0.5;
   },
-  
+
   isSoundEnabled(): boolean {
     return this.instance?.isSoundEnabled() || false;
   }
-}; 
+};

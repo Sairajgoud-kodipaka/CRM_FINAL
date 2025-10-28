@@ -6,15 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
-import { 
-  Search, 
-  Plus, 
-  Filter, 
-  MoreHorizontal, 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
-  Target, 
+import {
+  Search,
+  Plus,
+  Filter,
+  MoreHorizontal,
+  TrendingUp,
+  Users,
+  DollarSign,
+  Target,
   Building2,
   BarChart3,
   Globe,
@@ -143,15 +143,15 @@ export default function CRMSalesPipelinePage() {
         stage: stageFilter || undefined,
         source: sourceFilter || undefined,
       });
-      
+
       if (response.success) {
         const data = response.data as any;
         const leadsData = Array.isArray(data) ? data : data.results || [];
-        
-        console.log('CRM pipeline data received:', leadsData);
-        
+
+
+
         setLeads(leadsData);
-        
+
         // Calculate CRM sales stats
         const totalLeads = leadsData.length;
         const totalValue = leadsData.reduce((sum: number, lead: CRMLead) => {
@@ -161,11 +161,11 @@ export default function CRMSalesPipelinePage() {
           }
           return sum + (typeof value === 'number' ? value : parseFloat(value) || 0);
         }, 0);
-        
+
         const wonDeals = leadsData.filter((lead: CRMLead) => lead.stage === 'closed_won').length;
         const conversionRate = totalLeads > 0 ? (wonDeals / totalLeads) * 100 : 0;
         const averageDealValue = totalLeads > 0 ? totalValue / totalLeads : 0;
-        
+
         setStats({
           total_leads: totalLeads,
           total_value: totalValue,
@@ -192,7 +192,7 @@ export default function CRMSalesPipelinePage() {
         });
       }
     } catch (error) {
-      console.error('Failed to fetch CRM pipeline data:', error);
+
       // Set empty data instead of demo data
       setLeads([]);
       setSalesRepPerformance([]);
@@ -246,8 +246,8 @@ export default function CRMSalesPipelinePage() {
   const handleSubmitLead = async () => {
     try {
       // TODO: Implement API call to create lead
-      console.log('Creating new lead:', newLead);
-      
+
+
       // For now, just add to local state
       const newLeadWithId = {
         ...newLead,
@@ -256,14 +256,14 @@ export default function CRMSalesPipelinePage() {
         updated_at: new Date().toISOString(),
         actual_value: 0,
       };
-      
+
       setLeads(prev => [...prev, newLeadWithId]);
       handleCloseModal();
-      
+
       // Refresh data
       fetchCRMPipelineData();
     } catch (error) {
-      console.error('Failed to create lead:', error);
+
     }
   };
 
@@ -272,22 +272,22 @@ export default function CRMSalesPipelinePage() {
   };
 
   const handleLeadAction = (leadId: number, action: string) => {
-    console.log(`Performing action ${action} on lead ${leadId}`);
+
     // TODO: Implement lead actions (edit, delete, move stage, etc.)
   };
 
   const handleSalesRepAction = (repId: number, action: string) => {
-    console.log(`Performing action ${action} on sales rep ${repId}`);
+
     // TODO: Implement sales rep actions
   };
 
   const handleMonitorActivity = () => {
-    console.log('Opening activity monitoring');
+
     // TODO: Implement activity monitoring
   };
 
   const handleStartProspecting = () => {
-    console.log('Starting prospecting campaign');
+
     // TODO: Implement prospecting campaign
   };
 
@@ -354,16 +354,16 @@ export default function CRMSalesPipelinePage() {
           <p className="text-text-secondary mt-1">Sell our CRM platform to potential customers</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="flex items-center gap-2"
             onClick={handleFilters}
           >
             <Filter className="w-4 h-4" />
             Filters
           </Button>
-          <Button 
+          <Button
             className="btn-primary flex items-center gap-2"
             onClick={handleAddLead}
           >
@@ -494,9 +494,9 @@ export default function CRMSalesPipelinePage() {
           ) : salesRepPerformance.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-text-secondary mb-2">No sales rep data</div>
-              <Button 
+              <Button
                 variant="outline"
-                onClick={() => console.log('Add sales representatives')}
+                onClick={handleAddLead}
               >
                 Add sales representatives
               </Button>
@@ -556,7 +556,7 @@ export default function CRMSalesPipelinePage() {
             }
             return sum + (typeof value === 'number' ? value : parseFloat(value) || 0);
           }, 0);
-          
+
           return (
             <Card key={stage.value} className="shadow-sm">
               <CardHeader className="pb-3">
@@ -579,8 +579,8 @@ export default function CRMSalesPipelinePage() {
                           {lead.stage === 'closed_won' && (
                             <span className="text-green-600 text-xs">🎉</span>
                           )}
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleLeadAction(lead.id, 'menu')}
                           >
@@ -637,7 +637,7 @@ export default function CRMSalesPipelinePage() {
             ) : leads.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-text-secondary mb-2">No sales activity</div>
-                <Button 
+                <Button
                   variant="outline"
                   onClick={handleStartProspecting}
                 >
@@ -683,7 +683,7 @@ export default function CRMSalesPipelinePage() {
             {leads.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-text-secondary mb-2">No insights available</div>
-                <Button 
+                <Button
                   variant="outline"
                   onClick={handleMonitorActivity}
                 >
@@ -706,7 +706,7 @@ export default function CRMSalesPipelinePage() {
                     {formatCurrency(leads.filter(l => l.expected_value > 100000).reduce((sum, l) => sum + l.expected_value, 0))}
                   </Badge>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-green-600" />
@@ -721,7 +721,7 @@ export default function CRMSalesPipelinePage() {
                     {stats.conversion_rate.toFixed(1)}%
                   </Badge>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <Clock className="w-5 h-5 text-orange-600" />
@@ -734,7 +734,7 @@ export default function CRMSalesPipelinePage() {
                     Fast
                   </Badge>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <Shield className="w-5 h-5 text-purple-600" />

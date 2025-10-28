@@ -54,20 +54,20 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
       try {
         setLoading(true);
         setError(null);
-        
-        console.log('Fetching tenant details for ID:', tenantId);
+
+
         const response = await apiService.getTenant(tenantId);
-        console.log('Tenant API Response:', response);
-        
+
+
         if (response.success && response.data) {
           setTenant(response.data);
           setEditData(response.data);
         } else {
-          console.log('API response failed:', response);
+
           setError(`Failed to fetch tenant: ${response.message || 'Unknown error'}`);
         }
       } catch (err) {
-        console.error('Error fetching tenant:', err);
+
         setError(`Failed to load tenant data: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
         setLoading(false);
@@ -79,21 +79,21 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
 
   const handleSave = async () => {
     if (!tenant) return;
-    
+
     try {
-      console.log('Saving tenant data:', editData);
+
       const response = await apiService.updateTenant(tenantId, editData);
-      
+
       if (response.success) {
         setTenant(response.data);
         setIsEditing(false);
-        console.log('Tenant updated successfully');
+
       } else {
-        console.error('Failed to update tenant:', response.message);
+
         setError(`Failed to update tenant: ${response.message}`);
       }
     } catch (err) {
-      console.error('Error updating tenant:', err);
+
       setError(`Failed to update tenant: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
@@ -136,8 +136,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <p className="text-red-600 mb-2">Error loading tenant</p>
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button 
-              onClick={() => window.location.reload()} 
+            <Button
+              onClick={() => window.location.reload()}
               className="mt-4"
               variant="outline"
             >
@@ -206,7 +206,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                   <Building className="h-5 w-5 mr-2" />
                   Business Information
                 </h3>
-                
+
                 <div className="space-y-3">
                   <div>
                     <Label className="text-sm text-text-secondary">Business Type</Label>
@@ -253,7 +253,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
                   <Mail className="h-5 w-5 mr-2" />
                   Contact Information
                 </h3>
-                
+
                 <div className="space-y-3">
                   <div>
                     <Label className="text-sm text-text-secondary">Email</Label>
@@ -405,5 +405,4 @@ export default function TenantDetailPage({ params }: { params: Promise<{ tenantI
     </div>
   );
 }
- 
- 
+

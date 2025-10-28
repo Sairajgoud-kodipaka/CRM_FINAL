@@ -1,9 +1,9 @@
 /**
  * Business Admin Dashboard Component
- * 
+ *
  * Comprehensive business overview for jewellery business owners.
  * Features business analytics, store management, e-commerce metrics, and team performance.
- * 
+ *
  * Key Features:
  * - Business-wide revenue and sales analytics
  * - Multi-store performance comparison
@@ -17,16 +17,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  DashboardLayout, 
+import {
+  DashboardLayout,
   CardContainer,
 } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
+import {
   Building2,
-  Users, 
+  Users,
   ShoppingBag,
   TrendingUp,
   Store,
@@ -115,7 +115,7 @@ export function BusinessAdminDashboard() {
           setError('Failed to load business data');
         }
       } catch (err) {
-        console.error('Error fetching business data:', err);
+
         setError('Failed to load business data');
       } finally {
         setLoading(false);
@@ -287,7 +287,7 @@ export function BusinessAdminDashboard() {
               Manage Stores
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             {businessData.store_performance.map((store) => (
               <div key={store.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
@@ -327,7 +327,7 @@ export function BusinessAdminDashboard() {
               View All
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             {businessData.team_performance.slice(0, 5).map((member) => (
               <div key={member.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
@@ -369,7 +369,7 @@ export function BusinessAdminDashboard() {
               Manage
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Total Products</span>
@@ -398,7 +398,7 @@ export function BusinessAdminDashboard() {
               View Store
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Orders</span>
@@ -431,7 +431,7 @@ export function BusinessAdminDashboard() {
               View Details
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Retention Rate</span>

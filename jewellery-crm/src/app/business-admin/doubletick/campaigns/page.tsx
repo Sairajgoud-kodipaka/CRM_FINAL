@@ -12,14 +12,14 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { 
-  Send, 
-  Plus, 
-  Save, 
-  Play, 
-  Pause, 
-  Trash2, 
-  Users, 
+import {
+  Send,
+  Plus,
+  Save,
+  Play,
+  Pause,
+  Trash2,
+  Users,
   BarChart3,
   Calendar as CalendarIcon,
   Target,
@@ -142,13 +142,13 @@ export default function CampaignManagement() {
   };
 
   const handleStartCampaign = (campaignId: string) => {
-    setCampaigns(campaigns.map(c => 
+    setCampaigns(campaigns.map(c =>
       c.id === campaignId ? { ...c, status: 'active' } : c
     ));
   };
 
   const handlePauseCampaign = (campaignId: string) => {
-    setCampaigns(campaigns.map(c => 
+    setCampaigns(campaigns.map(c =>
       c.id === campaignId ? { ...c, status: 'paused' } : c
     ));
   };
@@ -533,8 +533,8 @@ export default function CampaignManagement() {
                               <span className="text-lg font-bold text-green-600">{selectedCampaign.delivery_rate}%</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-green-600 h-2 rounded-full" 
+                              <div
+                                className="bg-green-600 h-2 rounded-full"
                                 style={{ width: `${selectedCampaign.delivery_rate}%` }}
                               ></div>
                             </div>
@@ -545,8 +545,8 @@ export default function CampaignManagement() {
                               <span className="text-lg font-bold text-blue-600">{selectedCampaign.read_rate}%</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full" 
+                              <div
+                                className="bg-blue-600 h-2 rounded-full"
                                 style={{ width: `${selectedCampaign.read_rate}%` }}
                               ></div>
                             </div>
@@ -557,8 +557,8 @@ export default function CampaignManagement() {
                               <span className="text-lg font-bold text-purple-600">{selectedCampaign.reply_rate}%</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-purple-600 h-2 rounded-full" 
+                              <div
+                                className="bg-purple-600 h-2 rounded-full"
                                 style={{ width: `${selectedCampaign.reply_rate}%` }}
                               ></div>
                             </div>

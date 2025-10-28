@@ -61,27 +61,23 @@ export default function ManagerAnalyticsPage() {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('Fetching analytics data...');
-      console.log('API endpoint: /analytics/dashboard/');
-      
+
+
+
       // Get date range for filtering
       const startDate = dateRange?.from || new Date();
       const endDate = dateRange?.to || new Date();
-      
+
       const response = await apiService.getAnalytics({
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString()
       });
-      console.log('Analytics response:', response);
-      console.log('Response success:', response.success);
-      console.log('Response data:', response.data);
-      console.log('Response message:', response.message);
-      
+
+
       if (response.success && response.data) {
         const data = response.data;
-        console.log('Analytics data:', data);
-        
+
+
         setStats({
           total_customers: data.total_customers || 0,
           total_sales: data.total_sales || 0,
@@ -92,17 +88,16 @@ export default function ManagerAnalyticsPage() {
           products_change: data.products_change || '+0%',
           revenue_change: data.revenue_change || '+0%',
         });
-        
+
         setRecentActivity(data.recent_activities || []);
-        
+
         toast({
           title: "Analytics Updated",
           description: "Successfully fetched latest analytics data",
           variant: "default",
         });
       } else {
-        console.error('Analytics API error:', response.message);
-        console.error('Response details:', response);
+
         setError(response.message || 'Failed to fetch analytics data');
         toast({
           title: "Error",
@@ -112,12 +107,7 @@ export default function ManagerAnalyticsPage() {
       }
     } catch (error: Error | unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch analytics data';
-      console.error('Error fetching analytics data:', error);
-      console.error('Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: errorMessage,
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      });
+
       setError('Failed to fetch analytics data. Please try again.');
       toast({
         title: "Error",
@@ -172,7 +162,7 @@ export default function ManagerAnalyticsPage() {
           <h1 className="text-2xl font-semibold text-text-primary">Analytics</h1>
           <p className="text-text-secondary mt-1">Track your store's performance and key metrics</p>
         </div>
-        
+
         <Card className="p-8 text-center">
           <div className="text-red-500 mb-4">
             <Activity className="w-16 h-16 mx-auto" />
@@ -221,7 +211,7 @@ export default function ManagerAnalyticsPage() {
           </button>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="flex flex-row items-center gap-4 p-5">
           <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mr-2">
@@ -236,7 +226,7 @@ export default function ManagerAnalyticsPage() {
             {formatPercentage(stats.revenue_change)}
           </div>
         </Card>
-        
+
         <Card className="flex flex-row items-center gap-4 p-5">
           <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mr-2">
             <BarChart2 className="w-6 h-6 text-blue-600" />
@@ -250,7 +240,7 @@ export default function ManagerAnalyticsPage() {
             {formatPercentage(stats.sales_change)}
           </div>
         </Card>
-        
+
         <Card className="flex flex-row items-center gap-4 p-5">
           <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-full mr-2">
             <Users className="w-6 h-6 text-purple-600" />
@@ -264,7 +254,7 @@ export default function ManagerAnalyticsPage() {
             {formatPercentage(stats.customers_change)}
           </div>
         </Card>
-        
+
         <Card className="flex flex-row items-center gap-4 p-5">
           <div className="flex items-center justify-center w-12 h-12 bg-orange-100 rounded-full mr-2">
             <Percent className="w-6 h-6 text-orange-600" />
@@ -279,7 +269,7 @@ export default function ManagerAnalyticsPage() {
           </div>
         </Card>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="flex flex-col gap-2 p-6 items-center justify-center min-h-[220px]">
           <BarChart2 className="w-12 h-12 text-blue-400 mb-2" />
@@ -296,7 +286,7 @@ export default function ManagerAnalyticsPage() {
           </div>
         </Card>
       </div>
-      
+
       <Card className="p-6">
         <div className="font-semibold text-text-primary mb-4">Recent Activity</div>
         {recentActivity.length === 0 ? (
@@ -320,14 +310,14 @@ export default function ManagerAnalyticsPage() {
           </ul>
         )}
       </Card>
-      
+
       {/* Data Scope Information */}
       {stats.scope === 'store' && (
         <Card className="p-4 border-blue-200 bg-blue-50">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
             <span className="text-sm text-blue-800">
-              Showing analytics data for <strong>{stats.store_info?.name || 'your store'}</strong> only. 
+              Showing analytics data for <strong>{stats.store_info?.name || 'your store'}</strong> only.
               This includes customers, sales, and products specific to your store location.
             </span>
           </div>

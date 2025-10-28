@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
+import {
   ArrowLeft,
   Phone,
   Calendar,
@@ -91,7 +91,7 @@ function StatusUpdateModal({ isOpen, onClose, currentStatus, newStatus, onConfir
         <DialogHeader>
           <DialogTitle>Update Lead Status</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded ${currentStatusConfig?.bgColor}`}>
@@ -143,7 +143,7 @@ function StatusUpdateModal({ isOpen, onClose, currentStatus, newStatus, onConfir
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleConfirm}
             disabled={!note.trim()}
           >
@@ -157,7 +157,7 @@ function StatusUpdateModal({ isOpen, onClose, currentStatus, newStatus, onConfir
 
 function NoteHistoryModal({ isOpen, onClose, statusId, statusLabel, notes }: NoteHistoryModalProps) {
   const statusConfig = getStatusById(statusId);
-  
+
   const getStatusIcon = (statusId: string) => {
     const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
       'assigned': User,
@@ -166,11 +166,11 @@ function NoteHistoryModal({ isOpen, onClose, statusId, statusLabel, notes }: Not
       'follow_up': Calendar,
       'unreachable': PhoneOff
     };
-    
+
     const Icon = iconMap[statusId] || Clock;
     return <Icon className="w-4 h-4" />;
   };
-  
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -180,7 +180,7 @@ function NoteHistoryModal({ isOpen, onClose, statusId, statusLabel, notes }: Not
             <span>Notes for {statusLabel}</span>
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {notes.length > 0 ? (
             <div className="space-y-3">
@@ -225,7 +225,7 @@ function CompleteNotesLogModal({ isOpen, onClose, assignment }: CompleteNotesLog
       'follow_up': Calendar,
       'unreachable': PhoneOff
     };
-    
+
     const Icon = iconMap[statusId] || Clock;
     return <Icon className="w-4 h-4" />;
   };
@@ -242,9 +242,9 @@ function CompleteNotesLogModal({ isOpen, onClose, assignment }: CompleteNotesLog
 
   const getAllNotes = () => {
     if (!assignment) return [];
-    
+
     const notes = [];
-    
+
     // Add assignment creation note
     notes.push({
       id: 'assignment-created',
@@ -253,7 +253,7 @@ function CompleteNotesLogModal({ isOpen, onClose, assignment }: CompleteNotesLog
       status: 'assigned',
       type: 'system'
     });
-    
+
     // Add current assignment notes
     if (assignment.notes) {
       notes.push({
@@ -264,7 +264,7 @@ function CompleteNotesLogModal({ isOpen, onClose, assignment }: CompleteNotesLog
         type: 'manual'
       });
     }
-    
+
     // Add call logs as notes (if they exist)
     if ((assignment as any).call_logs) {
       (assignment as any).call_logs.forEach((callLog: any, index: number) => {
@@ -278,7 +278,7 @@ function CompleteNotesLogModal({ isOpen, onClose, assignment }: CompleteNotesLog
         });
       });
     }
-    
+
     // Sort by timestamp (newest first)
     return notes.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   };
@@ -294,7 +294,7 @@ function CompleteNotesLogModal({ isOpen, onClose, assignment }: CompleteNotesLog
             Complete Notes Log - {assignment?.customer_visit_details.customer_name}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {allNotes.length > 0 ? (
             <div className="space-y-3">
@@ -350,7 +350,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
     isOpen: boolean;
     newStatus: string;
   }>({ isOpen: false, newStatus: '' });
-  
+
   const [noteHistoryModal, setNoteHistoryModal] = useState<{
     isOpen: boolean;
     statusId: string;
@@ -362,7 +362,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
       status: string;
     }>;
   }>({ isOpen: false, statusId: '', statusLabel: '', notes: [] });
-  
+
   const [completeNotesLogModal, setCompleteNotesLogModal] = useState(false);
   const [addNoteModal, setAddNoteModal] = useState(false);
 
@@ -370,7 +370,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
   const mapOldStatusToNew = (oldStatus: string): string => {
     const statusMap: Record<string, string> = {
       'assigned': 'new_uncontacted',
-      'in_progress': 'attempted_contact', 
+      'in_progress': 'attempted_contact',
       'completed': 'contacted_in_progress',
       'follow_up': 'follow_up_scheduled',
       'unreachable': 'not_interested'
@@ -389,14 +389,14 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
       setError(null);
       const assignments = await telecallingLegacyApiService.getAssignments();
       const foundAssignment = assignments.find(a => a.id.toString() === assignmentId);
-      
+
       if (foundAssignment) {
         setAssignment(foundAssignment);
       } else {
         setError('Assignment not found');
       }
     } catch (err) {
-      console.error('Error fetching assignment:', err);
+
       setError('Failed to fetch assignment details');
     } finally {
       setLoading(false);
@@ -409,14 +409,14 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
 
   const handleStatusClick = (statusId: string) => {
     if (!assignment) return;
-    
+
     const statusConfig = getStatusById(statusId);
     if (!statusConfig) return;
-    
+
     const currentStatus = getCurrentStatus();
     const isCurrentStatus = currentStatus === statusId;
     const canTransition = canTransitionTo(currentStatus, statusId);
-    
+
     if (isCurrentStatus) {
       // For current status, open add note modal directly
       setAddNoteModal(true);
@@ -442,7 +442,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
         call_outcome: 'No answer'
       }
     ];
-    
+
     setNoteHistoryModal({
       isOpen: true,
       statusId,
@@ -454,7 +454,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
   // Mock status history data for hover notes
   const getMockStatusHistory = () => {
     if (!assignment) return [];
-    
+
     return [
       {
         id: '1',
@@ -479,52 +479,41 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
 
   const handleStatusConfirm = async (note: string) => {
     if (!assignment) return;
-    
+
     try {
       // Update assignment status (this would be an API call in real implementation)
-      console.log('Updating status:', {
-        assignmentId: assignment.id,
-        from: assignment.status,
-        to: statusUpdateModal.newStatus,
-        note
-      });
-      
+
+
       // For now, just update local state
       setAssignment(prev => prev ? {
         ...prev,
         status: statusUpdateModal.newStatus as any,
         notes: note
       } : null);
-      
+
       setStatusUpdateModal({ isOpen: false, newStatus: '' });
     } catch (err) {
-      console.error('Error updating status:', err);
+
     }
   };
 
   const handleAddNote = async (note: string, callDuration?: number, callOutcome?: string) => {
     if (!assignment) return;
-    
+
     try {
       // Add note to current status (this would be an API call in real implementation)
-      console.log('Adding note to current status:', {
-        assignmentId: assignment.id,
-        status: assignment.status,
-        note,
-        callDuration,
-        callOutcome
-      });
-      
+
+
       // For now, just update local state
       setAssignment(prev => prev ? {
         ...prev,
         notes: prev.notes ? `${prev.notes}\n\n${note}` : note,
         updated_at: new Date().toISOString()
       } : null);
-      
+
       setAddNoteModal(false);
     } catch (err) {
-      console.error('Error adding note:', err);
+
     }
   };
 
@@ -536,7 +525,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
       'follow_up': Calendar,
       'unreachable': PhoneOff
     };
-    
+
     const Icon = iconMap[statusId] || Clock;
     return <Icon className="w-4 h-4" />;
   };
@@ -586,7 +575,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
           <ArrowLeft className="w-4 h-4" />
           Back
         </Button>
-        
+
         <div className="flex-1">
           <h1 className="text-2xl font-semibold text-text-primary">
             {customer.customer_name}
@@ -595,7 +584,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
             Lead Pipeline • {customer.customer_phone}
           </p>
         </div>
-        
+
          <div className="flex gap-3">
            <Button
              variant="outline"
@@ -618,24 +607,24 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
             <Phone className="w-4 h-4" />
             Call Now
         </Button>
-             
+
              <Button
                variant="outline"
                onClick={() => {
                  // Quick SMS functionality
-                 console.log('Quick SMS to:', customer.customer_name);
+
                }}
                className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400 font-medium"
              >
                <MessageSquare className="w-4 h-4" />
                SMS
              </Button>
-             
+
              <Button
                variant="outline"
                onClick={() => {
                  // Quick voice message
-                 console.log('Voice message to:', customer.customer_name);
+
                }}
                className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400 font-medium"
              >
@@ -669,7 +658,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
                 )}
               </div>
             </div>
-            
+
             <div>
               <h3 className="font-medium text-gray-900 mb-3">Lead Details</h3>
               <div className="space-y-2">
@@ -693,7 +682,7 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
                 </div>
               </div>
             </div>
-            
+
             <div>
               <h3 className="font-medium text-gray-900 mb-3">Interests</h3>
               <div className="flex flex-wrap gap-1">
@@ -725,12 +714,12 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
                   {lane.statuses.map((statusId) => {
                     const statusConfig = getStatusById(statusId);
                     if (!statusConfig) return null;
-                    
+
                     const currentStatus = getCurrentStatus();
                     const isCurrentStatus = currentStatus === statusId;
                     const canTransition = canTransitionTo(currentStatus, statusId);
                     const statusHistory = getMockStatusHistory();
-                    
+
                     return (
                       <PipelineStatusWithNotes
                         key={statusId}
@@ -805,8 +794,8 @@ export function LeadPipelinePage({ assignmentId }: LeadPipelinePageProps) {
                 <MessageCircle className="w-4 h-4 text-blue-600" />
               </div>
               <div className="flex-1">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setAddNoteModal(true)}
                   className="w-full justify-start"

@@ -58,24 +58,24 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
     try {
       setLoadingMembers(true);
       const response = await apiService.listTeamMembers();
-      console.log('Team members API response:', response);
-      
+
+
       if (response.success) {
         // Handle different possible response formats
         const teamMembersData = response.data;
-        
+
         // Check if data is directly an array
         if (Array.isArray(teamMembersData)) {
           setTeamMembers(teamMembersData);
-        } 
+        }
         // Check if data has a results property (paginated response)
         else if (teamMembersData && typeof teamMembersData === 'object' && 'results' in teamMembersData) {
           const results = (teamMembersData as any).results;
           if (Array.isArray(results)) {
-            console.log('Using paginated results:', results);
+
             setTeamMembers(results);
           } else {
-            console.error('Team members results is not an array:', results);
+
             setTeamMembers([]);
           }
         }
@@ -83,26 +83,24 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
         else if (teamMembersData && typeof teamMembersData === 'object' && 'team_members' in teamMembersData) {
           const teamMembers = (teamMembersData as any).team_members;
           if (Array.isArray(teamMembers)) {
-            console.log('Using team_members property:', teamMembers);
+
             setTeamMembers(teamMembers);
           } else {
-            console.error('Team members from team_members property is not an array:', teamMembers);
+
             setTeamMembers([]);
           }
         }
         // If none of the above, log the actual structure and set empty array
         else {
-          console.error('Team members data is not in expected format:', teamMembersData);
-          console.log('Data type:', typeof teamMembersData);
-          console.log('Data keys:', teamMembersData && typeof teamMembersData === 'object' ? Object.keys(teamMembersData) : 'N/A');
+
           setTeamMembers([]);
         }
       } else {
-        console.error('Failed to fetch team members:', response.message);
+
         setTeamMembers([]);
       }
     } catch (error) {
-      console.error('Failed to fetch team members:', error);
+
       setTeamMembers([]);
     } finally {
       setLoadingMembers(false);
@@ -120,25 +118,25 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
       setLoading(false);
       return;
     }
-    
+
     if (!formData.code.trim()) {
       setError('Store code is required');
       setLoading(false);
       return;
     }
-    
+
     if (!formData.address.trim()) {
       setError('Store address is required');
       setLoading(false);
       return;
     }
-    
+
     if (!formData.city.trim()) {
       setError('Store city is required');
       setLoading(false);
       return;
     }
-    
+
     if (!formData.state.trim()) {
       setError('Store state is required');
       setLoading(false);
@@ -158,8 +156,8 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
         timezone: 'Asia/Kolkata', // Default timezone for India
       };
 
-      console.log('Submitting store data:', cleanFormData);
-      
+
+
       const response = await apiService.createStore(cleanFormData);
       if (response.success) {
         onSuccess();
@@ -178,8 +176,8 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
         setError(response.message || 'Failed to create store');
       }
     } catch (error: any) {
-      console.error('Failed to create store:', error);
-      
+
+
       // Enhanced error handling
       if (error.status === 405) {
         setError('Store creation method not allowed. Please contact support.');
@@ -350,4 +348,4 @@ export default function AddStoreModal({ isOpen, onClose, onSuccess }: AddStoreMo
       </div>
     </div>
   );
-} 
+}
