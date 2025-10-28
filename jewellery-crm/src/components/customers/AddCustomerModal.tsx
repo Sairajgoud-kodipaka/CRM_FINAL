@@ -405,16 +405,13 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     }
   };
 
-  // Validate form before submission - relax to only name and phone
+  // Validate form before submission - require at least name OR phone
   const validateForm = (): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
-    if (!formData.fullName.trim()) {
-      errors.push("Full Name is required");
-    }
-
-    if (!formData.phone.trim()) {
-      errors.push("Phone Number is required");
+    // Require at least name OR phone
+    if (!formData.fullName.trim() && !formData.phone.trim()) {
+      errors.push("At least Full Name or Phone Number is required");
     }
 
     return {
@@ -1127,7 +1124,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={loading || !formData.fullName || !formData.phone}
+            disabled={loading || (!formData.fullName && !formData.phone)}
             className="bg-blue-600 hover:bg-blue-700"
           >
             {loading ? (

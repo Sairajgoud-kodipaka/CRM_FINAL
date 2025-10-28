@@ -25,7 +25,7 @@ class ClientSerializer(serializers.ModelSerializer):
     # Explicitly define all fields except tenant
     first_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     last_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    email = serializers.EmailField(required=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     phone = serializers.CharField(
         required=False, 
         allow_blank=True, 
@@ -1084,13 +1084,12 @@ class ClientSerializer(serializers.ModelSerializer):
             # This is a create operation
             errors = {}
             
-            # Check if we have required fields
-            if not data.get('email'):
-                errors['email'] = "Email is required"
+            # Check if we have at least name OR phone (flexible validation)
+            has_name = data.get('name') or data.get('first_name') or data.get('last_name') or data.get('full_name')
+            has_phone = data.get('phone')
             
-            # Check if we have name or first_name/last_name
-            if not data.get('name') and not (data.get('first_name') or data.get('last_name')):
-                errors['name'] = "Name is required"
+            if not has_name and not has_phone:
+                errors['name'] = "At least Name or Phone is required"
             
             if errors:
                 print(f"=== VALIDATION ERRORS: {errors} ===")

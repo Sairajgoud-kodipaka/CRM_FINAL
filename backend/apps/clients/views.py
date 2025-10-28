@@ -1073,14 +1073,17 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             with transaction.atomic():
                 for row_num, customer_data in enumerate(json_data, start=1):
                     try:
-                        # Clean and validate data
+                        # Clean and validate data - email is now optional
                         email = customer_data.get('email', '').strip()
-                        if not email:
-                            errors.append(f'Row {row_num}: Email is required')
+                        phone = customer_data.get('phone', '').strip()
+                        
+                        # Require either email or phone for identification
+                        if not email and not phone:
+                            errors.append(f'Row {row_num}: Either email or phone is required')
                             continue
                         
-                        # Check if customer already exists
-                        if Client.objects.filter(email=email, tenant=request.user.tenant, is_deleted=False).exists():
+                        # Check if customer already exists (by email if provided)
+                        if email and Client.objects.filter(email=email, tenant=request.user.tenant, is_deleted=False).exists():
                             errors.append(f'Row {row_num}: Customer with email {email} already exists')
                             continue
                         
