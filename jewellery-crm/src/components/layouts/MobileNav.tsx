@@ -276,11 +276,11 @@ export function MobileNav({ className }: MobileNavProps) {
   return (
     <nav className={cn(
       'fixed bottom-0 left-0 right-0 z-50',
-      'bg-background border-t border-border',
-      'safe-area-bottom', // Handle devices with home indicator
-      'shadow-lg', // Add shadow to make it more visible
-      'transition-transform duration-300 ease-in-out', // Smooth animation
-      isAnyModalOpen ? 'translate-y-full' : 'translate-y-0', // Hide/show animation
+      'bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border',
+      'safe-area-bottom',
+      'shadow-lg',
+      'transition-transform duration-300 ease-in-out',
+      isAnyModalOpen ? 'translate-y-full' : 'translate-y-0',
       className
     )}>
       <div className="flex items-center justify-around h-16 px-2">

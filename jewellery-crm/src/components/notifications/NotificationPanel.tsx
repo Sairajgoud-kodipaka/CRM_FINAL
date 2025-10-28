@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { X, Check, Trash2, Settings, RefreshCw, Calendar, TrendingUp, Package, AlertTriangle, MessageSquare, Bell, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import { Notification, NotificationType, NotificationPriority } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { notificationSound } from '@/lib/notification-sound';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getNotificationRoute } from '@/lib/notification-router';
 
 interface NotificationPanelProps {
   onClose: () => void;
@@ -68,6 +70,7 @@ const getPriorityText = (priority: NotificationPriority) => {
 export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose }) => {
   const { state, actions } = useNotifications();
   const { user, isAuthenticated, isHydrated } = useAuth();
+  const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0.5);
@@ -226,9 +229,15 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
       await actions.markAsRead(notification.id);
     }
 
-    // Navigate to action URL if available
-    if (notification.actionUrl) {
-      window.location.href = notification.actionUrl;
+    // Get route using notification router
+    const route = getNotificationRoute(notification, user?.role || '');
+    
+    // Close panel first
+    onClose();
+    
+    // Navigate to the route
+    if (route && route !== '/') {
+      router.push(route);
     }
   };
 

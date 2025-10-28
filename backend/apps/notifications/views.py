@@ -4,8 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
 from django.db.models import Q
+from django.conf import settings
 from apps.users.middleware import ScopedVisibilityMiddleware
-from .models import Notification, NotificationSettings
+from .models import Notification, NotificationSettings, PushSubscription
 from .serializers import (
     NotificationSerializer, NotificationSettingsSerializer,
     NotificationCreateSerializer, NotificationUpdateSerializer
@@ -87,6 +88,51 @@ class NotificationViewSet(viewsets.ModelViewSet):
             'auth_header': request.headers.get('Authorization', 'No auth header'),
             'total_notifications': Notification.objects.count()
         })
+    
+    @action(detail=False, methods=['post'])
+    def subscribe_push(self, request):
+        """Subscribe to push notifications"""
+        subscription_info = request.data.get('subscription')
+        
+        if not subscription_info:
+            return Response({'error': 'Subscription info required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            PushSubscription.objects.update_or_create(
+                user=request.user,
+                endpoint=subscription_info['endpoint'],
+                defaults={
+                    'tenant': request.user.tenant,
+                    'p256dh': subscription_info['keys']['p256dh'],
+                    'auth': subscription_info['keys']['auth']
+                }
+            )
+            return Response({'status': 'subscribed'})
+        except KeyError as e:
+            return Response({'error': f'Invalid subscription format: {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'])
+    def unsubscribe_push(self, request):
+        """Unsubscribe from push notifications"""
+        endpoint = request.data.get('endpoint')
+        if not endpoint:
+            return Response({'error': 'Endpoint required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
+        return Response({'status': 'unsubscribed'})
+    
+    @action(detail=False, methods=['get'])
+    def vapid_public_key(self, request):
+        """Get VAPID public key for push subscription"""
+        public_key = getattr(settings, 'VAPID_PUBLIC_KEY', None)
+        
+        if not public_key:
+            return Response(
+                {'error': 'VAPID public key not configured'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        
+        return Response({'public_key': public_key})
 
 
 class NotificationSettingsViewSet(viewsets.ModelViewSet):

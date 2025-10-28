@@ -54,6 +54,9 @@ class Notification(models.Model):
     action_text = models.CharField(max_length=100, blank=True, null=True)
     is_persistent = models.BooleanField(default=False)
     
+    # Metadata for deep linking (e.g., {"customer_id": 123, "appointment_id": 456})
+    metadata = models.JSONField(default=dict, blank=True)
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
@@ -121,4 +124,24 @@ class NotificationSettings(models.Model):
         verbose_name_plural = 'Notification Settings'
     
     def __str__(self):
-        return f"Settings for {self.user.username}" 
+        return f"Settings for {self.user.username}"
+
+
+class PushSubscription(models.Model):
+    """Store Web Push subscriptions for users"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_subscriptions')
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    endpoint = models.CharField(max_length=500, unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['user', 'endpoint']
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['endpoint']),
+        ]
+    
+    def __str__(self):
+        return f"Push subscription for {self.user.username}" 

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Phone, Mail, MapPin, Calendar, User, DollarSign, Target, Edit } from 'lucide-react';
+import { Search, Phone, Mail, MapPin, Calendar, User, DollarSign, Target, Edit, CheckCircle2, XCircle } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -95,6 +95,7 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
   const [selectedCustomerForTransition, setSelectedCustomerForTransition] = useState<CustomerInStage | null>(null);
   const [newStage, setNewStage] = useState<string>('');
   const [transitionLoading, setTransitionLoading] = useState(false);
+  const [busyCustomerIds, setBusyCustomerIds] = useState<Set<number>>(new Set());
 
   const pipelineStages = [
     { name: 'Exhibition', value: 'exhibition', color: 'bg-blue-100 text-blue-800 border-blue-200' },
@@ -288,6 +289,66 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
     } finally {
       setTransitionLoading(false);
     }
+  };
+
+  const withCustomerBusy = async (customerId: number, fn: () => Promise<void>) => {
+    setBusyCustomerIds(prev => new Set(prev).add(customerId));
+    try {
+      await fn();
+    } finally {
+      setBusyCustomerIds(prev => {
+        const next = new Set(prev);
+        next.delete(customerId);
+        return next;
+      });
+    }
+  };
+
+  const quickUpdatePipelineStage = async (customer: CustomerInStage, stage: string, lostReason?: string) => {
+    await withCustomerBusy(customer.id, async () => {
+      try {
+        const response = await apiService.getSalesPipeline({ stage: customer.pipeline_stage });
+        if (response.success) {
+          const dataArray = Array.isArray(response.data) ? response.data : (response as any).data?.results || (response as any).data?.data || [];
+          const pipeline = dataArray.find((p: any) => p.client?.id === customer.id);
+          if (pipeline) {
+            const updateResp = await apiService.updatePipelineStage(pipeline.id.toString(), { stage });
+            if (updateResp.success) {
+              if (stage === 'closed_lost' && lostReason) {
+                try {
+                  await apiService.updatePipeline(pipeline.id.toString(), { notes: lostReason });
+                } catch {}
+              }
+              toast({
+                title: 'Success',
+                description: `${customer.full_name} marked as ${stage === 'closed_won' ? 'Bought' : 'Lost'}`,
+                variant: 'success'
+              });
+              setCustomersInStage(prev => prev.filter(c => c.id !== customer.id));
+              setPipelineStats(prev => prev.map(s => s.value === customer.pipeline_stage ? { ...s, count: Math.max(0, s.count - 1) } : s));
+              setTimeout(() => fetchPipelineStats(), 800);
+            } else {
+              toast({ title: 'Error', description: 'Failed to update stage', variant: 'destructive' });
+            }
+          } else {
+            toast({ title: 'Error', description: 'Pipeline record not found for customer', variant: 'destructive' });
+          }
+        } else {
+          toast({ title: 'Error', description: 'Unable to fetch pipeline data', variant: 'destructive' });
+        }
+      } catch (e) {
+        toast({ title: 'Error', description: 'An error occurred while updating', variant: 'destructive' });
+      }
+    });
+  };
+
+  const quickMarkBought = async (customer: CustomerInStage) => {
+    await quickUpdatePipelineStage(customer, 'closed_won');
+  };
+
+  const quickMarkLost = async (customer: CustomerInStage) => {
+    const reason = window.prompt('Reason for no conversion? (Optional)');
+    await quickUpdatePipelineStage(customer, 'closed_lost', reason || undefined);
   };
 
   const handleSaveCustomer = async (updatedCustomer: CustomerInStage) => {
@@ -503,7 +564,7 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
                 </div>
               </div>
             ) : (
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-hidden overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50">
@@ -614,6 +675,26 @@ export function PipelineStageStatsSales({ className }: PipelineStageStatsProps) 
                               title="Move to Different Stage"
                             >
                               <Target className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => quickMarkBought(customer)}
+                              disabled={busyCustomerIds.has(customer.id)}
+                              className="h-8 px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                              title="Mark as Bought (Closed Won)"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => quickMarkLost(customer)}
+                              disabled={busyCustomerIds.has(customer.id)}
+                              className="h-8 px-2"
+                              title="Mark as Lost (Closed Lost)"
+                            >
+                              <XCircle className="w-3 h-3" />
                             </Button>
                           </div>
                         </TableCell>

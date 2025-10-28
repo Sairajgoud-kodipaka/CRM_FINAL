@@ -2217,18 +2217,24 @@ class ApiService {
   }
 
   // Subscribe to push notifications
-  async subscribeToPushNotifications(subscriptionData: any): Promise<ApiResponse<any>> {
-    return this.request('/notifications/push/subscribe/', {
+  async subscribeToPushNotifications(subscription: any): Promise<ApiResponse<any>> {
+    return this.request('/notifications/subscribe_push/', {
       method: 'POST',
-      body: JSON.stringify(subscriptionData),
+      body: JSON.stringify({ subscription }),
     });
   }
 
   // Unsubscribe from push notifications
-  async unsubscribeFromPushNotifications(): Promise<ApiResponse<any>> {
-    return this.request('/notifications/push/unsubscribe/', {
+  async unsubscribeFromPushNotifications(endpoint: string): Promise<ApiResponse<any>> {
+    return this.request('/notifications/unsubscribe_push/', {
       method: 'POST',
+      body: JSON.stringify({ endpoint }),
     });
+  }
+
+  // Get VAPID public key
+  async getVapidPublicKey(): Promise<ApiResponse<{ public_key: string }>> {
+    return this.request('/notifications/vapid_public_key/');
   }
 
   // ================================

@@ -774,9 +774,12 @@ export function Sidebar({ className, role, isOpen: externalIsOpen, onToggle }: S
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-1">
-        {navigationItems.map((item) => (
-          <NavItemComponent key={item.href} item={item} />
-        ))}
+        {navigationItems
+          // Hide Purchases and Analytics from sidebar across roles as per client request
+          .filter((item) => item.title !== 'Purchases' && item.title !== 'Analytics')
+          .map((item) => (
+            <NavItemComponent key={item.href} item={item} />
+          ))}
       </nav>
 
       {/* User Profile Section */}

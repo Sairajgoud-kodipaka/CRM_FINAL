@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiService, Client } from "@/lib/api-service";
 import { useAuth } from "@/hooks/useAuth";
 import { useCustomerRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
-import { Calendar, Phone, Mail, MapPin, User, Clock, Edit, Trash2, X as XIcon, ArrowUpRight } from "lucide-react";
+import { Calendar, Phone, Mail, MapPin, User, Clock, Edit, Trash2, X as XIcon, ArrowUpRight, CheckCircle2, XCircle } from "lucide-react";
 
 interface CustomerDetailModalProps {
   open: boolean;
@@ -159,6 +159,35 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
     }
   };
 
+  // Handle mark as Bought or Lost with optional reason
+  const markBought = async () => {
+    if (!customer) return;
+    try {
+      const response = await apiService.updateClient(customer.id.toString(), { status: 'closed_won' });
+      if (response.success) {
+        await fetchCustomerDetails();
+        alert('Marked as Bought successfully.');
+      }
+    } catch (e) {
+      alert('Failed to mark as Bought');
+    }
+  };
+
+  const markLost = async () => {
+    if (!customer) return;
+    const reason = window.prompt('Reason for no conversion? e.g., Wanted more variety/discount, bought from other store, etc.');
+    try {
+      const response = await apiService.updateClient(customer.id.toString(), { status: 'closed_lost', summary_notes: reason || customer.summary_notes });
+      if (response.success) {
+        // Optionally log a follow-up note via announcements/tasks if needed later
+        await fetchCustomerDetails();
+        alert('Marked as Lost successfully.');
+      }
+    } catch (e) {
+      alert('Failed to mark as Lost');
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onClose}>
@@ -241,6 +270,27 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
+              </Button>
+              {/* Bought / Lost quick actions */}
+              <Button
+                variant="default"
+                size="sm"
+                className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={markBought}
+                title="Mark as Bought (Closed Won)"
+              >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Bought
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2"
+                onClick={markLost}
+                title="Mark as Lost (Closed Lost)"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Lost
               </Button>
               <Button
                 variant="outline"

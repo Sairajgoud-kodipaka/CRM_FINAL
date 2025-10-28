@@ -5,6 +5,7 @@ import { Notification, NotificationType, NotificationPriority, NotificationStatu
 import { apiService } from '@/lib/api-service';
 import { useAuth } from './useAuth';
 import { notificationSound } from '@/lib/notification-sound';
+import { notificationWebSocket } from '@/services/notificationWebSocket';
 
 // ================================
 // NOTIFICATION CONTEXT TYPES
@@ -337,23 +338,59 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   }, [user, isAuthenticated, isHydrated, fetchNotifications, getSettings]);
 
-  // Set up real-time connection (WebSocket or polling)
+  // Set up real-time connection (WebSocket)
   useEffect(() => {
     if (!user || !isAuthenticated || !isHydrated) return;
 
-    // TODO: Implement WebSocket connection for real-time notifications
-    // For now, we'll use polling
-    const interval = setInterval(() => {
-      fetchNotifications();
-    }, 300000); // Poll every 5 minutes (300 seconds)
+    const token = localStorage.getItem('token');
+    if (!token) return;
 
-    dispatch({ type: 'SET_CONNECTION_STATUS', payload: true });
+    // Connect to WebSocket
+    notificationWebSocket.connect(token);
+
+    // Subscribe to new notifications
+    const unsubscribeNotification = notificationWebSocket.onNotification((notification) => {
+      dispatch({ type: 'ADD_NOTIFICATION', payload: notification });
+      
+      // Play sound for high/urgent priority notifications
+      if (notification.priority === 'urgent' || notification.priority === 'high') {
+        notificationSound.play();
+      }
+      
+      // Show browser notification for urgent items
+      if (notification.priority === 'urgent' && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(notification.title, {
+          body: notification.message,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: `notification-${notification.id}`
+        });
+      }
+    });
+
+    // Subscribe to notification batches
+    const unsubscribeBatch = notificationWebSocket.onNotificationBatch((notifications) => {
+      notifications.forEach((notification) => {
+        dispatch({ type: 'ADD_NOTIFICATION', payload: notification });
+      });
+    });
+
+    // Subscribe to notification read events
+    const unsubscribeRead = notificationWebSocket.onNotificationRead((notificationId) => {
+      dispatch({ type: 'MARK_AS_READ', payload: notificationId.toString() });
+    });
+
+    // Update connection status
+    dispatch({ type: 'SET_CONNECTION_STATUS', payload: notificationWebSocket.isConnected });
 
     return () => {
-      clearInterval(interval);
+      unsubscribeNotification();
+      unsubscribeBatch();
+      unsubscribeRead();
+      notificationWebSocket.disconnect();
       dispatch({ type: 'SET_CONNECTION_STATUS', payload: false });
     };
-  }, [user, isAuthenticated, isHydrated, fetchNotifications]);
+  }, [user, isAuthenticated, isHydrated]);
 
   const contextValue: NotificationContextType = {
     state,

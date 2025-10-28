@@ -16,7 +16,6 @@ import {
   INDIAN_STATES,
   INDIAN_CATCHMENT_AREAS,
   REASONS_FOR_VISIT,
-  CUSTOMER_STATUSES,
   LEAD_SOURCES,
   SAVING_SCHEMES,
   CUSTOMER_INTERESTS,
@@ -406,7 +405,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     }
   };
 
-  // Validate form before submission
+  // Validate form before submission - relax to only name and phone
   const validateForm = (): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
@@ -417,65 +416,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     if (!formData.phone.trim()) {
       errors.push("Phone Number is required");
     }
-
-    if (!formData.city) {
-      errors.push("City is required");
-    }
-
-    if (!formData.state) {
-      errors.push("State is required");
-    }
-
-    if (!formData.catchmentArea) {
-      errors.push("Catchment Area is required");
-    }
-
-    if (!formData.pincode) {
-      errors.push("Pincode is required");
-    }
-
-    // Sales person validation - required for all roles
-    if (!formData.salesPerson) {
-      errors.push("Sales Person is required");
-    }
-
-    if (!formData.reasonForVisit) {
-      errors.push("Reason for Visit is required");
-    }
-
-    if (!formData.customerStatus) {
-      errors.push("Customer Status is required");
-    }
-
-    if (!formData.leadSource) {
-      errors.push("Lead Source is required");
-    }
-
-    if (!formData.savingScheme) {
-      errors.push("Monthly Saving Scheme is required");
-    }
-
-    // Customer Interests validation removed - now handled by Product Interests structure
-
-    if (!formData.productType) {
-      errors.push("Product Type is required");
-    }
-
-    // Style and Material Type are optional
-
-    // Validate material-specific fields
-    if (formData.materialType) {
-      if (['GOLD JEWELLERY', 'SILVER JEWELLERY', 'PLATINUM JEWELLERY'].includes(formData.materialType)) {
-        if (!formData.materialWeight || formData.materialWeight <= 0) {
-          errors.push(`${formData.materialType} weight is required and must be greater than 0`);
-        }
-      } else {
-        if (!formData.materialValue || formData.materialValue <= 0) {
-          errors.push(`${formData.materialType} value is required and must be greater than 0`);
-        }
-      }
-    }
-
 
     return {
       isValid: errors.length === 0,
@@ -1411,24 +1351,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                  '👤 Available sales team'}
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Customer Status *</label>
-              <Select
-                value={formData.customerStatus}
-                onValueChange={(value) => handleInputChange('customerStatus', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Customer Status removed per client request */}
             <div>
               <label className="block text-sm font-medium mb-1">Reason for Visit *</label>
               <Select

@@ -49,7 +49,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
 
 
   return (
-    <div className={cn('h-screen bg-background overflow-hidden', className)}>
+    <div className={cn('min-h-screen h-dvh bg-background overflow-hidden', className)}>
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -58,8 +58,8 @@ export function AppLayout({ children, className }: AppLayoutProps) {
 
       {/* Main Content Area */}
       <div className={cn(
-        'transition-all duration-300 ease-in-out h-full flex flex-col',
-        'lg:ml-60' // Desktop: margin for fixed sidebar
+        'transition-all duration-300 ease-in-out min-h-screen flex flex-col',
+        'lg:ml-60'
       )}>
         {/* Header */}
         <Header
@@ -70,8 +70,8 @@ export function AppLayout({ children, className }: AppLayoutProps) {
         {/* Main Content */}
         <main className={cn(
           'flex-1 overflow-y-auto overflow-x-hidden',
-          'p-4 sm:p-6 pb-20 sm:pb-6', // Responsive padding with extra bottom padding for mobile nav
-          'scrollbar-hide' // Hide scrollbar using Tailwind utility
+          'p-3 sm:p-5 md:p-6 pb-20 sm:pb-6',
+          'scrollbar-hide'
         )}>
           {children}
         </main>

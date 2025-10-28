@@ -1,0 +1,87 @@
+<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- Premium gradient: Navy to Deep Blue -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </linearGradient>
+    <!-- Gold accent gradient -->
+    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    <!-- Diamond shine effect -->
+    <linearGradient id="diamondShine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#ffffff;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:0.8" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with subtle glow -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGradient)"/>
+  
+  <!-- Subtle inner glow border -->
+  <rect x="16" y="16" width="480" height="480" rx="80" fill="none" stroke="url(#goldAccent)" stroke-width="2" opacity="0.3"/>
+  
+  <!-- Main Diamond Icon - Centered and prominent -->
+  <g transform="translate(256, 180)">
+    <!-- Outer diamond ring (gold) -->
+    <path d="M 0 -70 L 50 -20 L 50 40 L 0 70 L -50 40 L -50 -20 Z" 
+          fill="url(#goldAccent)" 
+          stroke="#fbbf24" 
+          stroke-width="1.5"/>
+    
+    <!-- Inner diamond (shinier) -->
+    <path d="M 0 -45 L 32 -15 L 32 20 L 0 45 L -32 20 L -32 -15 Z" 
+          fill="url(#diamondShine)" 
+          stroke="#ffffff" 
+          stroke-width="1" 
+          opacity="0.95"/>
+    
+    <!-- Center sparkle -->
+    <circle cx="0" cy="0" r="8" fill="#ffffff" opacity="0.9"/>
+    
+    <!-- Reflective facets for premium look -->
+    <path d="M -25 -25 L -15 -15 L -20 -10 Z" fill="#ffffff" opacity="0.6"/>
+    <path d="M 25 -25 L 15 -15 L 20 -10 Z" fill="#ffffff" opacity="0.6"/>
+    <path d="M -25 25 L -15 15 L -20 10 Z" fill="rgba(251,191,36,0.3)" opacity="0.5"/>
+    <path d="M 25 25 L 15 15 L 20 10 Z" fill="rgba(251,191,36,0.3)" opacity="0.5"/>
+  </g>
+  
+  <!-- "JEWEL-OS" Text - Two-tone design -->
+  <g transform="translate(256, 320)">
+    <!-- Main "JEWEL" text in gold -->
+    <text x="0" y="0" 
+          font-family="Arial, sans-serif" 
+          font-size="54" 
+          font-weight="700" 
+          fill="url(#goldAccent)" 
+          text-anchor="middle"
+          letter-spacing="-1">JEWEL</text>
+    
+    <!-- Accent line -->
+    <line x1="-80" y1="20" x2="80" y2="20" stroke="url(#goldAccent)" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- "OS" text in white -->
+    <text x="0" y="65" 
+          font-family="Arial, sans-serif" 
+          font-size="28" 
+          font-weight="600" 
+          fill="#ffffff" 
+          text-anchor="middle"
+          letter-spacing="3"
+          opacity="0.9">OS</text>
+  </g>
+  
+  <!-- Subtle corner accents -->
+  <circle cx="96" cy="96" r="4" fill="url(#goldAccent)" opacity="0.4"/>
+  <circle cx="416" cy="96" r="4" fill="url(#goldAccent)" opacity="0.4"/>
+  <circle cx="96" cy="416" r="4" fill="url(#goldAccent)" opacity="0.4"/>
+  <circle cx="416" cy="416" r="4" fill="url(#goldAccent)" opacity="0.4"/>
+</svg>
+
+
+

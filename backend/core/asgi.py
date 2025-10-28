@@ -19,8 +19,9 @@ django_asgi_app = get_asgi_application()
 
 # Import routing after Django is initialized
 def get_websocket_urlpatterns():
-    from telecalling.routing import websocket_urlpatterns
-    return websocket_urlpatterns
+    from telecalling.routing import websocket_urlpatterns as telecalling_ws
+    from apps.notifications.routing import websocket_urlpatterns as notification_ws
+    return telecalling_ws + notification_ws
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,

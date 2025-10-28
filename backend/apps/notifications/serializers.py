@@ -12,13 +12,14 @@ class NotificationSerializer(serializers.ModelSerializer):
     actionUrl = serializers.CharField(source='action_url', read_only=True, allow_null=True)
     actionText = serializers.CharField(source='action_text', read_only=True, allow_null=True)
     isPersistent = serializers.BooleanField(source='is_persistent', read_only=True)
+    metadata = serializers.JSONField(read_only=True)
     
     class Meta:
         model = Notification
         fields = [
             'id', 'type', 'title', 'message', 'priority', 'status',
             'userId', 'tenantId', 'storeId', 'actionUrl', 'actionText',
-            'isPersistent', 'createdAt', 'readAt', 'updatedAt'
+            'isPersistent', 'metadata', 'createdAt', 'readAt', 'updatedAt'
         ]
         read_only_fields = ['id', 'createdAt', 'readAt', 'updatedAt']
 
