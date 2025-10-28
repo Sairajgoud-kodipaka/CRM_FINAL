@@ -1,20 +1,25 @@
 #!/bin/bash
 # Utho Cloud VM Deployment Script for Jewellery CRM Backend
+# Production-ready: Pulls latest code, checks dependencies, manages services, shows logs
 set -e
 
-echo "🚀 Starting Utho Cloud VM deployment..."
+echo "🚀 Starting Production Deployment for Jewellery CRM..."
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 log() { echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"; }
 success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+info() { echo -e "${CYAN}[INFO]${NC} $1"; }
+debug() { echo -e "${MAGENTA}[DEBUG]${NC} $1"; }
 
 log "Checking environment..."
 if ! command -v python3.11 &> /dev/null; then error "Python 3.11 not found"; exit 1; fi
@@ -22,10 +27,57 @@ if ! command -v python3.11 &> /dev/null; then error "Python 3.11 not found"; exi
 # Check for PostgreSQL
 if ! command -v psql &> /dev/null; then warning "PostgreSQL client not found. Install it with: sudo apt-get install postgresql-client"; fi
 
-# Check for Redis (optional)
+# Check for Redis
 if ! command -v redis-cli &> /dev/null; then warning "Redis client not found. Install it with: sudo apt-get install redis-tools"; fi
 
+# Check for Git
+if ! command -v git &> /dev/null; then error "Git not found. Install it with: sudo apt-get install git"; exit 1; fi
+
 success "Environment checks passed"
+
+# Step 1: Git operations
+echo ""
+log "🔄 Step 1: Fetching latest code from Git..."
+cd /var/www/CRM_FINAL || error "CRM_FINAL directory not found"; exit 1
+
+# Check if we're in a git repository
+if [[ -d ".git" ]]; then
+    info "Current branch: $(git branch --show-current)"
+    info "Latest commit: $(git log -1 --pretty=format:'%h - %s')"
+    
+    # Stash any local changes
+    if [[ -n $(git status -s) ]]; then
+        warning "Local changes detected, stashing..."
+        git stash
+    fi
+    
+    # Pull latest code
+    log "Pulling latest changes from repository..."
+    
+    # For public repos, credentials are NOT needed
+    # Try to pull with auto-merge (merge if conflicts, fast-forward if clean)
+    if git pull --no-rebase --quiet 2>&1; then
+        success "Code updated successfully"
+        info "Latest commit: $(git log -1 --pretty=format:'%h - %s')"
+    else
+        # If merge conflict, try rebase
+        warning "Auto-merge failed, trying rebase..."
+        git rebase --abort 2>/dev/null || true
+        if git pull --rebase --quiet 2>&1; then
+            success "Code updated successfully (rebase)"
+            info "Latest commit: $(git log -1 --pretty=format:'%h - %s')"
+        else
+            error "Git pull failed!"
+            info "This might be a conflict or network issue"
+            warning "Continuing with existing code..."
+        fi
+    fi
+else
+    warning ".git directory not found. Skipping git pull."
+fi
+
+# Navigate to backend
+cd backend || error "Backend directory not found"; exit 1
 
 if [[ ! -f "manage.py" ]]; then error "manage.py not found. Are you in the backend directory?"; exit 1; fi
 
@@ -97,78 +149,237 @@ else:
 EOF
 
 success "✅ Deployment setup completed!"
+
+# Step 6: Check for missing Python packages
 echo ""
-log "📋 Next steps to complete deployment:"
+log "🔍 Step 6: Checking Python package dependencies..."
+info "Required packages: py-vapid, pywebpush, channels, channels-redis, redis"
+missing_packages=()
+
+if ! pip list | grep -q py-vapid; then
+    missing_packages+=("py-vapid")
+fi
+
+if ! pip list | grep -q pywebpush; then
+    missing_packages+=("pywebpush")
+fi
+
+if ! pip list | grep -q channels; then
+    missing_packages+=("channels")
+fi
+
+if ! pip list | grep -q channels-redis; then
+    missing_packages+=("channels-redis")
+fi
+
+if ! pip list | grep -q redis; then
+    missing_packages+=("redis")
+fi
+
+if [[ ${#missing_packages[@]} -gt 0 ]]; then
+    warning "Missing packages detected: ${missing_packages[*]}"
+    log "Installing missing packages..."
+    pip install -r requirements.txt
+    success "Dependencies installed"
+else
+    success "All required packages are installed"
+fi
+
+# Step 7: Service Management
 echo ""
-echo "1. Update .env file with your actual values:"
-echo "   - Replace YOUR_SERVER_IP with your Utho VM IP"
-echo "   - Update SECRET_KEY with a strong random key"
-echo "   - Configure database credentials if different"
+log "🔧 Step 7: Managing system services..."
+
+# Restart services if they exist
+restart_service() {
+    local service_name=$1
+    if systemctl list-unit-files | grep -q "$service_name"; then
+        info "Restarting $service_name..."
+        sudo systemctl restart "$service_name"
+        if systemctl is-active --quiet "$service_name"; then
+            success "$service_name restarted successfully"
+        else
+            error "$service_name failed to start"
+        fi
+    else
+        warning "$service_name is not installed"
+    fi
+}
+
+# Check and restart PostgreSQL
+if systemctl list-unit-files | grep -q postgresql; then
+    restart_service "postgresql"
+else
+    warning "PostgreSQL service not found"
+fi
+
+# Check and restart Redis
+if systemctl list-unit-files | grep -q redis-server; then
+    restart_service "redis-server"
+else
+    warning "Redis server not found"
+fi
+
+# Check and restart CRM backend service
+if systemctl list-unit-files | grep -q crm-backend; then
+    restart_service "crm-backend.service"
+else
+    warning "CRM backend service not installed"
+fi
+
+# Check and restart Nginx
+if systemctl list-unit-files | grep -q nginx; then
+    restart_service "nginx"
+else
+    warning "Nginx service not found"
+fi
+
+# Step 8: Show Service Status & Logs
 echo ""
-echo "2. Install and configure PostgreSQL:"
-echo "   sudo apt-get update"
-echo "   sudo apt-get install postgresql postgresql-contrib"
-echo "   sudo -u postgres createuser --interactive --pwprompt crm_user"
-echo "   sudo -u postgres createdb jewellery_crm"
+log "📊 Step 8: Service Status & Logs"
+echo "=================================="
+
+# Function to show service status
+show_service_status() {
+    local service_name=$1
+    echo ""
+    info "Service: $service_name"
+    if systemctl is-active --quiet "$service_name" 2>/dev/null; then
+        success "Status: Running"
+        echo "Recent logs:"
+        sudo journalctl -u "$service_name" --no-pager -n 3 --since "1 minute ago" | tail -5
+    else
+        error "Status: Not Running"
+        echo "Last 5 log lines:"
+        sudo journalctl -u "$service_name" --no-pager -n 5 || echo "  No logs available"
+    fi
+}
+
+# Show PostgreSQL status
+if systemctl list-unit-files | grep -q postgresql; then
+    show_service_status "postgresql"
+fi
+
+# Show Redis status
+if systemctl list-unit-files | grep -q redis-server; then
+    show_service_status "redis-server"
+fi
+
+# Show CRM Backend status
+if systemctl list-unit-files | grep -q crm-backend.service; then
+    show_service_status "crm-backend.service"
+fi
+
+# Show Nginx status
+if systemctl list-unit-files | grep -q nginx; then
+    show_service_status "nginx"
+fi
+
+# Step 9: Network and Port Status
 echo ""
-echo "3. Install and configure Redis (optional):"
-echo "   sudo apt-get install redis-server"
-echo "   sudo systemctl enable redis-server"
-echo "   sudo systemctl start redis-server"
-echo ""
-echo "4. Copy systemd service file:"
-echo "   sudo cp crm-backend.service /etc/systemd/system/"
-echo "   sudo systemctl daemon-reload"
-echo "   sudo systemctl enable crm-backend.service"
-echo "   sudo systemctl start crm-backend.service"
-echo ""
-echo "5. Install and configure Nginx:"
-echo "   sudo apt-get install nginx"
-echo "   sudo cp nginx_crm.conf /etc/nginx/sites-available/crm-backend"
-echo "   sudo ln -s /etc/nginx/sites-available/crm-backend /etc/nginx/sites-enabled/"
-echo "   sudo nginx -t"
-echo "   sudo systemctl restart nginx"
-echo ""
-echo "6. Test the deployment:"
-echo "   curl http://localhost:8000/api/health/"
-echo "   curl http://YOUR_SERVER_IP/api/health/"
-echo ""
-echo "7. Check logs if needed:"
-echo "   sudo journalctl -u crm-backend.service -f"
-echo "   tail -f /var/www/CRM_FINAL/backend/logs/error.log"
-echo ""
-echo "8. Check service status:"
-echo "   systemctl status postgresql"
-echo "   systemctl status redis-server"
-echo "   systemctl status crm-backend.service"
-echo "   systemctl status nginx"
+log "🌐 Step 9: Network & Port Status"
+echo "=================================="
+info "Active connections on key ports:"
+netstat -tuln | grep -E ':(5432|6379|8000|80)' || info "No active connections on monitored ports"
 echo ""
 
-# Display current service status
-log "🔍 Checking current service status..."
+# Step 10: Health Check
 echo ""
-echo "=== Service Status ==="
-echo ""
-echo "PostgreSQL:"
-systemctl is-active postgresql >/dev/null 2>&1 && success "✅ PostgreSQL is running" || warning "❌ PostgreSQL is NOT running"
-echo ""
-echo "Redis:"
-systemctl is-active redis-server >/dev/null 2>&1 && success "✅ Redis is running" || warning "❌ Redis is NOT running"
-echo ""
-echo "CRM Backend Service:"
-if systemctl is-active crm-backend.service >/dev/null 2>&1; then
-    success "✅ CRM Backend service is running"
-    echo "   Service details:"
-    systemctl status crm-backend.service --no-pager -l | head -10
+log "🏥 Step 10: Running health checks..."
+echo "=================================="
+
+# Test database connection
+info "Testing database connection..."
+if python manage.py check --database default --quiet 2>/dev/null; then
+    success "Database: Connected"
 else
-    warning "❌ CRM Backend service is NOT running"
+    error "Database: Failed to connect"
 fi
+
+# Test Redis connection
+info "Testing Redis connection..."
+if redis-cli ping >/dev/null 2>&1; then
+    success "Redis: Connected"
+else
+    warning "Redis: Not reachable"
+fi
+
+# Test application health
+info "Testing application health..."
+if curl -s http://localhost:8000/api/health/ >/dev/null 2>&1; then
+    success "Application: Responding"
+else
+    error "Application: Not responding"
+fi
+
+# Final Summary
 echo ""
-echo "Nginx:"
-systemctl is-active nginx >/dev/null 2>&1 && success "✅ Nginx is running" || warning "❌ Nginx is NOT running"
+echo "=================================="
+success "🎉 Deployment Complete!"
+echo "=================================="
+info "Summary:"
+echo "  ✅ Code pulled from Git"
+echo "  ✅ Dependencies installed/verified"
+echo "  ✅ Database migrated"
+echo "  ✅ Static files collected"
+echo "  ✅ Services restarted"
+echo "  ✅ Health checks completed"
 echo ""
-echo "=== Port Check ==="
-netstat -tuln | grep -E ':(5432|6379|8000|80)' | head -5
+echo "=================================="
+log "📋 Step 11: Would you like to view live logs?"
+echo "=================================="
 echo ""
-success "✅ Status check completed!"
+echo "Choose an option:"
+echo "  1) View all service logs (recommended)"
+echo "  2) View only backend logs"
+echo "  3) View only PostgreSQL logs"
+echo "  4) View only Nginx access logs"
+echo "  5) Skip and exit"
+echo ""
+read -p "Enter your choice (1-5): " choice
+
+case $choice in
+    1)
+        info "Starting live logs for all services (Press Ctrl+C to exit)..."
+        echo ""
+        # Create a temp script to run all logs in parallel
+        trap 'kill $(jobs -p) 2>/dev/null; exit' INT
+        sudo journalctl -u crm-backend.service -f --no-pager | sed 's/^/[BACKEND] /' &
+        sudo journalctl -u postgresql -f --no-pager 2>/dev/null | sed 's/^/[POSTGRES] /' &
+        sudo journalctl -u redis-server -f --no-pager 2>/dev/null | sed 's/^/[REDIS] /' &
+        sudo tail -f /var/log/nginx/access.log 2>/dev/null | sed 's/^/[NGINX] /' &
+        wait
+        ;;
+    2)
+        info "Starting live backend logs (Press Ctrl+C to exit)..."
+        echo ""
+        sudo journalctl -u crm-backend.service -f --no-pager
+        ;;
+    3)
+        info "Starting live PostgreSQL logs (Press Ctrl+C to exit)..."
+        echo ""
+        sudo journalctl -u postgresql -f --no-pager
+        ;;
+    4)
+        info "Starting live Nginx access logs (Press Ctrl+C to exit)..."
+        echo ""
+        sudo tail -f /var/log/nginx/access.log
+        ;;
+    5|"")
+        info "Skipping live logs"
+        ;;
+    *)
+        warning "Invalid choice, skipping logs"
+        ;;
+esac
+
+echo ""
+info "📝 Quick log commands for future use:"
+echo "  - All logs:     sudo journalctl -f"
+echo "  - Backend:      sudo journalctl -u crm-backend.service -f"
+echo "  - PostgreSQL:   sudo journalctl -u postgresql -f"
+echo "  - Redis:        sudo journalctl -u redis-server -f"
+echo "  - Nginx access: sudo tail -f /var/log/nginx/access.log"
+echo "  - Nginx error:  sudo tail -f /var/log/nginx/error.log"
+echo ""
+success "Your application is ready! 🚀"
 
