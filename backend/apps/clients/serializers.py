@@ -238,8 +238,9 @@ class ClientSerializer(serializers.ModelSerializer):
         """
         print(f"=== VALIDATING EMAIL: {value} ===")
         
-        if not value:
-            return value
+        # Handle empty strings and None
+        if not value or value == "" or value.strip() == "":
+            return None
             
         # Get the current request context to check tenant
         request = self.context.get('request')
