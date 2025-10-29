@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { toUtcStartOfDay, toUtcEndOfDay } from '@/lib/date-utils';
+import { DashboardSkeleton } from '@/components/ui/skeleton';
 import { useScopedVisibility } from '@/lib/scoped-visibility';
 import { apiService } from '@/lib/api-service';
 import { Users, TrendingUp, Calendar as CalendarIcon, Store, Award, CheckCircle, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -131,8 +133,8 @@ function ManagerDashboardContent() {
 
       // Use manager dashboard API with scoped parameters
       const response = await apiService.getManagerDashboard({
-        start_date: monthRange.start.toISOString(),
-        end_date: monthRange.end.toISOString(),
+        start_date: toUtcStartOfDay(monthRange.start),
+        end_date: toUtcEndOfDay(monthRange.end),
         filter_type: 'monthly',
       });
 
@@ -166,7 +168,8 @@ function ManagerDashboardContent() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <DashboardSkeleton />
+        <div className="hidden">
           <div>
             <Skeleton className="h-8 w-64" />
             <Skeleton className="h-4 w-96 mt-2" />

@@ -3,6 +3,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { ShopifyDatePicker } from '@/components/ui/shopify-date-picker';
 import { useGlobalDateRange, useFormattedDateRange } from '@/hooks/useGlobalDateRange';
@@ -70,10 +71,9 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
   const getStatusBadge = () => {
     if (isLoading) {
       return (
-        <Badge variant="secondary" className="text-xs">
-          <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-          Loading...
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-5 w-20" />
+        </div>
       );
     }
 
@@ -122,7 +122,7 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
         )}
 
         <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isLoading}>
-          <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+          <RefreshCw className={cn("w-4 h-4")} />
         </Button>
 
         {getStatusBadge()}
@@ -190,7 +190,7 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
                 onClick={handleRefresh}
                 disabled={isLoading}
               >
-                <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
+                <RefreshCw className={cn("w-4 h-4 mr-2")} />
                 Refresh
               </Button>
 

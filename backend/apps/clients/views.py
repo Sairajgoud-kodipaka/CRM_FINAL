@@ -185,10 +185,34 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 # No salesperson selected, use logged-in user
                 self.selected_salesperson = request.user
             
+            # Check for duplicate phone before creating
+            existing_phone_customer = None
+            phone = request.data.get('phone')
+            if phone:
+                from shared.validators import normalize_phone_number
+                normalized_phone = normalize_phone_number(phone)
+                existing_phone_customer = Client.objects.filter(
+                    phone=normalized_phone,
+                    tenant=request.user.tenant,
+                    is_deleted=False
+                ).first()
+            
             response = super().create(request, *args, **kwargs)
             print("=== DJANGO VIEW - CREATE SUCCESS ===")
             print(f"Response status: {response.status_code}")
             print(f"Response data: {response.data}")
+            
+            # Add duplicate phone warning to response if found
+            if existing_phone_customer and response.status_code == 201:
+                # Include existing customer info in response for frontend to show suggestion
+                response.data['existing_phone_customer'] = {
+                    'id': existing_phone_customer.id,
+                    'name': existing_phone_customer.full_name,
+                    'email': existing_phone_customer.email or 'No email',
+                    'status': existing_phone_customer.get_status_display(),
+                    'phone': existing_phone_customer.phone,
+                    'warning': 'A customer with this phone number already exists. You can use the existing customer or create a new one for this visit.'
+                }
             
             # Create appointment if follow-up date is provided
             if response.status_code == 201 and response.data:
@@ -255,6 +279,45 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    
+    @action(detail=False, methods=['get'])
+    def check_phone(self, request):
+        """Check if a phone number already exists (for duplicate detection before creation)"""
+        phone = request.query_params.get('phone')
+        if not phone:
+            return Response(
+                {'error': 'Phone parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from shared.validators import normalize_phone_number
+        normalized_phone = normalize_phone_number(phone)
+        
+        existing_customer = Client.objects.filter(
+            phone=normalized_phone,
+            tenant=request.user.tenant,
+            is_deleted=False
+        ).first()
+        
+        if existing_customer:
+            return Response({
+                'exists': True,
+                'customer': {
+                    'id': existing_customer.id,
+                    'name': existing_customer.full_name,
+                    'email': existing_customer.email or 'No email',
+                    'status': existing_customer.get_status_display(),
+                    'phone': existing_customer.phone,
+                    'total_visits': existing_customer.appointments.count(),
+                    'last_visit': existing_customer.appointments.order_by('-date').first().date.isoformat() if existing_customer.appointments.exists() else None
+                },
+                'message': 'A customer with this phone number already exists. You can use the existing customer or create a new visit entry.'
+            })
+        
+        return Response({
+            'exists': False,
+            'message': 'Phone number is available'
+        })
     
     @action(detail=False, methods=['post'])
     def test(self, request):

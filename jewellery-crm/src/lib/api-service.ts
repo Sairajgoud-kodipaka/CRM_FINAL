@@ -386,6 +386,13 @@ class ApiService {
   private pendingRequests = new Map<string, PendingRequest<any>>();
   private readonly DEFAULT_CACHE_TTL = 2 * 60 * 1000; // 2 minutes (reduced for real-time updates)
   private readonly REQUEST_DEDUP_WINDOW = 1000; // 1 second
+  // Configurable per-endpoint TTLs (pattern-based)
+  private readonly endpointTtlMap: Array<{ pattern: RegExp; ttlMs: number }> = [
+    { pattern: /\/analytics\//, ttlMs: 60 * 1000 }, // dynamic analytics
+    { pattern: /\/products\/categories\//, ttlMs: 10 * 60 * 1000 }, // semi-static
+    { pattern: /\/stores\//, ttlMs: 5 * 60 * 1000 },
+    { pattern: /\/clients\/clients\//, ttlMs: 60 * 1000 },
+  ];
 
   // Real-time update system
   private cacheInvalidationListeners = new Set<(keys: string[]) => void>();
@@ -547,9 +554,39 @@ class ApiService {
     }
   }
 
-  private async request<T>(
+  // Timeout and retry configuration
+  private readonly REQUEST_TIMEOUT = 30000; // 30 seconds
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAY_BASE = 1000; // 1 second base delay
+
+  private async requestWithTimeout(
+    url: string,
+    config: RequestInit,
+    timeout: number = this.REQUEST_TIMEOUT
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...config,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${timeout}ms`);
+      }
+      throw error;
+    }
+  }
+
+  private async requestWithRetry<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retryCount: number = 0
   ): Promise<ApiResponse<T>> {
     // Add global date parameters to GET requests
     let url = getApiUrl(endpoint);
@@ -568,6 +605,9 @@ class ApiService {
 
     // Start performance monitoring
     performanceMonitor.startTiming(endpoint);
+
+    // Determine TTL based on endpoint patterns
+    const ttlOverride = this.endpointTtlMap.find(e => e.pattern.test(endpoint))?.ttlMs;
 
     // Check cache for GET requests
     if (!options.method || options.method === 'GET') {
@@ -600,7 +640,18 @@ class ApiService {
     };
 
     try {
-      const response = await fetch(url, config);
+      // Offline queue: if offline and write request, enqueue and return success stub
+      if (typeof window !== 'undefined' && !navigator.onLine && (options.method && options.method !== 'GET')) {
+        try {
+          const q = JSON.parse(localStorage.getItem('offline-queue') || '[]');
+          q.push({ endpoint, options });
+          localStorage.setItem('offline-queue', JSON.stringify(q));
+        } catch {}
+        return { data: null as any, success: true, message: 'Queued offline' };
+      }
+
+      // Use timeout wrapper for the fetch request
+      const response = await this.requestWithTimeout(url, config, this.REQUEST_TIMEOUT);
 
       if (!response.ok) {
         // Try to get the error response body
@@ -634,10 +685,17 @@ class ApiService {
 
         // Only redirect for 401 errors that are NOT login attempts
         if (response.status === 401 && !url.includes('/login/')) {
-          // Token expired or invalid, redirect to login
+          // Token expired or invalid: notify UI, then redirect
           if (typeof window !== 'undefined') {
+            try {
+              window.dispatchEvent(new CustomEvent('sessionExpired', {
+                detail: { message: 'Your session has expired. Please sign in again.' }
+              }));
+            } catch {}
             localStorage.removeItem('auth-storage');
+            setTimeout(() => {
             window.location.href = '/';
+            }, 1200);
           }
         }
 
@@ -646,12 +704,12 @@ class ApiService {
           return {
             data: null as any,
             success: false,
-            message: errorMessage,
+            message: this.humanizeError(errorMessage),
             errors: errorData
           };
         }
 
-        throw new Error(errorMessage);
+        throw new Error(this.humanizeError(errorMessage));
       }
 
       // Check if response is a file download
@@ -714,17 +772,59 @@ class ApiService {
 
       // Cache successful GET responses
       if ((!options.method || options.method === 'GET') && result.success) {
-        this.setCache(cacheKey, result.data);
+        this.setCache(cacheKey, result.data, ttlOverride);
       }
 
       // End performance monitoring for successful requests
       performanceMonitor.endTiming(endpoint, false);
       return result;
-    } catch (error) {
+    } catch (error: any) {
       // End performance monitoring for failed requests
       performanceMonitor.endTiming(endpoint, false);
+      
+      // Implement retry logic for network errors and 500/503 errors
+      const isRetryableError = 
+        error.message?.includes('timeout') ||
+        error.message?.includes('network') ||
+        error.message?.includes('fetch');
+      
+      // Check if we should retry
+      if (isRetryableError && retryCount < this.MAX_RETRIES) {
+        const delay = this.RETRY_DELAY_BASE * Math.pow(2, retryCount); // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.requestWithRetry(endpoint, options, retryCount + 1);
+      }
+      
+      // Check for HTTP errors that should be retried
+      if (error.status === 500 || error.status === 503) {
+        if (retryCount < this.MAX_RETRIES) {
+          const delay = this.RETRY_DELAY_BASE * Math.pow(2, retryCount);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.requestWithRetry(endpoint, options, retryCount + 1);
+        }
+      }
+      
       throw error;
     }
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
+    // Start with retry count 0
+    return this.requestWithRetry<T>(endpoint, options, 0);
+  }
+
+  // Humanize common technical error messages
+  private humanizeError(msg: string): string {
+    if (!msg) return 'Something went wrong. Please try again.';
+    const m = msg.toLowerCase();
+    if (m.includes('network') || m.includes('failed to fetch')) return 'Network error. Please check your connection.';
+    if (m.includes('timeout')) return 'Request timed out. Please try again.';
+    if (m.includes('unauthorized') || m.includes('401')) return 'You are not authorized. Please sign in again.';
+    if (m.includes('internal server error') || m.includes('500')) return 'Server error. Please try again later.';
+    return msg;
   }
 
   // Generic HTTP methods with deduplication
@@ -863,6 +963,21 @@ class ApiService {
     return { data: undefined, success: true };
   }
 
+  // Password Reset
+  async requestPasswordReset(email: string): Promise<ApiResponse<{ detail: string }>> {
+    return this.request('/password-reset/request/', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  }
+
+  async confirmPasswordReset(uid: string, token: string, newPassword: string): Promise<ApiResponse<{ detail: string }>> {
+    return this.request('/password-reset/confirm/', {
+      method: 'POST',
+      body: JSON.stringify({ uid, token, new_password: newPassword })
+    });
+  }
+
   // Dashboard
   async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
     return this.request('/analytics/dashboard/');
@@ -939,6 +1054,24 @@ class ApiService {
 
   async getClient(id: string): Promise<ApiResponse<Client>> {
     return this.request(`/clients/clients/${id}/`);
+  }
+
+  async checkPhoneExists(phone: string): Promise<ApiResponse<{
+    exists: boolean;
+    customer?: {
+      id: number;
+      name: string;
+      email: string;
+      status: string;
+      phone: string;
+      total_visits: number;
+      last_visit?: string;
+    };
+    message: string;
+  }>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('phone', phone);
+    return this.request(`/clients/clients/check_phone/?${queryParams.toString()}`);
   }
 
   async getUser(id: string): Promise<ApiResponse<User>> {
@@ -1634,7 +1767,7 @@ class ApiService {
     address?: string;
     store?: number;
   }): Promise<ApiResponse<User>> {
-    const response = await this.request('/users/team-members/', {
+    const response = await this.request<User>('/users/team-members/', {
       method: 'POST',
       body: JSON.stringify(memberData),
     });
@@ -1648,7 +1781,7 @@ class ApiService {
   }
 
   async updateTeamMember(id: string, memberData: Partial<User>): Promise<ApiResponse<User>> {
-    const response = await this.request(`/users/team-members/${id}/update/`, {
+    const response = await this.request<User>(`/users/team-members/${id}/update/`, {
       method: 'PUT',
       body: JSON.stringify(memberData),
     });
@@ -1662,7 +1795,7 @@ class ApiService {
   }
 
   async deleteTeamMember(id: string): Promise<ApiResponse<void>> {
-    const response = await this.request(`/users/team-members/${id}/delete/`, {
+    const response = await this.request<void>(`/users/team-members/${id}/delete/`, {
       method: 'DELETE',
     });
 
@@ -1717,7 +1850,7 @@ class ApiService {
   }
 
   async getSupportTicket(id: string): Promise<ApiResponse<SupportTicket>> {
-    return this.request(`/support/tickets/${id}/`);
+    return this.request<SupportTicket>(`/support/tickets/${id}/`);
   }
 
   async createSupportTicket(ticketData: Partial<SupportTicket>): Promise<ApiResponse<SupportTicket>> {
@@ -1798,15 +1931,15 @@ class ApiService {
 
   // Stores
   async getStores(): Promise<ApiResponse<Store[]>> {
-    return this.request('/stores/');
+    return this.request<Store[]>('/stores/');
   }
 
   async getStore(id: string): Promise<ApiResponse<Store>> {
-    return this.request(`/stores/${id}/`);
+    return this.request<Store>(`/stores/${id}/`);
   }
 
   async createStore(storeData: Partial<Store>): Promise<ApiResponse<Store>> {
-    const response = await this.request('/stores/', {
+    const response = await this.request<Store>('/stores/', {
       method: 'POST',
       body: JSON.stringify(storeData),
     });
@@ -1820,7 +1953,7 @@ class ApiService {
   }
 
   async updateStore(id: string, storeData: Partial<Store>): Promise<ApiResponse<Store>> {
-    const response = await this.request(`/stores/${id}/`, {
+    const response = await this.request<Store>(`/stores/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(storeData),
     });
@@ -1834,7 +1967,7 @@ class ApiService {
   }
 
   async deleteStore(id: string): Promise<ApiResponse<void>> {
-    const response = await this.request(`/stores/${id}/`, {
+    const response = await this.request<void>(`/stores/${id}/`, {
       method: 'DELETE',
     });
 

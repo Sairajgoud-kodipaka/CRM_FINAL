@@ -26,5 +26,17 @@ export const formatDateRange = (dateRange: { from: Date; to: Date } | undefined)
   return `Date Range: ${dateRange.from.toLocaleDateString('en-IN')} - ${dateRange.to.toLocaleDateString('en-IN')}`;
 };
 
+// Convert a local date to UTC start-of-day (00:00:00.000Z)
+export const toUtcStartOfDay = (d: Date | undefined) => {
+  if (!d) return undefined as unknown as string;
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
+  return dt.toISOString();
+};
 
+// Convert a local date to UTC end-of-day (23:59:59.999Z)
+export const toUtcEndOfDay = (d: Date | undefined) => {
+  if (!d) return undefined as unknown as string;
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999));
+  return dt.toISOString();
+};
 

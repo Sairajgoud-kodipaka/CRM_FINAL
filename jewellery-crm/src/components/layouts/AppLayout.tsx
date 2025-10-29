@@ -49,7 +49,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
 
 
   return (
-    <div className={cn('min-h-screen h-dvh bg-background overflow-x-hidden', className)}>
+    <div className={cn('min-h-screen bg-background overflow-x-hidden', className)}>
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}

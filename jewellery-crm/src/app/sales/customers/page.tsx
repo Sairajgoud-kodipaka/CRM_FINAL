@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AddCustomerModal } from '@/components/customers/AddCustomerModal';
@@ -17,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
-import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
+import { getCurrentMonthDateRange, formatDateRange, toUtcStartOfDay, toUtcEndOfDay } from '@/lib/date-utils';
 
 export default function SalesCustomersPage() {
   const { userScope } = useScopedVisibility();
@@ -38,7 +39,10 @@ export default function SalesCustomersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Client | null>(null);
   const [filteredCustomers, setFilteredCustomers] = useState<Client[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Check if user can delete customers (managers and higher roles)
   const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
@@ -50,16 +54,19 @@ export default function SalesCustomersPage() {
 
 
       const response = await apiService.getClients({
-        start_date: dateRange?.from?.toISOString(),
-        end_date: dateRange?.to?.toISOString(),
+        start_date: toUtcStartOfDay(dateRange?.from),
+        end_date: toUtcEndOfDay(dateRange?.to),
       });
 
 
       const customersData = Array.isArray(response.data) ? response.data : [];
 
-
       setCustomers(customersData);
+      setSelectedIds(new Set());
+       
+       
     } catch (error) {
+
 
       toast({
         title: "Error",
@@ -99,7 +106,13 @@ export default function SalesCustomersPage() {
     }
 
     setFilteredCustomers(filtered);
+    setPage(1); // reset to first page when filters change
   }, [customers, searchTerm, statusFilter, showMyDataOnly, user?.id]);
+
+  // Client-side pagination slice
+  const total = filteredCustomers.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pagedCustomers = filteredCustomers.slice((page - 1) * pageSize, page * pageSize);
 
   // Optimistic update for customer creation
   const handleCustomerCreated = useCallback((newCustomer: Client) => {
@@ -430,9 +443,64 @@ export default function SalesCustomersPage() {
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
+          {selectedIds.size > 0 && (
+            <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+              <div className="text-sm text-text-secondary">Selected {selectedIds.size} customer(s)</div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const res = await apiService.exportCustomers({ format: 'csv', fields: [] });
+                      const blob = res.data as unknown as Blob;
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'customers.csv';
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch {}
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-1" /> Export CSV
+                </Button>
+                {canDeleteCustomers && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={async () => {
+                      if (!window.confirm(`Delete ${selectedIds.size} selected customer(s)? This cannot be undone.`)) return;
+                      for (const id of Array.from(selectedIds)) {
+                        await apiService.deleteClient(String(id));
+                      }
+                      setSelectedIds(new Set());
+                      fetchCustomers();
+                      toast({ title: 'Deleted', description: 'Selected customers deleted', variant: 'success' });
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" /> Bulk Delete
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3 text-left">
+                  <Checkbox
+                    checked={selectedIds.size > 0 && selectedIds.size === pagedCustomers.length}
+                    onCheckedChange={(val) => {
+                      if (val) {
+                        setSelectedIds(new Set(pagedCustomers.map(c => c.id as number)));
+                      } else {
+                        setSelectedIds(new Set());
+                      }
+                    }}
+                    aria-label="Select all"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Customer</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Email</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Phone</th>
@@ -443,10 +511,11 @@ export default function SalesCustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.length > 0 ? (
-                filteredCustomers.map((customer) => {
+              {pagedCustomers.length > 0 ? (
+                pagedCustomers.map((customer) => {
                   // Check if this customer belongs to the current user
                   const isCurrentUserCustomer = customer.created_by?.id === user?.id;
+                  const checked = selectedIds.has((customer.id as number));
 
                   return (
                     <tr
@@ -455,6 +524,19 @@ export default function SalesCustomersPage() {
                         isCurrentUserCustomer ? 'bg-orange-50 border-l-4 border-l-orange-500' : ''
                       }`}
                     >
+                       {/* Select */}
+                       <td className="px-4 py-3">
+                         <Checkbox
+                           checked={checked}
+                           onCheckedChange={(val) => {
+                             setSelectedIds(prev => {
+                               const copy = new Set(prev);
+                               if (val) copy.add(customer.id as number); else copy.delete(customer.id as number);
+                               return copy;
+                             });
+                           }}
+                         />
+                       </td>
                       <td className="px-4 py-3 font-medium text-text-primary">
                         <div className="flex items-center gap-2">
                           <span>{customer.first_name} {customer.last_name}</span>
@@ -536,8 +618,54 @@ export default function SalesCustomersPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-text-secondary">
-                    {customers.length === 0 ? 'No customers found' : 'No customers match your search criteria'}
+                  <td colSpan={7} className="px-4 py-8 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="text-text-secondary text-lg font-medium">
+                        {customers.length === 0 
+                          ? 'No customers found' 
+                          : 'No customers match your filters'}
+                      </div>
+                      {(searchTerm || statusFilter || showMyDataOnly || dateRange) && (
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <div>Active filters:</div>
+                          <div className="flex flex-wrap gap-2 justify-center">
+                            {searchTerm && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                Search: "{searchTerm}"
+                              </span>
+                            )}
+                            {statusFilter && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                Status: {statusFilter}
+                              </span>
+                            )}
+                            {showMyDataOnly && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                My Data Only
+                              </span>
+                            )}
+                            {dateRange && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                Date Range: {dateRange.from?.toLocaleDateString()} - {dateRange.to?.toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSearchTerm('');
+                              setStatusFilter('');
+                              setShowMyDataOnly(false);
+                              // Clear date range if needed
+                            }}
+                            className="mt-2"
+                          >
+                            Clear All Filters
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}
@@ -545,9 +673,40 @@ export default function SalesCustomersPage() {
           </table>
         </div>
 
-        {filteredCustomers.length > 0 && (
-          <div className="text-sm text-text-secondary text-center py-2">
-            Showing {filteredCustomers.length} of {customers.length} customers
+        {total > 0 && (
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 py-3 text-sm text-text-secondary">
+            <div>
+              Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)} of {total} customers
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs">Rows per page</span>
+              <select
+                className="border rounded px-2 py-1 text-sm"
+                value={pageSize}
+                onChange={(e) => { setPageSize(parseInt(e.target.value) || 20); setPage(1); }}
+              >
+                {[10,20,50,100].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-1">
+                <button
+                  className="px-2 py-1 border rounded disabled:opacity-50"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  Prev
+                </button>
+                <span className="px-2">{page}/{totalPages}</span>
+                <button
+                  className="px-2 py-1 border rounded disabled:opacity-50"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </Card>

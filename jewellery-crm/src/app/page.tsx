@@ -20,6 +20,7 @@ export default function HomePage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [remember, setRemember] = useState(true);
 
   // Prevent hydration mismatch by only rendering theme-dependent content after mount
   useEffect(() => {
@@ -37,6 +38,10 @@ export default function HomePage() {
     }
 
     try {
+      // Store remember preference so auth layer can persist accordingly
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('auth-remember', remember ? '1' : '0');
+      }
       const success = await login(username, password);
 
       if (success) {
@@ -190,6 +195,13 @@ export default function HomePage() {
                 </div>
               )}
 
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                  Remember me
+                </label>
+              </div>
+
               <Button
                 type="submit"
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -200,6 +212,13 @@ export default function HomePage() {
             </form>
 
             <div className="text-center space-y-2">
+              <button
+                type="button"
+                onClick={() => router.push('/reset-password')}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Forgot Password?
+              </button>
               <p className="text-xs text-muted-foreground">
                 Need help? Contact your system administrator
               </p>

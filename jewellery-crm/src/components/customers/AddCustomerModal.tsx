@@ -222,13 +222,27 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       },
     ]);
 
-  // State for existing customer check
+  // State for existing customer check (by phone)
+  const [existingPhoneCustomer, setExistingPhoneCustomer] = useState<{
+    id: number;
+    name: string;
+    phone: string;
+    status: string;
+    email: string;
+    total_visits: number;
+    last_visit?: string;
+  } | null>(null);
+  
+  // State for existing customer check (by email)
   const [existingCustomerInfo, setExistingCustomerInfo] = useState<{
     name: string;
     phone: string;
     status: string;
     email: string;
   } | null>(null);
+  
+  // Loading state for phone check
+  const [checkingPhone, setCheckingPhone] = useState(false);
 
   // State for autofill audit trail
   const [autofillLogs, setAutofillLogs] = useState<AutofillLog[]>([]);
@@ -260,7 +274,38 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     ];
   };
 
-  // Check if customer exists before submitting
+  // Check if customer exists by phone number
+  const checkPhoneExists = async (phone: string) => {
+    if (!phone || phone.length < 10) {
+      setExistingPhoneCustomer(null);
+      return;
+    }
+
+    try {
+      setCheckingPhone(true);
+      const response = await apiService.checkPhoneExists(phone);
+      if (response.success && response.data?.exists) {
+        setExistingPhoneCustomer({
+          id: response.data.customer!.id,
+          name: response.data.customer!.name,
+          phone: response.data.customer!.phone,
+          status: response.data.customer!.status,
+          email: response.data.customer!.email,
+          total_visits: response.data.customer!.total_visits,
+          last_visit: response.data.customer!.last_visit
+        });
+      } else {
+        setExistingPhoneCustomer(null);
+      }
+    } catch (error) {
+      // Silently fail - don't block user from continuing
+      setExistingPhoneCustomer(null);
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
+  
+  // Check if customer exists by email
   const checkCustomerExists = async (email: string) => {
     if (!email) return null;
 
@@ -271,6 +316,25 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     } catch (error) {
 
       return null;
+    }
+  };
+  
+  // Use existing customer info to auto-fill form
+  const useExistingCustomer = () => {
+    if (existingPhoneCustomer) {
+      // Extract first and last name
+      const nameParts = existingPhoneCustomer.name.split(' ');
+      setFormData(prev => ({
+        ...prev,
+        fullName: existingPhoneCustomer.name,
+        email: existingPhoneCustomer.email !== 'No email' ? existingPhoneCustomer.email : prev.email,
+      }));
+      
+      toast({
+        title: "Customer Info Auto-filled",
+        description: `Using existing customer: ${existingPhoneCustomer.name}. You can modify any fields as needed.`,
+        variant: "default",
+      });
     }
   };
 
@@ -284,6 +348,20 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       }));
     }
   }, [formData.selectedWeight]);
+
+  // Check for duplicate phone when phone number is complete
+  useEffect(() => {
+    if (formData.phone && formData.phone.length >= 10) {
+      const timeoutId = setTimeout(() => {
+        checkPhoneExists(formData.phone);
+      }, 1000); // Wait 1 second after user stops typing
+      return () => clearTimeout(timeoutId);
+    }
+    // Clear existing customer when phone is cleared
+    if (!formData.phone || formData.phone.length < 10) {
+      setExistingPhoneCustomer(null);
+    }
+  }, [formData.phone]);
 
   // Deterministic autofill logic for City -> State with contextual catchment filtering
   const handleCitySelection = (city: string) => {
@@ -405,13 +483,23 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     }
   };
 
-  // Validate form before submission - require at least name OR phone
+  // Validate form before submission - allow submission if ANY meaningful field is present
   const validateForm = (): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
-    // Require at least name OR phone
-    if (!formData.fullName.trim() && !formData.phone.trim()) {
-      errors.push("At least Full Name or Phone Number is required");
+    const candidates = [
+      formData.fullName,
+      formData.phone,
+      formData.email,
+      formData.productType,
+      formData.reasonForVisit,
+      formData.nextFollowUpDate,
+      formData.summaryNotes,
+      formData.city,
+    ];
+    const anyFilled = candidates.some(v => (v || '').toString().trim() !== '');
+    if (!anyFilled) {
+      errors.push("Please provide at least one detail (e.g., name, phone, product, or notes)");
     }
 
     return {
@@ -1124,7 +1212,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={loading || (!formData.fullName && !formData.phone)}
+            disabled={loading}
             className="bg-blue-600 hover:bg-blue-700"
           >
             {loading ? (
@@ -1141,7 +1229,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     >
 
         {/* Basic Customer Information */}
-        <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4`}>
+        <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4 max-h-[75vh] overflow-y-auto`}>
           <div className={`font-semibold ${isMobile ? 'mb-2 text-base' : 'mb-3 text-lg'}`}>👤 Basic Information</div>
           <div className={`grid grid-cols-1 ${isMobile ? 'gap-3' : isTablet ? 'md:grid-cols-2 gap-4' : 'md:grid-cols-2 gap-4'}`}>
             <div>
@@ -1159,8 +1247,55 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 placeholder="+91 98XXXXXX00"
                 required
                 value={formData.phone}
-                onChange={(value) => handleInputChange('phone', value)}
+                onChange={(value) => {
+                  handleInputChange('phone', value);
+                  // Clear existing customer info when phone changes
+                  setExistingPhoneCustomer(null);
+                }}
+                disabled={checkingPhone}
               />
+              {checkingPhone && (
+                <div className="mt-1 text-xs text-blue-600">Checking phone number...</div>
+              )}
+              {existingPhoneCustomer && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="font-medium text-amber-900 mb-2">
+                    📞 Customer with this phone already exists
+                  </div>
+                  <div className="text-sm text-amber-800 space-y-1">
+                    <div><strong>Name:</strong> {existingPhoneCustomer.name}</div>
+                    <div><strong>Email:</strong> {existingPhoneCustomer.email}</div>
+                    <div><strong>Status:</strong> {existingPhoneCustomer.status}</div>
+                    <div><strong>Previous Visits:</strong> {existingPhoneCustomer.total_visits} visit(s)</div>
+                    {existingPhoneCustomer.last_visit && (
+                      <div><strong>Last Visit:</strong> {new Date(existingPhoneCustomer.last_visit).toLocaleDateString()}</div>
+                    )}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={useExistingCustomer}
+                      className="text-xs"
+                    >
+                      ✓ Use Existing Customer
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setExistingPhoneCustomer(null)}
+                      className="text-xs"
+                    >
+                      Create New Visit Entry
+                    </Button>
+                  </div>
+                  <div className="mt-2 text-xs text-amber-700">
+                    💡 Tip: Multiple visits can be created for the same customer. Each visit is tracked separately.
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>

@@ -78,7 +78,7 @@ class Client(models.Model):
     # Basic Information
     first_name = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=50, blank=True, null=True)
-    email = models.EmailField()
+    email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     customer_type = models.CharField(max_length=30, default='individual', choices=[
         ('individual', 'Individual'),

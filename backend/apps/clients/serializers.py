@@ -100,10 +100,37 @@ class ClientSerializer(serializers.ModelSerializer):
         return value
     
     def validate_phone(self, value):
-        """Validate and normalize phone number"""
+        """Validate and normalize phone number, and check for duplicates if creating new customer"""
         if not value:
             return value
-        return normalize_phone_number(value)
+        
+        normalized = normalize_phone_number(value)
+        
+        # Check for duplicate phone number (only on create, not update)
+        instance = getattr(self, 'instance', None)
+        if instance is None:  # This is a create operation
+            request = self.context.get('request')
+            if request and hasattr(request, 'user') and request.user.is_authenticated:
+                tenant = request.user.tenant
+                if tenant:
+                    existing_client = Client.objects.filter(
+                        phone=normalized,
+                        tenant=tenant,
+                        is_deleted=False
+                    ).first()
+                    
+                    if existing_client:
+                        # Don't block creation, but store info for frontend warning
+                        # Frontend will show suggestion to use existing customer or proceed
+                        self._existing_phone_customer = {
+                            'id': existing_client.id,
+                            'name': existing_client.full_name,
+                            'email': existing_client.email or 'No email',
+                            'status': existing_client.get_status_display(),
+                            'phone': existing_client.phone
+                        }
+        
+        return normalized
     
     def validate(self, attrs):
         """General validation to handle empty strings for date fields"""
@@ -338,6 +365,10 @@ class ClientSerializer(serializers.ModelSerializer):
         print(f"  - let_him_visit: {validated_data.get('let_him_visit')}")
         print(f"  - design_number: {validated_data.get('design_number')}")
         
+        # Email optional: allow None/blank
+        if 'email' in validated_data and (validated_data['email'] == '' or validated_data['email'] is None):
+            validated_data['email'] = None
+
         # Handle name field mapping
         if 'name' in validated_data:
             name = validated_data.pop('name')
@@ -731,6 +762,21 @@ class ClientSerializer(serializers.ModelSerializer):
         print(f"=== CLIENT SERIALIZER UPDATE METHOD ===")
         print(f"Instance: {instance}")
         print(f"Validated data: {validated_data}")
+
+        # Optimistic locking: require matching updated_at if provided in request
+        request = self.context.get('request') if hasattr(self, 'context') else None
+        try:
+            incoming_updated_at = None
+            if request and isinstance(request.data, dict) and 'updated_at' in request.data:
+                incoming_updated_at = request.data.get('updated_at')
+            if incoming_updated_at:
+                from django.utils.dateparse import parse_datetime
+                parsed = parse_datetime(incoming_updated_at) or parse_datetime(str(incoming_updated_at))
+                if parsed and getattr(instance, 'updated_at', None) and parsed < instance.updated_at:
+                    from rest_framework.exceptions import ValidationError
+                    raise ValidationError({'detail': 'Conflict: this record was modified by someone else. Reload and try again.'})
+        except Exception as _:
+            pass
         
         # Get user context from serializer context
         user = None
@@ -1082,22 +1128,42 @@ class ClientSerializer(serializers.ModelSerializer):
         instance = getattr(self, 'instance', None)
         
         if instance is None:
-            # This is a create operation
-            errors = {}
-            
-            # Check if we have at least name OR phone (flexible validation)
-            has_name = data.get('name') or data.get('first_name') or data.get('last_name') or data.get('full_name')
-            has_phone = data.get('phone')
-            
-            if not has_name and not has_phone:
-                errors['name'] = "At least Name or Phone is required"
-            
-            if errors:
-                print(f"=== VALIDATION ERRORS: {errors} ===")
-                raise serializers.ValidationError(errors)
+            # This is a create operation – be permissive: allow submit if ANY meaningful field is provided
+            # Collect a set of candidate fields that indicate intent to capture a customer
+            candidate_fields = [
+                'name', 'first_name', 'last_name', 'full_name', 'phone', 'email',
+                'product_type', 'reason_for_visit', 'next_follow_up', 'summary_notes',
+                'customer_status', 'lead_source', 'city', 'notes'
+            ]
+            any_filled = False
+            for f in candidate_fields:
+                val = data.get(f)
+                if val is not None and str(val).strip() != "":
+                    any_filled = True
+                    break
+            if not any_filled:
+                # If truly empty submission, reject; otherwise allow
+                print("=== VALIDATION: No meaningful fields provided ===")
+                raise serializers.ValidationError({'detail': 'Please provide at least one customer detail (e.g., name, phone, product, or notes).'})
         else:
-            # This is an update operation
-            print("=== UPDATE OPERATION - SKIPPING REQUIRED FIELD VALIDATION ===")
+            # This is an update operation - ensure we maintain at least name OR phone
+            current_name = instance.first_name or instance.last_name or ''
+            current_phone = instance.phone or ''
+            
+            # Get updated values
+            updated_name = data.get('first_name') or data.get('last_name') or ''
+            updated_phone = data.get('phone') or ''
+            
+            # Final values after update
+            final_name = updated_name if updated_name else current_name
+            final_phone = updated_phone if updated_phone else current_phone
+            
+            # Check if update would result in both name and phone being empty
+            if not final_name and not final_phone:
+                errors['name'] = "At least Name or Phone must be maintained. Update cannot remove both fields."
+                if errors:
+                    print(f"=== UPDATE VALIDATION ERRORS: {errors} ===")
+                    raise serializers.ValidationError(errors)
         
         print("=== VALIDATION PASSED ===")
         print(f"Final data after validation: {data}")
