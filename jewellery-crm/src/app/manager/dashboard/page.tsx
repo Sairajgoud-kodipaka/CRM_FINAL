@@ -30,13 +30,13 @@ interface ManagerDashboardData {
   };
 
   // Store Performance for current month (Manager's store only)
-  store_performance: {
+  store_performance: Array<{
     id: number;
     name: string;
     revenue: number;
     sales_count: number;
     closed_deals: number;
-  };
+  }>;
 
   // Team Performance for current month (Store-scoped)
   team_performance: Array<{
@@ -134,27 +134,17 @@ function ManagerDashboardContent() {
         start_date: monthRange.start.toISOString(),
         end_date: monthRange.end.toISOString(),
         filter_type: 'monthly',
-        year: currentMonth.year,
-        month: currentMonth.month,
-        month_name: formatMonth(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        // Add scoped parameters
-        store_id: userScope.filters.store_id || user?.store,
-        user_id: userScope.filters.user_id || user?.id
       });
-
-
 
       if (response.success) {
         setDashboardData(response.data);
-
       } else {
-        setError(`Failed to load dashboard data: ${response.error || 'Unknown error'}`);
-
+        const errorMsg = response.message || 'Unknown error';
+        setError(`Failed to load dashboard data: ${errorMsg}`);
       }
     } catch (err) {
-
-      setError(`Failed to load dashboard data: ${err.message || 'Network error'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Network error';
+      setError(`Failed to load dashboard data: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -217,53 +207,61 @@ function ManagerDashboardContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 pb-6">
       {/* Header with Month Navigation and Scope Indicator */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-text-primary tracking-tight">
             {user?.store_name || 'Store'} Dashboard
           </h1>
-          <p className="text-text-secondary mt-1">Monthly performance overview - {userScope.description}</p>
+          <p className="text-sm sm:text-base text-text-secondary mt-1">
+            Monthly performance overview - {userScope.description}
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Scope Indicator */}
+        {/* Scope Indicator - Mobile friendly */}
+        <div className="flex items-center gap-2">
           <ScopeIndicator showDetails={false} />
+        </div>
 
-          {/* Month Navigation */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goToPreviousMonth}
-            className="flex items-center gap-1"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Previous
-          </Button>
+        {/* Month Navigation - Responsive wrap */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPreviousMonth}
+              className="flex items-center gap-1 flex-1 sm:flex-initial min-h-[44px] sm:min-h-0"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Previous</span>
+            </Button>
 
-          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
-            <CalendarIcon className="w-4 h-4 text-blue-600" />
-            <span className="font-medium text-blue-800">{formatMonth()}</span>
+            <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-50 rounded-lg border border-blue-200 flex-1 sm:flex-initial justify-center">
+              <CalendarIcon className="w-4 h-4 text-blue-600" />
+              <span className="text-sm sm:text-base font-medium text-blue-800 whitespace-nowrap">
+                {formatMonth()}
+              </span>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextMonth}
+              className="flex items-center gap-1 flex-1 sm:flex-initial min-h-[44px] sm:min-h-0"
+              disabled={currentMonth.year > new Date().getFullYear() ||
+                       (currentMonth.year === new Date().getFullYear() && currentMonth.month >= new Date().getMonth())}
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
 
           <Button
             variant="outline"
             size="sm"
-            onClick={goToNextMonth}
-            className="flex items-center gap-1"
-            disabled={currentMonth.year > new Date().getFullYear() ||
-                     (currentMonth.year === new Date().getFullYear() && currentMonth.month >= new Date().getMonth())}
-          >
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
             onClick={goToCurrentMonth}
-            className="text-blue-600 hover:text-blue-800"
+            className="text-blue-600 hover:text-blue-800 min-h-[44px] sm:min-h-0"
           >
             Current Month
           </Button>
@@ -340,41 +338,41 @@ function ManagerDashboardContent() {
       {/* Store Performance (Manager's Store Only) */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Store className="w-5 h-5" />
-            Store Performance - {formatMonth()}
+            <span className="truncate">Store Performance - {formatMonth()}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {dashboardData.store_performance && dashboardData.store_performance.length > 0 ? (
+          {dashboardData.store_performance && Array.isArray(dashboardData.store_performance) && dashboardData.store_performance.length > 0 ? (
             <div className="space-y-4">
               {dashboardData.store_performance.map((store: any) => (
-                <div key={store.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Store className="w-6 h-6 text-blue-600" />
+                <div key={store.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Store className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-text-primary">{store.name}</h3>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-text-primary truncate">{store.name}</h3>
                       <p className="text-sm text-text-secondary">Store #{store.id}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6">
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-blue-600">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 flex-shrink-0">
+                    <div className="text-center min-w-[70px]">
+                      <div className="text-base sm:text-lg font-semibold text-blue-600 truncate">
                         ₹{(store.revenue || 0).toLocaleString('en-IN')}
                       </div>
                       <div className="text-xs text-text-secondary">Revenue</div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-green-600">
+                    <div className="text-center min-w-[60px]">
+                      <div className="text-base sm:text-lg font-semibold text-green-600">
                         {store.sales_count || 0}
                       </div>
                       <div className="text-xs text-text-secondary">Sales</div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-purple-600">
+                    <div className="text-center min-w-[60px]">
+                      <div className="text-base sm:text-lg font-semibold text-purple-600">
                         {store.closed_deals || 0}
                       </div>
                       <div className="text-xs text-text-secondary">Closed</div>
@@ -386,8 +384,8 @@ function ManagerDashboardContent() {
           ) : (
             <div className="text-center py-8 text-gray-500">
               <Store className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No store performance data available for this period</p>
-              <p className="text-sm text-gray-400 mt-2">
+              <p className="text-sm sm:text-base">No store performance data available for this period</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-2">
                 Store: {user?.store_name || 'Your Store'}
               </p>
             </div>
@@ -398,42 +396,42 @@ function ManagerDashboardContent() {
       {/* Team Performance (Store-scoped) */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Award className="w-5 h-5" />
-            Team Performance - {formatMonth()}
+            <span className="truncate">Team Performance - {formatMonth()}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {(dashboardData.team_performance || []).map((member: any, index: number) => (
-              <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+              <div key={member.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
                     {index + 1}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-text-primary">{member.name}</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-text-primary truncate">{member.name}</h3>
                     <p className="text-sm text-text-secondary">
                       Team Member
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6">
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-blue-600">
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 flex-shrink-0">
+                  <div className="text-center min-w-[70px]">
+                    <div className="text-base sm:text-lg font-semibold text-blue-600 truncate">
                       ₹{(member.revenue || 0).toLocaleString('en-IN')}
                     </div>
                     <div className="text-xs text-text-secondary">Revenue</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-green-600">
+                  <div className="text-center min-w-[60px]">
+                    <div className="text-base sm:text-lg font-semibold text-green-600">
                       {member.deals_closed || 0}
                     </div>
                     <div className="text-xs text-text-secondary">Deals</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-purple-600">
+                  <div className="text-center min-w-[60px]">
+                    <div className="text-base sm:text-lg font-semibold text-purple-600">
                       {member.target || 0}%
                     </div>
                     <div className="text-xs text-text-secondary">Target</div>
@@ -444,7 +442,7 @@ function ManagerDashboardContent() {
             {(!dashboardData.team_performance || dashboardData.team_performance.length === 0) && (
               <div className="text-center py-8 text-gray-500">
                 <Award className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No team performance data available for this period</p>
+                <p className="text-sm sm:text-base">No team performance data available for this period</p>
               </div>
             )}
           </div>
@@ -454,47 +452,47 @@ function ManagerDashboardContent() {
       {/* Quick Actions */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <ArrowRight className="w-5 h-5" />
             Quick Actions
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Button
               variant="outline"
-              className="h-20 flex flex-col items-center justify-center gap-2"
+              className="h-auto min-h-[80px] sm:h-20 sm:min-h-[80px] flex flex-col items-center justify-center gap-2 p-4 touch-manipulation"
               onClick={navigateToCustomers}
             >
-              <Users className="w-6 h-6" />
-              <span className="text-sm">Manage Customers</span>
+              <Users className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm text-center">Manage Customers</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-20 flex flex-col items-center justify-center gap-2"
+              className="h-auto min-h-[80px] sm:h-20 sm:min-h-[80px] flex flex-col items-center justify-center gap-2 p-4 touch-manipulation"
               onClick={navigateToAppointments}
             >
-              <CalendarIcon className="w-6 h-6" />
-              <span className="text-sm">Schedule Appointments</span>
+              <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm text-center">Schedule Appointments</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-20 flex flex-col items-center justify-center gap-2"
+              className="h-auto min-h-[80px] sm:h-20 sm:min-h-[80px] flex flex-col items-center justify-center gap-2 p-4 touch-manipulation"
               onClick={navigateToTeam}
             >
-              <Award className="w-6 h-6" />
-              <span className="text-sm">Team Management</span>
+              <Award className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm text-center">Team Management</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-20 flex flex-col items-center justify-center gap-2"
+              className="h-auto min-h-[80px] sm:h-20 sm:min-h-[80px] flex flex-col items-center justify-center gap-2 p-4 touch-manipulation"
               onClick={navigateToAnalytics}
             >
-              <TrendingUp className="w-6 h-6" />
-              <span className="text-sm">View Analytics</span>
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm text-center">View Analytics</span>
             </Button>
           </div>
         </CardContent>

@@ -3,3 +3,4 @@ import { PlatformAdminDashboard } from '@/components/dashboards/PlatformAdminDas
 export default function PlatformDashboardPage() {
   return <PlatformAdminDashboard />;
 }
+

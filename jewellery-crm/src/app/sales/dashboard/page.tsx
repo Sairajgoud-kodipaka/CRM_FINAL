@@ -588,3 +588,4 @@ export default function SalesDashboardPage() {
     </div>
   );
 }
+
