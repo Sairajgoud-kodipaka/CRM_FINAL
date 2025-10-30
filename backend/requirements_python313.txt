@@ -23,7 +23,7 @@ django-debug-toolbar==4.2.0
 drf-spectacular==0.26.5
 
 # HTTP and API
-requests==2.31.0
+requests==2.32.4
 urllib3==2.0.7
 
 # Date and Time
