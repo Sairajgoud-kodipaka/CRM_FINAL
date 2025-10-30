@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { ToastNotification } from './ToastNotification';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
-import { Notification } from '@/types';
+import type { Notification } from '@/types';
 
 interface NotificationManagerProps {
   maxToasts?: number;

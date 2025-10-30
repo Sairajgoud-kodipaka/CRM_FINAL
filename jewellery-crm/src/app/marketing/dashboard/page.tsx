@@ -13,7 +13,7 @@ const stats = [
 
 export default function MarketingDashboardPage() {
   return (
-    <div className="flex flex-col gap-10 min-h-screen bg-gradient-to-b from-white to-slate-50 pb-10">
+    <div className="flex flex-col gap-10 min-h-full bg-gradient-to-b from-white to-slate-50 pb-10">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2 mt-2">
         <div>
           <h1 className="text-3xl font-bold text-text-primary tracking-tight">Marketing Dashboard</h1>
@@ -59,4 +59,5 @@ export default function MarketingDashboardPage() {
     </div>
   );
 }
+
 

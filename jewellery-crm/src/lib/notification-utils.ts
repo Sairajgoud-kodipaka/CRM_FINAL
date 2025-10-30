@@ -1,4 +1,4 @@
-import { Notification, NotificationType, NotificationPriority } from '@/types';
+import type { Notification, NotificationType, NotificationPriority } from '@/types';
 
 /**
  * Utility functions for creating and managing notifications

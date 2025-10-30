@@ -1,4 +1,4 @@
-import { Notification } from '@/types';
+import type { Notification } from '@/types';
 
 /**
  * Extract ID from notification message or metadata

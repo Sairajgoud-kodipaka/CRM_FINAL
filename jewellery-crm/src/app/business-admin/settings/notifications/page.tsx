@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useNotifications } from '@/hooks/useNotifications';
-import { NotificationSettings, NotificationType } from '@/types';
+import type { NotificationSettings, NotificationType } from '@/types';
 import { Bell, Mail, Smartphone, Clock, Save, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 

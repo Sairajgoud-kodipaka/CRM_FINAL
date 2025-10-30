@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
-import { Notification } from '@/types';
+import type { Notification } from '@/types';
 import { NotificationPanel } from './NotificationPanel';
 
 interface NotificationBellProps {

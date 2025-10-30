@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Check, AlertTriangle, Info, Calendar, TrendingUp, Package, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Notification, NotificationType, NotificationPriority } from '@/types';
+import type { Notification, NotificationType, NotificationPriority } from '@/types';
 
 interface ToastNotificationProps {
   notification: Notification;

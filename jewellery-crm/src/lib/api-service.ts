@@ -1028,8 +1028,18 @@ class ApiService {
     return this.request(url);
   }
 
-  async getSalesDashboard(): Promise<ApiResponse<any>> {
-    return this.request('/sales/dashboard/');
+  async getSalesDashboard(params?: {
+    start_date?: string;
+    end_date?: string;
+    filter_type?: string;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
+    if (params?.filter_type) queryParams.append('filter_type', params.filter_type);
+
+    const url = `/sales/dashboard/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(url);
   }
 
   // Clients (Customers) API
@@ -1071,7 +1081,8 @@ class ApiService {
   }>> {
     const queryParams = new URLSearchParams();
     queryParams.append('phone', phone);
-    return this.request(`/clients/clients/check_phone/?${queryParams.toString()}`);
+    // DRF default router requires a trailing slash for actions like check_phone/
+    return this.request(`/clients/clients/check_phone/?${queryParams.toString()}`.replace('check_phone?', 'check_phone/?'));
   }
 
   async getUser(id: string): Promise<ApiResponse<User>> {
@@ -1079,9 +1090,17 @@ class ApiService {
   }
 
   async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
+    // Clean payload: remove undefined/null and empty string values to avoid serializer issues
+    const cleaned: Record<string, any> = {};
+    Object.entries(clientData || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      if (typeof value === 'string' && value.trim() === '') return;
+      cleaned[key] = value;
+    });
+
     const response = await this.request<Client>('/clients/clients/', {
       method: 'POST',
-      body: JSON.stringify(clientData),
+      body: JSON.stringify(cleaned),
     });
 
     // Invalidate cache and notify listeners on success

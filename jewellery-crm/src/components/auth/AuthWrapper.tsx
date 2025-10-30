@@ -45,7 +45,7 @@ export function AuthWrapper({ children, requiredRole }: AuthWrapperProps) {
 
   if (isLoading || !isHydrated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center">
           <Skeleton className="h-8 w-8 mx-auto rounded-full" />
           <p className="mt-4 text-gray-600">Loading...</p>

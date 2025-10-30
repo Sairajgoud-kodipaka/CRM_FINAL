@@ -56,7 +56,7 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   // Show loading while checking authentication
   if (!isHydrated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-full">
         <Skeleton className="h-8 w-8 rounded-full" />
       </div>
     );

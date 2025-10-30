@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
-import { Notification, NotificationType, NotificationPriority } from '@/types';
+import type { Notification, NotificationType, NotificationPriority } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { notificationSound } from '@/lib/notification-sound';
 import { Skeleton } from '@/components/ui/skeleton';

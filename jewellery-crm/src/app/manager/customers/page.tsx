@@ -40,7 +40,7 @@ export default function ManagerCustomersPage() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [dateRange]);
+  }, [dateRange, statusFilter]);
 
   useEffect(() => {
     // Filter customers based on search term and status
@@ -70,6 +70,7 @@ export default function ManagerCustomersPage() {
       const response = await apiService.getClients({
         start_date: dateRange?.from?.toISOString(),
         end_date: dateRange?.to?.toISOString(),
+        status: statusFilter && statusFilter !== 'all' ? statusFilter : undefined,
       });
 
 
@@ -155,6 +156,23 @@ export default function ManagerCustomersPage() {
     }
   };
 
+  const getStatusBadgeClasses = (status: string) => {
+    switch (status) {
+      case 'customer':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'lead':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'prospect':
+        return 'bg-amber-100 text-amber-900 border-amber-200';
+      case 'inactive':
+        return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'exhibition':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      default:
+        return '';
+    }
+  };
+
   // Define columns for ResponsiveTable
   const getCustomerColumns = (): ResponsiveColumn<Client>[] => [
     {
@@ -211,7 +229,7 @@ export default function ManagerCustomersPage() {
         return (
           <Badge
             variant={getStatusBadgeVariant(status)}
-            className="capitalize text-xs"
+            className={`capitalize text-xs font-semibold ${getStatusBadgeClasses(status)}`}
           >
             {status}
           </Badge>
@@ -369,7 +387,11 @@ export default function ManagerCustomersPage() {
             <div>
               <p className="text-sm font-medium text-blue-700">Current Date Filter</p>
                       <p className="text-sm font-bold text-blue-800">
-                        {formatDateRange(dateRange)}
+                        {formatDateRange(
+                          dateRange?.from && dateRange?.to
+                            ? { from: dateRange.from, to: dateRange.to }
+                            : undefined
+                        )}
                       </p>
             </div>
             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -401,6 +423,7 @@ export default function ManagerCustomersPage() {
               <option value="prospect">Prospect</option>
               <option value="customer">Customer</option>
               <option value="inactive">Inactive</option>
+              <option value="exhibition">Exhibition</option>
             </select>
           </div>
         </div>

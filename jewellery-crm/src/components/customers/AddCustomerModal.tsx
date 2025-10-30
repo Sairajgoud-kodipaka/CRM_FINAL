@@ -620,9 +620,12 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         }
       };
 
-      // Clean string fields - return empty string for empty values instead of undefined
-      const cleanStringField = (value: string) => {
-        return value && value.trim() ? value.trim() : '';
+      // Clean string fields; for email specifically, prefer null when empty (avoids unique '' in DB)
+      const cleanStringField = (value: string, opts?: { undefinedIfEmpty?: boolean; nullIfEmpty?: boolean }) => {
+        const v = value && value.trim() ? value.trim() : '';
+        if (!v && opts?.undefinedIfEmpty) return undefined as unknown as string;
+        if (!v && opts?.nullIfEmpty) return null as unknown as string;
+        return v;
       };
 
       // Create assignment audit trail with enhanced tracking
@@ -650,7 +653,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       const customerData = {
         first_name: formData.fullName.split(' ')[0] || formData.fullName,
         last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
-        email: cleanStringField(formData.email),
         phone: formData.phone,
         address: cleanStringField(formData.streetAddress),
         city: formData.city,
@@ -704,6 +706,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
         autofill_audit_trail: autofillLogs, // Include audit trail
         assignment_audit: assignmentAudit, // Include assignment audit
+        // NOTE: Add optional fields conditionally to avoid backend validators on empty values
+        ...(formData.email && formData.email.trim() ? { email: formData.email.trim() } : {}),
       };
 
 

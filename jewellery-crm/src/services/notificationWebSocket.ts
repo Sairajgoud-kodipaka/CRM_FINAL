@@ -1,6 +1,6 @@
 'use client';
 
-import { Notification } from '@/types';
+import type { Notification } from '@/types';
 
 interface WebSocketMessage {
   type: 'new_notification' | 'notification_batch' | 'notification_read' | 'pong';

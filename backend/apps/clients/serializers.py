@@ -293,36 +293,9 @@ class ClientSerializer(serializers.ModelSerializer):
             if hasattr(self, 'instance') and self.instance and self.instance.id == existing_client.id:
                 print(f"Email validation passed for update operation")
                 return value
-            else:
-                print(f"Email '{value}' already exists for tenant {tenant}")
-                
-                # Get more details about the existing customer
-                existing_name = existing_client.full_name or f"{existing_client.first_name or ''} {existing_client.last_name or ''}".strip()
-                existing_phone = existing_client.phone or "No phone"
-                existing_status = existing_client.get_status_display()
-                
-                # Suggest alternative emails
-                base_email = value.split('@')[0]
-                domain = value.split('@')[1] if '@' in value else ''
-                suggestions = []
-                
-                if domain:
-                    suggestions = [
-                        f"{base_email}1@{domain}",
-                        f"{base_email}2@{domain}",
-                        f"{base_email}_new@{domain}",
-                        f"{base_email}2024@{domain}"
-                    ]
-                
-                suggestion_text = ""
-                if suggestions:
-                    suggestion_text = f" Suggested alternatives: {', '.join(suggestions[:2])}"
-                
-                raise serializers.ValidationError(
-                    f"A customer with email '{value}' already exists.{suggestion_text} "
-                    f"Existing customer: {existing_name} ({existing_phone}) - Status: {existing_status}. "
-                    "Please use a different email address or update the existing customer."
-                )
+            # For create with duplicate email, coerce to None instead of erroring
+            print(f"Duplicate email '{value}' for tenant {tenant} detected – coercing to None (treat as no email)")
+            return None
         
         print(f"Email validation passed: '{value}' is unique for tenant {tenant}")
         return value
@@ -843,6 +816,15 @@ class ClientSerializer(serializers.ModelSerializer):
                 else:
                     print("No tags provided or empty list")
         
+        # Ensure email is None, not empty string, on update as well
+        if 'email' in validated_data:
+            email_val = validated_data.get('email')
+            if email_val is None:
+                pass
+            elif isinstance(email_val, str) and email_val.strip() == "":
+                validated_data['email'] = None
+                print("Normalized update email: empty string -> None")
+        
         # Call parent update method for other fields
         result = super().update(instance, validated_data)
         
@@ -1109,6 +1091,19 @@ class ClientSerializer(serializers.ModelSerializer):
         if 'tenant' in data:
             data.pop('tenant')
             print("Removed tenant field from input data")
+        
+        # Normalize email: coerce empty string/whitespace to None
+        try:
+            if 'email' in data:
+                email_val = data.get('email')
+                if email_val is None:
+                    pass
+                elif isinstance(email_val, str) and email_val.strip() == "":
+                    data['email'] = None
+                    print("Normalized email: empty string -> None")
+        except Exception as _:
+            # Be defensive; don't block request processing on normalization
+            pass
         
         # Call parent method
         result = super().to_internal_value(data)

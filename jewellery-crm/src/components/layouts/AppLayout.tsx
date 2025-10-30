@@ -58,7 +58,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
 
       {/* Main Content Area */}
       <div className={cn(
-        'transition-all duration-300 ease-in-out min-h-screen flex flex-col',
+        'transition-all duration-300 ease-in-out min-h-0 flex flex-col flex-1',
         'lg:ml-60'
       )}>
         {/* Header */}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useState } from 'react';
-import { Notification, NotificationType, NotificationPriority, NotificationStatus, NotificationSettings } from '@/types';
+import type { Notification, NotificationType, NotificationPriority, NotificationStatus, NotificationSettings } from '@/types';
 import { apiService } from '@/lib/api-service';
 import { useAuth } from './useAuth';
 import { notificationSound } from '@/lib/notification-sound';

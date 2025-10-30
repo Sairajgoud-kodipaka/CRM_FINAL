@@ -12,7 +12,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const tenant = params?.tenant as string;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-full bg-white">
       {/* Top announcement bar */}
       <div className="bg-gradient-to-r from-gold to-yellow-500 text-white text-center py-2 text-sm font-medium">
         <span>✨ Free Shipping on Orders Above ₹999 | 30-Day Return Policy</span>

@@ -13,7 +13,7 @@ export default function SalesPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-full flex items-center justify-center">
       <div className="text-center">
         <Skeleton className="h-8 w-8 mx-auto mb-4 rounded-full" />
         <p className="text-gray-600">Redirecting to sales dashboard...</p>
@@ -21,4 +21,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
 

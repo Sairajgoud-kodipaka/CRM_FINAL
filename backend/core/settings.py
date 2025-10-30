@@ -291,6 +291,13 @@ CORS_EXPOSE_HEADERS = [
 # CSRF Settings
 CSRF_TRUSTED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app').split(',') if origin.strip()]
 
+# Cross-site cookie configuration for frontend on a different domain (e.g., Vercel)
+# Defaults are production-safe; can be overridden via environment if needed
+SESSION_COOKIE_SAMESITE = config('SESSION_COOKIE_SAMESITE', default='None')
+CSRF_COOKIE_SAMESITE = config('CSRF_COOKIE_SAMESITE', default='None')
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=True, cast=bool)
+
 # Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
