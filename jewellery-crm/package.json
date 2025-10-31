@@ -23,8 +23,8 @@
     "prisma:generate": "cd ../backend && prisma generate",
     "prisma:migrate": "cd ../backend && prisma migrate dev",
     "prisma:studio": "cd ../backend && prisma studio",
-    "prebuild": "(npm run security:audit || true)",
-    "postinstall": "npm run security:audit || true"
+    "prebuild": "npm run security:audit || node -e \"process.exit(0)\"",
+    "postinstall": "npm run security:audit || node -e \"process.exit(0)\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

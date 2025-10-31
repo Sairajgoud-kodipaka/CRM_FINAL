@@ -1,13 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { apiService } from '@/lib/api-service'
 
-export default function ResetPasswordConfirmPage() {
+// Force dynamic rendering since this page uses search params
+export const dynamic = 'force-dynamic'
+
+function ResetPasswordForm() {
   const params = useSearchParams()
   const router = useRouter()
   const [newPassword, setNewPassword] = useState('')
@@ -64,6 +67,23 @@ export default function ResetPasswordConfirmPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function ResetPasswordConfirmPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Reset Password</CardTitle>
+            <CardDescription>Loading...</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }
 

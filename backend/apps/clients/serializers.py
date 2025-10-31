@@ -15,6 +15,7 @@ class ClientSerializer(serializers.ModelSerializer):
     nextFollowUp = serializers.CharField(write_only=True, required=False, source='next_follow_up')
     summaryNotes = serializers.CharField(write_only=True, required=False, source='summary_notes', allow_null=True, allow_blank=True)
     assigned_to = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
+    customer_preference = serializers.CharField(write_only=True, required=False, source='customer_preferences', allow_null=True, allow_blank=True)
     
     # Add missing field mappings
     community = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -1114,32 +1115,87 @@ class ClientSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """
         Custom validation for the entire data set.
+        Validates required fields (marked with * in frontend) while allowing optional fields to be null.
         """
         print(f"=== VALIDATING ENTIRE DATA SET ===")
         print(f"Data to validate: {data}")
         
-        # For updates, we don't need to validate required fields if they're not being updated
-        # Only validate if this is a create operation or if the fields are being updated
+        errors = {}
         instance = getattr(self, 'instance', None)
         
         if instance is None:
-            # This is a create operation – be permissive: allow submit if ANY meaningful field is provided
-            # Collect a set of candidate fields that indicate intent to capture a customer
-            candidate_fields = [
-                'name', 'first_name', 'last_name', 'full_name', 'phone', 'email',
-                'product_type', 'reason_for_visit', 'next_follow_up', 'summary_notes',
-                'customer_status', 'lead_source', 'city', 'notes'
-            ]
-            any_filled = False
-            for f in candidate_fields:
-                val = data.get(f)
-                if val is not None and str(val).strip() != "":
-                    any_filled = True
-                    break
-            if not any_filled:
-                # If truly empty submission, reject; otherwise allow
-                print("=== VALIDATION: No meaningful fields provided ===")
-                raise serializers.ValidationError({'detail': 'Please provide at least one customer detail (e.g., name, phone, product, or notes).'})
+            # This is a create operation - validate required fields (marked with * in frontend)
+            
+            # Required fields from frontend (marked with *)
+            # 1. Full Name - check first_name (last_name can be empty)
+            if not data.get('first_name') or not str(data.get('first_name', '')).strip():
+                errors['first_name'] = "Full Name is required"
+            
+            # 2. Phone Number
+            if not data.get('phone') or not str(data.get('phone', '')).strip():
+                errors['phone'] = "Phone Number is required"
+            
+            # 3. City
+            if not data.get('city') or not str(data.get('city', '')).strip():
+                errors['city'] = "City is required"
+            
+            # 4. State
+            if not data.get('state') or not str(data.get('state', '')).strip():
+                errors['state'] = "State is required"
+            
+            # 5. Catchment Area
+            if not data.get('catchment_area') or not str(data.get('catchment_area', '')).strip():
+                errors['catchment_area'] = "Catchment Area is required"
+            
+            # 6. Pincode
+            if not data.get('pincode') or not str(data.get('pincode', '')).strip():
+                errors['pincode'] = "Pincode is required"
+            
+            # 7. Sales Person
+            if not data.get('sales_person') or not str(data.get('sales_person', '')).strip():
+                errors['sales_person'] = "Sales Person is required"
+            
+            # 8. Reason for Visit
+            if not data.get('reason_for_visit') or not str(data.get('reason_for_visit', '')).strip():
+                errors['reason_for_visit'] = "Reason for Visit is required"
+            
+            # 9. Lead Source
+            if not data.get('lead_source') or not str(data.get('lead_source', '')).strip():
+                errors['lead_source'] = "Lead Source is required"
+            
+            # 10. Product Type
+            if not data.get('product_type') or not str(data.get('product_type', '')).strip():
+                errors['product_type'] = "Product Type is required"
+            
+            # 11. Expected Revenue - check customer_interests_input
+            customer_interests_input = data.get('customer_interests_input', [])
+            has_revenue = False
+            if customer_interests_input:
+                for interest_str in customer_interests_input:
+                    try:
+                        import json
+                        interest_data = json.loads(interest_str)
+                        products = interest_data.get('products', [])
+                        if products and len(products) > 0:
+                            revenue = products[0].get('revenue', '')
+                            if revenue and str(revenue).strip() and not str(revenue).strip() == '0':
+                                try:
+                                    float(revenue)
+                                    has_revenue = True
+                                    break
+                                except (ValueError, TypeError):
+                                    pass
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        pass
+            
+            if not has_revenue:
+                errors['customer_interests_input'] = "Expected Revenue is required"
+            
+            # Raise errors if any required fields are missing
+            if errors:
+                print(f"=== VALIDATION ERRORS: {errors} ===")
+                raise serializers.ValidationError(errors)
+            
         else:
             # This is an update operation - ensure we maintain at least name OR phone
             current_name = instance.first_name or instance.last_name or ''
@@ -1156,9 +1212,22 @@ class ClientSerializer(serializers.ModelSerializer):
             # Check if update would result in both name and phone being empty
             if not final_name and not final_phone:
                 errors['name'] = "At least Name or Phone must be maintained. Update cannot remove both fields."
-                if errors:
-                    print(f"=== UPDATE VALIDATION ERRORS: {errors} ===")
-                    raise serializers.ValidationError(errors)
+                print(f"=== UPDATE VALIDATION ERRORS: {errors} ===")
+                raise serializers.ValidationError(errors)
+        
+        # Convert empty strings to None for optional fields to ensure they're stored as null
+        optional_fields = [
+            'email', 'address', 'last_name', 'date_of_birth', 'anniversary_date',
+            'customer_status', 'style', 'customer_preferences', 'design_number',
+            'next_follow_up', 'next_follow_up_time', 'summary_notes',
+            'age_of_end_user', 'ageing_percentage', 'material_type',
+            'material_weight', 'material_value', 'material_unit', 'notes'
+        ]
+        
+        for field in optional_fields:
+            if field in data and data[field] is not None:
+                if isinstance(data[field], str) and data[field].strip() == '':
+                    data[field] = None
         
         print("=== VALIDATION PASSED ===")
         print(f"Final data after validation: {data}")

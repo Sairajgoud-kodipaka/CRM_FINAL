@@ -483,23 +483,59 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     }
   };
 
-  // Validate form before submission - allow submission if ANY meaningful field is present
+  // Validate form before submission - only required fields (marked with *) are mandatory
   const validateForm = (): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
-    const candidates = [
-      formData.fullName,
-      formData.phone,
-      formData.email,
-      formData.productType,
-      formData.reasonForVisit,
-      formData.nextFollowUpDate,
-      formData.summaryNotes,
-      formData.city,
-    ];
-    const anyFilled = candidates.some(v => (v || '').toString().trim() !== '');
-    if (!anyFilled) {
-      errors.push("Please provide at least one detail (e.g., name, phone, product, or notes)");
+    // Required fields marked with "*"
+    if (!formData.fullName || formData.fullName.trim() === '') {
+      errors.push("Full Name is required");
+    }
+
+    if (!formData.phone || formData.phone.trim() === '') {
+      errors.push("Phone Number is required");
+    }
+
+    if (!formData.city || formData.city.trim() === '') {
+      errors.push("City is required");
+    }
+
+    if (!formData.state || formData.state.trim() === '') {
+      errors.push("State is required");
+    }
+
+    if (!formData.catchmentArea || formData.catchmentArea.trim() === '') {
+      errors.push("Catchment Area is required");
+    }
+
+    if (!formData.pincode || formData.pincode.trim() === '') {
+      errors.push("Pincode is required");
+    }
+
+    if (!formData.salesPerson || formData.salesPerson.trim() === '') {
+      errors.push("Sales Person is required");
+    }
+
+    if (!formData.reasonForVisit || formData.reasonForVisit.trim() === '') {
+      errors.push("Reason for Visit is required");
+    }
+
+    if (!formData.leadSource || formData.leadSource.trim() === '') {
+      errors.push("Lead Source is required");
+    }
+
+    if (!selectedProduct || !selectedProduct.id) {
+      errors.push("Select Product is required");
+    }
+
+    if (!formData.productType || formData.productType.trim() === '') {
+      errors.push("Product Type is required");
+    }
+
+    // Check if Expected Revenue is filled (from interests)
+    const expectedRevenue = interests[0]?.products[0]?.revenue;
+    if (!expectedRevenue || expectedRevenue.trim() === '' || isNaN(parseFloat(expectedRevenue))) {
+      errors.push("Expected Revenue is required");
     }
 
     return {
@@ -620,12 +656,19 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         }
       };
 
-      // Clean string fields; for email specifically, prefer null when empty (avoids unique '' in DB)
+      // Clean string fields; convert empty strings to null for optional fields
       const cleanStringField = (value: string, opts?: { undefinedIfEmpty?: boolean; nullIfEmpty?: boolean }) => {
         const v = value && value.trim() ? value.trim() : '';
         if (!v && opts?.undefinedIfEmpty) return undefined as unknown as string;
         if (!v && opts?.nullIfEmpty) return null as unknown as string;
         return v;
+      };
+
+      // Helper to convert empty strings to null for optional fields
+      const emptyToNull = (value: string | undefined): string | null => {
+        if (value === undefined || value === null) return null;
+        if (typeof value === 'string' && value.trim() === '') return null;
+        return value;
       };
 
       // Create assignment audit trail with enhanced tracking
@@ -650,69 +693,66 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       };
 
       // Prepare customer data
+      // Required fields (marked with *) are always included
+      // Optional fields are converted to null if empty
       const customerData = {
+        // Required fields
         first_name: formData.fullName.split(' ')[0] || formData.fullName,
         last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
         phone: formData.phone,
-        address: cleanStringField(formData.streetAddress),
         city: formData.city,
         state: formData.state,
-        country: formData.country,
-        date_of_birth: formatDateForAPI(formData.birthDate),
-        anniversary_date: formatDateForAPI(formData.anniversaryDate),
+        country: formData.country || 'India',
         catchment_area: formData.catchmentArea,
         pincode: formData.pincode,
         sales_person: formData.salesPerson,
         sales_person_id: (() => {
           // Find the selected salesperson's ID from the options
-
-
           const selectedOption = salesPersonOptions.find(option => {
-
             return option.name === formData.salesPerson;
           });
-
-
           const salesPersonId = selectedOption ? selectedOption.id : null;
-
-
           return salesPersonId;
         })(),
         reason_for_visit: formData.reasonForVisit,
-        customer_status: formData.customerStatus,
         lead_source: formData.leadSource,
-        saving_scheme: formData.savingScheme,
-        customer_interests: formData.customerInterests,
+        product_type: formData.productType,
+
+        // Optional fields - convert empty strings to null
+        address: emptyToNull(formData.streetAddress) as string | null,
+        date_of_birth: formatDateForAPI(formData.birthDate),
+        anniversary_date: formatDateForAPI(formData.anniversaryDate),
+        customer_status: emptyToNull(formData.customerStatus) as string | null,
+        saving_scheme: formData.savingScheme || 'Inactive',
+        customer_interests: formData.customerInterests.length > 0 ? formData.customerInterests : [],
         customer_interests_input: interests.map(interest => JSON.stringify(interest)),
 
-        product_type: formData.productType,
-        style: formData.style,
-
-        customer_preference: cleanStringField(formData.customerPreference),
-        design_number: cleanStringField(formData.designNumber),
+        style: emptyToNull(formData.style) as string | null,
+        customer_preference: emptyToNull(formData.customerPreference) as string | null,
+        design_number: emptyToNull(formData.designNumber) as string | null,
         next_follow_up: formatDateForAPI(formData.nextFollowUpDate),
-        next_follow_up_time: formData.nextFollowUpTime,
-        summary_notes: cleanStringField(formData.summaryNotes),
+        next_follow_up_time: formData.nextFollowUpTime || null,
+        summary_notes: emptyToNull(formData.summaryNotes) as string | null,
 
-        // New Critical Fields
-        age_of_end_user: formData.ageOfEndUser,
-        ageing_percentage: cleanStringField(formData.ageingPercentage),
+        // New Critical Fields - optional
+        age_of_end_user: emptyToNull(formData.ageOfEndUser) as string | null,
+        ageing_percentage: emptyToNull(formData.ageingPercentage) as string | null,
 
-        // Material Selection Fields
-        material_type: formData.materialType,
-        material_weight: formData.materialWeight,
-        material_value: formData.materialValue,
-        material_unit: formData.materialUnit,
+        // Material Selection Fields - optional
+        material_type: emptyToNull(formData.materialType) as string | null,
+        material_weight: formData.materialWeight && formData.materialWeight > 0 ? formData.materialWeight : null,
+        material_value: formData.materialValue && formData.materialValue > 0 ? formData.materialValue : null,
+        material_unit: formData.materialUnit || null,
 
         autofill_audit_trail: autofillLogs, // Include audit trail
         assignment_audit: assignmentAudit, // Include assignment audit
-        // NOTE: Add optional fields conditionally to avoid backend validators on empty values
+        // Email - optional, only include if not empty
         ...(formData.email && formData.email.trim() ? { email: formData.email.trim() } : {}),
       };
 
 
 
-      // Remove undefined values to avoid sending them to API
+      // Remove undefined values but keep null values (null indicates optional fields that are empty)
       const cleanedCustomerData = Object.fromEntries(
         Object.entries(customerData).filter(([_, value]) => value !== undefined)
       );
