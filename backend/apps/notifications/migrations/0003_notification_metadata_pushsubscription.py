@@ -14,10 +14,35 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="notification",
-            name="metadata",
-            field=models.JSONField(blank=True, default=dict),
+        # Use SeparateDatabaseAndState to handle metadata field correctly
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name="notification",
+                    name="metadata",
+                    field=models.JSONField(blank=True, default=dict),
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                        DO $$
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_name='notifications_notification' 
+                                AND column_name='metadata'
+                            ) THEN
+                                ALTER TABLE notifications_notification 
+                                ADD COLUMN metadata JSONB DEFAULT '{}' NOT NULL;
+                            END IF;
+                        END $$;
+                    """,
+                    reverse_sql="""
+                        ALTER TABLE notifications_notification DROP COLUMN IF EXISTS metadata;
+                    """,
+                ),
+            ],
         ),
         migrations.CreateModel(
             name="PushSubscription",

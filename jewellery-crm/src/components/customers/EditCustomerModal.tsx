@@ -994,7 +994,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                         <span className="font-medium">Probability:</span> {opportunity.probability}%
                       </div>
                       <div className="text-sm text-gray-600">
-                        <span className="font-medium">Stage:</span> {opportunity.stage === 'closed_won' ? 'Closed Won' : opportunity.stage === 'store_walkin' ? 'Store Walkin' : 'Exhibition'}
+                        <span className="font-medium">Stage:</span> {opportunity.stage === 'closed_won' ? 'Bought' : opportunity.stage === 'store_walkin' ? 'Store Walkin' : 'Exhibition'}
                       </div>
                       <div className="text-sm text-gray-600">
                         <span className="font-medium">Next Action:</span> {opportunity.next_action}

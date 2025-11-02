@@ -312,7 +312,7 @@ class ClientSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
             # Frontend field mappings
             'name', 'leadSource', 'reasonForVisit', 'ageOfEndUser', 'source', 
-            'nextFollowUp', 'summaryNotes', 'assigned_to',
+            'nextFollowUp', 'summaryNotes', 'assigned_to', 'customer_preference',
             'tags', 'tag_slugs',
             'catchment_area', 'next_follow_up_time', 'saving_scheme',
             # Store field for store-based visibility

@@ -244,9 +244,9 @@ export default function BusinessAdminPurchasesPage() {
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case "closed_won":
-        return "Closed Won";
+        return "Bought";
       case "closed_lost":
-        return "Closed Lost";
+        return "Lost";
       default:
         return status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
     }

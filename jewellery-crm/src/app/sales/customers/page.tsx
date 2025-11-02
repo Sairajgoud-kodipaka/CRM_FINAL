@@ -19,11 +19,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange, toUtcStartOfDay, toUtcEndOfDay } from '@/lib/date-utils';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 export default function SalesCustomersPage() {
   const { userScope } = useScopedVisibility();
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [customers, setCustomers] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
@@ -44,8 +46,8 @@ export default function SalesCustomersPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // Check if user can delete customers (managers and higher roles)
-  const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
+  // Check if user can delete customers (only business admin)
+  const canDeleteCustomers = user?.role === 'business_admin';
 
   // Memoized fetch function to prevent unnecessary re-renders
   const fetchCustomers = useCallback(async () => {
@@ -323,7 +325,7 @@ export default function SalesCustomersPage() {
         onClose={() => setDetailModalOpen(false)}
         customerId={selectedCustomerId}
         onEdit={handleEditCustomer}
-        onDelete={handleDeleteCustomer}
+        onDelete={canDeleteCustomers ? handleDeleteCustomer : undefined}
       />
       <EditCustomerModal
         open={editModalOpen}
@@ -710,6 +712,19 @@ export default function SalesCustomersPage() {
           </div>
         )}
       </Card>
+
+      {/* Mobile Floating Action Button */}
+      {isMobile && !modalOpen && (
+        <div className="fixed bottom-20 right-4 z-50">
+          <Button
+            onClick={() => setModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+            size="lg"
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -219,7 +219,7 @@ export default function AnalyticsPage() {
               <span className="font-medium">{analyticsData.pipeline_deals_count}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span>Closed Won</span>
+              <span>Bought</span>
               <span className="font-medium">{analyticsData.closed_won_pipeline_count}</span>
             </div>
           </div>

@@ -173,7 +173,7 @@ class Client(models.Model):
         verbose_name = _('Client')
         verbose_name_plural = _('Clients')
         ordering = ['-created_at']
-        unique_together = ['email', 'tenant']
+        # unique_together removed - using partial unique index for email+tenant instead
         indexes = [
             models.Index(fields=['tenant', 'is_deleted']),
             models.Index(fields=['email', 'tenant', 'is_deleted']),
@@ -183,6 +183,7 @@ class Client(models.Model):
             models.Index(fields=['created_at']),
             models.Index(fields=['next_follow_up']),
         ]
+        # Partial unique index is created via migration 0030 to allow multiple NULL emails
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"

@@ -18,9 +18,15 @@ import { TableSkeleton } from '@/components/ui/skeleton';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 export default function ManagerCustomersPage() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
+  
+  // Check if user can delete customers (only business admin)
+  const canDeleteCustomers = user?.role === 'business_admin';
+  
   const [modalOpen, setModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [customers, setCustomers] = useState<Client[]>([]);
@@ -34,9 +40,6 @@ export default function ManagerCustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Client | null>(null);
   const [filteredCustomers, setFilteredCustomers] = useState<Client[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
-
-  // Check if user can delete customers (managers and higher roles)
-  const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
 
   useEffect(() => {
     fetchCustomers();
@@ -324,7 +327,7 @@ export default function ManagerCustomersPage() {
         onClose={() => setDetailModalOpen(false)}
         customerId={selectedCustomerId}
         onEdit={handleEditCustomer}
-        onDelete={handleDeleteCustomer}
+        onDelete={canDeleteCustomers ? handleDeleteCustomer : undefined}
       />
       <EditCustomerModal
         open={editModalOpen}
@@ -446,6 +449,10 @@ export default function ManagerCustomersPage() {
                   handleEditCustomer(client);
                   break;
                 case 'delete':
+                  if (!canDeleteCustomers) {
+                    alert('You do not have permission to delete customers. Only business admins can delete customers.');
+                    return;
+                  }
                   if (window.confirm(`Are you sure you want to move ${client.first_name} ${client.last_name} to trash? You can restore them later from the Trash section.`)) {
                     handleDeleteCustomer(client.id.toString());
                   }
@@ -520,6 +527,19 @@ export default function ManagerCustomersPage() {
           </div>
         )}
       </Card>
+
+      {/* Mobile Floating Action Button */}
+      {isMobile && !modalOpen && (
+        <div className="fixed bottom-20 right-4 z-50">
+          <Button
+            onClick={() => setModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+            size="lg"
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -15,7 +15,7 @@ interface CustomerDetailModalProps {
   onClose: () => void;
   customerId: string | null;
   onEdit: (customer: Client) => void;
-  onDelete: (customerId: string) => void;
+  onDelete?: (customerId: string) => void;
 }
 
 interface AuditLog {
@@ -33,8 +33,8 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
 
-  // Check if user can delete customers (managers and higher roles)
-  const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
+  // Check if user can delete customers (only business admin)
+  const canDeleteCustomers = user?.role === 'business_admin';
 
   // Real-time updates for this specific customer
   useCustomerRealtimeUpdates(
@@ -128,7 +128,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   };
 
   const handleDelete = () => {
-    if (customer && window.confirm(`Are you sure you want to delete ${customer.first_name} ${customer.last_name}? This action cannot be undone.`)) {
+    if (customer && onDelete && window.confirm(`Are you sure you want to delete ${customer.first_name} ${customer.last_name}? This action cannot be undone.`)) {
       onDelete(customer.id.toString());
       onClose();
     }
@@ -277,7 +277,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                 size="sm"
                 className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={markBought}
-                title="Mark as Bought (Closed Won)"
+                  title="Mark as Bought"
               >
                 <CheckCircle2 className="w-4 h-4 mr-2" />
                 Bought
@@ -287,20 +287,10 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                 size="sm"
                 className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2"
                 onClick={markLost}
-                title="Mark as Lost (Closed Lost)"
+                title="Mark as Lost"
               >
                 <XCircle className="w-4 h-4 mr-2" />
                 Lost
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2"
-                onClick={fetchCustomerDetails}
-                disabled={loading}
-              >
-                <Clock className="w-4 h-4 mr-2" />
-                {loading ? 'Refreshing...' : 'Refresh'}
               </Button>
               {canDeleteCustomers && (
                 <Button
@@ -523,9 +513,10 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                               parsedInterest.status === 'interested' ? 'bg-blue-100 text-blue-800 border-blue-200' :
                               'bg-gray-100 text-gray-800 border-gray-200'
                             }`}>
-                              {parsedInterest.status === 'closed_won' ? 'Closed Won' :
-                               parsedInterest.status === 'negotiation' ? 'Under Negotiation' :
-                               parsedInterest.status === 'interested' ? 'Interested' : 'Unknown'}
+                               {parsedInterest.status === 'closed_won' ? 'Bought' :
+                                parsedInterest.status === 'closed_lost' ? 'Lost' :
+                                parsedInterest.status === 'negotiation' ? 'Under Negotiation' :
+                                parsedInterest.status === 'interested' ? 'Interested' : 'Unknown'}
                             </span>
                           )}
                         </div>

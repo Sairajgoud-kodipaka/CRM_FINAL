@@ -243,8 +243,8 @@ export function DealDetailModal({ open, onClose, dealId, onDealUpdated }: DealDe
     { value: 'interested', label: 'Interested', color: 'bg-yellow-500' },
     { value: 'store_walkin', label: 'Store - Walkin', color: 'bg-green-500' },
     { value: 'negotiation', label: 'Negotiation', color: 'bg-orange-500' },
-    { value: 'purchased', label: 'Purchased', color: 'bg-emerald-500' },
-    { value: 'closed_lost', label: 'Closed Lost', color: 'bg-red-500' },
+    { value: 'purchased', label: 'Bought', color: 'bg-emerald-500' },
+    { value: 'closed_lost', label: 'Lost', color: 'bg-red-500' },
     { value: 'future_prospect', label: 'Future Prospect', color: 'bg-indigo-500' },
     { value: 'not_qualified', label: 'Not Qualified', color: 'bg-gray-500' },
   ];

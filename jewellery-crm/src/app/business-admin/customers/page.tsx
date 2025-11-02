@@ -18,9 +18,11 @@ import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal'
 import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 export default function CustomersPage() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,8 +35,8 @@ export default function CustomersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
 
-  // Check if user can delete customers (managers and higher roles)
-  const canDeleteCustomers = user?.role && ['platform_admin', 'business_admin', 'manager'].includes(user.role);
+  // Check if user can delete customers (only business admin)
+  const canDeleteCustomers = user?.role === 'business_admin';
 
   // Real-time updates
   useCustomerRealtimeUpdates(
@@ -259,26 +261,56 @@ export default function CustomersPage() {
           <h1 className="text-3xl font-bold text-text-primary tracking-tight">Customers</h1>
           <p className="text-text-secondary mt-1">Manage your customer relationships and interactions</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {isMobile ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="default">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsImportModalOpen(true)}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsExportModalOpen(true)}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => setIsImportModalOpen(true)}
+              >
+                <Upload className="w-4 h-4" />
+                <span className="hidden sm:inline">Import</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => setIsExportModalOpen(true)}
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+            </>
+          )}
           <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-            onClick={() => setIsImportModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            size={isMobile ? "default" : "sm"}
+            onClick={() => setShowAddModal(true)}
           >
-            <Upload className="w-4 h-4" />
-            Import
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Add Customer</span>
+            <span className="sm:hidden">Add</span>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-            onClick={() => setIsExportModalOpen(true)}
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
-
         </div>
       </div>
 
@@ -532,6 +564,19 @@ export default function CustomersPage() {
           }
         }}
       />
+
+      {/* Mobile Floating Action Button */}
+      {isMobile && !showAddModal && (
+        <div className="fixed bottom-20 right-4 z-50">
+          <Button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+            size="lg"
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

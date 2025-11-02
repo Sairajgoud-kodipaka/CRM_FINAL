@@ -483,7 +483,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     }
   };
 
-  // Validate form before submission - only required fields (marked with *) are mandatory
+  // Validate form before submission - only required fields (marked with *) are mandatoryw
   const validateForm = (): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
