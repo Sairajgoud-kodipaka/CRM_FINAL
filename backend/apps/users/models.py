@@ -93,7 +93,10 @@ class User(AbstractUser):
         return self.role == self.Role.MARKETING
 
     def get_full_name(self):
-        return f"{self.first_name} {self.last_name}".strip() or self.username
+        first = self.first_name or ''
+        last = self.last_name or ''
+        full_name = f"{first} {last}".strip()
+        return full_name if full_name else self.username
 
 
 class TeamMember(models.Model):

@@ -1041,26 +1041,17 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
 
 
-          // Create display names with context information and store user data
+          // Create display names with clean formatting
           const names = salesRoleUsers.map((u: any) => {
             const fullName = `${u.first_name || ''} ${u.last_name || ''}`.trim();
-            const displayName = fullName || u.username || u.name || `User ${u.id}`;
-
-            // Add context information for managers and admins
-            if (['manager', 'business_admin', 'platform_admin'].includes(user.role)) {
-              const storeInfo = u.store ? ` (${u.store})` : '';
-              const tenantInfo = u.tenant ? ` [${u.tenant}]` : '';
-              return `${displayName}${storeInfo}${tenantInfo}`;
-            }
-
-            return displayName;
+            return fullName || u.username || 'Unknown User';
           });
 
           // Store both display names and user data
           setSalesPersons(names);
           setSalesPersonOptions(salesRoleUsers.map((u: any) => ({
             id: u.id,
-            name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || `User ${u.id}`,
+            name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || 'Unknown User',
             username: u.username
           })));
 

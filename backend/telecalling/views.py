@@ -854,7 +854,7 @@ class SalesPersonListView(APIView):
         for person in sales_persons:
             sales_list.append({
                 'id': person['id'],
-                'name': f"{person['first_name']} {person['last_name']}".strip() or person['username'],
+                'name': f"{person['first_name'] or ''} {person['last_name'] or ''}".strip() or person['username'],
                 'email': person['email'],
                 'username': person['username']
             })

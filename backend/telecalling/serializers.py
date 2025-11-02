@@ -16,7 +16,9 @@ class UserMiniSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'first_name', 'last_name', 'email', 'full_name']
     
     def get_full_name(self, obj):
-        return f"{obj.first_name} {obj.last_name}".strip()
+        first = obj.first_name or ''
+        last = obj.last_name or ''
+        return f"{first} {last}".strip() or obj.username
 
 class CustomerVisitSerializer(serializers.ModelSerializer):
     sales_rep_details = UserMiniSerializer(source='sales_rep', read_only=True)

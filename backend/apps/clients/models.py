@@ -186,11 +186,15 @@ class Client(models.Model):
         # Partial unique index is created via migration 0030 to allow multiple NULL emails
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        return self.full_name
 
     @property
     def full_name(self):
-        return f"{self.first_name} {self.last_name}"
+        """Return full name without null values"""
+        first = self.first_name or ''
+        last = self.last_name or ''
+        full_name = f"{first} {last}".strip()
+        return full_name if full_name else 'Unnamed Customer'
 
     @property
     def is_lead(self):
