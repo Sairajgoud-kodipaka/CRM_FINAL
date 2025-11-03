@@ -11,6 +11,7 @@ interface PhoneInputProps {
   required?: boolean;
   disabled?: boolean;
   error?: boolean;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export function PhoneInputComponent({
@@ -21,6 +22,7 @@ export function PhoneInputComponent({
   required = false,
   disabled = false,
   error = false,
+  onKeyDown,
 }: PhoneInputProps) {
   const [validationError, setValidationError] = useState<string>("");
   const [isValid, setIsValid] = useState<boolean>(true);
@@ -94,6 +96,7 @@ export function PhoneInputComponent({
           type="tel"
           value={mobileNumber}
           onChange={handleMobileChange}
+          onKeyDown={onKeyDown}
           maxLength={10}
           pattern="\d{10}"
           placeholder={placeholder}

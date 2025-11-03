@@ -28,47 +28,92 @@ class GoogleSheetsService:
         self._initialize_service()
     
     def _initialize_service(self):
-        """Initialize Google Sheets service"""
+        """
+        Initialize Google Sheets service with secure credential loading.
+        
+        Priority order (most secure first):
+        1. GOOGLE_SHEETS_CREDENTIALS_JSON environment variable (production - recommended)
+        2. File-based credentials in /etc/secrets/ (production server)
+        3. Local development file paths (development only)
+        
+        Security Note: Credential files are gitignored and should NEVER be committed.
+        """
         try:
-            # Try environment variable first (production)
+            # Priority 1: Try environment variable first (production - most secure)
             google_credentials_json = config('GOOGLE_SHEETS_CREDENTIALS_JSON', default=None)
             
             if google_credentials_json:
-                # Use credentials from environment variable
-                credentials_info = json.loads(google_credentials_json)
-                self.credentials = service_account.Credentials.from_service_account_info(
-                    credentials_info,
-                    scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
-                )
+                try:
+                    # Use credentials from environment variable (production best practice)
+                    credentials_info = json.loads(google_credentials_json)
+                    self.credentials = service_account.Credentials.from_service_account_info(
+                        credentials_info,
+                        scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+                    )
+                    logger.info("Google Sheets credentials loaded from environment variable (GOOGLE_SHEETS_CREDENTIALS_JSON)")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse GOOGLE_SHEETS_CREDENTIALS_JSON: {str(e)}")
+                    return
+                except Exception as e:
+                    logger.error(f"Failed to load credentials from environment variable: {str(e)}")
+                    return
             else:
-                # Fallback to file-based credentials (development)
+                # Priority 2 & 3: Fallback to file-based credentials (development or server-specific)
+                # Check production server secrets path first
                 render_secret_path = '/etc/secrets/mangatrai-6bc45a711bae.json'
                 
                 if os.path.exists(render_secret_path):
                     key_file_path = render_secret_path
+                    logger.info(f"Using production secrets path: {render_secret_path}")
                 else:
-                    # Fallback to local development path - check for new JSON file
+                    # Priority 3: Local development paths (gitignored - safe for local dev)
                     new_json_path = os.path.join(settings.BASE_DIR.parent, 'crmsales-475507-247bd72ab136.json')
                     old_json_path = os.path.join(settings.BASE_DIR.parent, 'jewellery-crm', 'mangatrai-6bc45a711bae.json')
                     
                     if os.path.exists(new_json_path):
                         key_file_path = new_json_path
+                        logger.info(f"Using local development credentials: {new_json_path}")
                     elif os.path.exists(old_json_path):
                         key_file_path = old_json_path
+                        logger.info(f"Using local development credentials: {old_json_path}")
                     else:
-                        key_file_path = new_json_path  # Default to new path
+                        # File doesn't exist - log warning but don't fail immediately
+                        logger.warning(
+                            f"Google Sheets credentials not found. Tried:\n"
+                            f"  - Environment variable: GOOGLE_SHEETS_CREDENTIALS_JSON\n"
+                            f"  - Production path: {render_secret_path}\n"
+                            f"  - Local paths: {new_json_path}, {old_json_path}\n"
+                            f"Google Sheets integration will be disabled. "
+                            f"For production, set GOOGLE_SHEETS_CREDENTIALS_JSON environment variable. "
+                            f"For development, place credentials file at one of the paths above (file is gitignored)."
+                        )
+                        return
                 
+                # Verify file exists and is readable before attempting to load
                 if not os.path.exists(key_file_path):
-                    logger.error(f"Google Sheets credentials not found in environment variable or file: {key_file_path}")
+                    logger.error(f"Credentials file not found: {key_file_path}")
                     return
                 
-                # Load credentials from file
-                self.credentials = service_account.Credentials.from_service_account_file(
-                    key_file_path,
-                    scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
-                )
+                if not os.access(key_file_path, os.R_OK):
+                    logger.error(f"Credentials file is not readable: {key_file_path}")
+                    return
+                
+                try:
+                    # Load credentials from file
+                    self.credentials = service_account.Credentials.from_service_account_file(
+                        key_file_path,
+                        scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+                    )
+                    logger.info(f"Google Sheets credentials loaded from file: {key_file_path}")
+                except Exception as e:
+                    logger.error(f"Failed to load credentials from file {key_file_path}: {str(e)}")
+                    return
             
-            # Build service
+            # Build Google Sheets API service
+            if not self.credentials:
+                logger.error("No valid credentials available for Google Sheets service")
+                return
+                
             self.service = build('sheets', 'v4', credentials=self.credentials)
             
             # Get spreadsheet ID from settings or environment
@@ -76,13 +121,16 @@ class GoogleSheetsService:
             self.spreadsheet_ids = getattr(settings, 'GOOGLE_SHEETS_IDS', [])
             
             if not self.spreadsheet_id and not self.spreadsheet_ids:
-                logger.warning("GOOGLE_SHEETS_ID not configured")
+                logger.warning("GOOGLE_SHEETS_ID not configured - Google Sheets sync will not work")
             elif self.spreadsheet_ids and not self.spreadsheet_id:
                 # Use the first sheet ID if multiple are configured
                 self.spreadsheet_id = self.spreadsheet_ids[0]
+                logger.info(f"Using first spreadsheet ID from GOOGLE_SHEETS_IDS: {self.spreadsheet_id}")
+            
+            logger.info("Google Sheets service initialized successfully")
             
         except Exception as e:
-            logger.error(f"Failed to initialize Google Sheets service: {str(e)}")
+            logger.error(f"Failed to initialize Google Sheets service: {str(e)}", exc_info=True)
     
     def _get_telecallers(self):
         """Get all active telecallers for round-robin assignment"""

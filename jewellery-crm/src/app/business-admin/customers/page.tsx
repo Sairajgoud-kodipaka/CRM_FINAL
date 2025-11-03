@@ -11,6 +11,7 @@ import { Search, Download, Upload, Plus, Filter, MoreHorizontal, Eye, Trash2 } f
 import { apiService, Client } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
+import { formatCustomerName } from '@/utils/name-utils';
 import { AddCustomerModal } from '@/components/customers/AddCustomerModal';
 import { ImportModal } from '@/components/customers/ImportModal';
 import { ExportModal } from '@/components/customers/ExportModal';
@@ -149,7 +150,7 @@ export default function CustomersPage() {
         return (
           <div>
             <div className="font-medium text-text-primary">
-              {client.first_name || ''} {client.last_name || ''}
+              {formatCustomerName(client)}
             </div>
             {client.preferred_metal && (
               <div className="text-sm text-text-secondary">
@@ -209,7 +210,7 @@ export default function CustomersPage() {
       render: (value, row) => {
         const client = row as Client;
         const createdBy = client.created_by
-          ? `${client.created_by.first_name} ${client.created_by.last_name}`
+          ? `${client.created_by.first_name || ''} ${client.created_by.last_name || ''}`.trim() || client.created_by.username || 'Unknown'
           : client.assigned_to
             ? `User ID: ${client.assigned_to}`
             : 'System';
@@ -469,7 +470,7 @@ export default function CustomersPage() {
               }}
               mobileCardTitle={(client) => {
                 const clientData = client as unknown as Client;
-                return `${clientData.first_name || ''} ${clientData.last_name || ''}`;
+                return formatCustomerName(clientData);
               }}
               mobileCardSubtitle={(client) => {
                 const clientData = client as unknown as Client;

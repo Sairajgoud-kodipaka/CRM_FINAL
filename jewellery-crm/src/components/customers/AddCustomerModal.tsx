@@ -40,6 +40,7 @@ import { Slider } from "@/components/ui/slider";
 import { WeightRangeSlider } from "@/components/ui/weight-range-slider";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFormNavigation } from "@/hooks/useFormNavigation";
 
 interface AddCustomerModalProps {
   open: boolean;
@@ -48,7 +49,8 @@ interface AddCustomerModalProps {
 }
 
 interface FormData {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   email: string;
   birthDate: string;
@@ -128,7 +130,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
   // Form state with strict typing
   const [formData, setFormData] = useState<FormData>({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     phone: "",
     email: "",
     birthDate: "",
@@ -179,6 +182,33 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
   // State for field locking (autofill enforcement)
   const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
+
+  // Form navigation setup
+  const formFields = [
+    { id: 'firstName', type: 'input' as const },
+    { id: 'lastName', type: 'input' as const },
+    { id: 'phone', type: 'phone' as const },
+    { id: 'email', type: 'input' as const },
+    { id: 'ageOfEndUser', type: 'select' as const },
+    { id: 'streetAddress', type: 'input' as const },
+    { id: 'city', type: 'select' as const },
+    { id: 'state', type: 'select' as const },
+    { id: 'catchmentArea', type: 'select' as const },
+    { id: 'pincode', type: 'select' as const },
+    { id: 'salesPerson', type: 'select' as const },
+    { id: 'reasonForVisit', type: 'select' as const },
+    { id: 'leadSource', type: 'select' as const },
+    { id: 'selectedProduct', type: 'select' as const },
+    { id: 'productType', type: 'select' as const },
+    { id: 'style', type: 'select' as const },
+    { id: 'materialType', type: 'select' as const },
+    { id: 'expectedRevenue', type: 'input' as const },
+    { id: 'designNumber', type: 'input' as const },
+    { id: 'nextFollowUpDate', type: 'input' as const },
+    { id: 'summaryNotes', type: 'textarea' as const },
+  ];
+  
+  const { registerField, handleKeyDown, handleSelectKeyDown } = useFormNavigation(formFields);
 
   // State for API data
   const [salesPersons, setSalesPersons] = useState<string[]>([]);
@@ -326,7 +356,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       const nameParts = existingPhoneCustomer.name.split(' ');
       setFormData(prev => ({
         ...prev,
-        fullName: existingPhoneCustomer.name,
+        firstName: existingPhoneCustomer.name?.split(' ')[0] || existingPhoneCustomer.name || '',
+        lastName: existingPhoneCustomer.name?.split(' ').slice(1).join(' ') || '',
         email: existingPhoneCustomer.email !== 'No email' ? existingPhoneCustomer.email : prev.email,
       }));
       
@@ -488,8 +519,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     const errors: string[] = [];
 
     // Required fields marked with "*"
-    if (!formData.fullName || formData.fullName.trim() === '') {
-      errors.push("Full Name is required");
+    if (!formData.firstName || formData.firstName.trim() === '') {
+      errors.push("First Name is required");
     }
 
     if (!formData.phone || formData.phone.trim() === '') {
@@ -590,7 +621,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
       // Create pipeline data
       const pipelineData = {
-        title: `${customerData.first_name} ${customerData.last_name} - ${formData.productType || 'Jewelry'}`,
+        title: `${`${formData.firstName || ''} ${formData.lastName || ''}`.trim() || 'Customer'} - ${formData.productType || 'Jewelry'}`,
         client_id: customerData.id,
         stage: pipelineStage,
         probability: probability,
@@ -697,8 +728,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       // Optional fields are converted to null if empty
       const customerData = {
         // Required fields
-        first_name: formData.fullName.split(' ')[0] || formData.fullName,
-        last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
+        first_name: formData.firstName,
+        last_name: formData.lastName,
         phone: formData.phone,
         city: formData.city,
         state: formData.state,
@@ -802,7 +833,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         onClose();
         // Reset form
         setFormData({
-          fullName: "",
+          firstName: "",
+          lastName: "",
           phone: "",
           email: "",
           birthDate: "",
@@ -1240,6 +1272,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       description="Create a new customer profile with detailed information"
       size={isMobile ? "full" : isTablet ? "lg" : "xl"}
       showCloseButton={true}
+      className="bg-white"
       actions={
         <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
           <Button variant="outline" onClick={onClose}>
@@ -1268,12 +1301,24 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           <div className={`font-semibold ${isMobile ? 'mb-2 text-base' : 'mb-3 text-lg'}`}>👤 Basic Information</div>
           <div className={`grid grid-cols-1 ${isMobile ? 'gap-3' : isTablet ? 'md:grid-cols-2 gap-4' : 'md:grid-cols-2 gap-4'}`}>
             <div>
-              <label className="block text-sm font-medium mb-1">Full Name *</label>
+              <label className="block text-sm font-medium mb-1">First Name *</label>
               <Input
-                placeholder="e.g., Priya Sharma"
+                ref={(el) => registerField('firstName', el)}
+                placeholder="e.g., Priya"
                 required
-                value={formData.fullName}
-                onChange={(e) => handleInputChange('fullName', e.target.value)}
+                value={formData.firstName}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'firstName')}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Last Name</label>
+              <Input
+                ref={(el) => registerField('lastName', el)}
+                placeholder="e.g., Sharma"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'lastName')}
               />
             </div>
             <div className="w-full overflow-hidden">
@@ -1287,6 +1332,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   // Clear existing customer info when phone changes
                   setExistingPhoneCustomer(null);
                 }}
+                onKeyDown={(e) => handleKeyDown(e, 'phone')}
                 disabled={checkingPhone}
               />
               {checkingPhone && (
@@ -1335,9 +1381,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>
               <Input
+                ref={(el) => registerField('email', el)}
                 placeholder="e.g., priya.sharma@example.com"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'email')}
                 onBlur={async () => {
                   if (formData.email) {
                     const existing = await checkCustomerExists(formData.email);
@@ -1363,7 +1411,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 value={formData.ageOfEndUser}
                 onValueChange={(value) => handleInputChange('ageOfEndUser', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger 
+                  ref={(el) => registerField('ageOfEndUser', el)}
+                  onKeyDown={(e) => handleSelectKeyDown(e, 'ageOfEndUser', false)}
+                >
                   <SelectValue placeholder="Select Age Range" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1385,9 +1436,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Street Address</label>
               <Input
+                ref={(el) => registerField('streetAddress', el)}
                 placeholder="e.g., 123, Diamond Lane"
                 value={formData.streetAddress}
                 onChange={(e) => handleInputChange('streetAddress', e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'streetAddress')}
               />
             </div>
             <div>
@@ -1396,7 +1449,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 value={formData.city}
                 onValueChange={handleCitySelection}
               >
-                <SelectTrigger>
+                <SelectTrigger 
+                  ref={(el) => registerField('city', el)}
+                  onKeyDown={(e) => handleSelectKeyDown(e, 'city', false)}
+                >
                   <SelectValue placeholder="Select City" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1741,6 +1797,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Expected Revenue (₹) *</label>
                         <Input
+                          ref={(el) => registerField('expectedRevenue', el)}
                           placeholder="e.g., 50000"
               value={interests[0]?.products[0]?.revenue || ''}
                           onChange={(e) => {
@@ -1752,6 +1809,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                               return copy;
                             });
                           }}
+                          onKeyDown={(e) => handleKeyDown(e, 'expectedRevenue')}
               className="w-48"
                         />
                       </div>

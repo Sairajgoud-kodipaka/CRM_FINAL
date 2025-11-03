@@ -68,7 +68,7 @@ export default function ManagerCustomerDetailPage() {
       <Card className="p-6 flex flex-col gap-2">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <div className="text-xl font-bold text-text-primary">{`${customer.first_name} ${customer.last_name}`}</div>
+            <div className="text-xl font-bold text-text-primary">{`${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer'}</div>
             <div className="text-sm text-text-muted">{customer.customer_type}</div>
             <div className="text-sm text-text-muted">{customer.email} | {customer.phone}</div>
             <div className="text-sm text-text-muted">{`${customer.city || ''}, ${customer.state || ''}`}</div>

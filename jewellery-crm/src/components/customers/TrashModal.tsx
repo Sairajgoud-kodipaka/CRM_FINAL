@@ -166,7 +166,7 @@ export function TrashModal({ open, onClose, onCustomerRestored }: TrashModalProp
                   {trashedCustomers.map((customer) => (
                     <tr key={customer.id} className="border-t border-border hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-text-primary">
-                        {customer.first_name} {customer.last_name}
+                        {`${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer'}
                       </td>
                       <td className="px-4 py-3 text-text-primary">{customer.email}</td>
                       <td className="px-4 py-3 text-text-primary">{customer.phone || '-'}</td>

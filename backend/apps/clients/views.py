@@ -413,19 +413,26 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         
         # Set tenant and store if not already set
         user = self.request.user
+        needs_save = False
         if user.tenant and not instance.tenant:
             instance.tenant = user.tenant
+            needs_save = True
         if user.store and not instance.store:
             instance.store = user.store
+            needs_save = True
         
-        if instance.tenant or instance.store:
-            instance.save()
-        
-        # Set audit log user for tracking
+        # Set audit log user for tracking (before any save)
         instance._auditlog_user = created_by_user
         
+        # Only save once if needed (before creating notifications)
+        if needs_save:
+            instance.save()
+        
         # Create notifications for new customer using the actual creator
-        self.create_customer_notifications(instance, created_by_user)
+        # Only create if this is a new customer (not an update)
+        if not hasattr(instance, '_notifications_created'):
+            self.create_customer_notifications(instance, created_by_user)
+            instance._notifications_created = True
         
         return instance
     
@@ -434,14 +441,29 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         try:
             from apps.notifications.models import Notification
             from apps.users.models import User
+            from django.utils import timezone
+            from datetime import timedelta
             
             print(f"=== CREATING CUSTOMER NOTIFICATIONS ===")
-            print(f"Client: {client.first_name} {client.last_name}")
+            print(f"Client: {client.first_name} {client.last_name} (ID: {client.id})")
             print(f"Client store: {client.store}")
             print(f"Client tenant: {client.tenant}")
             print(f"Created by user: {created_by_user.username} (role: {created_by_user.role})")
             print(f"Created by user tenant: {created_by_user.tenant}")
             print(f"Created by user store: {created_by_user.store}")
+            
+            # Check if notifications already exist for this customer creation (prevent duplicates)
+            # Check for notifications created in the last 5 seconds for this customer
+            recent_cutoff = timezone.now() - timedelta(seconds=5)
+            existing_notifications = Notification.objects.filter(
+                type='new_customer',
+                metadata__customer_id=client.id,
+                created_at__gte=recent_cutoff
+            ).exists()
+            
+            if existing_notifications:
+                print(f"⚠️  Notifications already exist for customer {client.id} - skipping to prevent duplicates")
+                return
             
             # Get all users who should receive notifications
             users_to_notify = []
@@ -525,7 +547,21 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             print(f"Unique users to notify (after deduplication): {len(unique_users)}")
             
             # Create notifications for each user
+            # Use get_or_create to prevent duplicates
+            notifications_created = 0
             for user in unique_users:
+                # Check if notification already exists for this user and customer
+                existing = Notification.objects.filter(
+                    user=user,
+                    tenant=client.tenant,
+                    type='new_customer',
+                    metadata__customer_id=client.id
+                ).first()
+                
+                if existing:
+                    print(f"⚠️  Notification already exists (ID: {existing.id}) for user {user.username} and customer {client.id} - skipping")
+                    continue
+                
                 notification = Notification.objects.create(
                     user=user,
                     tenant=client.tenant,
@@ -537,11 +573,13 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     status='unread',
                     action_url=f'/customers/{client.id}',
                     action_text='View Customer',
-                    is_persistent=False
+                    is_persistent=False,
+                    metadata={'customer_id': client.id, 'created_by_user_id': created_by_user.id}
                 )
+                notifications_created += 1
                 print(f"Created notification {notification.id} for user {user.username} (role: {user.role})")
             
-            print(f"Created {len(unique_users)} notifications for new customer {client.first_name} {client.last_name}")
+            print(f"Created {notifications_created} notifications for new customer {client.first_name} {client.last_name} (ID: {client.id})")
             print(f"Users notified: {[f'{user.username} ({user.role})' for user in unique_users]}")
             
         except Exception as e:

@@ -719,7 +719,7 @@ export default function ManagerAppointmentsPage() {
                     <SelectItem key={customer.id} value={customer.id.toString()}>
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4" />
-                        {customer.first_name} {customer.last_name} - {customer.phone}
+                        {`${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer'} - {customer.phone}
                       </div>
                     </SelectItem>
                   ))}

@@ -485,3 +485,16 @@ EXOTEL_CONFIG = {
     'webrtc_sip_password': config('EXOTEL_WEBRTC_SIP_PASSWORD', default=''),
     'webrtc_enabled': config('EXOTEL_WEBRTC_ENABLED', default=False, cast=bool),
 }
+
+# Web Push / VAPID Configuration for Push Notifications
+# Generate keys using: python manage.py generate_vapid_keys
+# Add to .env file: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CLAIMS_EMAIL
+VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default=None)
+VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default=None)
+VAPID_CLAIMS_EMAIL = config('VAPID_CLAIMS_EMAIL', default='mailto:admin@jewelrycrm.com')
+# Web Push / VAPID Configuration for Push Notifications
+# Generate keys using: python manage.py generate_vapid_keys
+# Add to .env file: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CLAIMS_EMAIL
+VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default=None)
+VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default=None)
+VAPID_CLAIMS_EMAIL = config('VAPID_CLAIMS_EMAIL', default='mailto:admin@jewelrycrm.com')

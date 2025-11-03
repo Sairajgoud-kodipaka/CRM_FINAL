@@ -1,14 +1,19 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiService, Client } from "@/lib/api-service";
 import { useAuth } from "@/hooks/useAuth";
 import { useCustomerRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
+import { formatCustomerName } from "@/utils/name-utils";
+import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { Calendar, Phone, Mail, MapPin, User, Clock, Edit, Trash2, X as XIcon, ArrowUpRight, CheckCircle2, XCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 interface CustomerDetailModalProps {
   open: boolean;
@@ -28,10 +33,19 @@ interface AuditLog {
 
 export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelete }: CustomerDetailModalProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [customer, setCustomer] = useState<Client | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
+  
+  // Dialog states
+  const [showBoughtConfirm, setShowBoughtConfirm] = useState(false);
+  const [showLostDialog, setShowLostDialog] = useState(false);
+  const [lostReason, setLostReason] = useState("");
+  const [processing, setProcessing] = useState(false);
 
   // Check if user can delete customers (only business admin)
   const canDeleteCustomers = user?.role === 'business_admin';
@@ -128,7 +142,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   };
 
   const handleDelete = () => {
-    if (customer && onDelete && window.confirm(`Are you sure you want to delete ${customer.first_name} ${customer.last_name}? This action cannot be undone.`)) {
+    if (customer && onDelete && window.confirm(`Are you sure you want to delete ${formatCustomerName(customer)}? This action cannot be undone.`)) {
       onDelete(customer.id.toString());
       onClose();
     }
@@ -160,315 +174,353 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   };
 
   // Handle mark as Bought or Lost with optional reason
+  const handleBoughtClick = () => {
+    setShowBoughtConfirm(true);
+  };
+
   const markBought = async () => {
     if (!customer) return;
+    setProcessing(true);
     try {
       const response = await apiService.updateClient(customer.id.toString(), { status: 'closed_won' });
       if (response.success) {
         await fetchCustomerDetails();
-        alert('Marked as Bought successfully.');
+        setShowBoughtConfirm(false);
+        toast({
+          title: "Success",
+          description: "Customer marked as Bought successfully.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to mark as Bought. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (e) {
-      alert('Failed to mark as Bought');
+      toast({
+        title: "Error",
+        description: "Failed to mark as Bought. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
     }
+  };
+
+  const handleLostClick = () => {
+    setLostReason("");
+    setShowLostDialog(true);
   };
 
   const markLost = async () => {
     if (!customer) return;
-    const reason = window.prompt('Reason for no conversion? e.g., Wanted more variety/discount, bought from other store, etc.');
+    setProcessing(true);
     try {
-      const response = await apiService.updateClient(customer.id.toString(), { status: 'closed_lost', summary_notes: reason || customer.summary_notes });
+      const response = await apiService.updateClient(customer.id.toString(), { 
+        status: 'closed_lost', 
+        summary_notes: lostReason || customer.summary_notes 
+      });
       if (response.success) {
-        // Optionally log a follow-up note via announcements/tasks if needed later
         await fetchCustomerDetails();
-        alert('Marked as Lost successfully.');
+        setShowLostDialog(false);
+        setLostReason("");
+        toast({
+          title: "Success",
+          description: "Customer marked as Lost successfully.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to mark as Lost. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (e) {
-      alert('Failed to mark as Lost');
+      toast({
+        title: "Error",
+        description: "Failed to mark as Lost. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
     }
   };
 
   if (loading) {
     return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="w-[90vw] max-w-4xl max-h-[85vh] overflow-y-auto mx-4 px-2">
-          <DialogHeader>
-            <DialogTitle>Customer Details</DialogTitle>
-            <DialogDescription>Loading customer information...</DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={onClose}
+        title="Customer Details"
+        description="Loading customer information..."
+        size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+        showCloseButton={true}
+        className="bg-white"
+      >
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-gray-200 rounded"></div>
             <div className="h-32 bg-gray-200 rounded"></div>
             <div className="h-64 bg-gray-200 rounded"></div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     );
   }
 
   if (!customer) {
     return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="w-[90vw] max-w-4xl max-h-[85vh] overflow-y-auto mx-4 px-2">
-          <DialogHeader>
-            <DialogTitle>Customer Details</DialogTitle>
-            <DialogDescription>Customer not found</DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={onClose}
+        title="Customer Details"
+        description="Customer not found"
+        size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+        showCloseButton={true}
+        className="bg-white"
+      >
           <div className="text-center py-8">
             <p className="text-gray-500">Customer information could not be loaded.</p>
           </div>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent
-        className="w-[90vw] max-w-4xl max-h-[85vh] overflow-y-auto mx-4 px-2"
-        showCloseButton={false}
-      >
-        <DialogHeader className="text-left">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <DialogTitle>Customer Details</DialogTitle>
-              <DialogDescription>
-                View and manage customer information
-              </DialogDescription>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+    <>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onClose}
+      title="Customer Details"
+      description="View and manage customer information"
+      size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+      showCloseButton={true}
+      className="bg-white"
+      actions={
+        <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
               {customer.status === 'exhibition' && (
                 <Button
                   variant="default"
                   size="sm"
-                  className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2 bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white"
                   onClick={async () => {
                     try {
                       const response = await apiService.promoteExhibitionLead(customer.id.toString());
-
                       if (response.success) {
-                        // Refresh customer details
                         fetchCustomerDetails();
-                        // Show success message
                         alert('Customer promoted to main customer database!');
                       }
                     } catch (error) {
-
                       alert('Failed to promote customer');
                     }
                   }}
                 >
                   <ArrowUpRight className="w-4 h-4 mr-2" />
-                  Promote to Main Customer
+              Promote
                 </Button>
               )}
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2"
                 onClick={() => onEdit(customer)}
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
               </Button>
-              {/* Bought / Lost quick actions */}
-              <Button
-                variant="default"
-                size="sm"
-                className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={markBought}
-                  title="Mark as Bought"
-              >
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Bought
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2"
-                onClick={markLost}
-                title="Mark as Lost"
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                Lost
-              </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleBoughtClick}
+            title="Mark as Bought"
+          >
+            <CheckCircle2 className="w-4 h-4 mr-2" />
+            Bought
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleLostClick}
+            title="Mark as Lost"
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            Lost
+          </Button>
               {canDeleteCustomers && (
                 <Button
                   variant="destructive"
                   size="sm"
-                  className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2"
                   onClick={handleDelete}
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs px-2 py-1 sm:text-sm sm:px-3 sm:py-2 ml-2"
-                onClick={onClose}
-              >
-                <XIcon className="w-4 h-4" />
+          <Button variant="outline" onClick={onClose}>
+            Close
               </Button>
             </div>
-          </div>
-        </DialogHeader>
+      }
+    >
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
-            <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
-            <TabsTrigger value="interests" className="text-xs sm:text-sm">Interests</TabsTrigger>
-            <TabsTrigger value="audit" className="text-xs sm:text-sm">Audit Log</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="interests">Interests</TabsTrigger>
+            <TabsTrigger value="audit">Audit Log</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="details" className="space-y-4 md:space-y-8">
-            {/* Basic Information */}
-            <Card className="p-4 md:p-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-4">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+          <TabsContent value="details" className="mt-0">
+            <div className="space-y-6">
+              {/* Basic Customer Information */}
+              <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4`}>
+                <div className={`font-semibold ${isMobile ? 'mb-2 text-base' : 'mb-3 text-lg'}`}>👤 Basic Information</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">First Name</span>
+                    <span className="text-gray-900">{customer.first_name || 'Not provided'}</span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-lg sm:text-2xl font-semibold truncate">
-                      {customer.first_name} {customer.last_name}
-                    </h3>
-                    <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2 flex-wrap">
-                      <Badge variant={getStatusBadgeVariant(customer.status || '')} className="capitalize text-xs sm:text-sm">
-                        {customer.status || 'unknown'}
-                      </Badge>
-                      <span className="text-xs sm:text-sm text-gray-500">ID: {customer.id}</span>
-                    </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Last Name</span>
+                    <span className="text-gray-900">{customer.last_name || 'Not provided'}</span>
                   </div>
-                </div>
-                <div className="text-left sm:text-right">
-                  <p className="text-xs sm:text-sm text-gray-500">Customer Type</p>
-                  <p className="font-medium text-sm sm:text-base">{customer.customer_type || 'Individual'}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-12">
-                <div className="space-y-4 md:space-y-8">
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <Mail className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-gray-500 mb-1">Email</p>
-                      <p className="font-medium text-sm sm:text-base break-all">{customer.email || 'Not provided'}</p>
-                    </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Email</span>
+                    <span className="text-gray-900">{customer.email || 'Not provided'}</span>
                   </div>
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <Phone className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-gray-500 mb-1">Phone</p>
-                      <p className="font-medium text-sm sm:text-base break-all">{customer.phone || 'Not provided'}</p>
-                    </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Phone</span>
+                    <span className="text-gray-900">{customer.phone || 'Not provided'}</span>
                   </div>
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <User className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-gray-500 mb-1">Created By</p>
-                      <p className="font-medium text-sm sm:text-base break-all">
-                        {customer.created_by ?
-                          `${customer.created_by.first_name || ''} ${customer.created_by.last_name || ''}`.trim() || customer.created_by.username || 'Unknown User'
-                          : 'System'
-                        }
-                      </p>
-                    </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Status</span>
+                    <span className="text-gray-900">
+                      {customer.status ? (
+                        <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
+                          {customer.status}
+                        </Badge>
+                      ) : 'Not provided'}
+                    </span>
                   </div>
-                </div>
-
-                <div className="space-y-4 md:space-y-8">
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <MapPin className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-gray-500 mb-1">Address</p>
-                      <p className="font-medium text-sm sm:text-base break-words">
-                        {customer.address ? `${customer.address}, ${customer.city || ''}, ${customer.state || ''}` : 'Not provided'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <MapPin className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-gray-500 mb-1">Catchment Area</p>
-                      <p className="font-medium text-sm sm:text-base break-words">{customer.catchment_area || 'Not specified'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4 md:space-y-8">
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <Clock className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-gray-500 mb-1">Created At</p>
-                      <p className="font-medium text-sm sm:text-base">
-                        {customer.created_at ? new Date(customer.created_at).toLocaleDateString() : 'Not available'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <Calendar className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-gray-500 mb-1">Last Updated</p>
-                      <p className="font-medium text-sm sm:text-base">
-                        {customer.updated_at ? new Date(customer.updated_at).toLocaleDateString() : 'Not available'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <User className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-gray-500 mb-1">Customer Type</p>
-                      <p className="font-medium text-sm sm:text-base">{customer.customer_type || 'Individual'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <MapPin className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-gray-500 mb-1">City</p>
-                      <p className="font-medium text-sm sm:text-base break-words">{customer.city || 'Not specified'}</p>
-                    </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Customer Type</span>
+                    <span className="text-gray-900">{customer.customer_type || 'Individual'}</span>
                   </div>
                 </div>
               </div>
-            </Card>
+
+              {/* Address Information */}
+              <div className="border rounded-lg p-4 mb-4">
+                <div className="font-semibold mb-3 text-lg">📍 Address</div>
+                <div className="space-y-2">
+                  {customer.address && (
+                    <div className="p-3 bg-gray-50 rounded-lg border">
+                      <p className="text-gray-900 font-medium">{customer.address}</p>
+                      <p className="text-gray-600 text-sm mt-1">{[customer.city, customer.state].filter(Boolean).join(', ')}</p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600 font-medium">City</span>
+                      <span className="text-gray-900">{customer.city || 'Not provided'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600 font-medium">State</span>
+                      <span className="text-gray-900">{customer.state || 'Not provided'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600 font-medium">Country</span>
+                      <span className="text-gray-900">{customer.country || 'India'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600 font-medium">Pincode</span>
+                      <span className="text-gray-900">{customer.pincode || 'Not provided'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600 font-medium">Catchment Area</span>
+                      <span className="text-gray-900">{customer.catchment_area || 'Not provided'}</span>
+                    </div>
+                  </div>
+                  {!customer.address && !customer.city && !customer.state && (
+                    <div className="text-center py-4 text-gray-500">No address information available</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sales Information */}
+              <div className="border rounded-lg p-4 mb-4">
+                <div className="font-semibold mb-3 text-lg">💼 Sales Information</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Sales Person</span>
+                    <span className="text-gray-900">{customer.sales_person || 'Not provided'}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Customer Status</span>
+                    <span className="text-gray-900">{customer.customer_status || 'Not provided'}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Lead Source</span>
+                    <span className="text-gray-900">{customer.lead_source || 'Not provided'}</span>
+                  </div>
+                </div>
+              </div>
 
             {/* Visit Information */}
-            <Card className="p-6">
-              <h4 className="font-semibold mb-4">Visit Information</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm text-gray-500">Reason for Visit</p>
-                  <p className="font-medium">{customer.reason_for_visit || 'Not specified'}</p>
+              <div className="border rounded-lg p-4 mb-4">
+              <div className="font-semibold mb-3 text-lg">👥 Visit Information</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600 font-medium">Reason for Visit</span>
+                  <span className="text-gray-900 text-right">{customer.reason_for_visit || 'Not provided'}</span>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Lead Source</p>
-                  <p className="font-medium">{customer.lead_source || 'Not specified'}</p>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600 font-medium">Age of End User</span>
+                  <span className="text-gray-900">{customer.age_of_end_user || 'Not provided'}</span>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Age of End User</p>
-                  <p className="font-medium">{customer.age_of_end_user || 'Not specified'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Saving Scheme</p>
-                  <p className="font-medium">{customer.saving_scheme || 'Not specified'}</p>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-600 font-medium">Saving Scheme</span>
+                  <span className="text-gray-900">{customer.saving_scheme || 'Not provided'}</span>
                 </div>
               </div>
-            </Card>
+              </div>
 
-            {/* Summary Notes */}
-            {customer.summary_notes && (
-              <Card className="p-6">
-                <h4 className="font-semibold mb-4">Summary Notes</h4>
-                <p className="text-gray-700">{customer.summary_notes}</p>
-              </Card>
+              {/* Follow-up & Summary */}
+            {(customer.next_follow_up || customer.summary_notes) && (
+              <div className="border rounded-lg p-4">
+                <div className="font-semibold mb-4">Follow-up & Summary</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {customer.next_follow_up && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
+                      <div className="px-3 py-2 border rounded-md bg-gray-50 text-gray-900">
+                        {customer.next_follow_up ? new Date(customer.next_follow_up).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        }) : 'Not scheduled'}
+                      </div>
+                    </div>
+                  )}
+                  {customer.summary_notes && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Summary Notes</label>
+                      <div className="px-3 py-2 border rounded-md bg-gray-50 text-gray-900 min-h-[80px]">
+                        {customer.summary_notes}
+                      </div>
+                  </div>
+                  )}
+                </div>
+              </div>
             )}
+            </div>
           </TabsContent>
 
-          <TabsContent value="interests" className="space-y-4 md:space-y-6">
-            <Card className="p-6 max-h-[60vh] overflow-y-auto">
-              <h4 className="font-semibold mb-4">Customer Interests</h4>
+          <TabsContent value="interests" className="space-y-6 mt-0">
+            <div className="border rounded-lg p-4 mb-4">
+              <div className="font-semibold mb-3 text-lg">💎 Product Interest</div>
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto">
               {customer.customer_interests && customer.customer_interests.length > 0 ? (
                 <div className="space-y-4">
                   {customer.customer_interests.map((interest, index) => {
@@ -671,12 +723,13 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
               ) : (
                 <p className="text-gray-500">No interests recorded</p>
               )}
-            </Card>
+              </div>
+            </div>
           </TabsContent>
 
-          <TabsContent value="audit" className="space-y-4 md:space-y-6">
-            <Card className="p-6">
-              <h4 className="font-semibold mb-4">Audit Log</h4>
+          <TabsContent value="audit" className="space-y-6 mt-0">
+            <div className="border rounded-lg p-4">
+              <div className="font-semibold mb-4 text-lg">📋 Audit Log</div>
               <div className="space-y-4">
                 {auditLogs.map((log) => (
                   <div key={log.id} className="flex items-start gap-4 p-4 border rounded-lg">
@@ -694,10 +747,67 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                   </div>
                 ))}
               </div>
-            </Card>
+            </div>
           </TabsContent>
         </Tabs>
+    </ResponsiveDialog>
+
+    {/* Bought Confirmation Dialog */}
+    <Dialog open={showBoughtConfirm} onOpenChange={setShowBoughtConfirm}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Mark as Bought</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to mark this customer as Bought? This will update their status to "closed_won".
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowBoughtConfirm(false)} disabled={processing}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={markBought} 
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            disabled={processing}
+          >
+            {processing ? 'Processing...' : 'Confirm'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Lost Reason Dialog */}
+    <Dialog open={showLostDialog} onOpenChange={setShowLostDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Mark as Lost</DialogTitle>
+          <DialogDescription>
+            Please provide a reason for no conversion. This will update the customer status to "closed_lost".
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          <Textarea
+            placeholder="e.g., Wanted more variety/discount, bought from other store, etc."
+            value={lostReason}
+            onChange={(e) => setLostReason(e.target.value)}
+            rows={4}
+            className="w-full"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowLostDialog(false)} disabled={processing}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={markLost} 
+            variant="destructive"
+            disabled={processing}
+          >
+            {processing ? 'Processing...' : 'Mark as Lost'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }

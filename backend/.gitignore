@@ -312,6 +312,15 @@ prisma/migrations/
 secrets.json
 api_keys.json
 credentials.json
+# Google Cloud / Google Sheets service account credentials
+*.json
+!package.json
+!package-lock.json
+crmsales-*.json
+mangatrai-*.json
+*-credentials.json
+service-account-*.json
+*-service-account.json
 
 # SSL certificates
 *.pem

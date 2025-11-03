@@ -12,6 +12,7 @@ import { TrashModal } from '@/components/customers/TrashModal';
 import { ImportModal } from '@/components/customers/ImportModal';
 import { apiService, Client } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
+import { formatCustomerName } from '@/utils/name-utils';
 import { Search, Download, Plus, Eye, Edit, Trash2, Archive, Upload } from 'lucide-react';
 import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
 import { TableSkeleton } from '@/components/ui/skeleton';
@@ -183,11 +184,14 @@ export default function ManagerCustomersPage() {
       title: 'Customer',
       priority: 'high',
       mobileLabel: 'Name',
-      render: (value, row) => (
-        <span className="font-medium text-text-primary">
-          {(row as Client).first_name} {(row as Client).last_name}
-        </span>
-      ),
+      render: (value, row) => {
+        const client = row as Client;
+        return (
+          <span className="font-medium text-text-primary">
+            {formatCustomerName(client)}
+          </span>
+        );
+      },
     },
     {
       key: 'email',
@@ -215,7 +219,7 @@ export default function ManagerCustomersPage() {
       render: (value, row) => {
         const customer = row as Client;
         const salespersonName = customer.created_by
-          ? `${customer.created_by.first_name} ${customer.created_by.last_name}`
+          ? `${customer.created_by.first_name || ''} ${customer.created_by.last_name || ''}`.trim() || customer.created_by.username || 'Unknown'
           : customer.assigned_to
             ? `User ID: ${customer.assigned_to}`
             : '-';
@@ -461,7 +465,7 @@ export default function ManagerCustomersPage() {
             }}
             mobileCardTitle={(customer) => {
               const client = customer as unknown as Client;
-              return `${client.first_name} ${client.last_name}`;
+              return formatCustomerName(client);
             }}
             mobileCardSubtitle={(customer) => {
               const client = customer as unknown as Client;

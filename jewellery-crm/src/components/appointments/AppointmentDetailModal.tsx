@@ -79,7 +79,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
           const customerResponse = await apiService.getClient(appointment.client.toString());
           if (customerResponse.success && customerResponse.data) {
             const customer = customerResponse.data;
-            setCustomerName(`${customer.first_name} ${customer.last_name}`);
+            setCustomerName(`${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer');
             setCustomerPhone(customer.phone || 'Not provided');
           } else {
             setCustomerName(`Customer #${appointment.client}`);

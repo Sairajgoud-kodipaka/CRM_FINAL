@@ -609,6 +609,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
       description="Update customer information and details. Only First Name is required - other fields can be updated later."
       size={isMobile ? "full" : isTablet ? "lg" : "xl"}
       showCloseButton={true}
+      className="bg-white"
       actions={
         <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
           <Button variant="outline" onClick={onClose}>

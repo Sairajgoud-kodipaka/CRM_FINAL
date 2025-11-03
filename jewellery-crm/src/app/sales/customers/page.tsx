@@ -13,6 +13,7 @@ import { apiService, Client } from '@/lib/api-service';
 import { Search, Filter, Download, Plus, Eye, Edit, Trash2, Archive } from 'lucide-react';
 import { useScopedVisibility } from '@/lib/scoped-visibility';
 import { useAuth } from '@/hooks/useAuth';
+import { formatCustomerName } from '@/utils/name-utils';
 import ScopeIndicator from '@/components/ui/ScopeIndicator';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -541,7 +542,7 @@ export default function SalesCustomersPage() {
                        </td>
                       <td className="px-4 py-3 font-medium text-text-primary">
                         <div className="flex items-center gap-2">
-                          <span>{customer.first_name} {customer.last_name}</span>
+                          <span>{formatCustomerName(customer)}</span>
                           {isCurrentUserCustomer && (
                             <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
                               My Customer
@@ -559,7 +560,7 @@ export default function SalesCustomersPage() {
                       <td className="px-4 py-3 text-text-secondary">
                         {customer.created_by ? (
                           <span className={isCurrentUserCustomer ? 'font-semibold text-orange-600' : ''}>
-                            {customer.created_by.first_name} {customer.created_by.last_name}
+                            {`${customer.created_by.first_name || ''} ${customer.created_by.last_name || ''}`.trim() || customer.created_by.username || 'Unknown'}
                           </span>
                         ) : (
                           '-'
