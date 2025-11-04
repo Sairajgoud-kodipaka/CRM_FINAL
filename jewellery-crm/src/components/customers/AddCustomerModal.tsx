@@ -1476,7 +1476,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               </Select>
             </div>
             )}
-          </div>
+        </div>
 
         {/* Address Information */}
         <div className="border rounded-lg p-4 mb-4">
@@ -1661,34 +1661,34 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+        </div>
 
             {quickEntry && (
               <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
+            <div>
                   <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
-                  <Input
+                        <Input
                     type="date"
                     value={formData.nextFollowUpDate}
                     onChange={(e) => handleInputChange('nextFollowUpDate', e.target.value)}
                   />
-                </div>
+                    </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Next Follow-up Time</label>
-                  <Input
+                          <Input
                     type="time"
                     value={formData.nextFollowUpTime}
                     onChange={(e) => handleInputChange('nextFollowUpTime', e.target.value)}
-                  />
+                          />
+                        </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+                      </div>
 
 
 
-        {/* Product Interests */}
+          {/* Product Interests */}
           <div className="border rounded-lg p-4 bg-gray-50">
             <div className="flex items-center justify-between mb-4">
               <div className="font-medium text-base">Product Interests</div>

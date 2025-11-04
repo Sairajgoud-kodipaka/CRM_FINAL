@@ -84,6 +84,21 @@ jobs:
       run:
         working-directory: ./backend
     
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jewellery_crm
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -101,6 +116,12 @@ jobs:
     - name: Run Django tests
       run: |
         python manage.py test --verbosity=2
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: jewellery_crm
+        DB_USER: postgres
+        DB_PASSWORD: postgres
         
     - name: Run deployment checks
       run: |
@@ -123,9 +144,15 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
+        cache-dependency-path: jewellery-crm/package-lock.json
         
     - name: Install dependencies
-      run: npm ci
+      run: |
+        if [ -f "package-lock.json" ]; then
+          npm ci
+        else
+          npm install
+        fi
       
     - name: Run security audit
       run: npm run security:ci
@@ -160,9 +187,15 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
+        cache-dependency-path: jewellery-crm/package-lock.json
         
     - name: Install dependencies
-      run: npm ci
+      run: |
+        if [ -f "package-lock.json" ]; then
+          npm ci
+        else
+          npm install
+        fi
       
     - name: Build application
       run: npm run build
