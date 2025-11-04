@@ -1,12 +1,33 @@
-// Service Worker for Web Push Notifications
-self.addEventListener('install', function(event) {
-  console.log('Service Worker installing...');
-  self.skipWaiting();
+// Basic PWA Service Worker with offline support + push notifications
+const CACHE_VERSION = 'v1';
+const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
+const PRECACHE = `precache-${CACHE_VERSION}`;
+
+const PRECACHE_URLS = [
+  '/',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(PRECACHE).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
+  );
 });
 
-self.addEventListener('activate', function(event) {
-  console.log('Service Worker activating...');
-  event.waitUntil(self.clients.claim());
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => ![PRECACHE, RUNTIME_CACHE].includes(key))
+          .map((key) => caches.delete(key))
+      );
+      await self.clients.claim();
+    })()
+  );
 });
 
 // Handle incoming push notifications
@@ -95,5 +116,65 @@ self.addEventListener('message', function(event) {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// Network handling for offline capability
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Only handle same-origin GET requests
+  if (request.method !== 'GET' || url.origin !== self.location.origin) {
+    return; // let the request pass through
+  }
+
+  // For navigation requests (HTML), try network first, fallback to cache
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const respClone = response.clone();
+          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, respClone));
+          return response;
+        })
+        .catch(() => caches.match(request).then((res) => res || caches.match('/')))
+    );
+    return;
+  }
+
+  // For static assets (js/css/images), use cache-first with background update
+  if (/[/.](?:css|js|woff2?|png|jpg|jpeg|gif|svg|webp)$/.test(url.pathname)) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) {
+          // Update cache in background
+          event.waitUntil(
+            fetch(request).then((response) => {
+              const respClone = response.clone();
+              caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, respClone));
+            }).catch(() => {})
+          );
+          return cached;
+        }
+        return fetch(request).then((response) => {
+          const respClone = response.clone();
+          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, respClone));
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Default: network-first with cache fallback
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        const respClone = response.clone();
+        caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, respClone));
+        return response;
+      })
+      .catch(() => caches.match(request))
+  );
 });
 

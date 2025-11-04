@@ -55,6 +55,12 @@ export const metadata: Metadata = {
   },
   manifest: '/manifest.json',
   themeColor: '#000000',
+  applicationName: 'Jewellery CRM',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Jewellery CRM'
+  },
   icons: {
     icon: [
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
