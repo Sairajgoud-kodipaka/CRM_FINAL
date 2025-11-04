@@ -489,19 +489,19 @@ class ClientSerializer(serializers.ModelSerializer):
                                 print(f"Product info: name='{product_name}', revenue='{revenue}'")
                                 print(f"Product info type: {type(product_name)}, revenue type: {type(revenue)}")
                                 
-                                if product_name and revenue:
+                                if product_name and (revenue is not None):
                                     try:
                                         # Convert revenue to float, handle empty strings and invalid values
                                         revenue_str = str(revenue).strip()
-                                        if not revenue_str or revenue_str == '0' or revenue_str == '0.0':
-                                            print(f"Skipping product '{product_name}' with invalid revenue: '{revenue}'")
-                                            continue
+                                        if revenue_str == '':
+                                            # Treat empty as 0
+                                            revenue_str = '0'
                                         
                                         try:
                                             revenue_value = float(revenue_str)
-                                            if revenue_value <= 0:
-                                                print(f"Skipping product '{product_name}' with non-positive revenue: {revenue_value}")
-                                                continue
+                                            if revenue_value < 0:
+                                                # Clamp negative to 0
+                                                revenue_value = 0.0
                                         except (ValueError, TypeError):
                                             print(f"Invalid revenue value '{revenue}' for product '{product_name}'")
                                             continue
@@ -1178,18 +1178,22 @@ class ClientSerializer(serializers.ModelSerializer):
                         products = interest_data.get('products', [])
                         if products and len(products) > 0:
                             revenue = products[0].get('revenue', '')
-                            if revenue and str(revenue).strip() and not str(revenue).strip() == '0':
-                                try:
-                                    float(revenue)
+                            # Treat blank as 0; allow 0 as valid revenue
+                            try:
+                                revenue_str = str(revenue).strip()
+                                if revenue_str == '':
+                                    revenue_str = '0'
+                                val = float(revenue_str)
+                                if val >= 0:
                                     has_revenue = True
                                     break
-                                except (ValueError, TypeError):
-                                    pass
+                            except (ValueError, TypeError):
+                                pass
                     except (json.JSONDecodeError, KeyError, TypeError):
                         pass
             
             if not has_revenue:
-                errors['customer_interests_input'] = "Expected Revenue is required"
+                errors['customer_interests_input'] = "Expected Revenue is required (0 allowed)"
             
             # Raise errors if any required fields are missing
             if errors:

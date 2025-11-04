@@ -24,6 +24,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { apiService, Client } from '@/lib/api-service';
+import { cleanCustomerNameFromText } from '@/utils/name-utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -404,7 +405,7 @@ export default function CustomerDetailPage() {
                         <Calendar className="w-5 h-5 text-blue-500" />
                       </div>
                       <div>
-                        <p className="font-medium">{appointment.purpose}</p>
+                        <p className="font-medium">{cleanCustomerNameFromText(appointment.purpose)}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(appointment.date).toLocaleDateString()} at {appointment.time}
                         </p>

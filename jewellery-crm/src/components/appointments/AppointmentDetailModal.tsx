@@ -1,4 +1,5 @@
 "use client";
+import { formatCustomerName, cleanCustomerNameFromText } from '@/utils/name-utils';
 import React, { useState, useEffect } from "react";
 import { ResponsiveDialog } from "@/components/ui/ResponsiveDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";

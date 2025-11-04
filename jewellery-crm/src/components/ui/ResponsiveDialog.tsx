@@ -31,6 +31,8 @@ export interface ResponsiveDialogProps {
   className?: string;
   // Mobile-specific props
   fullScreen?: boolean;
+  // If true, fully hide the MobileNav while this dialog is open
+  hideMobileNav?: boolean;
   showCloseButton?: boolean;
   closeOnBackdrop?: boolean;
   // Size variants
@@ -138,6 +140,7 @@ export function ResponsiveDialog({
   children,
   className,
   fullScreen = false,
+  hideMobileNav = false,
   showCloseButton = true,
   closeOnBackdrop = true,
   size = 'md',
@@ -152,7 +155,7 @@ export function ResponsiveDialog({
   const isTablet = useIsTablet();
   const isDesktop = useIsDesktop();
   const dialogRef = useRef<HTMLDivElement>(null);
-  const { openModal, closeModal } = useModal();
+  const { openModal, closeModal, enableHideMobileNav, disableHideMobileNav } = useModal();
 
   // Handle escape key and modal state
   useEffect(() => {
@@ -168,9 +171,15 @@ export function ResponsiveDialog({
       document.body.style.overflow = 'hidden';
       // Notify that a modal is open
       openModal();
+      if (hideMobileNav) {
+        enableHideMobileNav();
+      }
     } else {
       // Notify that modal is closed
       closeModal();
+      if (hideMobileNav) {
+        disableHideMobileNav();
+      }
     }
 
     return () => {
@@ -180,8 +189,11 @@ export function ResponsiveDialog({
       if (open) {
         closeModal();
       }
+      if (hideMobileNav) {
+        disableHideMobileNav();
+      }
     };
-  }, [open, onOpenChange, openModal, closeModal]);
+  }, [open, onOpenChange, openModal, closeModal, hideMobileNav, enableHideMobileNav, disableHideMobileNav]);
 
   // Handle backdrop click
   const handleBackdropClick = () => {

@@ -13,6 +13,10 @@ interface ModalContextType {
   isAnyModalOpen: boolean;
   openModal: () => void;
   closeModal: () => void;
+  /** When true, the mobile bottom nav should be fully hidden (unmounted). */
+  hideMobileNav: boolean;
+  enableHideMobileNav: () => void;
+  disableHideMobileNav: () => void;
 }
 
 const ModalContext = createContext<ModalContextType | undefined>(undefined);
@@ -23,6 +27,7 @@ interface ModalProviderProps {
 
 export function ModalProvider({ children }: ModalProviderProps) {
   const [openModals, setOpenModals] = useState<Set<string>>(new Set());
+  const [hideMobileNav, setHideMobileNav] = useState<boolean>(false);
 
   const openModal = useCallback(() => {
     setOpenModals(prev => {
@@ -49,7 +54,10 @@ export function ModalProvider({ children }: ModalProviderProps) {
     isAnyModalOpen,
     openModal,
     closeModal,
-  }), [isAnyModalOpen, openModal, closeModal]);
+    hideMobileNav,
+    enableHideMobileNav: () => setHideMobileNav(true),
+    disableHideMobileNav: () => setHideMobileNav(false),
+  }), [isAnyModalOpen, openModal, closeModal, hideMobileNav]);
 
   return (
     <ModalContext.Provider value={contextValue}>
@@ -69,6 +77,9 @@ export function useModal() {
       isAnyModalOpen: false,
       openModal: () => {},
       closeModal: () => {},
+      hideMobileNav: false,
+      enableHideMobileNav: () => {},
+      disableHideMobileNav: () => {},
     };
   }
   return context;

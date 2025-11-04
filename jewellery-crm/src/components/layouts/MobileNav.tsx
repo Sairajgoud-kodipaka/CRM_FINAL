@@ -258,7 +258,7 @@ const getMobileNavItems = (role: string) => {
 export function MobileNav({ className }: MobileNavProps) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const { isAnyModalOpen } = useModal();
+  const { isAnyModalOpen, hideMobileNav } = useModal();
 
   // Get role-based navigation items
   const mobileNavItems = getMobileNavItems(user?.role || 'sales');
@@ -272,6 +272,11 @@ export function MobileNav({ className }: MobileNavProps) {
     }
     return pathname?.startsWith(href) ?? false;
   };
+
+  // Fully unmount when explicit hide flag is enabled (e.g., Add Customer full-screen modal)
+  if (hideMobileNav) {
+    return null;
+  }
 
   return (
     <nav className={cn(

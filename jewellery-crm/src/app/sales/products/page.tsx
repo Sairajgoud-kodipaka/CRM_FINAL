@@ -8,28 +8,46 @@ import { Product } from '@/lib/api-service';
 import { useOptimizedGet } from '@/hooks/useOptimizedFetch';
 import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { Search, Filter, Eye, ShoppingCart, Upload, Download } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SalesProductsPage() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
 
+  // For sales roles tied to a store, request only store-scoped products to ensure correct visibility
+  const productsEndpoint = user?.role && ['inhouse_sales', 'sales', 'tele_calling', 'manager'].includes(user.role)
+    ? '/products/list/?scope=store'
+    : '/products/list/';
+
   // Use optimized fetch hook with caching
   const {
     data: products = [],
     loading,
     error,
-    refetch
-  } = useOptimizedGet<Product[]>('/products/list/', {
+    refetch,
+  } = useOptimizedGet<Product[]>(productsEndpoint, {
     cacheKey: 'sales-products',
     cacheTTL: 5 * 60 * 1000, // 5 minutes
   });
 
+  // Normalize API data (handles paginated shape {results: []} or {data: []})
+  const productList: Product[] = React.useMemo(() => {
+    if (Array.isArray(products)) return products;
+    if (products && typeof products === 'object') {
+      const anyData = products as any;
+      if (Array.isArray(anyData.results)) return anyData.results;
+      if (Array.isArray(anyData.data)) return anyData.data;
+    }
+    return [];
+  }, [products]);
+
   // Filter products based on search term, category, and status
   const filteredProducts = React.useMemo(() => {
-    let filtered = products || [];
+    let filtered = productList || [];
 
     if (searchTerm) {
       filtered = filtered.filter(product =>
@@ -48,7 +66,7 @@ export default function SalesProductsPage() {
     }
 
     return filtered;
-  }, [products, searchTerm, categoryFilter, statusFilter]);
+  }, [productList, searchTerm, categoryFilter, statusFilter]);
 
   // Handle import functionality
   const handleImport = async (file: File) => {
@@ -333,7 +351,7 @@ export default function SalesProductsPage() {
 
         {filteredProducts.length > 0 && (
           <div className="text-sm text-text-secondary text-center py-2">
-                            Showing {filteredProducts.length} of {products?.length || 0} products
+                            Showing {filteredProducts.length} of {productList.length} products
           </div>
         )}
       </Card>

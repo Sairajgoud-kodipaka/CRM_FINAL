@@ -75,3 +75,20 @@ export function splitFullName(fullName: string): { firstName: string; lastName: 
   return { firstName, lastName };
 }
 
+/**
+ * Clean customer name from strings that may contain "None" or "null"
+ * Removes " None", " null", "None", "null" from the end of strings
+ * Commonly used for cleaning appointment purposes or other text fields
+ */
+export function cleanCustomerNameFromText(text: string): string {
+  if (!text) return text;
+  
+  // Remove " None", " null", "None", "null" from the end
+  return text
+    .replace(/\s+None\s*$/i, '')
+    .replace(/\s+null\s*$/i, '')
+    .replace(/^None\s+/i, '')
+    .replace(/^null\s+/i, '')
+    .trim();
+}
+

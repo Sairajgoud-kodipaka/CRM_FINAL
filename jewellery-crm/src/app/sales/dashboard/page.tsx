@@ -9,6 +9,7 @@ import { MobileDashboard, DashboardSection, DashboardMetric } from '@/components
 import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
+import { cleanCustomerNameFromText } from '@/utils/name-utils';
 
 interface SalesStats {
   total_sales: number;  // This will be the count of sales
@@ -82,7 +83,7 @@ export default function SalesDashboardPage() {
 
           recentActivities = appointments.slice(0, 6).map((appointment: any) => ({
             type: 'appointment',
-            title: appointment.purpose || 'Appointment',
+            title: cleanCustomerNameFromText(appointment.purpose || 'Appointment'),
             date: new Date(appointment.date).toLocaleDateString('en-IN'),
             time: appointment.time || 'N/A'
           }));
@@ -172,7 +173,8 @@ export default function SalesDashboardPage() {
         setStats({
           total_sales: dashboardData.sales_count || 0,
           total_revenue: dashboardData.total_sales || 0,  // This is the revenue amount
-          customers: dashboardData.total_customers || 0,
+          // Backend returns key 'customers' (not 'total_customers')
+          customers: dashboardData.customers || 0,
           conversion_rate: dashboardData.conversion_rate || 0,
           recent_activities: allActivities.slice(0, 6),
           top_products: topProducts

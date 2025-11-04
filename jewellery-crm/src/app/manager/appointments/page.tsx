@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
+import { cleanCustomerNameFromText } from '@/utils/name-utils';
 import { Calendar, Eye, Search, Plus, Clock, CheckCircle, XCircle, AlertTriangle, CalendarDays, RefreshCw, Users } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal';
@@ -632,9 +633,9 @@ export default function ManagerAppointmentsPage() {
                   </td>
                       <td className="px-4 py-3 text-text-primary">
                         <div className="max-w-xs truncate" title={appointment.purpose}>
-                          {appointment.purpose}
+                          {cleanCustomerNameFromText(appointment.purpose)}
                         </div>
-                    </td>
+                  </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           {getStatusIcon(appointment.status)}

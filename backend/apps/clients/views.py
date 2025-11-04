@@ -245,12 +245,17 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                             appointment_created_by = selected_user
                             appointment_assigned_to = selected_user
                         
+                        # Build a clean customer name without 'None' when last name is missing
+                        first = (client_data.get('first_name') or '').strip()
+                        last = (client_data.get('last_name') or '').strip()
+                        clean_name = (f"{first} {last}" if last else first).strip() or 'customer'
+
                         appointment_data = {
                             'client_id': client_data['id'],
                             'tenant': request.user.tenant,
                             'date': follow_up_date,
                             'time': follow_up_time,
-                            'purpose': f"Follow-up for {client_data.get('first_name', '')} {client_data.get('last_name', '')}",
+                            'purpose': f"Follow-up for {clean_name}",
                             'notes': f"Follow-up appointment created automatically when customer was added. Summary: {request.data.get('summary_notes', 'No notes provided')}",
                             'status': 'scheduled',
                             'created_by': appointment_created_by,

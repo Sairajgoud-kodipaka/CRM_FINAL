@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
-
+import { cleanCustomerNameFromText } from '@/utils/name-utils';
 import { Search, Filter, MoreHorizontal, Calendar, Clock, User, MapPin, Eye, CheckCircle, XCircle, AlertTriangle, CalendarDays, RefreshCw } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useToast } from '@/hooks/use-toast';
@@ -525,7 +525,7 @@ export default function BusinessAdminAppointmentsPage() {
                       </td>
                       <td className="px-4 py-3 text-text-primary">
                         <div className="max-w-xs truncate" title={appointment.purpose}>
-                          {appointment.purpose}
+                          {cleanCustomerNameFromText(appointment.purpose)}
                         </div>
                       </td>
                       <td className="px-4 py-3">

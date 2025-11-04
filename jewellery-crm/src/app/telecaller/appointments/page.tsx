@@ -7,6 +7,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Eye } from 'lucide-react';
 import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal';
+import { cleanCustomerNameFromText } from '@/utils/name-utils';
 import { apiService } from '@/lib/api-service';
 
 const stats = [
@@ -181,7 +182,7 @@ export default function TelecallerAppointmentsPage() {
                     <td className="px-4 py-2 text-text-primary">
                       {new Date(appointment.date).toLocaleDateString()}, {appointment.time}
                     </td>
-                    <td className="px-4 py-2 text-text-primary">{appointment.purpose}</td>
+                    <td className="px-4 py-2 text-text-primary">{cleanCustomerNameFromText(appointment.purpose)}</td>
                     <td className="px-4 py-2">
                       <Badge variant="outline" className="capitalize text-xs">{appointment.status}</Badge>
                     </td>

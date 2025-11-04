@@ -376,36 +376,36 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
               {/* Basic Customer Information */}
               <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4`}>
                 <div className={`font-semibold ${isMobile ? 'mb-2 text-base' : 'mb-3 text-lg'}`}>👤 Basic Information</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">First Name</span>
-                    <span className="text-gray-900">{customer.first_name || 'Not provided'}</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-md bg-gray-50 border">
+                    <div className="text-xs text-gray-600">First Name</div>
+                    <div className="text-sm font-medium text-gray-900 break-words">{customer.first_name || 'Not provided'}</div>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Last Name</span>
-                    <span className="text-gray-900">{customer.last_name || 'Not provided'}</span>
+                  <div className="p-3 rounded-md bg-gray-50 border">
+                    <div className="text-xs text-gray-600">Last Name</div>
+                    <div className="text-sm font-medium text-gray-900 break-words">{customer.last_name || 'Not provided'}</div>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Email</span>
-                    <span className="text-gray-900">{customer.email || 'Not provided'}</span>
+                  <div className="p-3 rounded-md bg-gray-50 border">
+                    <div className="text-xs text-gray-600">Email</div>
+                    <div className="text-sm font-medium text-gray-900 break-words">{customer.email || 'Not provided'}</div>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Phone</span>
-                    <span className="text-gray-900">{customer.phone || 'Not provided'}</span>
+                  <div className="p-3 rounded-md bg-gray-50 border">
+                    <div className="text-xs text-gray-600">Phone</div>
+                    <div className="text-sm font-medium text-gray-900 break-words">{customer.phone || 'Not provided'}</div>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Status</span>
-                    <span className="text-gray-900">
+                  <div className="p-3 rounded-md bg-gray-50 border">
+                    <div className="text-xs text-gray-600">Status</div>
+                    <div className="text-sm font-medium text-gray-900">
                       {customer.status ? (
                         <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
                           {customer.status}
                         </Badge>
                       ) : 'Not provided'}
-                    </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Customer Type</span>
-                    <span className="text-gray-900">{customer.customer_type || 'Individual'}</span>
+                  <div className="p-3 rounded-md bg-gray-50 border">
+                    <div className="text-xs text-gray-600">Customer Type</div>
+                    <div className="text-sm font-medium text-gray-900">{customer.customer_type || 'individual'}</div>
                   </div>
                 </div>
               </div>
@@ -420,27 +420,12 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                       <p className="text-gray-600 text-sm mt-1">{[customer.city, customer.state].filter(Boolean).join(', ')}</p>
                     </div>
                   )}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex justify-between py-2 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">City</span>
-                      <span className="text-gray-900">{customer.city || 'Not provided'}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">State</span>
-                      <span className="text-gray-900">{customer.state || 'Not provided'}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">Country</span>
-                      <span className="text-gray-900">{customer.country || 'India'}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">Pincode</span>
-                      <span className="text-gray-900">{customer.pincode || 'Not provided'}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b border-gray-100">
-                      <span className="text-gray-600 font-medium">Catchment Area</span>
-                      <span className="text-gray-900">{customer.catchment_area || 'Not provided'}</span>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">City</div><div className="text-sm font-medium text-gray-900">{customer.city || 'Not provided'}</div></div>
+                    <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">State</div><div className="text-sm font-medium text-gray-900">{customer.state || 'Not provided'}</div></div>
+                    <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Country</div><div className="text-sm font-medium text-gray-900">{customer.country || 'India'}</div></div>
+                    <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Pincode</div><div className="text-sm font-medium text-gray-900">{customer.pincode || 'Not provided'}</div></div>
+                    <div className="p-3 rounded-md bg-gray-50 border md:col-span-2"><div className="text-xs text-gray-600">Catchment Area</div><div className="text-sm font-medium text-gray-900 break-words">{customer.catchment_area || 'Not provided'}</div></div>
                   </div>
                   {!customer.address && !customer.city && !customer.state && (
                     <div className="text-center py-4 text-gray-500">No address information available</div>
@@ -451,38 +436,20 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
               {/* Sales Information */}
               <div className="border rounded-lg p-4 mb-4">
                 <div className="font-semibold mb-3 text-lg">💼 Sales Information</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Sales Person</span>
-                    <span className="text-gray-900">{customer.sales_person || 'Not provided'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Customer Status</span>
-                    <span className="text-gray-900">{customer.customer_status || 'Not provided'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Lead Source</span>
-                    <span className="text-gray-900">{customer.lead_source || 'Not provided'}</span>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Sales Person</div><div className="text-sm font-medium text-gray-900">{customer.sales_person || 'Not provided'}</div></div>
+                  <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Customer Status</div><div className="text-sm font-medium text-gray-900">{customer.customer_status || 'Not provided'}</div></div>
+                  <div className="p-3 rounded-md bg-gray-50 border md:col-span-2"><div className="text-xs text-gray-600">Lead Source</div><div className="text-sm font-medium text-gray-900">{customer.lead_source || 'Not provided'}</div></div>
                 </div>
               </div>
 
             {/* Visit Information */}
               <div className="border rounded-lg p-4 mb-4">
               <div className="font-semibold mb-3 text-lg">👥 Visit Information</div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600 font-medium">Reason for Visit</span>
-                  <span className="text-gray-900 text-right">{customer.reason_for_visit || 'Not provided'}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600 font-medium">Age of End User</span>
-                  <span className="text-gray-900">{customer.age_of_end_user || 'Not provided'}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600 font-medium">Saving Scheme</span>
-                  <span className="text-gray-900">{customer.saving_scheme || 'Not provided'}</span>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Reason for Visit</div><div className="text-sm font-medium text-gray-900 break-words">{customer.reason_for_visit || 'Not provided'}</div></div>
+                <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Age of End User</div><div className="text-sm font-medium text-gray-900">{customer.age_of_end_user || 'Not provided'}</div></div>
+                <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Saving Scheme</div><div className="text-sm font-medium text-gray-900">{customer.saving_scheme || 'Not provided'}</div></div>
               </div>
               </div>
 

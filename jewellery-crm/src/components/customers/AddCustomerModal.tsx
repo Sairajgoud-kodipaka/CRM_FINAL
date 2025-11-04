@@ -127,6 +127,9 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+  // Quick Entry mode (mobile-first) for faster data capture
+  // Default to quick entry on mobile, full form elsewhere
+  const [quickEntry, setQuickEntry] = useState<boolean>(isMobile);
 
   // Form state with strict typing
   const [formData, setFormData] = useState<FormData>({
@@ -555,11 +558,15 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       errors.push("Lead Source is required");
     }
 
-    if (!selectedProduct || !selectedProduct.id) {
+    // Validate product via interests block
+    const firstInterestProductId = interests?.[0]?.products?.[0]?.product;
+    if (!firstInterestProductId || String(firstInterestProductId).trim() === '') {
       errors.push("Select Product is required");
     }
 
-    if (!formData.productType || formData.productType.trim() === '') {
+    // Product type can come from global field or the first interest category
+    const effectiveProductType = (formData.productType || '').trim() || (interests?.[0]?.mainCategory || '').trim();
+    if (!effectiveProductType) {
       errors.push("Product Type is required");
     }
 
@@ -747,7 +754,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         })(),
         reason_for_visit: formData.reasonForVisit,
         lead_source: formData.leadSource,
-        product_type: formData.productType,
+        product_type: (formData.productType || interests?.[0]?.mainCategory || ''),
 
         // Optional fields - convert empty strings to null
         address: emptyToNull(formData.streetAddress) as string | null,
@@ -756,7 +763,22 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         customer_status: emptyToNull(formData.customerStatus) as string | null,
         saving_scheme: formData.savingScheme || 'Inactive',
         customer_interests: formData.customerInterests.length > 0 ? formData.customerInterests : [],
-        customer_interests_input: interests.map(interest => JSON.stringify(interest)),
+        // Normalize interests for backend: coerce revenue to number-like string and drop empties
+        customer_interests_input: interests
+          .map((interest) => {
+            const normalizedProducts = (interest.products || []).map(p => ({
+              product: p.product,
+              revenue: String(parseFloat(p.revenue || '0') || 0)
+            }));
+            return {
+              category: interest.mainCategory,
+              products: normalizedProducts,
+              preferences: interest.preferences || {}
+            };
+          })
+          // Keep interests even when revenue is 0; only drop if there are no products at all
+          .filter(it => Array.isArray(it.products) && it.products.length > 0)
+          .map(it => JSON.stringify(it)),
 
         style: emptyToNull(formData.style) as string | null,
         customer_preference: emptyToNull(formData.customerPreference) as string | null,
@@ -1271,6 +1293,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       title="Add New Customer"
       description="Create a new customer profile with detailed information"
       size={isMobile ? "full" : isTablet ? "lg" : "xl"}
+      hideMobileNav={true}
       showCloseButton={true}
       className="bg-white"
       actions={
@@ -1295,6 +1318,27 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         </div>
       }
     >
+        {isMobile && (
+          <div className="sticky top-0 z-10 -mx-3 px-3 py-2 bg-white/90 backdrop-blur border-b flex items-center justify-between">
+            <div className="text-sm font-medium">Mode</div>
+            <div className="inline-flex rounded-lg overflow-hidden border">
+              <button
+                type="button"
+                className={`px-3 py-1.5 text-sm ${quickEntry ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+                onClick={() => setQuickEntry(true)}
+              >
+                Quick Entry
+              </button>
+              <button
+                type="button"
+                className={`px-3 py-1.5 text-sm ${!quickEntry ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+                onClick={() => setQuickEntry(false)}
+              >
+                Full Form
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Basic Customer Information */}
         <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4 max-h-[75vh] overflow-y-auto`}>
@@ -1311,6 +1355,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 onKeyDown={(e) => handleKeyDown(e, 'firstName')}
               />
             </div>
+            {!quickEntry && (
             <div>
               <label className="block text-sm font-medium mb-1">Last Name</label>
               <Input
@@ -1321,6 +1366,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 onKeyDown={(e) => handleKeyDown(e, 'lastName')}
               />
             </div>
+            )}
             <div className="w-full overflow-hidden">
               <label className="block text-sm font-medium mb-1">Phone Number *</label>
               <PhoneInputComponent
@@ -1378,6 +1424,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </div>
               )}
             </div>
+            {!quickEntry && (
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>
               <Input
@@ -1405,6 +1452,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </div>
               )}
             </div>
+            )}
+            {!quickEntry && (
             <div>
               <label className="block text-sm font-medium mb-1">Age of End User</label>
               <Select
@@ -1426,13 +1475,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </SelectContent>
               </Select>
             </div>
+            )}
           </div>
-        </div>
 
         {/* Address Information */}
         <div className="border rounded-lg p-4 mb-4">
           <div className="font-semibold mb-3 text-lg">📍 Address</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {!quickEntry && (
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Street Address</label>
               <Input
@@ -1443,6 +1493,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 onKeyDown={(e) => handleKeyDown(e, 'streetAddress')}
               />
             </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-1">City *</label>
               <Select
@@ -1611,210 +1662,33 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </SelectContent>
               </Select>
             </div>
+
+            {quickEntry && (
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
+                  <Input
+                    type="date"
+                    value={formData.nextFollowUpDate}
+                    onChange={(e) => handleInputChange('nextFollowUpDate', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Next Follow-up Time</label>
+                  <Input
+                    type="time"
+                    value={formData.nextFollowUpTime}
+                    onChange={(e) => handleInputChange('nextFollowUpTime', e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
 
 
-        {/* Product Interest */}
-        <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-3 text-lg">💎 Product Interest</div>
-
-          {/* Product Selection */}
-              <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Select Product *</label>
-                <Select
-                  onValueChange={(productId) => {
-                    const selectedProduct = products.find(p => p.id.toString() === productId);
-                    if (selectedProduct) {
-                      setSelectedProduct(selectedProduct);
-
-                      // Auto-populate Product Type based on category
-                      let productType = '';
-                      if (selectedProduct.category_name) {
-                        productType = selectedProduct.category_name;
-                      } else if (selectedProduct.category) {
-                        productType = selectedProduct.category;
-                      } else if (selectedProduct.product_type) {
-                        productType = selectedProduct.product_type;
-                      }
-
-                      if (productType) {
-                        setFormData(prev => ({ ...prev, productType }));
-                      }
-
-                  // Auto-populate the first interest item
-                      setInterests(prev => {
-                        const copy = [...prev];
-                    if (copy[0] && copy[0].products.length > 0) {
-                      copy[0].products[0].product = selectedProduct.id.toString();
-                          const productPrice = selectedProduct.selling_price || selectedProduct.price || 0;
-                      copy[0].products[0].revenue = productPrice.toString();
-                    } else if (copy[0]) {
-                      copy[0].products = [{
-                            product: selectedProduct.id.toString(),
-                            revenue: (selectedProduct.selling_price || selectedProduct.price || 0).toString()
-                          }];
-                        }
-                        return copy;
-                      });
-
-                      // Removed toast notification - no need to show this on every product selection
-                    }
-                  }}
-                  disabled={productsLoading}
-                >
-                  <SelectTrigger>
-                <SelectValue placeholder={productsLoading ? "Loading products..." : "Select Product"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {productsLoading ? (
-                      <SelectItem value="loading" disabled>Loading products...</SelectItem>
-                    ) : products.length > 0 ? (
-                      products.map((product) => (
-                        <SelectItem key={product.id} value={product.id.toString()}>
-                          {product.name} - ₹{product.selling_price?.toLocaleString('en-IN') || 'Price N/A'}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-products" disabled>No products available</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-          {/* Product Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-                <label className="block text-sm font-medium mb-1">Product Type *</label>
-                <Select
-                  value={formData.productType}
-                  onValueChange={(value) => handleInputChange('productType', value)}
-                  disabled={!formData.productType}
-                >
-                  <SelectTrigger>
-                  <SelectValue placeholder={formData.productType ? formData.productType : "Auto-filled from product"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.productType ? (
-                      <SelectItem value={formData.productType}>
-                        {formData.productType}
-                      </SelectItem>
-                    ) : (
-                      <SelectItem value="no-product-selected" disabled>
-                      Select a product first
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                </div>
-            <div>
-                <label className="block text-sm font-medium mb-1">Style</label>
-                <Select
-                  value={formData.style}
-                  onValueChange={(value) => handleInputChange('style', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Style" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STYLES.map((style) => (
-                      <SelectItem key={style} value={style}>
-                        {style}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Material Type</label>
-                <Select
-                value={formData.materialType}
-                onValueChange={(value) => handleInputChange('materialType', value)}
-                >
-                  <SelectTrigger>
-                  <SelectValue placeholder="Select Material Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                  {MATERIAL_TYPES.map((material) => (
-                    <SelectItem key={material} value={material}>
-                      {material}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                </div>
-            {/* Product Subtype removed as per requirement */}
-              </div>
-
-          {/* Material Weight/Value */}
-              {formData.materialType && (
-                <div className="mb-4">
-                  {['GOLD JEWELLERY', 'SILVER JEWELLERY', 'PLATINUM JEWELLERY'].includes(formData.materialType) ? (
-                      <div className="flex items-center gap-3">
-                        <label className="text-sm font-medium text-gray-700">Weight:</label>
-                        <Input
-                          type="number"
-                          placeholder="0.0"
-                          value={formData.materialWeight || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, materialWeight: parseFloat(e.target.value) || 0 }))}
-                          className="w-32"
-                        />
-                        <Select
-                          value={formData.materialUnit}
-                          onValueChange={(value) => handleInputChange('materialUnit', value)}
-                        >
-                          <SelectTrigger className="w-20">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="g">g</SelectItem>
-                            <SelectItem value="kg">kg</SelectItem>
-                            <SelectItem value="oz">oz</SelectItem>
-                          </SelectContent>
-                        </Select>
-                    </div>
-                  ) : (
-                      <div className="flex items-center gap-3">
-                        <label className="text-sm font-medium text-gray-700">Value:</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
-                          <Input
-                            type="number"
-                            placeholder="0"
-                            value={formData.materialValue || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, materialValue: parseFloat(e.target.value) || 0 }))}
-                            className="w-40 pl-8"
-                          />
-                        </div>
-                        <span className="text-sm text-gray-500">rupees</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-          {/* Revenue Opportunity */}
-              <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Expected Revenue (₹) *</label>
-                        <Input
-                          ref={(el) => registerField('expectedRevenue', el)}
-                          placeholder="e.g., 50000"
-              value={interests[0]?.products[0]?.revenue || ''}
-                          onChange={(e) => {
-                            setInterests(prev => {
-                              const copy = [...prev];
-                  if (copy[0] && copy[0].products[0]) {
-                    copy[0].products[0].revenue = e.target.value;
-                  }
-                              return copy;
-                            });
-                          }}
-                          onKeyDown={(e) => handleKeyDown(e, 'expectedRevenue')}
-              className="w-48"
-                        />
-                      </div>
-
-          {/* Product Interests */}
+        {/* Product Interests */}
           <div className="border rounded-lg p-4 bg-gray-50">
             <div className="flex items-center justify-between mb-4">
               <div className="font-medium text-base">Product Interests</div>
@@ -1857,6 +1731,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                           copy[idx].mainCategory = value;
                           return copy;
                         });
+                        // Also set global product type if not already set
+                        setFormData(prev => ({ ...prev, productType: prev.productType || value }));
                       }}
                     >
                       <SelectTrigger className="w-full">
@@ -1890,6 +1766,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                           if (selectedProduct) {
                             const productPrice = selectedProduct.selling_price || selectedProduct.price || 0;
                             copy[idx].products[0].revenue = productPrice.toString();
+                            // Set product type from product category if not already set
+                            const pt = selectedProduct.category_name || selectedProduct.category || selectedProduct.product_type || '';
+                            if (pt) {
+                              setFormData(prev => ({ ...prev, productType: prev.productType || pt }));
+                            }
                           }
                           return copy;
                         });
@@ -2108,6 +1989,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
 
         {/* Additional Information */}
+        {!quickEntry && (
         <div className="border rounded-lg p-4 mb-4">
           <div className="font-semibold mb-3 text-lg">📝 Additional Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2138,6 +2020,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
           </div>
         </div>
+        )}
 
         {/* Autofill Audit Trail */}
         {autofillLogs.length > 0 && (
