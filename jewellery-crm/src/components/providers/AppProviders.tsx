@@ -16,10 +16,11 @@ interface AppProvidersProps {
 
 export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   const { toast } = useToast();
-  // Register service worker for PWA in production
+  // Register service worker for PWA (prod and localhost)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if ('serviceWorker' in navigator && (process.env.NODE_ENV === 'production' || isLocalhost)) {
       navigator.serviceWorker
         .register('/sw.js')
         .catch(() => {
