@@ -156,6 +156,22 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
     });
   };
 
+  const extractImageFromNotes = (notes?: string): { image?: string; thumb?: string } => {
+    if (!notes) return {};
+    const imageMatch = notes.match(/\[image\]:\s*(https?:[^\s]+)/i);
+    const thumbMatch = notes.match(/\[thumb\]:\s*(https?:[^\s]+)/i);
+    return { image: imageMatch?.[1], thumb: thumbMatch?.[1] };
+  };
+
+  const stripImageTags = (notes?: string): string => {
+    if (!notes) return '';
+    // Remove lines like "[image]: <url>" and "[thumb]: <url>"
+    return notes
+      .replace(/\n?\[image\]:\s*https?:[^\n]+/gi, '')
+      .replace(/\n?\[thumb\]:\s*https?:[^\n]+/gi, '')
+      .trim();
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'customer':
@@ -473,9 +489,17 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                   {customer.summary_notes && (
                   <div>
                     <label className="block text-sm font-medium mb-1">Summary Notes</label>
-                      <div className="px-3 py-2 border rounded-md bg-gray-50 text-gray-900 min-h-[80px]">
-                        {customer.summary_notes}
+                      <div className="px-3 py-3 border rounded-md bg-gray-50 text-gray-900 whitespace-pre-wrap min-h-[80px]">
+                        {stripImageTags(customer.summary_notes)}
                       </div>
+                      {(() => { const img = extractImageFromNotes(customer.summary_notes); return (img.image || img.thumb) ? (
+                        <div className="mt-3">
+                          <div className="text-sm text-gray-600 mb-2">Selected Product</div>
+                          <a href={(img.image || img.thumb)!} target="_blank" rel="noreferrer">
+                            <img src={img.image || img.thumb!} alt="Selected product" className="w-72 max-w-full h-auto rounded shadow" />
+                          </a>
+                        </div>
+                      ) : null; })()}
                   </div>
                   )}
                 </div>

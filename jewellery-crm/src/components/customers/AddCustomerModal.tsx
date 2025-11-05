@@ -41,6 +41,7 @@ import { WeightRangeSlider } from "@/components/ui/weight-range-slider";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormNavigation } from "@/hooks/useFormNavigation";
+import { uploadImageToCloudinary, isAllowedImageFile } from "@/lib/cloudinary-upload";
 
 interface AddCustomerModalProps {
   open: boolean;
@@ -130,6 +131,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // Quick Entry mode (mobile-first) for faster data capture
   // Default to quick entry on mobile, full form elsewhere
   const [quickEntry, setQuickEntry] = useState<boolean>(isMobile);
+  const [uploadedImage, setUploadedImage] = useState<{ url: string; thumbUrl: string } | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
 
   // Form state with strict typing
   const [formData, setFormData] = useState<FormData>({
@@ -772,7 +775,14 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         design_number: emptyToNull(formData.designNumber) as string | null,
         next_follow_up: formatDateForAPI(formData.nextFollowUpDate),
         next_follow_up_time: formData.nextFollowUpTime || null,
-        summary_notes: emptyToNull(formData.summaryNotes) as string | null,
+        summary_notes: (() => {
+          const base = (formData.summaryNotes || '').trim();
+          const parts: string[] = [];
+          if (uploadedImage?.url) parts.push(`[image]: ${uploadedImage.url}`);
+          if (uploadedImage?.thumbUrl) parts.push(`[thumb]: ${uploadedImage.thumbUrl}`);
+          const combined = [base, ...parts].filter(Boolean).join('\n');
+          return emptyToNull(combined) as string | null;
+        })(),
 
         // New Critical Fields - optional
         age_of_end_user: emptyToNull(formData.ageOfEndUser) as string | null,
@@ -1271,6 +1281,22 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       copy[interestIdx].products.splice(productIdx, 1);
       return copy;
     });
+  };
+
+  const handleInterestImageSelect = async (file: File) => {
+    if (!isAllowedImageFile(file)) {
+      toast({ title: "Invalid image", description: "Use JPG/PNG/WebP up to 5MB.", variant: "destructive" });
+      return;
+    }
+    try {
+      setImageUploading(true);
+      const res = await uploadImageToCloudinary(file);
+      setUploadedImage({ url: res.url, thumbUrl: res.thumbUrl });
+    } catch (e:any) {
+      toast({ title: "Upload failed", description: e?.message || "Could not upload image.", variant: "destructive" });
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   return (
@@ -2004,6 +2030,23 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 value={formData.summaryNotes}
                 onChange={(e) => handleInputChange('summaryNotes', e.target.value)}
               />
+            <div className="mt-3 flex items-center gap-3">
+              <Input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleInterestImageSelect(f);
+                }}
+              />
+              {imageUploading && <span className="text-sm text-gray-500">Uploading...</span>}
+              {uploadedImage?.thumbUrl && (
+                <a href={uploadedImage.url} target="_blank" rel="noreferrer">
+                  <img src={uploadedImage.thumbUrl} alt="Selected product" className="w-40 max-w-full h-auto rounded object-cover border shadow" />
+                </a>
+              )}
+            </div>
             </div>
           </div>
         </div>
