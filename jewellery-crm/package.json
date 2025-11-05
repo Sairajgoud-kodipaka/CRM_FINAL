@@ -2,6 +2,7 @@
   "name": "jewellery-crm",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:backend": "cd ../backend && python manage.py runserver 8000",
@@ -9,6 +10,8 @@
     "dev:both": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "next build",
     "start": "next start",
+    "electron:dev": "set ELECTRON_START_URL=https://jewel-crm.vercel.app&& electron .",
+    "electron:build": "electron-builder -w",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
@@ -88,6 +91,35 @@
     "eslint-config-next": "15.5.2",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "electron": "^33",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.jewellerycrm.app",
+    "productName": "Jewellery CRM",
+    "directories": {
+      "buildResources": "public"
+    },
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "JewelleryCRM-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    }
   }
 }

@@ -40,10 +40,7 @@ export function PWAInstallButton() {
 
   return (
     <>
-      <Button type="button" variant="outline" className="w-full" onClick={onClick}>
-        Install Mobile App (PWA)
-      </Button>
-
+     
       <ResponsiveDialog
         open={open}
         onOpenChange={setOpen}

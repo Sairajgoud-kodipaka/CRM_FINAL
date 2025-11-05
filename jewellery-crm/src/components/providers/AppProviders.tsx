@@ -4,7 +4,6 @@ import React, { useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/query-client';
 import { NotificationProvider } from '@/hooks/useNotifications';
-import { PWAInstallPrompt } from '@/components/pwa/InstallPrompt';
 import { useToast } from '@/hooks/use-toast';
 import { NotificationManager } from '@/components/notifications';
 import { ThemeProvider } from './ThemeProvider';
@@ -58,7 +57,6 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
           <NotificationProvider>
             {children}
             <NotificationManager />
-            <PWAInstallPrompt />
           </NotificationProvider>
         </ModalProvider>
       </ThemeProvider>
