@@ -29,6 +29,10 @@ export interface ResponsiveDialogProps {
   description?: string;
   children: React.ReactNode;
   className?: string;
+  // Optional: receives scrollTop of the content container
+  onContentScroll?: (scrollTop: number) => void;
+  // Optional extra classes for the scrollable content container
+  contentClassName?: string;
   // Mobile-specific props
   fullScreen?: boolean;
   // If true, fully hide the MobileNav while this dialog is open
@@ -139,6 +143,8 @@ export function ResponsiveDialog({
   description,
   children,
   className,
+  onContentScroll,
+  contentClassName,
   fullScreen = false,
   hideMobileNav = false,
   showCloseButton = true,
@@ -301,12 +307,21 @@ export function ResponsiveDialog({
           )}
 
           {/* Content */}
-          <div className={cn(
-            'flex-1 overflow-y-auto overflow-x-hidden',
-            shouldBeFullScreen ? 'p-6' : 'p-4',
-            // Add bottom padding to ensure content doesn't hide behind sticky buttons
-            'pb-20'
-          )}>
+          <div
+            className={cn(
+              'flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide',
+              shouldBeFullScreen ? 'p-6' : 'p-4',
+              // Add bottom padding to ensure content doesn't hide behind sticky buttons
+              'pb-20',
+              contentClassName
+            )}
+            onScroll={(e) => {
+              if (onContentScroll) {
+                const target = e.currentTarget as HTMLDivElement;
+                onContentScroll(target.scrollTop);
+              }
+            }}
+          >
             {children}
           </div>
 

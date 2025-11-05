@@ -3,6 +3,7 @@ import { Lexend } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AppProviders } from "@/components/providers/AppProviders";
+import { PWAInstaller } from "@/components/pwa/PWAInstaller";
 
 const lexend = Lexend({
   subsets: ["latin"],
@@ -90,6 +91,7 @@ export default function RootLayout({
         <AppProviders>
           {children}
         </AppProviders>
+        <PWAInstaller />
         <Toaster />
       </body>
     </html>

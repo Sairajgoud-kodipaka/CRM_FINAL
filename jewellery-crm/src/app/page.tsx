@@ -21,10 +21,20 @@ export default function HomePage() {
   const [loginError, setLoginError] = useState('');
   const [mounted, setMounted] = useState(false);
   const [remember, setRemember] = useState(true);
+  const [pwaReady, setPwaReady] = useState(false);
 
   // Prevent hydration mismatch by only rendering theme-dependent content after mount
   useEffect(() => {
     setMounted(true);
+    const onPwaReady = () => setPwaReady(true);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pwa-ready', onPwaReady);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pwa-ready', onPwaReady);
+      }
+    };
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -208,6 +218,19 @@ export default function HomePage() {
                 disabled={isLoading}
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={!pwaReady}
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new Event('app-install'));
+                  }
+                }}
+              >
+                Install Mobile App (PWA)
               </Button>
             </form>
 

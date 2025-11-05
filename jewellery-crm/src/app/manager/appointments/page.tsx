@@ -498,22 +498,7 @@ export default function ManagerAppointmentsPage() {
         </div>
       </div>
 
-      {/* Date Filter Indicator */}
-      <Card className="shadow-sm border-blue-200 bg-blue-50">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-700">Current Date Filter</p>
-              <p className="text-sm font-bold text-blue-800">
-                {formatDateRange(dateRange)}
-              </p>
-            </div>
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-blue-600 text-sm font-semibold">📅</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Removed: Date Filter Indicator card */}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

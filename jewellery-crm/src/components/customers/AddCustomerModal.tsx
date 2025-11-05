@@ -1341,7 +1341,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         )}
 
         {/* Basic Customer Information */}
-        <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4 max-h-[75vh] overflow-y-auto`}>
+        <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4`}>
           <div className={`font-semibold ${isMobile ? 'mb-2 text-base' : 'mb-3 text-lg'}`}>👤 Basic Information</div>
           <div className={`grid grid-cols-1 ${isMobile ? 'gap-3' : isTablet ? 'md:grid-cols-2 gap-4' : 'md:grid-cols-2 gap-4'}`}>
             <div>
