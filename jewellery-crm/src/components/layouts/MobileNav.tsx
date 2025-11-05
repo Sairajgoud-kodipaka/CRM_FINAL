@@ -64,11 +64,12 @@ const getMobileNavItems = (role: string) => {
           icon: TrendingUp,
           badge: '12',
         },
-        // Analytics removed from mobile nav for Business Admin
+        // Replace Settings with Appointments in Business Admin mobile nav
         {
-          title: 'Settings',
-          href: '/business-admin/settings',
-          icon: Settings,
+          title: 'Appointments',
+          href: '/business-admin/appointments',
+          icon: Calendar,
+          badge: '3',
         },
       ];
 

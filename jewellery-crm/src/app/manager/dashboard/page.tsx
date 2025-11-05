@@ -139,7 +139,39 @@ function ManagerDashboardContent() {
       });
 
       if (response.success) {
-        setDashboardData(response.data);
+        // Align monthly customer stats with Customers page by querying the same source
+        let monthlyCustomersNew = 0; // today's new customers
+        let monthlyCustomersTotal = 0; // total customers this month
+        try {
+          const customersRes = await apiService.getClients({
+            start_date: monthRange.start.toISOString(),
+            end_date: monthRange.end.toISOString(),
+          });
+          if (customersRes.success) {
+            const list = Array.isArray(customersRes.data)
+              ? (customersRes.data as any[])
+              : ((customersRes.data as any)?.results || []);
+            monthlyCustomersTotal = list.length || 0;
+            // Count only those created today (local day)
+            const today = new Date();
+            const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+            const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+            monthlyCustomersNew = list.filter((c: any) => {
+              const createdAt = c?.created_at ? new Date(c.created_at) : null;
+              return createdAt && createdAt >= start && createdAt <= end;
+            }).length;
+          }
+        } catch {}
+
+        const normalized = {
+          ...response.data,
+          monthly_customers: {
+            new: monthlyCustomersNew,
+            total: monthlyCustomersTotal,
+          },
+        } as any;
+
+        setDashboardData(normalized);
       } else {
         const errorMsg = response.message || 'Unknown error';
         setError(`Failed to load dashboard data: ${errorMsg}`);

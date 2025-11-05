@@ -20,7 +20,7 @@ import { Sidebar, useSidebarState } from './Sidebar';
 import { Header } from './Header';
 import { MobileNav } from './MobileNav';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { PerformanceDashboard } from '../performance/PerformanceDashboard';
+// Performance dashboard removed from UI
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -82,8 +82,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
         <MobileNav />
       )}
 
-      {/* Performance Dashboard - Development Only */}
-      {process.env.NODE_ENV === 'development' && <PerformanceDashboard />}
+      {/* Performance Dashboard removed as per requirement */}
     </div>
   );
 }

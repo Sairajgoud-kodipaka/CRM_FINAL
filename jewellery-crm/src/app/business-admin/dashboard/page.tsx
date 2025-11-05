@@ -21,6 +21,11 @@ interface DashboardData {
     new: number;
     total: number;
   };
+  // Optional overall customers block (when backend provides consolidated stats)
+  customers?: {
+    total: number;
+    new_this_month?: number;
+  };
   monthly_pipeline: {
     active: number;
     closed: number;
@@ -139,7 +144,39 @@ function BusinessAdminDashboardContent() {
 
 
       if (response.success) {
-        setDashboardData(response.data);
+        // Align monthly customer stats with Customers page by querying the same source
+        let monthlyCustomersNew = 0; // today's new customers
+        let monthlyCustomersTotal = 0; // total customers this month
+        try {
+          const customersRes = await apiService.getClients({
+            start_date: monthRange.start.toISOString(),
+            end_date: monthRange.end.toISOString(),
+          });
+          if (customersRes.success) {
+            const list = Array.isArray(customersRes.data)
+              ? (customersRes.data as any[])
+              : ((customersRes.data as any)?.results || []);
+            monthlyCustomersTotal = list.length || 0;
+            // Count only those created today (local day)
+            const today = new Date();
+            const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+            const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+            monthlyCustomersNew = list.filter((c: any) => {
+              const createdAt = c?.created_at ? new Date(c.created_at) : null;
+              return createdAt && createdAt >= start && createdAt <= end;
+            }).length;
+          }
+        } catch {}
+
+        const normalized = {
+          ...response.data,
+          monthly_customers: {
+            new: monthlyCustomersNew,
+            total: monthlyCustomersTotal,
+          },
+        } as any;
+
+        setDashboardData(normalized);
 
       } else {
         setError('Failed to load dashboard data');
@@ -293,7 +330,7 @@ function BusinessAdminDashboardContent() {
               {dashboardData.monthly_customers?.new || 0}
             </div>
             <p className="text-xs text-green-600">
-              {dashboardData.monthly_customers?.total || 0} total customers
+              {(dashboardData.customers?.total ?? dashboardData.monthly_customers?.total ?? 0)} total customers
             </p>
           </CardContent>
         </Card>

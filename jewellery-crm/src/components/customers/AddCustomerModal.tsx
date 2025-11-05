@@ -570,11 +570,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       errors.push("Product Type is required");
     }
 
-    // Check if Expected Revenue is filled (from interests)
-    const expectedRevenue = interests[0]?.products[0]?.revenue;
-    if (!expectedRevenue || expectedRevenue.trim() === '' || isNaN(parseFloat(expectedRevenue))) {
-      errors.push("Expected Revenue is required");
-    }
+    // Expected revenue is optional; if absent we won't auto-create a pipeline with value
 
     return {
       isValid: errors.length === 0,
@@ -614,19 +610,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         }, 0);
       }
 
-      // If no expected value from interests, use budget range
-      if (expectedValue === 0 && formData.budgetRange) {
-        const budgetRanges: { [key: string]: number } = {
-          '0-50000': 25000,
-          '50000-100000': 75000,
-          '100000-200000': 150000,
-          '200000-500000': 350000,
-          '500000+': 750000
-        };
-        expectedValue = budgetRanges[formData.budgetRange] || 50000;
-      }
+      // Do not infer value from budget; keep zero unless user provided explicit revenue
+      // If there's no explicit revenue, we will skip creating a pipeline entry
 
-      // Create pipeline data
+      // Create pipeline regardless; if no explicit value, keep it as 0
       const pipelineData = {
         title: `${`${formData.firstName || ''} ${formData.lastName || ''}`.trim() || 'Customer'} - ${formData.productType || 'Jewelry'}`,
         client_id: customerData.id,

@@ -191,10 +191,18 @@ export function BusinessAdminDashboard() {
       subtitle={`Welcome back, ${user?.name || 'Admin'}! Here's your business overview`}
       actions={
         <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" onClick={handleBusinessSettings}>
+          {/* Desktop/Tablet: keep Settings */}
+          <Button variant="outline" size="sm" onClick={handleBusinessSettings} className="hidden md:inline-flex">
             <Settings className="w-4 h-4 mr-2" />
             Business Settings
           </Button>
+
+          {/* Mobile: show Customers quick link instead of Settings */}
+          <Button size="sm" onClick={handleViewCustomerDetails} className="md:hidden">
+            <Users className="w-4 h-4 mr-2" />
+            Customers
+          </Button>
+
           <Button size="sm" onClick={handleAddStore}>
             <Plus className="w-4 h-4 mr-2" />
             Add Store
