@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { PWAInstallButton } from '@/components/pwa/PWAInstallButton';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Lock, User, Building2, Sun, Moon, Settings } from 'lucide-react';
@@ -21,20 +22,10 @@ export default function HomePage() {
   const [loginError, setLoginError] = useState('');
   const [mounted, setMounted] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [pwaReady, setPwaReady] = useState(false);
 
   // Prevent hydration mismatch by only rendering theme-dependent content after mount
   useEffect(() => {
     setMounted(true);
-    const onPwaReady = () => setPwaReady(true);
-    if (typeof window !== 'undefined') {
-      window.addEventListener('pwa-ready', onPwaReady);
-    }
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('pwa-ready', onPwaReady);
-      }
-    };
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -219,19 +210,7 @@ export default function HomePage() {
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={!pwaReady}
-                onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new Event('app-install'));
-                  }
-                }}
-              >
-                Install Mobile App (PWA)
-              </Button>
+              <PWAInstallButton />
             </form>
 
             <div className="text-center space-y-2">
