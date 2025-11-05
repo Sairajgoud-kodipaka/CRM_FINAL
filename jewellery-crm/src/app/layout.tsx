@@ -53,7 +53,7 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  manifest: '/manifest.json',
+  manifest: '/manifest.webmanifest',
   themeColor: '#0a84ff',
   applicationName: 'Jewellery CRM',
   appleWebApp: {
