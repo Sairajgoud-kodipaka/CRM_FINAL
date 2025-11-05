@@ -1,32 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ResponsiveDialog } from '@/components/ui/ResponsiveDialog';
 
 export function PWAInstallButton() {
   const [pwaReady, setPwaReady] = useState(false);
   const [open, setOpen] = useState(false);
-  const [autoTriggered, setAutoTriggered] = useState(false);
+  const deferredPromptRef = useRef<any>(null);
 
   useEffect(() => {
-    const onPwaReady = () => {
+    if (typeof window === 'undefined') return;
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      deferredPromptRef.current = e;
       setPwaReady(true);
-      if (open && !autoTriggered) {
-        setAutoTriggered(true);
-        window.dispatchEvent(new Event('app-install'));
-      }
     };
-    window.addEventListener('pwa-ready', onPwaReady);
-    return () => window.removeEventListener('pwa-ready', onPwaReady);
-  }, [open, autoTriggered]);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
 
   const onClick = () => {
-    if (pwaReady) {
-      window.dispatchEvent(new Event('app-install'));
-      return;
+    if (pwaReady && deferredPromptRef.current) {
+      const prompt = deferredPromptRef.current;
+      prompt.prompt();
+      prompt.userChoice.finally(() => {
+        deferredPromptRef.current = null;
+        setPwaReady(false);
+      });
+    } else {
+      setOpen(true);
     }
-    setOpen(true);
   };
 
   const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';

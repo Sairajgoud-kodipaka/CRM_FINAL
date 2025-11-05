@@ -3,7 +3,6 @@ import { Lexend } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AppProviders } from "@/components/providers/AppProviders";
-import { PWAInstaller } from "@/components/pwa/PWAInstaller";
 
 const lexend = Lexend({
   subsets: ["latin"],
@@ -55,7 +54,7 @@ export const metadata: Metadata = {
     },
   },
   manifest: '/manifest.json',
-  themeColor: '#000000',
+  themeColor: '#0a84ff',
   applicationName: 'Jewellery CRM',
   appleWebApp: {
     capable: true,
@@ -91,7 +90,6 @@ export default function RootLayout({
         <AppProviders>
           {children}
         </AppProviders>
-        <PWAInstaller />
         <Toaster />
       </body>
     </html>

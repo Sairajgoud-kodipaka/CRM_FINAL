@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - next-pwa has no types for withPWA wrapper
+import withPWA from "next-pwa";
 
-const nextConfig: NextConfig = {
+const baseConfig: NextConfig = {
   // Production-ready configuration
   compiler: {
     // Strip all console.* calls in production builds
@@ -80,5 +83,14 @@ const nextConfig: NextConfig = {
   
   // Bundle analysis removed for stability
 };
+
+const nextConfig = withPWA({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  sw: "sw.js",
+  // Make sure we only enable PWA in production builds by default
+  disable: process.env.NODE_ENV !== "production",
+})(baseConfig);
 
 export default nextConfig;
