@@ -23,7 +23,9 @@ export default function ImageUpload({
   const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
   const [additionalImagesPreviews, setAdditionalImagesPreviews] = useState<string[]>([]);
   const mainImageInputRef = useRef<HTMLInputElement>(null);
+  const mainImageCameraInputRef = useRef<HTMLInputElement>(null);
   const additionalImagesInputRef = useRef<HTMLInputElement>(null);
+  const additionalImagesCameraInputRef = useRef<HTMLInputElement>(null);
 
   // Handle main image preview
   useEffect(() => {
@@ -150,20 +152,13 @@ export default function ImageUpload({
           ) : (
             <div className="space-y-4">
               <Upload className="mx-auto h-12 w-12 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-600">
-                  Drag and drop an image here, or{' '}
-                  <button
-                    type="button"
-                    className="text-blue-600 hover:text-blue-500"
-                    onClick={() => mainImageInputRef.current?.click()}
-                  >
-                    browse
-                  </button>
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  PNG, JPG, GIF up to 10MB
-                </p>
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">Drag and drop an image here, or use one of the options below:</p>
+                <div className="flex items-center justify-center gap-3">
+                  <Button type="button" variant="secondary" size="sm" onClick={() => mainImageCameraInputRef.current?.click()}>Take Photo</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => mainImageInputRef.current?.click()}>Choose from Gallery</Button>
+                </div>
+                <p className="text-xs text-gray-500">PNG, JPG, WEBP up to 10MB</p>
               </div>
             </div>
           )}
@@ -175,22 +170,25 @@ export default function ImageUpload({
             onChange={handleMainImageChange}
             className="hidden"
           />
+          <input
+            ref={mainImageCameraInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleMainImageChange}
+            className="hidden"
+            capture="environment"
+          />
         </div>
       </div>
 
       {/* Additional Images Upload */}
       <div className="space-y-2">
         <Label htmlFor="additional-images">Additional Images</Label>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-          <div className="flex items-center justify-center space-x-2">
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-center gap-3">
             <ImageIcon className="h-5 w-5 text-gray-400" />
-            <button
-              type="button"
-              className="text-blue-600 hover:text-blue-500 text-sm"
-              onClick={() => additionalImagesInputRef.current?.click()}
-            >
-              Add additional images
-            </button>
+            <Button type="button" variant="secondary" size="sm" onClick={() => additionalImagesCameraInputRef.current?.click()}>Take Photo</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => additionalImagesInputRef.current?.click()}>Choose from Gallery</Button>
           </div>
           <input
             ref={additionalImagesInputRef}
@@ -200,6 +198,15 @@ export default function ImageUpload({
             multiple
             onChange={handleAdditionalImagesChange}
             className="hidden"
+          />
+          <input
+            ref={additionalImagesCameraInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleAdditionalImagesChange}
+            className="hidden"
+            capture="environment"
           />
         </div>
 

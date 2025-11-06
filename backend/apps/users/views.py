@@ -32,6 +32,7 @@ from django.shortcuts import render
 from django.db.models import Q
 from .models import User
 from .serializers import UserSerializer
+from django.core.cache import caches
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -1143,6 +1144,106 @@ def login_view(request):
         }
     })
 
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def sales_pin_login_view(request):
+    """
+    Quick login for sales users using a 4-digit PIN. Controlled by feature flags.
+    Expects: { username: string, pin: string }
+    """
+    if not getattr(settings, 'SALES_PIN_LOGIN_ENABLED', False):
+        return Response({'error': 'Sales PIN login is disabled'}, status=status.HTTP_403_FORBIDDEN)
+
+    username = request.data.get('username')
+    pin = request.data.get('pin')
+
+    if not pin:
+        return Response({'error': 'PIN is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Minimal rate limiting per IP to avoid brute force
+    try:
+        client_ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0] or request.META.get('REMOTE_ADDR', 'unknown')
+        cache = caches['default']
+        key = f"sales_pin_attempts:{client_ip}"
+        attempts = cache.get(key, 0)
+        if attempts >= 20:
+            return Response({'error': 'Too many attempts. Please try again later.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        cache.set(key, attempts + 1, timeout=60)  # window 60s
+    except Exception:
+        pass
+
+    # Validate PIN
+    expected_pin = getattr(settings, 'SALES_PIN_CODE', '1234')
+    if str(pin) != str(expected_pin):
+        return Response({'error': 'Invalid PIN'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Find user and ensure sales-only role
+    if not username:
+        return Response({'error': 'Username is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    allowed_roles = set(getattr(settings, 'SALES_PIN_ALLOWED_ROLES', ['inhouse_sales', 'sales_team']))
+    if user.role not in allowed_roles:
+        return Response({'error': 'PIN login allowed only for sales users'}, status=status.HTTP_403_FORBIDDEN)
+
+    if not user.is_active:
+        return Response({'error': 'User account is disabled'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if user.role != 'platform_admin' and user.tenant:
+        if getattr(user.tenant, 'subscription_status', 'active') != 'active':
+            return Response({'error': 'Your organization account is currently inactive. Please contact your administrator.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Issue tokens (bypass password by design for PIN flow)
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'success': True,
+        'message': 'Login successful',
+        'token': str(refresh.access_token),
+        'refresh': str(refresh),
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.role,
+            'name': user.get_full_name() or user.username,
+            'phone': user.phone,
+            'address': user.address,
+            'is_active': user.is_active,
+            'tenant': user.tenant.id if user.tenant else None,
+            'store': user.store.id if user.store else None,
+            'tenant_name': user.tenant.name if user.tenant else None,
+            'store_name': user.store.name if user.store else None,
+        }
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_username_role(request):
+    """
+    Public endpoint to check if a username exists and whether it is a sales role.
+    Returns: { exists: bool, role: str|null, is_sales_role: bool }
+    """
+    username = request.query_params.get('username', '').strip()
+    if not username:
+        return Response({'exists': False, 'role': None, 'is_sales_role': False})
+    try:
+        user = User.objects.get(username=username)
+        allowed_roles = set(getattr(settings, 'SALES_PIN_ALLOWED_ROLES', ['inhouse_sales', 'sales_team']))
+        return Response({
+            'exists': True,
+            'role': user.role,
+            'is_sales_role': user.role in allowed_roles
+        })
+    except User.DoesNotExist:
+        return Response({'exists': False, 'role': None, 'is_sales_role': False})
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

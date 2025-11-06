@@ -248,6 +248,14 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
+# Feature flags and lightweight auth configs
+# Sales PIN quick login is disabled by default to avoid affecting existing auth flows
+SALES_PIN_LOGIN_ENABLED = config('SALES_PIN_LOGIN_ENABLED', default=False, cast=bool)
+# Default PIN for UAT; override via environment in production
+SALES_PIN_CODE = config('SALES_PIN_CODE', default='1234')
+# Roles allowed to use PIN login (sales-only)
+SALES_PIN_ALLOWED_ROLES = [r.strip() for r in config('SALES_PIN_ALLOWED_ROLES', default='inhouse_sales,sales_team').split(',') if r.strip()]
+
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app').split(',') if origin.strip()]
 CORS_ALLOW_CREDENTIALS = True

@@ -6,6 +6,8 @@ app_name = 'users'
 urlpatterns = [
     # Authentication
     path('login/', views.login_view, name='login'),
+    path('login/sales-pin/', views.sales_pin_login_view, name='sales_pin_login'),
+    path('check-username-role/', views.check_username_role, name='check_username_role'),
     path('profile/', views.user_profile, name='profile'),
     path('logout/', views.logout_view, name='logout'),
     path('demo-users/', views.demo_users, name='demo_users'),

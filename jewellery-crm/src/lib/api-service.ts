@@ -885,6 +885,19 @@ class ApiService {
     });
   }
 
+  async loginSalesPin(username: string, pin: string): Promise<ApiResponse<LoginResponse>> {
+    return this.request<LoginResponse>('/login/sales-pin/', {
+      method: 'POST',
+      body: JSON.stringify({ username, pin }),
+    });
+  }
+
+  async checkUsernameRole(username: string): Promise<ApiResponse<{ exists: boolean; role: string | null; is_sales_role: boolean }>> {
+    const qp = new URLSearchParams();
+    qp.append('username', username);
+    return this.request(`/check-username-role/?${qp.toString()}`);
+  }
+
   async getCurrentUser(): Promise<ApiResponse<User>> {
     return this.request('/profile/');
   }

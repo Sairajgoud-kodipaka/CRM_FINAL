@@ -13,44 +13,75 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 export default function HomePage() {
   const router = useRouter();
-  const { login, isLoading, error, user, setError } = useAuth();
+  const { login, loginWithPin, isLoading, error, user, setError } = useAuth();
   const { theme, setTheme } = useTheme();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [mounted, setMounted] = useState(false);
   const [remember, setRemember] = useState(true);
+  const [isSalesUsername, setIsSalesUsername] = useState<boolean | null>(null);
+  const [isPinSubmitting, setIsPinSubmitting] = useState(false);
 
   // Prevent hydration mismatch by only rendering theme-dependent content after mount
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Check entered username role and gate PIN visibility
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      setIsSalesUsername(null);
+      if (!username) return;
+      try {
+        const res = await (await import('@/lib/api-service')).apiService.checkUsernameRole(username);
+        if (active) setIsSalesUsername(!!res.data?.is_sales_role);
+      } catch {
+        if (active) setIsSalesUsername(null);
+      }
+    };
+    const t = setTimeout(check, 300);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [username]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-    setError(null); // Clear any previous errors from the auth hook
+    setError(null);
 
+    // If username belongs to a sales role, treat submit as PIN login
+    if (isSalesUsername) {
+      if (!username || pin.length !== 4) {
+        setLoginError('Enter username and 4-digit PIN');
+        return;
+      }
+      await handleSalesPinLogin();
+      return;
+    }
+
+    // Regular username/password flow for non-sales
     if (!username || !password) {
       setLoginError('Please enter both username and password');
       return;
     }
 
     try {
-      // Store remember preference so auth layer can persist accordingly
       if (typeof window !== 'undefined') {
         localStorage.setItem('auth-remember', remember ? '1' : '0');
       }
       const success = await login(username, password);
 
       if (success) {
-        // Get the current user state after login
         const currentUser = useAuth.getState().user;
 
         if (currentUser) {
-          // Redirect based on user role from backend
           switch (currentUser.role) {
             case 'platform_admin':
               router.push('/platform/dashboard');
@@ -79,8 +110,49 @@ export default function HomePage() {
         }
       }
     } catch (error) {
-
       setLoginError('An unexpected error occurred. Please try again.');
+    }
+  };
+
+  const handleSalesPinLogin = async () => {
+    setLoginError('');
+    setError(null);
+    if (!username || !pin) {
+      setLoginError('Enter username and 4-digit PIN');
+      return;
+    }
+    setIsPinSubmitting(true);
+    const success = await loginWithPin(username, pin);
+    setIsPinSubmitting(false);
+    if (success) {
+      const currentUser = useAuth.getState().user;
+      if (currentUser) {
+        switch (currentUser.role) {
+          case 'platform_admin':
+            router.push('/platform/dashboard');
+            break;
+          case 'business_admin':
+            router.push('/business-admin/dashboard');
+            break;
+          case 'manager':
+            router.push('/manager/dashboard');
+            break;
+          case 'sales_team':
+          case 'inhouse_sales':
+            router.push('/sales/dashboard');
+            break;
+          case 'marketing':
+            router.push('/marketing/dashboard');
+            break;
+          case 'tele_calling':
+            router.push('/telecaller/dashboard');
+            break;
+          default:
+            router.push('/sales/dashboard');
+        }
+      } else {
+        router.push('/sales/dashboard');
+      }
     }
   };
 
@@ -154,30 +226,70 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {!isSalesUsername && (
+                <div className="space-y-2">
+                  <label htmlFor="password" className="text-sm font-medium text-foreground">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10 pr-10"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Sales Quick Login - visible only when username maps to sales role */}
+              {isSalesUsername && (
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium text-foreground">
-                  Password
+                <label htmlFor="pin" className="text-sm font-medium text-foreground flex items-center justify-between">
+                  Sales Quick Login (PIN)
+                  <span className="text-[10px] text-muted-foreground">Sales users only</span>
                 </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <div className="flex gap-2">
                   <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10"
-                    disabled={isLoading}
+                    id="pin"
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="\\d{4}"
+                    maxLength={4}
+                    placeholder="1234"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+                    autoComplete="one-time-code"
+                    enterKeyHint="go"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    className="text-center tracking-widest text-lg"
+                    disabled={isPinSubmitting || isLoading || !username}
                   />
-                  <button
+                  <Button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    variant="default"
+                    className="min-w-[140px] text-base"
+                    onClick={handleSalesPinLogin}
+                    onTouchStart={handleSalesPinLogin}
+                    disabled={isPinSubmitting || isLoading || !username || pin.length !== 4}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                    {isPinSubmitting ? 'Logging in…' : 'Sales Quick Login'}
+                  </Button>
                 </div>
               </div>
+              )}
 
               {(loginError || error) && (
                 <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 p-4 rounded-md">
@@ -203,13 +315,15 @@ export default function HomePage() {
                 </label>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Signing in...' : 'Sign In'}
-              </Button>
+              {!isSalesUsername && (
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 text-base"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Signing in...' : 'Sign In'}
+                </Button>
+              )}
               <PWAInstallButton />
             </form>
 

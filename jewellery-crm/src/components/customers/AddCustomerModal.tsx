@@ -4,6 +4,7 @@ import { ResponsiveDialog } from "@/components/ui/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { ComboboxSelect } from "@/components/ui/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -128,11 +129,31 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
-  // Quick Entry mode (mobile-first) for faster data capture
-  // Default to quick entry on mobile, full form elsewhere
-  const [quickEntry, setQuickEntry] = useState<boolean>(isMobile);
+  // Single streamlined mode for faster data capture (always Quick Entry)
+  const quickEntry = true;
   const [uploadedImage, setUploadedImage] = useState<{ url: string; thumbUrl: string } | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
+  const firstNameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = React.useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Autofocus first field on open for smooth mobile flow
+  useEffect(() => {
+    if (open && isMobile) {
+      setTimeout(() => firstNameInputRef.current?.focus(), 50);
+    }
+  }, [open, isMobile]);
+
+  // Lightweight focus helper using data-field attributes
+  const focusNext = (fieldId: string) => {
+    if (!isMobile) return;
+    const el = document.querySelector<HTMLElement>(`[data-field="${fieldId}"]`);
+    if (el) {
+      el.focus();
+      // scroll into view for small screens
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   // Form state with strict typing
   const [formData, setFormData] = useState<FormData>({
@@ -189,30 +210,46 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
   // State for field locking (autofill enforcement)
   const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
 
-  // Form navigation setup
-  const formFields = [
-    { id: 'firstName', type: 'input' as const },
-    { id: 'lastName', type: 'input' as const },
-    { id: 'phone', type: 'phone' as const },
-    { id: 'email', type: 'input' as const },
-    { id: 'ageOfEndUser', type: 'select' as const },
-    { id: 'streetAddress', type: 'input' as const },
-    { id: 'city', type: 'select' as const },
-    { id: 'state', type: 'select' as const },
-    { id: 'catchmentArea', type: 'select' as const },
-    { id: 'pincode', type: 'select' as const },
-    { id: 'salesPerson', type: 'select' as const },
-    { id: 'reasonForVisit', type: 'select' as const },
-    { id: 'leadSource', type: 'select' as const },
-    { id: 'selectedProduct', type: 'select' as const },
-    { id: 'productType', type: 'select' as const },
-    { id: 'style', type: 'select' as const },
-    { id: 'materialType', type: 'select' as const },
-    { id: 'expectedRevenue', type: 'input' as const },
-    { id: 'designNumber', type: 'input' as const },
-    { id: 'nextFollowUpDate', type: 'input' as const },
-    { id: 'summaryNotes', type: 'textarea' as const },
-  ];
+  // Form navigation setup (mobile quick-entry friendly order)
+  const formFields = quickEntry && isMobile
+    ? [
+        { id: 'firstName', type: 'input' as const },
+        { id: 'lastName', type: 'input' as const },
+        { id: 'phone', type: 'phone' as const },
+        { id: 'email', type: 'input' as const },
+        { id: 'ageOfEndUser', type: 'select' as const },
+        { id: 'streetAddress', type: 'input' as const },
+        { id: 'city', type: 'select' as const },
+        { id: 'state', type: 'select' as const },
+        { id: 'catchmentArea', type: 'select' as const },
+        { id: 'pincode', type: 'select' as const },
+        { id: 'reasonForVisit', type: 'select' as const },
+        { id: 'leadSource', type: 'select' as const },
+        { id: 'summaryNotes', type: 'textarea' as const },
+      ]
+    : [
+        { id: 'firstName', type: 'input' as const },
+        { id: 'lastName', type: 'input' as const },
+        { id: 'phone', type: 'phone' as const },
+        { id: 'email', type: 'input' as const },
+        { id: 'ageOfEndUser', type: 'select' as const },
+        { id: 'streetAddress', type: 'input' as const },
+        { id: 'city', type: 'select' as const },
+        { id: 'state', type: 'select' as const },
+        { id: 'catchmentArea', type: 'select' as const },
+        { id: 'pincode', type: 'select' as const },
+        { id: 'salesPerson', type: 'select' as const },
+        { id: 'reasonForVisit', type: 'select' as const },
+        { id: 'leadSource', type: 'select' as const },
+        { id: 'selectedProduct', type: 'select' as const },
+        { id: 'productType', type: 'select' as const },
+        { id: 'style', type: 'select' as const },
+        { id: 'materialType', type: 'select' as const },
+        { id: 'expectedRevenue', type: 'input' as const },
+        { id: 'designNumber', type: 'input' as const },
+        { id: 'nextFollowUpDate', type: 'input' as const },
+        { id: 'summaryNotes', type: 'textarea' as const },
+      ];
   
   const { registerField, handleKeyDown, handleSelectKeyDown } = useFormNavigation(formFields);
 
@@ -257,6 +294,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         },
       },
     ]);
+  // Mobile-friendly collapsible state per interest
+  const [interestDetailsOpen, setInterestDetailsOpen] = useState<boolean[]>([!isMobile]);
 
   // State for existing customer check (by phone)
   const [existingPhoneCustomer, setExistingPhoneCustomer] = useState<{
@@ -443,11 +482,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       };
       setAutofillLogs(prev => [...prev, catchmentFilterLog]);
 
-      toast({
-        title: "City Selection Updated",
-        description: `State set to ${state}. ${catchmentAreas.length} catchment areas available for ${city}.`,
-        variant: "default",
-      });
+      // Minimal UX: avoid toast spam on type-ahead selections
     } else {
       setFormData(prev => ({
         ...prev,
@@ -460,11 +495,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       // Unlock state field if city doesn't have mapping
       setLockedFields(prev => unlockField('state', prev));
 
-      toast({
-        title: "City Selected",
-        description: `City "${city}" selected. Please manually select state and catchment area.`,
-        variant: "default",
-      });
+      // Minimal UX: avoid toast spam on type-ahead selections
     }
   };
 
@@ -488,11 +519,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       };
       setAutofillLogs(prev => [...prev, autofillLog]);
 
-      toast({
-        title: "Pincode Auto-filled",
-        description: `Pincode automatically set to ${pincode} based on selected catchment area.`,
-        variant: "default",
-      });
+      // Minimal UX: avoid toast spam on type-ahead selections
     } else {
       setFormData(prev => ({ ...prev, catchmentArea, pincode: "" }));
       // Unlock pincode field if catchment area doesn't have mapping
@@ -545,9 +572,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       errors.push("Catchment Area is required");
     }
 
-    if (!formData.pincode || formData.pincode.trim() === '') {
-      errors.push("Pincode is required");
-    }
+    // Pincode is optional
 
     if (!formData.salesPerson || formData.salesPerson.trim() === '') {
       errors.push("Sales Person is required");
@@ -732,7 +757,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         state: formData.state,
         country: formData.country || 'India',
         catchment_area: formData.catchmentArea,
-        pincode: formData.pincode,
+        pincode: emptyToNull(formData.pincode) as string | null,
         sales_person: formData.salesPerson,
         sales_person_id: (() => {
           // Find the selected salesperson's ID from the options
@@ -1262,6 +1287,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
       return newInterests;
     });
+    setInterestDetailsOpen(prev => [...prev, !isMobile ? true : false]);
   };
 
   const addProductToInterest = (idx: number) => {
@@ -1331,27 +1357,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         </div>
       }
     >
-        {isMobile && (
-          <div className="sticky top-0 z-10 -mx-3 px-3 py-2 bg-white/90 backdrop-blur border-b flex items-center justify-between">
-            <div className="text-sm font-medium">Mode</div>
-            <div className="inline-flex rounded-lg overflow-hidden border">
-              <button
-                type="button"
-                className={`px-3 py-1.5 text-sm ${quickEntry ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
-                onClick={() => setQuickEntry(true)}
-              >
-                Quick Entry
-              </button>
-              <button
-                type="button"
-                className={`px-3 py-1.5 text-sm ${!quickEntry ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
-                onClick={() => setQuickEntry(false)}
-              >
-                Full Form
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Mode toggle removed for a single streamlined quick-entry experience */}
 
         {/* Basic Customer Information */}
         <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4`}>
@@ -1360,26 +1366,36 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             <div>
               <label className="block text-sm font-medium mb-1">First Name *</label>
               <Input
-                ref={(el) => registerField('firstName', el)}
-                placeholder="e.g., Priya"
+                data-field="firstName"
+                ref={(el) => {
+                  registerField('firstName', el);
+                  firstNameInputRef.current = el;
+                }}
+                placeholder=""
                 required
                 value={formData.firstName}
                 onChange={(e) => handleInputChange('firstName', e.target.value)}
                 onKeyDown={(e) => handleKeyDown(e, 'firstName')}
               />
             </div>
-            {!quickEntry && (
             <div>
               <label className="block text-sm font-medium mb-1">Last Name</label>
               <Input
+                data-field="lastName"
                 ref={(el) => registerField('lastName', el)}
-                placeholder="e.g., Sharma"
+                placeholder=""
                 value={formData.lastName}
                 onChange={(e) => handleInputChange('lastName', e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, 'lastName')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    focusNext('phone');
+                  } else {
+                    handleKeyDown(e, 'lastName');
+                  }
+                }}
               />
             </div>
-            )}
             <div className="w-full overflow-hidden">
               <label className="block text-sm font-medium mb-1">Phone Number *</label>
               <PhoneInputComponent
@@ -1437,15 +1453,22 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </div>
               )}
             </div>
-            {!quickEntry && (
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>
               <Input
+                data-field="email"
                 ref={(el) => registerField('email', el)}
-                placeholder="e.g., priya.sharma@example.com"
+                placeholder=""
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, 'email')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    focusNext('ageOfEndUser');
+                  } else {
+                    handleKeyDown(e, 'email');
+                  }
+                }}
                 onBlur={async () => {
                   if (formData.email) {
                     const existing = await checkCustomerExists(formData.email);
@@ -1465,8 +1488,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </div>
               )}
             </div>
-            )}
-            {!quickEntry && (
             <div>
               <label className="block text-sm font-medium mb-1">Age of End User</label>
               <Select
@@ -1474,6 +1495,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 onValueChange={(value) => handleInputChange('ageOfEndUser', value)}
               >
                 <SelectTrigger 
+                  data-field="ageOfEndUser"
                   ref={(el) => registerField('ageOfEndUser', el)}
                   onKeyDown={(e) => handleSelectKeyDown(e, 'ageOfEndUser', false)}
                 >
@@ -1488,11 +1510,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 </SelectContent>
               </Select>
             </div>
-            )}
         </div>
 
         {/* Address Information */}
-        <div className="border rounded-lg p-4 mb-4">
+        <div className="border rounded-lg p-4 mb-4 mt-4">
           <div className="font-semibold mb-3 text-lg">📍 Address</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {!quickEntry && (
@@ -1500,52 +1521,53 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               <label className="block text-sm font-medium mb-1">Street Address</label>
               <Input
                 ref={(el) => registerField('streetAddress', el)}
+                data-field="streetAddress"
                 placeholder="e.g., 123, Diamond Lane"
                 value={formData.streetAddress}
                 onChange={(e) => handleInputChange('streetAddress', e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, 'streetAddress')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    focusNext('city');
+                  } else {
+                    handleKeyDown(e, 'streetAddress');
+                  }
+                }}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                You can enter any address here
+              </p>
             </div>
             )}
             <div>
               <label className="block text-sm font-medium mb-1">City *</label>
-              <Select
+              <ComboboxSelect
+                // City selection auto-advances on mobile quick entry
                 value={formData.city}
-                onValueChange={handleCitySelection}
-              >
-                <SelectTrigger 
-                  ref={(el) => registerField('city', el)}
-                  onKeyDown={(e) => handleSelectKeyDown(e, 'city', false)}
-                >
-                  <SelectValue placeholder="Select City" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INDIAN_CITIES.map((city) => (
-                    <SelectItem key={city} value={city}>
-                      {city}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(value) => {
+                  handleCitySelection(value);
+                  focusNext('state');
+                }}
+                options={INDIAN_CITIES}
+                placeholder="Select City or type to search"
+                customPlaceholder="Type city name"
+                commitOnSelect
+              />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">State *</label>
-              <Select
+              <ComboboxSelect
                 value={formData.state}
-                onValueChange={(value) => handleInputChange('state', value)}
+                onValueChange={(value) => {
+                  handleInputChange('state', value);
+                  focusNext('catchmentArea');
+                }}
+                options={INDIAN_STATES}
+                placeholder={isFieldLocked('state', lockedFields) ? "Auto-filled from City" : "Select State or type"}
+                customPlaceholder="Type state name"
                 disabled={isFieldLocked('state', lockedFields)}
-              >
-                <SelectTrigger className={isFieldLocked('state', lockedFields) ? 'bg-gray-100' : ''}>
-                  <SelectValue placeholder={isFieldLocked('state', lockedFields) ? "Auto-filled from City" : "Select State"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {INDIAN_STATES.map((state) => (
-                    <SelectItem key={state} value={state}>
-                      {state}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                commitOnSelect
+              />
               {isFieldLocked('state', lockedFields) && (
                 <div className="text-xs text-blue-600 mt-1">
                   🔒 Auto-filled from selected city
@@ -1554,28 +1576,18 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Catchment Area *</label>
-              <Select
+              <ComboboxSelect
                 value={formData.catchmentArea}
-                onValueChange={handleCatchmentSelection}
+                onValueChange={(value) => {
+                  handleCatchmentSelection(value);
+                  focusNext('salesPerson');
+                }}
+                options={formData.city ? getCatchmentAreasForCity(formData.city) : []}
+                placeholder={formData.city ? "Select Catchment Area or type" : "Select City First"}
+                customPlaceholder="Type catchment area"
                 disabled={!formData.city}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={formData.city ? "Select Catchment Area" : "Select City First"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {formData.city ? (
-                    getCatchmentAreasForCity(formData.city).map((area: string) => (
-                      <SelectItem key={area} value={area}>
-                        {area}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-city-selected" disabled>
-                      Please select a city first
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+                commitOnSelect
+              />
               {!formData.city && (
                 <div className="text-xs text-gray-500 mt-1">
                   Select a city to see available catchment areas
@@ -1583,23 +1595,19 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Pincode *</label>
-              <Select
+              <label className="block text-sm font-medium mb-1">Pincode</label>
+              <ComboboxSelect
                 value={formData.pincode}
-                onValueChange={(value) => handleInputChange('pincode', value)}
+                onValueChange={(value) => {
+                  handleInputChange('pincode', value);
+                  focusNext('reasonForVisit');
+                }}
+                options={(formData.catchmentArea && formData.pincode) ? [formData.pincode] : []}
+                placeholder={isFieldLocked('pincode', lockedFields) ? "Auto-filled from Catchment (optional)" : "Enter or select Pincode (optional)"}
+                customPlaceholder="Type pincode"
                 disabled={isFieldLocked('pincode', lockedFields)}
-              >
-                <SelectTrigger className={isFieldLocked('pincode', lockedFields) ? 'bg-gray-100' : ''}>
-                  <SelectValue placeholder={isFieldLocked('pincode', lockedFields) ? "Auto-filled from Catchment" : "Select Pincode"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {formData.catchmentArea && formData.pincode && (
-                    <SelectItem key={formData.pincode} value={formData.pincode}>
-                      {formData.pincode}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+                commitOnSelect
+              />
               {isFieldLocked('pincode', lockedFields) && (
                 <div className="text-xs text-blue-600 mt-1">
                   🔒 Auto-filled from selected catchment area
@@ -1617,9 +1625,12 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               <label className="block text-sm font-medium mb-1">Sales Person *</label>
               <Select
                 value={formData.salesPerson}
-                onValueChange={(value) => handleInputChange('salesPerson', value)}
+                onValueChange={(value) => {
+                  handleInputChange('salesPerson', value);
+                  focusNext('reasonForVisit');
+                }}
               >
-                <SelectTrigger>
+                <SelectTrigger data-field="salesPerson">
                   <SelectValue placeholder="Select Sales Person" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1641,39 +1652,29 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             {/* Customer Status removed per client request */}
             <div>
               <label className="block text-sm font-medium mb-1">Reason for Visit *</label>
-              <Select
+              <ComboboxSelect
                 value={formData.reasonForVisit}
-                onValueChange={(value) => handleInputChange('reasonForVisit', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  {REASONS_FOR_VISIT.map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {reason}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(value) => {
+                  handleInputChange('reasonForVisit', value);
+                  focusNext('leadSource');
+                }}
+                options={REASONS_FOR_VISIT}
+                placeholder="Select Reason"
+                customPlaceholder="Enter custom reason for visit"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Lead Source *</label>
-              <Select
+              <ComboboxSelect
                 value={formData.leadSource}
-                onValueChange={(value) => handleInputChange('leadSource', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Source" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LEAD_SOURCES.map((source) => (
-                    <SelectItem key={source} value={source}>
-                      {source}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(value) => {
+                  handleInputChange('leadSource', value);
+                  focusNext('nextFollowUpDate');
+                }}
+                options={LEAD_SOURCES}
+                placeholder="Select Source"
+                customPlaceholder="Enter custom lead source"
+              />
         </div>
 
             {quickEntry && (
@@ -1681,14 +1682,19 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             <div>
                   <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
                         <Input
+                    data-field="nextFollowUpDate"
                     type="date"
                     value={formData.nextFollowUpDate}
-                    onChange={(e) => handleInputChange('nextFollowUpDate', e.target.value)}
+                    onChange={(e) => {
+                      handleInputChange('nextFollowUpDate', e.target.value);
+                      focusNext('nextFollowUpTime');
+                    }}
                   />
                     </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Next Follow-up Time</label>
                           <Input
+                    data-field="nextFollowUpTime"
                     type="time"
                     value={formData.nextFollowUpTime}
                     onChange={(e) => handleInputChange('nextFollowUpTime', e.target.value)}
@@ -1702,10 +1708,15 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
 
           {/* Product Interests */}
-          <div className="border rounded-lg p-4 bg-gray-50">
-            <div className="flex items-center justify-between mb-4">
+          <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} bg-gray-50`}>
+            <div className={`${isMobile ? 'space-y-2' : 'flex items-center justify-between mb-4'}`}>
               <div className="font-medium text-base">Product Interests</div>
-              <Button variant="outline" size="sm" onClick={addInterest} className="text-sm">
+              <Button
+                variant={isMobile ? 'default' : 'outline'}
+                size={isMobile ? 'default' : 'sm'}
+                onClick={addInterest}
+                className={`${isMobile ? 'w-full' : 'text-sm'}`}
+              >
                 + Add Interest
               </Button>
             </div>
@@ -1716,25 +1727,35 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               }
 
               return (
-                <div key={idx} className="border rounded-lg p-4 mb-4 bg-white shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
+                <div key={idx} className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4 bg-white shadow-sm`}>
+                  <div className={`${isMobile ? 'space-y-2' : 'flex items-center justify-between mb-4'}`}>
                     <div className="font-medium text-base">Interest #{idx + 1}</div>
-                    {interests.length > 1 && (
+                    <div className="flex items-center gap-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="text-red-500 hover:text-red-700 text-sm"
-                        onClick={() => {
-                          setInterests(prev => prev.filter((_, i) => i !== idx));
-                        }}
+                        onClick={() => setInterestDetailsOpen(prev => prev.map((o,i) => i===idx ? !o : o))}
                       >
-                        Remove
+                        {interestDetailsOpen[idx] ? 'Hide Details' : 'Show Details'}
                       </Button>
-                    )}
+                      {interests.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 text-sm"
+                          onClick={() => {
+                            setInterests(prev => prev.filter((_, i) => i !== idx));
+                            setInterestDetailsOpen(prev => prev.filter((_, i) => i !== idx));
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Category Selection for this interest */}
-                  <div className="mb-4">
+                  <div className={`${isMobile ? 'mb-3' : 'mb-4'}`}>
                     <label className="block text-sm font-medium mb-2">Category</label>
                     <Select
                       value={interest.mainCategory || ''}
@@ -1762,7 +1783,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   </div>
 
                   {/* Product Selection for this interest */}
-                  <div className="mb-4">
+                  <div className={`${isMobile ? 'mb-3' : 'mb-4'}`}>
                     <label className="block text-sm font-medium mb-2">Product</label>
                     <Select
                       value={interest.products[0]?.product || ''}
@@ -1802,30 +1823,32 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                     </Select>
                   </div>
 
-                  {/* Revenue for this interest */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-2">Expected Revenue (₹)</label>
-                    <Input
-                      placeholder="e.g., 50000"
-                      value={interest.products[0]?.revenue || ''}
-                      onChange={(e) => {
-                        setInterests(prev => {
-                          const copy = [...prev];
-                          if (!copy[idx].products[0]) {
-                            copy[idx].products[0] = { product: "", revenue: "" };
-                          }
-                          copy[idx].products[0].revenue = e.target.value;
-                          return copy;
-                        });
-                      }}
-                      className="w-full"
-                    />
-                  </div>
+                  {interestDetailsOpen[idx] && (
+                    <>
+                      {/* Revenue for this interest */}
+                      <div className={`${isMobile ? 'mb-3' : 'mb-4'}`}>
+                        <label className="block text-sm font-medium mb-2">Expected Revenue (₹)</label>
+                        <Input
+                          placeholder="e.g., 50000"
+                          value={interest.products[0]?.revenue || ''}
+                          onChange={(e) => {
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              if (!copy[idx].products[0]) {
+                                copy[idx].products[0] = { product: "", revenue: "" };
+                              }
+                              copy[idx].products[0].revenue = e.target.value;
+                              return copy;
+                            });
+                          }}
+                          className="w-full"
+                        />
+                      </div>
 
-                  {/* Customer Preferences for this interest */}
-                  <div className="space-y-3">
-                    <div className="text-sm font-medium text-gray-700 mb-2">Customer Preferences:</div>
-                    <div className="space-y-2">
+                      {/* Customer Preferences for this interest */}
+                      <div className="space-y-3">
+                        <div className="text-sm font-medium text-gray-700 mb-2">Customer Preferences:</div>
+                        <div className="space-y-2">
                       <label className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
                         <Checkbox
                           checked={interest.preferences?.designSelected || false}
@@ -1943,6 +1966,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       </label>
                     </div>
                   </div>
+                    </>
+                  )}
 
                   <div className="mt-4">
                     <label className="block text-sm font-medium mb-2">Other Preferences</label>
@@ -1975,103 +2000,95 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           </div>
         </div>
 
-        {/* Sales Pipeline Section */}
-        <div className="border rounded-lg p-4 mb-4">
-          <div className="font-semibold mb-3 text-lg">🚀 Sales Pipeline</div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-green-600 text-sm">📈</span>
-              </div>
-              <div>
-                <div className="font-medium text-green-900">Automatic Pipeline Creation</div>
-                <div className="text-sm text-green-700">Customer will be automatically added to sales pipeline upon submission</div>
-              </div>
-            </div>
-            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
-              <div className="flex items-center gap-2 text-blue-700">
-                <span className="text-sm">✓</span>
-                <span className="text-sm font-medium">Pipeline entry will be created automatically based on customer data and interests</span>
-              </div>
-            </div>
-          </div>
-        </div>
+       
 
 
 
 
 
-        {/* Additional Information */}
-        {!quickEntry && (
+        {/* Additional Information (always visible, trimmed for quick flow) */}
         <div className="border rounded-lg p-4 mb-4">
           <div className="font-semibold mb-3 text-lg">📝 Additional Information</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Design Number</label>
               <Input
-                placeholder="e.g., DES-2024-001"
+                data-field="designNumber"
+                placeholder=""
                 value={formData.designNumber}
                 onChange={(e) => handleInputChange('designNumber', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
-              <Input
-                type="date"
-                value={formData.nextFollowUpDate}
-                onChange={(e) => handleInputChange('nextFollowUpDate', e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    focusNext('summaryNotes');
+                  }
+                }}
               />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Notes</label>
               <Textarea
+                data-field="summaryNotes"
                 placeholder="Key discussion points, customer preferences, next steps..."
                 rows={3}
                 value={formData.summaryNotes}
                 onChange={(e) => handleInputChange('summaryNotes', e.target.value)}
               />
-            <div className="mt-3 flex items-center gap-3">
-              <Input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleInterestImageSelect(f);
-                }}
-              />
-              {imageUploading && <span className="text-sm text-gray-500">Uploading...</span>}
-              {uploadedImage?.thumbUrl && (
-                <a href={uploadedImage.url} target="_blank" rel="noreferrer">
-                  <img src={uploadedImage.thumbUrl} alt="Selected product" className="w-40 max-w-full h-auto rounded object-cover border shadow" />
-                </a>
-              )}
-            </div>
+              <div className="mt-3 flex items-center gap-3 flex-wrap">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="sm:w-auto w-full"
+                >
+                  Take Photo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="sm:w-auto w-full"
+                >
+                  Choose from Gallery
+                </Button>
+                {/* Hidden inputs for camera and gallery */}
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleInterestImageSelect(f);
+                    // reset to allow re-selecting the same file
+                    if (cameraInputRef.current) cameraInputRef.current.value = '';
+                  }}
+                />
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleInterestImageSelect(f);
+                    if (galleryInputRef.current) galleryInputRef.current.value = '';
+                  }}
+                />
+                {imageUploading && <span className="text-sm text-gray-500">Uploading...</span>}
+                {uploadedImage?.thumbUrl && (
+                  <a href={uploadedImage.url} target="_blank" rel="noreferrer">
+                    <img src={uploadedImage.thumbUrl} alt="Selected product" className="w-40 max-w-full h-auto rounded object-cover border shadow" />
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
-        )}
 
         {/* Autofill Audit Trail */}
-        {autofillLogs.length > 0 && (
-          <div className="border rounded-lg p-4 mb-4">
-            <div className="font-semibold mb-2">🔒 Autofill Audit Trail</div>
-            <div className="text-sm text-gray-600 mb-2">
-              Fields automatically populated with verified Indian dataset values:
-            </div>
-            <div className="space-y-2">
-              {autofillLogs.map((log, index) => (
-                <div key={index} className="text-xs bg-blue-50 p-2 rounded border">
-                  <span className="font-medium">{log.fieldName}:</span> {log.originalValue} → {log.newValue}
-                  <br />
-                  <span className="text-gray-500">
-                    Source: {log.sourceDataset} | Time: {new Date(log.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        
     </ResponsiveDialog>
   );
 }

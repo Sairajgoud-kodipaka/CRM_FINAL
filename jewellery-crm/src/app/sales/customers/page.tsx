@@ -378,15 +378,7 @@ export default function SalesCustomersPage() {
               onDateRangeChange={setDateRange}
               placeholder="Filter by date range"
             />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setTrashModalOpen(true)}
-              className="text-orange-600 hover:text-orange-700"
-            >
-              <Archive className="w-4 h-4 mr-2" />
-              Trash
-            </Button>
+            {/* Sales users do not need Trash */}
             <Button className="btn-primary" size="sm" onClick={() => setModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Customer
@@ -395,10 +387,7 @@ export default function SalesCustomersPage() {
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportCustomers('json')}>
-              <Download className="w-4 h-4 mr-2" />
-              Export JSON
-            </Button>
+            {/* Export JSON removed for sales */}
           </div>
         </div>
 

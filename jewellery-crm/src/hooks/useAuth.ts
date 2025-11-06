@@ -43,6 +43,7 @@ interface AuthState {
 
 interface AuthActions {
   login: (username: string, password: string) => Promise<boolean>;
+  loginWithPin: (username: string, pin: string) => Promise<boolean>;
   logout: () => void;
   refreshToken: () => Promise<boolean>;
   setUser: (user: User) => void;
@@ -117,6 +118,39 @@ export const useAuth = create<AuthState & AuthActions>()(
             isLoading: false,
             error: error.message || 'Login failed',
           });
+          return false;
+        }
+      },
+
+      loginWithPin: async (username: string, pin: string) => {
+        try {
+          set({ isLoading: true, error: null, token: null, refreshTokenString: null, isAuthenticated: false });
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('auth-storage');
+          }
+
+          const response = await apiService.loginSalesPin(username, pin);
+          if (response.success) {
+            const loginData = response as any;
+            const authData = {
+              user: loginData.user,
+              token: loginData.token,
+              refreshTokenString: loginData.refresh,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            };
+            set(authData);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('auth-storage', JSON.stringify({ state: authData }));
+            }
+            return true;
+          } else {
+            set({ isLoading: false, error: response.message || 'Login failed' });
+            return false;
+          }
+        } catch (error: any) {
+          set({ isLoading: false, error: error.message || 'Login failed' });
           return false;
         }
       },
