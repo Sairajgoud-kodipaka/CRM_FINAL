@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -112,6 +112,12 @@ export default function SalesCustomersPage() {
     setPage(1); // reset to first page when filters change
   }, [customers, searchTerm, statusFilter, showMyDataOnly, user?.id]);
 
+  useEffect(() => {
+    if (isMobile && selectedIds.size > 0) {
+      setSelectedIds(new Set());
+    }
+  }, [isMobile, selectedIds.size]);
+
   // Client-side pagination slice
   const total = filteredCustomers.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -221,15 +227,26 @@ export default function SalesCustomersPage() {
     }
   }, [fetchCustomers, toast]);
 
-  const handleViewCustomer = (customerId: string) => {
+  const handleViewCustomer = useCallback((customerId: string) => {
     setSelectedCustomerId(customerId);
     setDetailModalOpen(true);
-  };
+  }, []);
 
-  const handleEditCustomer = (customer: Client) => {
+  const handleEditCustomer = useCallback((customer: Client) => {
     setSelectedCustomer(customer);
     setEditModalOpen(true);
-  };
+  }, []);
+
+  const clickTimeoutRef = useRef<number | null>(null);
+  const lastTapRef = useRef<number>(0);
+
+  useEffect(() => {
+    return () => {
+      if (clickTimeoutRef.current) {
+        window.clearTimeout(clickTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCustomerRestored = () => {
     fetchCustomers(); // Refresh the list after restore
@@ -290,6 +307,47 @@ export default function SalesCustomersPage() {
       });
     }
   };
+
+  const handleRowClick = useCallback((customer: Client) => {
+    const customerId = customer.id ? customer.id.toString() : null;
+
+    if (!customerId) {
+      return;
+    }
+
+    if (isMobile) {
+      const now = Date.now();
+      if (now - lastTapRef.current < 250) {
+        lastTapRef.current = 0;
+        if (clickTimeoutRef.current) {
+          window.clearTimeout(clickTimeoutRef.current);
+          clickTimeoutRef.current = null;
+        }
+        handleEditCustomer(customer);
+        return;
+      }
+
+      lastTapRef.current = now;
+    }
+
+    if (clickTimeoutRef.current) {
+      window.clearTimeout(clickTimeoutRef.current);
+    }
+
+    clickTimeoutRef.current = window.setTimeout(() => {
+      handleViewCustomer(customerId);
+      clickTimeoutRef.current = null;
+      lastTapRef.current = 0;
+    }, 250);
+  }, [handleEditCustomer, handleViewCustomer, isMobile]);
+
+  const handleRowDoubleClick = useCallback((customer: Client) => {
+    if (clickTimeoutRef.current) {
+      window.clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
+    handleEditCustomer(customer);
+  }, [handleEditCustomer]);
 
   if (loading) {
     return (
@@ -420,7 +478,7 @@ export default function SalesCustomersPage() {
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
-          {selectedIds.size > 0 && (
+          {!isMobile && selectedIds.size > 0 && (
             <div className="flex items-center justify-between p-3 border-b bg-gray-50">
               <div className="text-sm text-text-secondary">Selected {selectedIds.size} customer(s)</div>
               <div className="flex items-center gap-2">
@@ -465,19 +523,22 @@ export default function SalesCustomersPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left">
-                  <Checkbox
-                    checked={selectedIds.size > 0 && selectedIds.size === pagedCustomers.length}
-                    onCheckedChange={(val) => {
-                      if (val) {
-                        setSelectedIds(new Set(pagedCustomers.map(c => c.id as number)));
-                      } else {
-                        setSelectedIds(new Set());
-                      }
-                    }}
-                    aria-label="Select all"
-                  />
-                </th>
+                {!isMobile && (
+                  <th className="px-4 py-3 text-left" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.size > 0 && selectedIds.size === pagedCustomers.length}
+                      onCheckedChange={(val) => {
+                        if (val) {
+                          setSelectedIds(new Set(pagedCustomers.map(c => c.id as number)));
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                      aria-label="Select all"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Customer</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Email</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Phone</th>
@@ -497,23 +558,27 @@ export default function SalesCustomersPage() {
                   return (
                     <tr
                       key={customer.id}
-                      className={`border-t border-border hover:bg-gray-50 ${
+                      onClick={() => handleRowClick(customer)}
+                      onDoubleClick={() => handleRowDoubleClick(customer)}
+                      className={`border-t border-border hover:bg-gray-50 cursor-pointer ${
                         isCurrentUserCustomer ? 'bg-orange-50 border-l-4 border-l-orange-500' : ''
                       }`}
                     >
-                       {/* Select */}
-                       <td className="px-4 py-3">
-                         <Checkbox
-                           checked={checked}
-                           onCheckedChange={(val) => {
-                             setSelectedIds(prev => {
-                               const copy = new Set(prev);
-                               if (val) copy.add(customer.id as number); else copy.delete(customer.id as number);
-                               return copy;
-                             });
-                           }}
-                         />
-                       </td>
+                      {!isMobile && (
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(val) => {
+                              setSelectedIds(prev => {
+                                const copy = new Set(prev);
+                                if (val) copy.add(customer.id as number); else copy.delete(customer.id as number);
+                                return copy;
+                              });
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3 font-medium text-text-primary">
                         <div className="flex items-center gap-2">
                           <span>{formatCustomerName(customer)}</span>
@@ -549,7 +614,12 @@ export default function SalesCustomersPage() {
                             variant="ghost"
                             size="sm"
                             className="text-blue-600 hover:text-blue-800"
-                            onClick={() => handleViewCustomer(customer.id.toString())}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (customer.id) {
+                                handleViewCustomer(customer.id.toString());
+                              }
+                            }}
                           >
                             <Eye className="w-4 h-4 mr-1" />
                             View
@@ -558,7 +628,10 @@ export default function SalesCustomersPage() {
                             variant="ghost"
                             size="sm"
                             className="text-green-600 hover:text-green-800"
-                            onClick={() => handleEditCustomer(customer)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditCustomer(customer);
+                            }}
                             disabled={updatingCustomer === customer.id?.toString()}
                           >
                                                           {updatingCustomer === customer.id?.toString() ? (
@@ -566,16 +639,18 @@ export default function SalesCustomersPage() {
                             ) : (
                               <Edit className="w-4 h-4 mr-1" />
                             )}
-                            {updatingCustomer === customer.id.toString() ? 'Updating...' : 'Edit'}
+                            {updatingCustomer === customer.id?.toString() ? 'Updating...' : 'Edit'}
                           </Button>
                           {canDeleteCustomers && (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="text-red-600 hover:text-red-800"
-                              onClick={() => {
-                                if (window.confirm(`Are you sure you want to move ${customer.first_name} ${customer.last_name} to trash? You can restore them later from the Trash section.`)) {
-                                  handleDeleteCustomer(customer.id.toString());
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const customerIdStr = customer.id ? customer.id.toString() : null;
+                                if (customerIdStr && window.confirm(`Are you sure you want to move ${customer.first_name} ${customer.last_name} to trash? You can restore them later from the Trash section.`)) {
+                                  handleDeleteCustomer(customerIdStr);
                                 }
                               }}
                               disabled={deletingCustomer === customer.id?.toString()}
@@ -585,7 +660,7 @@ export default function SalesCustomersPage() {
                               ) : (
                                 <Trash2 className="w-4 h-4 mr-1" />
                               )}
-                              {deletingCustomer === customer.id.toString() ? 'Moving...' : 'Move to Trash'}
+                              {deletingCustomer === customer.id?.toString() ? 'Moving...' : 'Move to Trash'}
                             </Button>
                           )}
                         </div>
@@ -595,7 +670,7 @@ export default function SalesCustomersPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center">
+                  <td colSpan={isMobile ? 7 : 8} className="px-4 py-8 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="text-text-secondary text-lg font-medium">
                         {customers.length === 0 

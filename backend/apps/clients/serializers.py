@@ -1147,27 +1147,23 @@ class ClientSerializer(serializers.ModelSerializer):
             if not data.get('catchment_area') or not str(data.get('catchment_area', '')).strip():
                 errors['catchment_area'] = "Catchment Area is required"
             
-            # 6. Pincode
-            if not data.get('pincode') or not str(data.get('pincode', '')).strip():
-                errors['pincode'] = "Pincode is required"
-            
-            # 7. Sales Person
+            # 6. Sales Person
             if not data.get('sales_person') or not str(data.get('sales_person', '')).strip():
                 errors['sales_person'] = "Sales Person is required"
             
-            # 8. Reason for Visit
+            # 7. Reason for Visit
             if not data.get('reason_for_visit') or not str(data.get('reason_for_visit', '')).strip():
                 errors['reason_for_visit'] = "Reason for Visit is required"
             
-            # 9. Lead Source
+            # 8. Lead Source
             if not data.get('lead_source') or not str(data.get('lead_source', '')).strip():
                 errors['lead_source'] = "Lead Source is required"
             
-            # 10. Product Type
+            # 9. Product Type
             if not data.get('product_type') or not str(data.get('product_type', '')).strip():
                 errors['product_type'] = "Product Type is required"
             
-            # 11. Expected Revenue - check customer_interests_input
+            # 10. Expected Revenue - check customer_interests_input
             customer_interests_input = data.get('customer_interests_input', [])
             has_revenue = False
             if customer_interests_input:

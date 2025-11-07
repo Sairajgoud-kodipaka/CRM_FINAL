@@ -1,22 +1,87 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ResponsiveDialog } from "@/components/ui/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { ComboboxSelect } from "@/components/ui/combobox-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { apiService, Client, Product } from "@/lib/api-service";
+import { apiService, Client } from "@/lib/api-service";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInputComponent } from "@/components/ui/phone-input";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
+import {
+  INDIAN_CITIES,
+  INDIAN_STATES,
+  INDIAN_CATCHMENT_AREAS,
+  REASONS_FOR_VISIT,
+  LEAD_SOURCES,
+  SAVING_SCHEMES,
+  CUSTOMER_INTERESTS,
+  PIPELINE_STAGES,
+  CUSTOMER_TYPES,
+  AGE_RANGES,
+  getStateFromCity,
+  getCatchmentAreasForCity,
+  getPincodeFromCatchment,
+  lockField,
+  unlockField,
+  isFieldLocked,
+} from "@/constants/indian-data";
+import { uploadImageToCloudinary, isAllowedImageFile } from "@/lib/cloudinary-upload";
+import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface EditCustomerModalProps {
   open: boolean;
   onClose: () => void;
   customer: Client | null;
   onCustomerUpdated: (updatedCustomer: Client) => void;
+}
+
+interface FormData {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  birthDate: string;
+  anniversaryDate: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  country: string;
+  catchmentArea: string;
+  pincode: string;
+  salesPerson: string;
+  reasonForVisit: string;
+  customerStatus: string;
+  leadSource: string;
+  savingScheme: string;
+  customerInterests: string[];
+  productType: string;
+  style: string;
+  selectedWeight: number;
+  weightUnit: string;
+  customerPreference: string;
+  designNumber: string;
+  summaryNotes: string;
+  pipelineStage: string;
+  customerType: string;
+  ageOfEndUser: string;
+  productSubtype: string;
+  ageingPercentage: string;
+  materialType: string;
+  materialWeight: number;
+  materialValue: number;
+  materialUnit: string;
 }
 
 interface ProductInterest {
@@ -32,70 +97,44 @@ interface ProductInterest {
   };
 }
 
-interface Category {
-  id: number;
-  name: string;
-  description?: string;
-}
-
-
-
-interface PipelineOpportunity {
-  title: string;
-  stage: string;
-  probability: number;
-  expected_value: number;
-  notes: string;
-  next_action: string;
-  next_action_date: string;
-}
-
-export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }: EditCustomerModalProps) {
-  const { toast } = useToast();
-  const isMobile = useIsMobile();
-  const isTablet = useIsTablet();
-  const [formData, setFormData] = useState({
-    first_name: "",
-    last_name: "",
-    email: "",
+const createInitialFormData = (): FormData => ({
+  firstName: "",
+  lastName: "",
     phone: "",
-    address: "",
+  email: "",
+  birthDate: "",
+  anniversaryDate: "",
+  streetAddress: "",
     city: "",
     state: "",
     country: "India",
-    date_of_birth: "",
-    anniversary_date: "",
-    reason_for_visit: "",
-    lead_source: "",
-    age_of_end_user: "",
-    saving_scheme: "",
-    catchment_area: "",
-    next_follow_up: "",
-    summary_notes: "",
-    status: "",
-    // ADD MISSING FIELDS FROM AddCustomerModal:
+  catchmentArea: "",
     pincode: "",
-    sales_person: "",
-    customer_status: "",
-    product_type: "",
+  salesPerson: "",
+  reasonForVisit: "",
+  customerStatus: "",
+  leadSource: "",
+  savingScheme: "Inactive",
+  customerInterests: [],
+  productType: "",
     style: "",
-    material_type: "",
-    material_weight: 0,
-    material_value: 0,
-    product_subtype: "",
-    gold_range: "",
-    diamond_range: "",
-    customer_preferences: "",
-    design_selected: "",
-    wants_more_discount: "",
-    checking_other_jewellers: "",
-    let_him_visit: "",
-    design_number: "",
-    add_to_pipeline: false,
-  });
+  selectedWeight: 3.5,
+  weightUnit: "g",
+  customerPreference: "",
+  designNumber: "",
+  summaryNotes: "",
+  pipelineStage: "interested",
+  customerType: "individual",
+  ageOfEndUser: "",
+  productSubtype: "",
+  ageingPercentage: "",
+  materialType: "",
+  materialWeight: 0,
+  materialValue: 0,
+  materialUnit: "g",
+});
 
-  const [interests, setInterests] = useState<ProductInterest[]>([
-    {
+const createEmptyInterest = (): ProductInterest => ({
       mainCategory: "",
       products: [{ product: "", revenue: "" }],
       preferences: {
@@ -106,374 +145,410 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         purchased: false,
         other: "",
       },
-    },
-  ]);
+});
 
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+const formatDateForInput = (value?: string | null): string => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().split("T")[0];
+};
 
-  // State for sales pipeline
-  const [showPipelineSection, setShowPipelineSection] = useState(false);
-  const [pipelineOpportunities, setPipelineOpportunities] = useState<PipelineOpportunity[]>([]);
-  const [showDesignSelectedNotification, setShowDesignSelectedNotification] = useState(false);
-  const [pipelineCreated, setPipelineCreated] = useState(false); // Track if pipeline was already created
+const formatDateForAPI = (value?: string | null): string | undefined => {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString().split("T")[0];
+};
 
-  const generatePipelineOpportunities = useCallback(() => {
-    // Prevent regeneration if pipeline is already created
-    if (pipelineCreated) {
+const emptyToNull = (value: unknown) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  return value as number | boolean | null;
+};
 
-      return;
-    }
+const normalizeInterestsForSubmit = (interests: ProductInterest[]): string[] =>
+  interests
+    .map((interest) => {
+      const normalizedProducts = (interest.products || []).map((product) => ({
+        product: product.product,
+        revenue: String(parseFloat(product.revenue || "0") || 0),
+      }));
 
-
-
-    // Consolidate all interests into one pipeline opportunity per customer
-    const allInterests = interests.filter(interest =>
-      interest.mainCategory && interest.products.length > 0
-    );
-
-
-
-    if (allInterests.length === 0) {
-
-      setPipelineOpportunities([]);
-      setShowPipelineSection(false);
-      return;
-    }
-
-    // Calculate total revenue across all interests
-    const totalRevenue = allInterests.reduce((sum, interest) => {
-      const interestRevenue = interest.products.reduce((productSum, product) => {
-        return productSum + (parseFloat(product.revenue) || 0);
-      }, 0);
-      return sum + interestRevenue;
-    }, 0);
-
-    // Determine overall stage and probability based on all interests
-    const hasDesignSelected = allInterests.some(interest => interest.preferences?.designSelected);
-    // Default to store_walkin for customers from store, not exhibition
-    const stage = hasDesignSelected ? 'closed_won' : 'store_walkin';
-    const probability = hasDesignSelected ? 100 : 50;
-
-    // Create consolidated notes with all interests
-    const interestDetails = allInterests.map(interest => {
-      const categoryName = categories.find(cat =>
-        cat.id?.toString() === interest.mainCategory || cat.name === interest.mainCategory
-      )?.name || `Category ${interest.mainCategory}`;
-
-      const products = interest.products.map(p => p.product).join(', ');
-      const designStatus = interest.preferences?.designSelected ? ' - Design Selected!' : '';
-
-      return `${categoryName}: ${products}${designStatus}`;
-    }).join('\n');
-
-    // Create single consolidated opportunity
-    const consolidatedOpportunity: PipelineOpportunity = {
-      title: `${customer?.first_name || 'Customer'} - Complete Opportunity`,
-      probability: probability,
-      expected_value: totalRevenue,
-      stage: stage,
-      notes: `Consolidated customer interests:\n${interestDetails}`,
-      next_action: hasDesignSelected ? 'Process complete order' : 'Follow up with customer on all interests',
-      next_action_date: formData.next_follow_up || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    };
-
-
-
-    setPipelineOpportunities([consolidatedOpportunity]);
-    setShowPipelineSection(true);
-  }, [interests, categories, customer, formData.next_follow_up, pipelineCreated]);
-
-  useEffect(() => {
-    if (customer && open) {
-      // Reset pipeline creation flag for new customer
-      setPipelineCreated(false);
-
-
-
-      // Format dates properly for input fields - extract only the date part
-      const formatDateForInput = (dateString: string | null | undefined) => {
-        if (!dateString) return "";
-        try {
-          // If the date string contains time (like "4 October 2004 at 05:30 am"), extract just the date
-          if (dateString.includes(' at ')) {
-            // Extract the date part before " at "
-            const datePart = dateString.split(' at ')[0];
-            const date = new Date(datePart);
-            if (isNaN(date.getTime())) return "";
-            return date.toISOString().split('T')[0];
-          } else {
-            // Regular date string, parse normally
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return "";
-            return date.toISOString().split('T')[0];
-          }
-        } catch {
-          return "";
-        }
+      return {
+        category: interest.mainCategory,
+        products: normalizedProducts,
+        preferences: interest.preferences || {},
       };
+    })
+    .filter((interest) => Array.isArray(interest.products) && interest.products.length > 0)
+    .map((interest) => JSON.stringify(interest));
 
-      setFormData({
-        first_name: customer.first_name || "",
-        last_name: customer.last_name || "",
-        email: customer.email || "",
+const mapCustomerToInterests = (customer: Client): ProductInterest[] => {
+  const raw = (customer as any).customer_interests;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return [];
+  }
+
+  return raw
+    .map((entry: any) => {
+      let parsed = entry;
+      if (typeof entry === "string") {
+        try {
+          parsed = JSON.parse(entry);
+        } catch {
+          parsed = {};
+        }
+      }
+
+      const products = Array.isArray(parsed.products)
+        ? parsed.products.map((product: any) => ({
+            product: String(product.product ?? product.id ?? ""),
+            revenue: product.revenue ? String(product.revenue) : "",
+          }))
+        : [{ product: "", revenue: "" }];
+
+      const preferences = parsed.preferences || {};
+
+      return {
+        mainCategory: parsed.mainCategory || parsed.category || "",
+        products,
+        preferences: {
+          designSelected: Boolean(preferences.designSelected),
+          wantsDiscount: Boolean(preferences.wantsDiscount),
+          checkingOthers: Boolean(preferences.checkingOthers),
+          lessVariety: Boolean(preferences.lessVariety),
+          purchased: Boolean(preferences.purchased),
+          other: preferences.other || "",
+        },
+      };
+    })
+    .filter(Boolean);
+};
+
+const mapCustomerToFormData = (customer: Client): FormData => ({
+  firstName: customer.first_name || "",
+  lastName: customer.last_name || "",
         phone: customer.phone || "",
-        address: customer.address || "",
+  email: customer.email || "",
+  birthDate: formatDateForInput(customer.date_of_birth),
+  anniversaryDate: formatDateForInput(customer.anniversary_date),
+  streetAddress: customer.address || "",
         city: customer.city || "",
         state: customer.state || "",
         country: customer.country || "India",
-        date_of_birth: formatDateForInput(customer.date_of_birth),
-        anniversary_date: formatDateForInput(customer.anniversary_date),
-        reason_for_visit: customer.reason_for_visit || "",
-        lead_source: customer.lead_source || "",
-        age_of_end_user: customer.age_of_end_user || "",
-        saving_scheme: customer.saving_scheme || "",
-        catchment_area: customer.catchment_area || "",
-        next_follow_up: formatDateForInput(customer.next_follow_up),
-        summary_notes: customer.summary_notes || "",
-        status: customer.status || "",
-        // ADD MISSING FIELD MAPPINGS:
+  catchmentArea: customer.catchment_area || "",
         pincode: customer.pincode || "",
-        sales_person: customer.sales_person || "",
-        customer_status: customer.customer_status || "",
-        product_type: customer.product_type || "",
+  salesPerson: customer.sales_person || "",
+  reasonForVisit: customer.reason_for_visit || "",
+  customerStatus: customer.customer_status || customer.status || "",
+  leadSource: customer.lead_source || "",
+  savingScheme: customer.saving_scheme || "Inactive",
+  customerInterests: Array.isArray((customer as any).customer_interests_simple)
+    ? ((customer as any).customer_interests_simple as string[])
+    : [],
+  productType: customer.product_type || "",
         style: customer.style || "",
-        material_type: customer.material_type || "",
-        material_weight: customer.material_weight || 0,
-        material_value: customer.material_value || 0,
-        product_subtype: customer.product_subtype || "",
-        gold_range: customer.gold_range || "",
-        diamond_range: customer.diamond_range || "",
-        customer_preferences: customer.customer_preferences || "",
-        design_selected: customer.design_selected || "",
-        wants_more_discount: customer.wants_more_discount || "",
-        checking_other_jewellers: customer.checking_other_jewellers || "",
-        let_him_visit: customer.let_him_visit || "",
-        design_number: customer.design_number || "",
-        add_to_pipeline: customer.add_to_pipeline || false,
-      });
+  selectedWeight:
+    typeof customer.material_weight === "number" && customer.material_weight > 0
+      ? customer.material_weight
+      : 3.5,
+  weightUnit: (customer as any).material_unit || "g",
+  customerPreference: customer.customer_preference || "",
+  designNumber: customer.design_number || "",
+  summaryNotes: customer.summary_notes || "",
+  pipelineStage: (customer as any).pipeline_stage || "interested",
+  customerType: customer.customer_type || "individual",
+  ageOfEndUser: customer.age_of_end_user || "",
+  productSubtype: customer.product_subtype || "",
+  ageingPercentage: (customer as any).ageing_percentage || "",
+  materialType: customer.material_type || "",
+  materialWeight: typeof customer.material_weight === "number" ? customer.material_weight : 0,
+  materialValue: typeof customer.material_value === "number" ? customer.material_value : 0,
+  materialUnit: (customer as any).material_unit || "g",
+});
 
+export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }: EditCustomerModalProps) {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
 
-      // Parse customer interests if they exist
-      if (customer.customer_interests && Array.isArray(customer.customer_interests)) {
-        try {
-          const parsedInterests = customer.customer_interests.map((interest: unknown) => {
-            let parsedInterest: ProductInterest;
-            if (typeof interest === 'string') {
-              parsedInterest = JSON.parse(interest);
-            } else {
-              parsedInterest = interest as ProductInterest;
-            }
+  const [formData, setFormData] = useState<FormData>(() => createInitialFormData());
+  const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
+  const [interests, setInterests] = useState<ProductInterest[]>([createEmptyInterest()]);
+  const [salesPersons, setSalesPersons] = useState<string[]>([]);
+  const [salesPersonOptions, setSalesPersonOptions] = useState<Array<{ id: number; name: string; username: string }>>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [uploadedImage, setUploadedImage] = useState<{ url: string; thumbUrl: string } | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-            // Ensure the parsed interest has the complete structure
-            return {
-              mainCategory: parsedInterest.mainCategory || (parsedInterest as any).category || "",
-              products: Array.isArray(parsedInterest.products) ? parsedInterest.products : [{ product: "", revenue: "" }],
-              preferences: {
-                designSelected: parsedInterest.preferences?.designSelected || false,
-                wantsDiscount: parsedInterest.preferences?.wantsDiscount || false,
-                checkingOthers: parsedInterest.preferences?.checkingOthers || false,
-                lessVariety: parsedInterest.preferences?.lessVariety || false,
-                purchased: parsedInterest.preferences?.purchased || false,
-                other: parsedInterest.preferences?.other || "",
-              },
-            };
-          });
-          setInterests(parsedInterests);
-        } catch {
-
-          // Set default interests structure
-          setInterests([{
-            mainCategory: "",
-            products: [{ product: "", revenue: "" }],
-            preferences: {
-              designSelected: false,
-              wantsDiscount: false,
-              checkingOthers: false,
-              lessVariety: false,
-              purchased: false,
-              other: "",
-            },
-          }]);
-        }
+  const focusNext = useCallback(
+    (fieldId: string) => {
+      if (!isMobile) return;
+      const element = document.querySelector<HTMLElement>(`[data-field="${fieldId}"]`);
+      if (element) {
+        element.focus();
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
       }
+    },
+    [isMobile]
+  );
 
-      // Load categories and products
-      loadCategoriesAndProducts();
-    }
-  }, [customer, open]);
+  const initializeFromCustomer = useCallback((client: Client) => {
+    const mappedForm = mapCustomerToFormData(client);
+    const mappedInterests = mapCustomerToInterests(client);
 
-  const loadCategoriesAndProducts = async () => {
+    setFormData(mappedForm);
+    setInterests(mappedInterests.length > 0 ? mappedInterests : [createEmptyInterest()]);
+
+    setLockedFields(() => {
+      let next = new Set<string>();
+      if (mappedForm.state) next = lockField("state", next);
+      if (mappedForm.catchmentArea) next = lockField("catchmentArea", next);
+      if (mappedForm.pincode) next = lockField("pincode", next);
+      return next;
+    });
+  }, []);
+
+  const loadSalesPersonOptions = useCallback(async () => {
+    if (!user) return;
+
     try {
-      setLoading(true);
+      const response = await apiService.getSalesPersonsForContext();
+      if (response?.success && response.data) {
+        let options: any[] = [];
 
-      // Fetch categories
-      const categoriesResponse = await apiService.getCategories();
-      if (categoriesResponse.success && categoriesResponse.data) {
-        const categoriesData = Array.isArray(categoriesResponse.data)
-          ? categoriesResponse.data
-          : (categoriesResponse.data as { results?: Category[]; data?: Category[] }).results || (categoriesResponse.data as { results?: Category[]; data?: Category[] }).data || [];
-        setCategories(categoriesData);
-      }
-
-      // Fetch products
-      const productsResponse = await apiService.getProducts();
-      if (productsResponse.success && productsResponse.data) {
-        const productsData = Array.isArray(productsResponse.data)
-          ? productsResponse.data
-          : (productsResponse.data as { results?: Product[]; data?: Product[] }).results || (productsResponse.data as { results?: Product[]; data?: Product[] }).data || [];
-        setProducts(productsData);
-      }
-    } catch (error) {
-
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addInterest = () => {
-
-    const newInterest = {
-        mainCategory: "",
-        products: [{ product: "", revenue: "" }],
-        preferences: {
-          designSelected: false,
-          wantsDiscount: false,
-          checkingOthers: false,
-          lessVariety: false,
-          purchased: false,
-          other: "",
-        },
-    };
-
-    setInterests(prev => {
-      const newInterests = [...prev, newInterest];
-
-      return newInterests;
-    });
-  };
-
-  const addProductToInterest = (idx: number) => {
-
-    setInterests((prev) => {
-      const copy = [...prev];
-      const newProduct = { product: "", revenue: "" };
-      copy[idx].products.push(newProduct);
-
-      return copy;
-    });
-  };
-
-  const removeProductFromInterest = (interestIdx: number, productIdx: number) => {
-    setInterests((prev) => {
-      const copy = [...prev];
-      copy[interestIdx].products.splice(productIdx, 1);
-      return copy;
-    });
-  };
-
-  const removeInterest = (index: number) => {
-    setInterests(prev => prev.filter((_, idx) => idx !== index));
-  };
-
-  const updateInterest = (index: number, field: string, value: string) => {
-    setInterests(prev => {
-      const copy = [...prev];
-      copy[index] = { ...copy[index], [field]: value };
-      return copy;
-    });
-  };
-
-  const updateProductInInterest = (interestIndex: number, productIndex: number, field: string, value: string) => {
-    setInterests(prev => {
-      const copy = [...prev];
-      copy[interestIndex].products[productIndex] = { ...copy[interestIndex].products[productIndex], [field]: value };
-      return copy;
-    });
-  };
-
-  const createPipelineOpportunities = async (customerId: number) => {
-    try {
-
-
-      // Since we now have only ONE consolidated opportunity, just create that single entry
-      if (pipelineOpportunities.length === 1) {
-        const opportunity = pipelineOpportunities[0];
-        const pipelineData = {
-          title: opportunity.title,
-          client_id: customerId,
-          sales_representative: { id: 1, username: 'current_user', full_name: 'Current User' },
-          stage: opportunity.stage,
-          probability: opportunity.probability,
-          expected_value: opportunity.expected_value,
-          notes: opportunity.notes,
-          next_action: opportunity.next_action,
-          next_action_date: opportunity.next_action_date
-        };
-
-
-        const response = await apiService.createSalesPipeline(pipelineData);
-        if (response.success) {
-
-        } else {
-
+        if (Array.isArray(response.data)) {
+          options = response.data;
+        } else if (response.data && typeof response.data === "object") {
+          if (Array.isArray((response.data as any).users)) {
+            options = (response.data as any).users;
+          } else if (Array.isArray((response.data as any).results)) {
+            options = (response.data as any).results;
+          }
         }
+
+        const salesRoleUsers = options.filter((person) =>
+          ["inhouse_sales", "sales"].includes(person.role)
+        );
+
+        const names = salesRoleUsers.map((person: any) => {
+          const fullName = `${person.first_name || ""} ${person.last_name || ""}`.trim();
+          return fullName || person.username || "Unknown User";
+        });
+
+        setSalesPersons(names);
+        setSalesPersonOptions(
+          salesRoleUsers.map((person: any) => ({
+            id: person.id,
+            name: `${person.first_name || ""} ${person.last_name || ""}`.trim() || person.username || "Unknown User",
+            username: person.username,
+          }))
+        );
       } else {
-
+        setSalesPersons([]);
       }
     } catch (error) {
+      setSalesPersons([]);
+    }
+  }, [user]);
 
+  const loadCategories = useCallback(async () => {
+    try {
+      const response = await apiService.getCategories();
+      if (response.success && response.data) {
+        const data = Array.isArray(response.data)
+          ? response.data
+          : (response.data as any).results || (response.data as any).data || [];
+        setCategories(data);
+      }
+    } catch (error) {
+      setCategories([]);
+    }
+  }, []);
+
+  const loadProducts = useCallback(async () => {
+    try {
+      const response = await apiService.getProducts();
+      if (response.success && response.data) {
+        const data = Array.isArray(response.data)
+          ? response.data
+          : (response.data as any).results || (response.data as any).data || [];
+        setProducts(data);
+      }
+    } catch (error) {
+      setProducts([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      loadSalesPersonOptions();
+      loadCategories();
+      loadProducts();
+    }
+  }, [open, loadSalesPersonOptions, loadCategories, loadProducts]);
+
+  useEffect(() => {
+    if (customer && open) {
+      initializeFromCustomer(customer);
+    }
+  }, [customer, open, initializeFromCustomer]);
+
+  const handleInputChange = (field: keyof FormData, value: string | number | string[] | boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleCitySelection = (city: string) => {
+    const state = getStateFromCity(city);
+
+    setFormData((prev) => ({
+      ...prev,
+      city,
+      state: state || "",
+      catchmentArea: "",
+      pincode: "",
+    }));
+
+    setLockedFields((prev) => {
+      let next = new Set(prev);
+      next = unlockField("catchmentArea", next);
+      next = unlockField("pincode", next);
+      next = state ? lockField("state", next) : unlockField("state", next);
+      return next;
+    });
+
+    focusNext("state");
+  };
+
+  const handleCatchmentSelection = (catchmentArea: string) => {
+    const pincode = getPincodeFromCatchment(catchmentArea);
+
+    setFormData((prev) => ({
+      ...prev,
+      catchmentArea,
+      pincode: pincode || "",
+    }));
+
+    setLockedFields((prev) => {
+      let next = new Set(prev);
+      if (pincode) {
+        next = lockField("pincode", next);
+      } else {
+        next = unlockField("pincode", next);
+      }
+      return next;
+    });
+
+    focusNext("pincode");
+  };
+
+  const handleCustomerInterestToggle = (interest: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      customerInterests: prev.customerInterests.includes(interest)
+        ? prev.customerInterests.filter((item) => item !== interest)
+        : [...prev.customerInterests, interest],
+    }));
+  };
+
+  const handlePreferenceToggle = (
+    index: number,
+    preference: keyof ProductInterest["preferences"],
+    checked: boolean
+  ) => {
+    setInterests((prev) => {
+      const copy = [...prev];
+      copy[index].preferences = {
+        ...copy[index].preferences,
+        [preference]: checked,
+      };
+      return copy;
+    });
+  };
+
+  const handleAddInterest = () => setInterests((prev) => [...prev, createEmptyInterest()]);
+
+  const handleRemoveInterest = (index: number) =>
+    setInterests((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== index) : prev));
+
+  const handleProductChange = (index: number, field: "product" | "revenue", value: string) => {
+    setInterests((prev) => {
+      const copy = [...prev];
+      copy[index].products[0] = {
+        ...copy[index].products[0],
+        [field]: value,
+      };
+      return copy;
+    });
+  };
+
+  const handleUploadImage = async (file: File) => {
+    if (!isAllowedImageFile(file)) {
+      toast({
+        title: "Invalid image",
+        description: "Please upload a JPG, PNG, or WebP image under 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setImageUploading(true);
+      const result = await uploadImageToCloudinary(file);
+      setUploadedImage(result);
+      toast({ title: "Image uploaded", variant: "success" });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error?.message || "Could not upload image.",
+        variant: "destructive",
+      });
+    } finally {
+      setImageUploading(false);
     }
   };
 
-  // Consolidated pipeline generation logic - optimized to prevent unnecessary re-renders
-  useEffect(() => {
-    // Only run when modal is open and customer is loaded
-    if (!open || !customer) {
-      return;
-    }
+  const validateForm = () => {
+    const errors: string[] = [];
 
-    // Skip if pipeline already created
-    if (pipelineCreated) {
+    if (!formData.firstName.trim()) errors.push("First Name is required");
+    if (!formData.phone.trim()) errors.push("Phone Number is required");
+    if (!formData.city.trim()) errors.push("City is required");
+    if (!formData.state.trim()) errors.push("State is required");
+    if (!formData.catchmentArea.trim()) errors.push("Catchment Area is required");
+    if (!formData.salesPerson.trim()) errors.push("Sales Person is required");
+    if (!formData.reasonForVisit.trim()) errors.push("Reason for Visit is required");
+    if (!formData.leadSource.trim()) errors.push("Lead Source is required");
 
-      return;
-    }
-
-    // Generate pipeline if we have valid interests
-    const hasValidInterests = interests.some(interest =>
-      interest.mainCategory && interest.products.length > 0
+    const hasValidInterest = interests.some(
+      (interest) => interest.mainCategory && interest.products?.[0]?.product
     );
+    if (!hasValidInterest) errors.push("At least one interest with a product is required");
 
-    if (hasValidInterests) {
-
-      generatePipelineOpportunities();
-    } else {
-      // Clear pipeline if no valid interests
-      setPipelineOpportunities([]);
-      setShowPipelineSection(false);
-    }
-  }, [interests, open, customer, pipelineCreated]);
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
   };
 
   const handleSubmit = async () => {
     if (!customer) return;
 
-
-
-    // Minimal validation - only require first name for basic identification
-    // Phone can be added later through edit modal
-    if (!formData.first_name.trim()) {
+    const validation = validateForm();
+    if (!validation.isValid) {
       toast({
         title: "Validation Error",
-        description: "Please enter the customer&apos;s first name for basic identification.",
+        description: validation.errors.join("\n"),
         variant: "destructive",
       });
       return;
@@ -482,120 +557,84 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     try {
       setSaving(true);
 
-      // Relaxed interests validation - allow partial data, can be completed later
-
-      const hasInterests = interests.length > 0;
-      const hasInterestData = interests.some(interest =>
-        interest.mainCategory ||
-        (interest.products && interest.products.length > 0)
+      const selectedSalesPerson = salesPersonOptions.find(
+        (option) => option.name === formData.salesPerson
       );
 
+      const payload = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone: formData.phone,
+        email: formData.email?.trim() || undefined,
+        address: emptyToNull(formData.streetAddress),
+        city: formData.city,
+        state: formData.state,
+        country: formData.country || "India",
+        catchment_area: formData.catchmentArea,
+        pincode: emptyToNull(formData.pincode),
+        sales_person: formData.salesPerson,
+        sales_person_id: selectedSalesPerson ? selectedSalesPerson.id : undefined,
+        reason_for_visit: formData.reasonForVisit,
+        customer_status: emptyToNull(formData.customerStatus),
+        lead_source: formData.leadSource,
+        saving_scheme: formData.savingScheme,
+        customer_interests: formData.customerInterests,
+        customer_interests_input: normalizeInterestsForSubmit(interests),
+        product_type: emptyToNull(formData.productType),
+        style: emptyToNull(formData.style),
+        customer_preference: emptyToNull(formData.customerPreference),
+        design_number: emptyToNull(formData.designNumber),
+        product_subtype: emptyToNull(formData.productSubtype),
+        selected_weight: formData.selectedWeight,
+        weight_unit: formData.weightUnit,
+        material_type: emptyToNull(formData.materialType),
+        material_weight: formData.materialWeight || null,
+        material_value: formData.materialValue || null,
+        material_unit: formData.materialUnit,
+        date_of_birth: formatDateForAPI(formData.birthDate),
+        anniversary_date: formatDateForAPI(formData.anniversaryDate),
+        age_of_end_user: emptyToNull(formData.ageOfEndUser),
+        ageing_percentage: emptyToNull(formData.ageingPercentage),
+        pipeline_stage: formData.pipelineStage,
+        customer_type: formData.customerType,
+        summary_notes: emptyToNull(formData.summaryNotes),
+      } as Record<string, unknown>;
 
+      const cleanedPayload = Object.fromEntries(
+        Object.entries(payload).filter(([, value]) => value !== undefined)
+      );
 
-      // Process all interests, even if incomplete - can be updated later
-      let customerInterestsInput: string[] = [];
+      const response = await apiService.updateClient(
+        customer.id?.toString() || "",
+        cleanedPayload
+      );
 
-      if (hasInterestData) {
-        // Include all interests, even if incomplete
-        customerInterestsInput = interests.map(interest => {
-
-
-          // Include all products, even if incomplete
-          const allProducts = interest.products.map(p => ({
-            product: p.product || "",
-            revenue: p.revenue || ""
-          }));
-
-          const interestData = {
-            category: interest.mainCategory || "",
-            products: allProducts,
-            preferences: interest.preferences
-          };
-
-
-          return JSON.stringify(interestData);
-        });
-      } else {
-        // No interest data provided, send empty array
-
-        customerInterestsInput = [];
-      }
-
-      // Prepare data for API - convert empty date strings to undefined
-      const customerData = {
-        ...formData,
-        // Convert empty date strings to undefined for backend validation
-        date_of_birth: formData.date_of_birth?.trim() || undefined,
-        anniversary_date: formData.anniversary_date?.trim() || undefined,
-        next_follow_up: formData.next_follow_up?.trim() || undefined,
-        customer_interests_input: customerInterestsInput,
-        customer_interests_simple: Array.isArray(customerInterestsInput) ? customerInterestsInput : [],
-        product_type: customer.product_type || "",
-        style: customer.style || "",
-        weight_range: customer.weight_range || "",
-        customer_preference: customer.customer_preference || "",
-        design_number: customer.design_number || "",
-      };
-
-
-
-      const response = await apiService.updateClient(customer.id.toString(), customerData);
-
-
-
-      if (response.success) {
-
-
-        // Create sales pipeline opportunities if customer is interested (only once)
-        if (showPipelineSection && pipelineOpportunities.length > 0 && !pipelineCreated) {
-
-          await createPipelineOpportunities(customer.id);
-          setPipelineCreated(true); // Mark as created to prevent duplicates
-          toast({
-            title: "Success!",
-            description: "Customer updated successfully! 1 consolidated sales pipeline opportunity has been created.",
-            variant: "success",
-          });
-        } else if (pipelineCreated) {
-
-        } else {
-        toast({
-          title: "Success!",
-          description: "Customer updated successfully!",
-          variant: "success",
-        });
-        }
-
-        // Check if follow-up date was provided and show appropriate message
-        if (formData.next_follow_up) {
-          toast({
-            title: "Success!",
-            description: `Customer updated successfully! A follow-up appointment has been scheduled for ${formData.next_follow_up}.`,
-            variant: "success",
-          });
-        }
-
+      if (response.success && response.data) {
+        toast({ title: "Success", description: "Customer updated successfully", variant: "success" });
         onCustomerUpdated(response.data);
         onClose();
       } else {
-
         toast({
           title: "Error",
           description: "Failed to update customer. Please try again.",
           variant: "destructive",
         });
       }
-    } catch (error) {
-
+    } catch (error: any) {
               toast({
           title: "Error",
-        description: "Failed to update customer. Please try again.",
+        description: error?.message || "Failed to update customer. Please try again.",
           variant: "destructive",
         });
     } finally {
       setSaving(false);
     }
   };
+
+  const availableCatchments = useMemo(
+    () => (formData.city ? getCatchmentAreasForCity(formData.city) : INDIAN_CATCHMENT_AREAS),
+    [formData.city]
+  );
 
   if (!customer) {
     return null;
@@ -606,434 +645,538 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
       open={open}
       onOpenChange={onClose}
       title="Edit Customer"
-      description="Update customer information and details. Only First Name is required - other fields can be updated later."
+      description="Update customer information"
       size={isMobile ? "full" : isTablet ? "lg" : "xl"}
-      showCloseButton={true}
+      showCloseButton
       className="bg-white"
       actions={
-        <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
+        <div className={`flex items-center gap-2 ${isMobile ? "flex-wrap" : ""}`}>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={loading || !formData.first_name}
+            disabled={saving}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            {loading ? 'Updating...' : 'Update Customer'}
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <Skeleton className="w-4 h-4 rounded" /> Saving...
+              </span>
+            ) : (
+              "Update Customer"
+            )}
           </Button>
         </div>
       }
     >
-
         <div className="space-y-6">
-          {/* Basic Customer Information */}
-          <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4`}>
-            <div className={`font-semibold ${isMobile ? 'mb-2 text-base' : 'mb-3 text-lg'}`}>👤 Basic Information</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">First Name *</label>
-                <Input
-                  placeholder="First name"
-                  required
-                  value={formData.first_name}
-                  onChange={(e) => handleInputChange('first_name', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Last Name</label>
-                <Input
-                  placeholder="Last name"
-                  value={formData.last_name}
-                  onChange={(e) => handleInputChange('last_name', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <Input
-                  type="email"
-                  placeholder="email@example.com"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Phone *</label>
-                <PhoneInputComponent
-                  placeholder="+91 98XXXXXX00"
-                  required
-                  value={formData.phone}
-                  onChange={(value) => handleInputChange('phone', value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="lead">Lead</SelectItem>
-                    <SelectItem value="prospect">Prospect</SelectItem>
-                    <SelectItem value="customer">Customer</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Basic Information */}
+        <div className={`border rounded-lg ${isMobile ? "p-3" : "p-4"}`}>
+          <div className="font-semibold text-lg mb-4">👤 Basic Information</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">First Name *</label>
+              <Input
+                data-field="firstName"
+                value={formData.firstName}
+                onChange={(e) => handleInputChange("firstName", e.target.value)}
+                placeholder="First name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Last Name</label>
+              <Input
+                data-field="lastName"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange("lastName", e.target.value)}
+                placeholder="Last name"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1">Phone Number *</label>
+              <PhoneInputComponent
+                value={formData.phone}
+                onChange={(value) => handleInputChange("phone", value)}
+                placeholder="+91 98XXXXXX00"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <Input
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                placeholder="name@example.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Age of End User</label>
+              <Select
+                value={formData.ageOfEndUser}
+                onValueChange={(value) => handleInputChange("ageOfEndUser", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Age Range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AGE_RANGES.map((range) => (
+                    <SelectItem key={range} value={range}>
+                      {range}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+        </div>
 
-          {/* Address Information */}
-          <div className="border rounded-lg p-4 mb-4">
-            <div className="font-semibold mb-3 text-lg">📍 Address</div>
+        {/* Address */}
+        <div className={`border rounded-lg ${isMobile ? "p-3" : "p-4"}`}>
+          <div className="font-semibold text-lg mb-4">📍 Address</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Street Address</label>
                 <Input
-                  placeholder="e.g., 123, Diamond Lane"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
+                data-field="streetAddress"
+                value={formData.streetAddress}
+                onChange={(e) => handleInputChange("streetAddress", e.target.value)}
+                placeholder="House number, street, area"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">City</label>
-                <Input
-                  placeholder="e.g., Mumbai"
+              <label className="block text-sm font-medium mb-1">City *</label>
+              <ComboboxSelect
                   value={formData.city}
-                  onChange={(e) => handleInputChange('city', e.target.value)}
+                onValueChange={handleCitySelection}
+                options={INDIAN_CITIES}
+                placeholder="Select City or type to search"
+                customPlaceholder="Type city name"
+                hideDropdownWhenEmpty
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">State</label>
-                <Input
-                  placeholder="e.g., Maharashtra"
+              <label className="block text-sm font-medium mb-1">State *</label>
+              <ComboboxSelect
                   value={formData.state}
-                  onChange={(e) => handleInputChange('state', e.target.value)}
+                onValueChange={(value) => {
+                  handleInputChange("state", value);
+                  focusNext("catchmentArea");
+                }}
+                options={INDIAN_STATES}
+                placeholder={isFieldLocked("state", lockedFields) ? "Auto-filled from City" : "Select State or type"}
+                customPlaceholder="Type state name"
+                disabled={isFieldLocked("state", lockedFields)}
+                commitOnSelect
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Country</label>
-                <Input
-                  value={formData.country}
-                  disabled
-                />
+              <label className="block text-sm font-medium mb-1">Catchment Area *</label>
+              <ComboboxSelect
+                value={formData.catchmentArea}
+                onValueChange={handleCatchmentSelection}
+                options={availableCatchments}
+                placeholder={
+                  availableCatchments.length > 0
+                    ? "Select or type catchment area"
+                    : "Select City First"
+                }
+                customPlaceholder="Type catchment area"
+                disabled={!formData.city}
+                hideDropdownWhenEmpty
+              />
+              {!formData.city && (
+                <div className="text-xs text-blue-600 mt-1">
+                  Select a city to see available catchment areas
+                </div>
+              )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Pincode</label>
-                <Input
-                  placeholder="e.g., 400001"
+              <ComboboxSelect
                   value={formData.pincode}
-                  onChange={(e) => handleInputChange('pincode', e.target.value)}
+                onValueChange={(value) => handleInputChange("pincode", value)}
+                options={formData.pincode ? [formData.pincode] : []}
+                placeholder={
+                  isFieldLocked("pincode", lockedFields)
+                    ? "Auto-filled from Catchment"
+                    : "Enter or select Pincode (optional)"
+                }
+                customPlaceholder="Type pincode"
+                disabled={isFieldLocked("pincode", lockedFields)}
+                commitOnSelect
                 />
               </div>
             </div>
           </div>
 
           {/* Sales Information */}
-          <div className="border rounded-lg p-4 mb-4">
-            <div className="font-semibold mb-3 text-lg">💼 Sales Information</div>
+        <div className={`border rounded-lg ${isMobile ? "p-3" : "p-4"}`}>
+          <div className="font-semibold text-lg mb-4">💼 Sales Information</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Sales Person</label>
-                <Input
-                  placeholder="Enter sales person"
-                  value={formData.sales_person}
-                  onChange={(e) => handleInputChange('sales_person', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Customer Status</label>
-                <Input
-                  placeholder="Enter customer status"
-                  value={formData.customer_status}
-                  onChange={(e) => handleInputChange('customer_status', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Lead Source</label>
-                <Input
-                  placeholder="Enter lead source"
-                  value={formData.lead_source}
-                  onChange={(e) => handleInputChange('lead_source', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Catchment Area</label>
-                <Input
-                  placeholder="Enter catchment area"
-                  value={formData.catchment_area}
-                  onChange={(e) => handleInputChange('catchment_area', e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Product Interest */}
-          <div className="border rounded-lg p-4 mb-4">
-            <div className="font-semibold mb-3 text-lg">💎 Product Interest</div>
-
-            {/* Product Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Product Type</label>
-                <Input
-                  placeholder="Enter product type"
-                  value={formData.product_type}
-                  onChange={(e) => handleInputChange('product_type', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Style</label>
-                <Input
-                  placeholder="Enter style"
-                  value={formData.style}
-                  onChange={(e) => handleInputChange('style', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Material Type</label>
-                <Input
-                  placeholder="Enter material type"
-                  value={formData.material_type}
-                  onChange={(e) => handleInputChange('material_type', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Material Weight</label>
-                <Input
-                  type="number"
-                  placeholder="Enter weight"
-                  value={formData.material_weight}
-                  onChange={(e) => handleInputChange('material_weight', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Material Value</label>
-                <Input
-                  type="number"
-                  placeholder="Enter value"
-                  value={formData.material_value}
-                  onChange={(e) => handleInputChange('material_value', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Product Subtype</label>
-                <Input
-                  placeholder="Enter product subtype"
-                  value={formData.product_subtype}
-                  onChange={(e) => handleInputChange('product_subtype', e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Customer Interests */}
-            <div className="border rounded p-4 bg-gray-50">
-              <div className="flex items-center justify-between mb-3">
-                <div className="font-medium">Customer Interests</div>
-                <Button variant="outline" size="sm" onClick={addInterest}>+ Add Interest</Button>
-              </div>
-
-              {interests.map((interest, index) => (
-                <div key={index} className="border rounded-lg p-4 mb-3 bg-white">
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="font-medium">Interest #{index + 1}</h5>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeInterest(index)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Category</label>
-                      <Select
-                        value={interest.mainCategory}
-                        onValueChange={(value) => updateInterest(index, 'mainCategory', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Products</label>
-                      <div className="space-y-2">
-                        {interest.products.map((product, pIndex) => (
-                          <div key={pIndex} className="flex gap-2">
-                            <Select
-                              value={product.product}
-                              onValueChange={(value) => updateProductInInterest(index, pIndex, 'product', value)}
-                            >
-                              <SelectTrigger className="flex-1">
-                                <SelectValue placeholder="Select Product" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {products.map((prod) => (
-                                  <SelectItem key={prod.id} value={prod.id.toString()}>
-                                    {prod.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              placeholder="Revenue"
-                              value={product.revenue}
-                              onChange={(e) => updateProductInInterest(index, pIndex, 'revenue', e.target.value)}
-                              className="w-24"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeProductFromInterest(index, pIndex)}
-                              className="text-red-600"
-                            >
-                              ×
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addProductToInterest(index)}
-                          className="w-full"
-                        >
-                          + Add Product
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Sales Pipeline Section */}
-          <div className="border rounded-lg p-4 mb-4">
-            <div className="font-semibold mb-3 text-lg">🚀 Sales Pipeline</div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.add_to_pipeline}
-                    onChange={(e) => handleInputChange('add_to_pipeline', e.target.checked.toString())}
-                    className="w-4 h-4"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium text-blue-900">Add to Sales Pipeline</div>
-                  <div className="text-sm text-blue-700">Track this customer's journey and follow-up progress</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-
-
-          {/* Sales Pipeline Section */}
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold mb-4">Sales Pipeline</div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Button
-                  onClick={generatePipelineOpportunities}
-                  disabled={pipelineCreated}
-                >
-                  {pipelineCreated ? '✅ Pipeline Created' : '🎯 Generate Opportunities'}
-                </Button>
-              </div>
-              <div className="text-sm text-gray-600 mb-3">
-                Create sales pipeline opportunities based on customer interests and revenue potential
-              </div>
-
-              {/* Design Selected Notification */}
-              {showDesignSelectedNotification && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-600">🎉</span>
-                    <span className="text-green-800 font-medium">
-                      Design Selected! Pipeline opportunities have been automatically updated to &quot;Closed Won&quot; stage.
-                    </span>
-                  </div>
-                  <div className="text-sm text-green-700 mt-1">
-                    Revenue will be reflected in the sales pipeline as a won deal.
-                  </div>
-                </div>
-              )}
-
-              {showPipelineSection && pipelineOpportunities.length > 0 && (
-                <div className="space-y-3">
-                  <div className="text-sm font-medium text-green-700 mb-2">
-                    ✅ 1 consolidated opportunity will be created in the sales pipeline
-                  </div>
-                  {pipelineOpportunities.map((opportunity, idx) => (
-                    <div key={idx} className={`border rounded p-3 ${opportunity.stage === 'closed_won' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
-                      <div className="font-medium text-green-800 flex items-center gap-2">
-                        {opportunity.title}
-                        {opportunity.stage === 'closed_won' && (
-                          <Badge variant="default" className="bg-green-600 text-white">
-                            🎉 Closed Won
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        <span className="font-medium">Expected Value:</span> ₹{opportunity.expected_value.toLocaleString()}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">Probability:</span> {opportunity.probability}%
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">Stage:</span> {opportunity.stage === 'closed_won' ? 'Bought' : opportunity.stage === 'store_walkin' ? 'Store Walkin' : 'Exhibition'}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">Next Action:</span> {opportunity.next_action}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {opportunity.notes}
-                      </div>
-                    </div>
+              <label className="block text-sm font-medium mb-1">Sales Person *</label>
+              <Select
+                value={formData.salesPerson}
+                onValueChange={(value) => {
+                  handleInputChange("salesPerson", value);
+                  focusNext("reasonForVisit");
+                }}
+              >
+                <SelectTrigger data-field="salesPerson">
+                  <SelectValue placeholder="Select Sales Person" />
+                </SelectTrigger>
+                <SelectContent>
+                  {salesPersons.map((person, index) => (
+                    <SelectItem key={`${person}-${index}`} value={person}>
+                      {person}
+                    </SelectItem>
                   ))}
-                </div>
-              )}
+                </SelectContent>
+              </Select>
+              <div className="mt-1 text-xs text-gray-500">
+                {user?.role === "platform_admin"
+                  ? "🌐 All salespersons across all tenants"
+                  : user?.role === "business_admin"
+                  ? "🏢 All salespersons in your tenant"
+                  : "👥 All salespersons in your store"}
+              </div>
+              </div>
+              <div>
+              <label className="block text-sm font-medium mb-1">Saving Scheme</label>
+              <Select
+                value={formData.savingScheme}
+                onValueChange={(value) => handleInputChange("savingScheme", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Saving Scheme" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SAVING_SCHEMES.map((scheme) => (
+                    <SelectItem key={scheme} value={scheme}>
+                      {scheme}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              </div>
+              <div>
+              <label className="block text-sm font-medium mb-1">Reason for Visit *</label>
+              <ComboboxSelect
+                value={formData.reasonForVisit}
+                onValueChange={(value) => handleInputChange("reasonForVisit", value)}
+                options={REASONS_FOR_VISIT}
+                placeholder="Select Reason"
+                customPlaceholder="Enter custom reason"
+                hideDropdownWhenEmpty
+                />
+              </div>
+              <div>
+              <label className="block text-sm font-medium mb-1">Lead Source *</label>
+              <ComboboxSelect
+                value={formData.leadSource}
+                onValueChange={(value) => handleInputChange("leadSource", value)}
+                options={LEAD_SOURCES}
+                placeholder="Select Source"
+                customPlaceholder="Enter custom lead source"
+                hideDropdownWhenEmpty
+                />
+              </div>
             </div>
           </div>
 
-          {/* Follow-up & Summary */}
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold mb-4">Follow-up & Summary</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Next Follow-up Date</label>
-                <Input
-                  type="date"
-                  value={formData.next_follow_up}
-                  onChange={(e) => handleInputChange('next_follow_up', e.target.value)}
-                />
-                <div className="text-xs text-blue-600 mt-1">
-                  Setting a follow-up date will automatically create an appointment
+        {/* Product Interests */}
+        <div className={`border rounded-lg ${isMobile ? "p-3" : "p-4"}`}>
+          <div className="font-semibold text-lg mb-4">Product Interests</div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Product Type</label>
+              <Input
+                value={formData.productType}
+                onChange={(e) => handleInputChange("productType", e.target.value)}
+                placeholder="Necklace, Ring, ..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Style</label>
+              <Input
+                value={formData.style}
+                onChange={(e) => handleInputChange("style", e.target.value)}
+                placeholder="Traditional, Contemporary..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Customer Preference</label>
+              <Input
+                value={formData.customerPreference}
+                onChange={(e) => handleInputChange("customerPreference", e.target.value)}
+                placeholder="Preferred designs or motifs"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Design Number</label>
+              <Input
+                value={formData.designNumber}
+                onChange={(e) => handleInputChange("designNumber", e.target.value)}
+                placeholder="Internal reference"
+              />
+            </div>
+          </div>
+
+          <div className="border rounded p-4 bg-gray-50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-medium">Detailed Interests</div>
+              <Button variant="outline" size="sm" onClick={handleAddInterest}>
+                + Add Interest
+              </Button>
+            </div>
+
+            {interests.map((interest, index) => (
+              <div key={index} className="border rounded-lg p-4 mb-3 bg-white">
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="font-medium">Interest #{index + 1}</h5>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRemoveInterest(index)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Category</label>
+                    <Select
+                      value={interest.mainCategory}
+                      onValueChange={(value) => {
+                        const updated = [...interests];
+                        updated[index].mainCategory = value;
+                        setInterests(updated);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Product</label>
+                    <Select
+                      value={interest.products[0]?.product || ""}
+                      onValueChange={(value) => handleProductChange(index, "product", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id.toString()}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Expected Revenue (₹)</label>
+                    <Input
+                      value={interest.products[0]?.revenue || ""}
+                      onChange={(e) => handleProductChange(index, "revenue", e.target.value)}
+                      placeholder="e.g., 50000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Other Preferences</label>
+                    <Input
+                      value={interest.preferences.other}
+                      onChange={(e) => {
+                        const updated = [...interests];
+                        updated[index].preferences.other = e.target.value;
+                        setInterests(updated);
+                      }}
+                      placeholder="Specific notes for this interest"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={interest.preferences.designSelected}
+                      onCheckedChange={(checked) => handlePreferenceToggle(index, "designSelected", Boolean(checked))}
+                    />
+                    Design Selected
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={interest.preferences.wantsDiscount}
+                      onCheckedChange={(checked) => handlePreferenceToggle(index, "wantsDiscount", Boolean(checked))}
+                    />
+                    Wants Discount
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={interest.preferences.checkingOthers}
+                      onCheckedChange={(checked) => handlePreferenceToggle(index, "checkingOthers", Boolean(checked))}
+                    />
+                    Checking Others
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={interest.preferences.lessVariety}
+                      onCheckedChange={(checked) => handlePreferenceToggle(index, "lessVariety", Boolean(checked))}
+                    />
+                    Less Variety
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={interest.preferences.purchased}
+                      onCheckedChange={(checked) => handlePreferenceToggle(index, "purchased", Boolean(checked))}
+                    />
+                    Purchased
+                  </label>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sales Pipeline */}
+        <div className={`border rounded-lg ${isMobile ? "p-3" : "p-4"}`}>
+          <div className="font-semibold text-lg mb-4">🚀 Sales Pipeline</div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Pipeline Stage</label>
+            <Select
+              value={formData.pipelineStage}
+              onValueChange={(value) => handleInputChange("pipelineStage", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Stage" />
+              </SelectTrigger>
+              <SelectContent>
+                {PIPELINE_STAGES.map((stage) => (
+                  <SelectItem key={stage} value={stage}>
+                    {stage}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Additional Details */}
+        <div className={`border rounded-lg ${isMobile ? "p-3" : "p-4"}`}>
+          <div className="font-semibold text-lg mb-4">📝 Additional Details</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+              <label className="block text-sm font-medium mb-1">Product Subtype</label>
+                <Input
+                value={formData.productSubtype}
+                onChange={(e) => handleInputChange("productSubtype", e.target.value)}
+                placeholder="e.g., DI.RING"
+              />
+              </div>
+              <div>
+              <label className="block text-sm font-medium mb-1">Ageing Percentage</label>
+              <Input
+                value={formData.ageingPercentage}
+                onChange={(e) => handleInputChange("ageingPercentage", e.target.value)}
+                placeholder="e.g., 30%"
+              />
+            </div>
+            <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Summary Notes</label>
                 <Textarea
-                  placeholder="Key discussion points, items shown, next steps..."
-                  rows={3}
-                  value={formData.summary_notes}
-                  onChange={(e) => handleInputChange('summary_notes', e.target.value)}
+                value={formData.summaryNotes}
+                onChange={(e) => handleInputChange("summaryNotes", e.target.value)}
+                placeholder="Key discussion points, customer preferences, next steps..."
+                rows={4}
+              />
+              <div className="mt-3 flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => document.getElementById("edit-camera-input")?.click()}
+                  className="sm:w-auto w-full"
+                >
+                  Take Photo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById("edit-gallery-input")?.click()}
+                  className="sm:w-auto w-full"
+                >
+                  Choose from Gallery
+                </Button>
+                <input
+                  id="edit-camera-input"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadImage(file);
+                    e.currentTarget.value = "";
+                  }}
                 />
+                <input
+                  id="edit-gallery-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadImage(file);
+                    e.currentTarget.value = "";
+                  }}
+                />
+                {imageUploading && <span className="text-sm text-gray-500">Uploading...</span>}
+                {uploadedImage?.thumbUrl && (
+                  <a href={uploadedImage.url} target="_blank" rel="noreferrer">
+                    <img
+                      src={uploadedImage.thumbUrl}
+                      alt="Uploaded"
+                      className="w-32 h-32 object-cover rounded border"
+                    />
+                  </a>
+                )}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Interest Tags */}
+        <div className={`border rounded-lg ${isMobile ? "p-3" : "p-4"}`}>
+          <div className="font-semibold text-lg mb-4">Customer Interest Tags</div>
+          <div className="flex flex-wrap gap-2">
+            {CUSTOMER_INTERESTS.map((interest) => {
+              const isSelected = formData.customerInterests.includes(interest);
+              return (
+                <Button
+                  key={interest}
+                  variant={isSelected ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleCustomerInterestToggle(interest)}
+                  className={isSelected ? "bg-blue-600" : ""}
+                >
+                  {interest}
+                </Button>
+              );
+            })}
             </div>
           </div>
         </div>

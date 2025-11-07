@@ -276,6 +276,14 @@ export default function HomePage() {
                     autoCorrect="off"
                     className="text-center tracking-widest text-lg"
                     disabled={isPinSubmitting || isLoading || !username}
+                    onKeyDown={(event) => {
+                      if (['Enter', 'NumpadEnter'].includes(event.key)) {
+                        event.preventDefault();
+                        if (!isPinSubmitting && !isLoading && username && pin.length === 4) {
+                          void handleSalesPinLogin();
+                        }
+                      }
+                    }}
                   />
                   <Button
                     type="button"

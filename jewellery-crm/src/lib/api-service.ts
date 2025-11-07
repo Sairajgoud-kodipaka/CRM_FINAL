@@ -700,7 +700,7 @@ class ApiService {
         }
 
         // For 400 validation errors, return them in the response instead of throwing
-        if (response.status === 400 && errorData && (errorData.email || errorData.phone || errorData.errors)) {
+        if (response.status === 400 && errorData && typeof errorData === 'object') {
           return {
             data: null as any,
             success: false,

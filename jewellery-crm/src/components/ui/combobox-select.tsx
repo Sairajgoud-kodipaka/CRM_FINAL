@@ -16,6 +16,7 @@ interface ComboboxSelectProps {
   customPlaceholder?: string;
   commitOnSelect?: boolean; // when true, do not propagate changes while typing; only on pick/enter
   showAddHint?: boolean; // show the "Add \"value\"" helper row; defaults to false to avoid confusion
+  hideDropdownWhenEmpty?: boolean; // when true, hide the dropdown if there are no matches/add-row
 }
 
 export function ComboboxSelect({
@@ -29,6 +30,7 @@ export function ComboboxSelect({
   customPlaceholder = "Enter custom value",
   commitOnSelect = false,
   showAddHint = false,
+  hideDropdownWhenEmpty = false,
 }: ComboboxSelectProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [query, setQuery] = React.useState<string>(value || "");
@@ -41,13 +43,18 @@ export function ComboboxSelect({
   }, [value]);
 
   const normalized = (s: string) => (s || "").toLowerCase().trim();
+  const filterOptions = React.useCallback((q: string) => {
+    const nq = normalized(q);
+    if (!nq) return options;
+    return options.filter(o => normalized(o).includes(nq));
+  }, [options]);
   const filtered = React.useMemo(() => {
-    const q = normalized(query);
-    if (!q) return options;
-    return options.filter(o => normalized(o).includes(q));
-  }, [options, query]);
+    return filterOptions(query);
+  }, [filterOptions, query]);
 
   const isExactMatch = options.some(o => normalized(o) === normalized(query));
+  const showAddRow = showAddHint && allowCustom && !!query && !isExactMatch;
+  const shouldRenderDropdown = isOpen && (!hideDropdownWhenEmpty || filtered.length > 0 || showAddRow);
 
   const openDropdown = () => {
     if (disabled) return;
@@ -106,7 +113,6 @@ export function ComboboxSelect({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const showAddRow = showAddHint && allowCustom && !!query && !isExactMatch;
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
@@ -114,26 +120,40 @@ export function ComboboxSelect({
         value={query}
         disabled={disabled}
         onChange={(e) => {
-          const v = e.target.value;
-          setQuery(v);
+          const nextQuery = e.target.value;
+          setQuery(nextQuery);
           if (!commitOnSelect) {
-            onValueChange(v); // live-update when not committing on select
+            onValueChange(nextQuery); // live-update when not committing on select
           }
-          if (!isOpen) openDropdown();
+          const nextFiltered = filterOptions(nextQuery);
+          const nextIsExactMatch = options.some(o => normalized(o) === normalized(nextQuery));
+          const nextShowAddRow = showAddHint && allowCustom && !!nextQuery && !nextIsExactMatch;
+          if (hideDropdownWhenEmpty && nextFiltered.length === 0 && !nextShowAddRow) {
+            closeDropdown();
+          } else {
+            openDropdown();
+          }
           setHighlighted(0);
         }}
         onFocus={openDropdown}
         onKeyDown={onKeyDown}
+        onBlur={() => {
+          setTimeout(() => {
+            if (commitOnSelect && allowCustom) {
+              const trimmed = query.trim();
+              if (trimmed) {
+                onValueChange(trimmed);
+              }
+            }
+            closeDropdown();
+          }, 0);
+        }}
         placeholder={placeholder}
         className="w-full"
       />
 
-      {isOpen && (
+      {shouldRenderDropdown && (
         <div className="absolute z-50 mt-1 w-full rounded-md border bg-white shadow-lg max-h-60 overflow-auto">
-          {filtered.length === 0 && !showAddRow && (
-            <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
-          )}
-
           {filtered.map((opt, idx) => (
             <button
               type="button"
