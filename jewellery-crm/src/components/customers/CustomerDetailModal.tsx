@@ -31,6 +31,11 @@ interface AuditLog {
   user: string;
 }
 
+interface SummaryImageReference {
+  url?: string;
+  thumb?: string;
+}
+
 export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelete }: CustomerDetailModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -156,11 +161,35 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
     });
   };
 
-  const extractImageFromNotes = (notes?: string): { image?: string; thumb?: string } => {
-    if (!notes) return {};
-    const imageMatch = notes.match(/\[image\]:\s*(https?:[^\s]+)/i);
-    const thumbMatch = notes.match(/\[thumb\]:\s*(https?:[^\s]+)/i);
-    return { image: imageMatch?.[1], thumb: thumbMatch?.[1] };
+  const extractImagesFromNotes = (notes?: string): SummaryImageReference[] => {
+    if (!notes) return [];
+
+    const lines = notes.split(/\n/);
+    const images: SummaryImageReference[] = [];
+    let lastImage: SummaryImageReference | null = null;
+
+    for (const line of lines) {
+      const imageMatch = line.match(/^\s*\[image\]:\s*(https?:\S+)/i);
+      if (imageMatch) {
+        lastImage = { url: imageMatch[1] };
+        images.push(lastImage);
+        continue;
+      }
+
+      const thumbMatch = line.match(/^\s*\[thumb\]:\s*(https?:\S+)/i);
+      if (thumbMatch) {
+        if (lastImage && !lastImage.thumb) {
+          lastImage.thumb = thumbMatch[1];
+        } else {
+          images.push({ thumb: thumbMatch[1] });
+        }
+        continue;
+      }
+
+      lastImage = null;
+    }
+
+    return images.filter((image) => image.url || image.thumb);
   };
 
   const stripImageTags = (notes?: string): string => {
@@ -492,14 +521,29 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                       <div className="px-3 py-3 border rounded-md bg-gray-50 text-gray-900 whitespace-pre-wrap min-h-[80px]">
                         {stripImageTags(customer.summary_notes)}
                       </div>
-                      {(() => { const img = extractImageFromNotes(customer.summary_notes); return (img.image || img.thumb) ? (
-                        <div className="mt-3">
-                          <div className="text-sm text-gray-600 mb-2">Selected Product</div>
-                          <a href={(img.image || img.thumb)!} target="_blank" rel="noreferrer">
-                            <img src={img.image || img.thumb!} alt="Selected product" className="w-72 max-w-full h-auto rounded shadow" />
-                          </a>
-                        </div>
-                      ) : null; })()}
+                      {(() => {
+                        const images = extractImagesFromNotes(customer.summary_notes);
+                        if (!images.length) return null;
+                        return (
+                          <div className="mt-3">
+                            <div className="text-sm text-gray-600 mb-2">Uploaded Images</div>
+                            <div className="flex flex-wrap gap-3">
+                              {images.map((image, index) => {
+                                const src = image.thumb || image.url;
+                                if (!src) return null;
+                                return (
+                                  <img
+                                    key={`${image.url || image.thumb || index}`}
+                                    src={src}
+                                    alt={`Uploaded reference ${index + 1}`}
+                                    className="w-40 max-w-full h-auto rounded shadow pointer-events-none select-none"
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
                   </div>
                   )}
                 </div>

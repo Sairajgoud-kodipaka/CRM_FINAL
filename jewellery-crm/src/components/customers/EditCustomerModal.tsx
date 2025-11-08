@@ -97,6 +97,11 @@ interface ProductInterest {
   };
 }
 
+interface SummaryImageReference {
+  url?: string;
+  thumb?: string;
+}
+
 const createInitialFormData = (): FormData => ({
   firstName: "",
   lastName: "",
@@ -168,6 +173,70 @@ const emptyToNull = (value: unknown) => {
     return trimmed.length ? trimmed : null;
   }
   return value as number | boolean | null;
+};
+
+const parseSummaryNotes = (notes?: string): { text: string; images: SummaryImageReference[] } => {
+  if (!notes) {
+    return { text: "", images: [] };
+  }
+
+  const lines = notes.split(/\n/);
+  const textLines: string[] = [];
+  const images: SummaryImageReference[] = [];
+  let lastImage: SummaryImageReference | null = null;
+
+  for (const line of lines) {
+    const imageMatch = line.match(/^\s*\[image\]:\s*(https?:\S+)/i);
+    if (imageMatch) {
+      lastImage = { url: imageMatch[1] };
+      images.push(lastImage);
+      continue;
+    }
+
+    const thumbMatch = line.match(/^\s*\[thumb\]:\s*(https?:\S+)/i);
+    if (thumbMatch) {
+      if (lastImage && !lastImage.thumb) {
+        lastImage.thumb = thumbMatch[1];
+      } else {
+        images.push({ thumb: thumbMatch[1] });
+      }
+      continue;
+    }
+
+    textLines.push(line);
+    lastImage = null;
+  }
+
+  return {
+    text: textLines.join("\n").trim(),
+    images: images.filter((image) => image.url || image.thumb),
+  };
+};
+
+const buildSummaryNotes = (
+  baseNotes: string,
+  existingImages: SummaryImageReference[],
+  newImage?: { url: string; thumbUrl: string } | null
+): string | null => {
+  const trimmedBase = baseNotes.trim();
+  const imageLines: string[] = [];
+  const allImages: SummaryImageReference[] = [...existingImages];
+
+  if (newImage) {
+    allImages.push({ url: newImage.url, thumb: newImage.thumbUrl });
+  }
+
+  allImages.forEach((image) => {
+    if (image.url) {
+      imageLines.push(`[image]: ${image.url}`);
+    }
+    if (image.thumb) {
+      imageLines.push(`[thumb]: ${image.thumb}`);
+    }
+  });
+
+  const combined = [trimmedBase, ...imageLines].filter(Boolean).join("\n");
+  return combined.trim().length ? combined : null;
 };
 
 const normalizeInterestsForSubmit = (interests: ProductInterest[]): string[] =>
@@ -259,7 +328,7 @@ const mapCustomerToFormData = (customer: Client): FormData => ({
   weightUnit: (customer as any).material_unit || "g",
   customerPreference: customer.customer_preference || "",
   designNumber: customer.design_number || "",
-  summaryNotes: customer.summary_notes || "",
+  summaryNotes: parseSummaryNotes(customer.summary_notes).text,
   pipelineStage: (customer as any).pipeline_stage || "interested",
   customerType: customer.customer_type || "individual",
   ageOfEndUser: customer.age_of_end_user || "",
@@ -285,6 +354,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [uploadedImage, setUploadedImage] = useState<{ url: string; thumbUrl: string } | null>(null);
+  const [summaryImages, setSummaryImages] = useState<SummaryImageReference[]>([]);
   const [imageUploading, setImageUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -303,9 +373,12 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
   const initializeFromCustomer = useCallback((client: Client) => {
     const mappedForm = mapCustomerToFormData(client);
     const mappedInterests = mapCustomerToInterests(client);
+    const parsedSummary = parseSummaryNotes((client as any).summary_notes);
 
     setFormData(mappedForm);
     setInterests(mappedInterests.length > 0 ? mappedInterests : [createEmptyInterest()]);
+    setSummaryImages(parsedSummary.images);
+    setUploadedImage(null);
 
     setLockedFields(() => {
       let next = new Set<string>();
@@ -394,6 +467,13 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
       loadProducts();
     }
   }, [open, loadSalesPersonOptions, loadCategories, loadProducts]);
+
+  useEffect(() => {
+    if (!open) {
+      setSummaryImages([]);
+      setUploadedImage(null);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (customer && open) {
@@ -597,7 +677,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         ageing_percentage: emptyToNull(formData.ageingPercentage),
         pipeline_stage: formData.pipelineStage,
         customer_type: formData.customerType,
-        summary_notes: emptyToNull(formData.summaryNotes),
+        summary_notes: buildSummaryNotes(formData.summaryNotes, summaryImages, uploadedImage),
       } as Record<string, unknown>;
 
       const cleanedPayload = Object.fromEntries(
@@ -1145,14 +1225,50 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                   }}
                 />
                 {imageUploading && <span className="text-sm text-gray-500">Uploading...</span>}
-                {uploadedImage?.thumbUrl && (
-                  <a href={uploadedImage.url} target="_blank" rel="noreferrer">
+                {summaryImages.length > 0 && (
+                  <div className="flex flex-col gap-2 w-full mt-2">
+                    <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                      Existing uploads
+                    </span>
+                    <div className="flex flex-wrap gap-3">
+                    {summaryImages.map((image, index) => {
+                      const src = image.thumb || image.url;
+                      if (!src) return null;
+                      const host = (() => {
+                        if (!image.url) return null;
+                        try {
+                          return new URL(image.url).hostname;
+                        } catch {
+                          return null;
+                        }
+                      })();
+                      return (
+                        <div key={`${image.url || image.thumb || index}`} className="flex flex-col gap-1">
+                          <img
+                            src={src}
+                            alt={`Existing upload ${index + 1}`}
+                            className="w-32 h-32 object-cover rounded border shadow-sm pointer-events-none select-none"
+                          />
+                          {host && (
+                            <span className="text-[10px] text-gray-500 break-all max-w-[8rem]">
+                              {host}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    </div>
+                  </div>
+                )}
+                {uploadedImage && (
+                  <div className="w-full mt-2">
+                    <div className="text-xs text-blue-600 mb-1">New upload (will save on update)</div>
                     <img
-                      src={uploadedImage.thumbUrl}
-                      alt="Uploaded"
-                      className="w-32 h-32 object-cover rounded border"
+                      src={uploadedImage.thumbUrl || uploadedImage.url}
+                      alt="New upload preview"
+                      className="w-32 h-32 object-cover rounded border shadow-sm"
                     />
-                  </a>
+                  </div>
                 )}
               </div>
             </div>

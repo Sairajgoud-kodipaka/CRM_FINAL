@@ -1669,7 +1669,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 value={formData.leadSource}
                 onValueChange={(value) => {
                   handleInputChange('leadSource', value);
-                  focusNext('nextFollowUpDate');
                 }}
                 options={LEAD_SOURCES}
                 placeholder="Select Source"
@@ -2077,10 +2076,15 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   }}
                 />
                 {imageUploading && <span className="text-sm text-gray-500">Uploading...</span>}
-                {uploadedImage?.thumbUrl && (
-                  <a href={uploadedImage.url} target="_blank" rel="noreferrer">
-                    <img src={uploadedImage.thumbUrl} alt="Selected product" className="w-40 max-w-full h-auto rounded object-cover border shadow" />
-                  </a>
+                {uploadedImage && (
+                  <div className="w-full mt-2">
+                    <div className="text-xs text-blue-600 mb-1">Preview (will save on create)</div>
+                    <img
+                      src={uploadedImage.thumbUrl || uploadedImage.url}
+                      alt="Selected product"
+                      className="w-40 max-w-full h-auto rounded object-cover border shadow pointer-events-none select-none"
+                    />
+                  </div>
                 )}
               </div>
             </div>
