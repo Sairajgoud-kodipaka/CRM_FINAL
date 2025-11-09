@@ -99,18 +99,6 @@ export default function SalesAppointmentsPage() {
   useEffect(() => {
     fetchAppointments();
     fetchCustomers();
-    // Set up daily notification check
-    const checkTodayAppointments = () => {
-      checkTodayAppointmentsNotification();
-    };
-
-    // Check immediately
-    checkTodayAppointments();
-
-    // Check every hour
-    const interval = setInterval(checkTodayAppointments, 60 * 60 * 1000);
-
-    return () => clearInterval(interval);
   }, [dateRange]);
 
   useEffect(() => {
@@ -202,54 +190,6 @@ export default function SalesAppointmentsPage() {
       overdueAppointments,
     });
   }, [appointments]);
-
-  const checkTodayAppointmentsNotification = () => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const currentHour = now.getHours();
-
-    const todayAppointments = appointments.filter(a => {
-      const appointmentDate = new Date(a.date);
-      return appointmentDate.toDateString() === today.toDateString() &&
-             a.status === 'scheduled' || a.status === 'confirmed';
-    });
-
-    if (todayAppointments.length > 0) {
-      // Check if any appointment is within the next hour
-      const upcomingAppointments = todayAppointments.filter(a => {
-        const [hours, minutes] = a.time.split(':');
-        const appointmentHour = parseInt(hours);
-        const appointmentMinute = parseInt(minutes);
-        const appointmentTime = appointmentHour * 60 + appointmentMinute;
-        const currentTime = currentHour * 60 + now.getMinutes();
-
-        // Show notification if appointment is within the next hour
-        return (appointmentTime - currentTime) <= 60 && (appointmentTime - currentTime) > 0;
-      });
-
-      if (upcomingAppointments.length > 0) {
-        upcomingAppointments.forEach(appointment => {
-          const [hours, minutes] = appointment.time.split(':');
-          const appointmentTime = `${hours}:${minutes}`;
-
-          toast({
-            title: "🔔 Upcoming Appointment",
-            description: `${appointment.client_name || 'Customer'} has an appointment at ${appointmentTime}`,
-            variant: "default",
-          });
-        });
-      }
-
-      // Show summary notification for today's appointments
-      if (currentHour === 9) { // Show at 9 AM
-        toast({
-          title: "📅 Today's Appointments",
-          description: `You have ${todayAppointments.length} appointment(s) scheduled for today`,
-          variant: "default",
-        });
-      }
-    }
-  };
 
   const fetchAppointments = async () => {
     try {

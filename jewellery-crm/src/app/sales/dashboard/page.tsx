@@ -181,12 +181,6 @@ export default function SalesDashboardPage() {
         });
 
         setLastUpdated(new Date());
-
-        toast({
-          title: "Dashboard Updated",
-          description: "Successfully loaded real sales data",
-          variant: "default",
-        });
       } else {
 
         setError('Failed to fetch sales dashboard data');

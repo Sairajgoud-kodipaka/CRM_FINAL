@@ -162,6 +162,7 @@ export function ResponsiveDialog({
   const isDesktop = useIsDesktop();
   const dialogRef = useRef<HTMLDivElement>(null);
   const { openModal, closeModal, enableHideMobileNav, disableHideMobileNav } = useModal();
+  const hasPushedHistoryState = useRef(false);
 
   // Handle escape key and modal state
   useEffect(() => {
@@ -200,6 +201,32 @@ export function ResponsiveDialog({
       }
     };
   }, [open, onOpenChange, openModal, closeModal, hideMobileNav, enableHideMobileNav, disableHideMobileNav]);
+
+  // Handle hardware/browser back button for full-screen mobile modals
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handlePopState = () => {
+      if (hasPushedHistoryState.current) {
+        hasPushedHistoryState.current = false;
+        onOpenChange(false);
+      }
+    };
+
+    if (open && isMobile) {
+      window.history.pushState({ modal: true }, '', window.location.href);
+      window.addEventListener('popstate', handlePopState);
+      hasPushedHistoryState.current = true;
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (!open && hasPushedHistoryState.current) {
+        window.history.back();
+        hasPushedHistoryState.current = false;
+      }
+    };
+  }, [open, isMobile, onOpenChange]);
 
   // Handle backdrop click
   const handleBackdropClick = () => {
