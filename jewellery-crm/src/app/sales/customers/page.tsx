@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange, toUtcStartOfDay, toUtcEndOfDay } from '@/lib/date-utils';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
-export default function SalesCustomersPage() {
+function SalesCustomersPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { userScope } = useScopedVisibility();
@@ -800,3 +800,19 @@ export default function SalesCustomersPage() {
     </div>
   );
 }
+
+export default function SalesCustomersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-sm text-muted-foreground">Loading customers…</div>
+        </div>
+      }
+    >
+      <SalesCustomersPageContent />
+    </Suspense>
+  );
+}
+
+export const dynamic = 'force-dynamic';
