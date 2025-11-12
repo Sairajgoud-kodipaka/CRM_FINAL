@@ -74,6 +74,7 @@ export interface MobileDashboardProps {
   showProgress?: boolean;
   className?: string;
   children?: ReactNode;
+  enableCompactToggle?: boolean;
 }
 
 // Individual Metric Component
@@ -339,6 +340,7 @@ export function MobileDashboard({
   showProgress = false,
   className,
   children,
+  enableCompactToggle = false,
 }: MobileDashboardProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -424,14 +426,16 @@ export function MobileDashboard({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setCompactMode(!compactMode)}
-            className="h-9 w-9"
-          >
-            {compactMode ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-          </Button>
+          {enableCompactToggle && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCompactMode(!compactMode)}
+              className="h-9 w-9"
+            >
+              {compactMode ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            </Button>
+          )}
 
           {onRefresh && (
             <Button

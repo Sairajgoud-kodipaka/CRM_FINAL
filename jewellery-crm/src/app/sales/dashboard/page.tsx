@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { BarChart2, PieChart, TrendingUp, Users, Percent, Activity, TrendingDown, ArrowUpRight, ArrowDownRight, ShoppingBag, Calendar, Target, Plus, RefreshCw } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
@@ -21,6 +22,7 @@ interface SalesStats {
 }
 
 export default function SalesDashboardPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
@@ -293,21 +295,21 @@ export default function SalesDashboardPage() {
       id: 'add-customer',
       label: 'Add Customer',
       icon: Plus,
-      onClick: () => window.location.href = '/sales/customers/new',
+      onClick: () => router.push('/sales/customers?action=addCustomer'),
       color: 'primary' as const,
     },
     {
       id: 'view-pipeline',
       label: 'View Pipeline',
       icon: TrendingUp,
-      onClick: () => window.location.href = '/sales/pipeline',
+      onClick: () => router.push('/sales/pipeline'),
       color: 'secondary' as const,
     },
     {
       id: 'schedule-appointment',
       label: 'Schedule Appointment',
       icon: Calendar,
-      onClick: () => window.location.href = '/sales/appointments/new',
+      onClick: () => router.push('/sales/appointments'),
       color: 'success' as const,
     },
   ];

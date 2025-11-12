@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -23,6 +24,8 @@ import { getCurrentMonthDateRange, formatDateRange, toUtcStartOfDay, toUtcEndOfD
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
 export default function SalesCustomersPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { userScope } = useScopedVisibility();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -46,6 +49,7 @@ export default function SalesCustomersPage() {
   const [pageSize, setPageSize] = useState(20);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const hasHandledActionRef = useRef(false);
 
   // Check if user can delete customers (only business admin)
   const canDeleteCustomers = user?.role === 'business_admin';
@@ -85,6 +89,24 @@ export default function SalesCustomersPage() {
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers, dateRange]);
+
+  useEffect(() => {
+    const action = searchParams?.get('action');
+    if (action === 'addCustomer' && !hasHandledActionRef.current) {
+      hasHandledActionRef.current = true;
+      setModalOpen(true);
+
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('action');
+        const queryString = params.toString();
+        const newUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}`;
+        window.history.replaceState(null, '', newUrl);
+      }
+    } else if (!action) {
+      hasHandledActionRef.current = false;
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Filter customers based on search term, status, and my data filter

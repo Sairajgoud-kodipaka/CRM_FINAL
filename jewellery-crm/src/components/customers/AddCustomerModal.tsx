@@ -295,7 +295,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       },
     ]);
   // Mobile-friendly collapsible state per interest
-  const [interestDetailsOpen, setInterestDetailsOpen] = useState<boolean[]>([!isMobile]);
+  const [interestDetailsOpen, setInterestDetailsOpen] = useState<boolean[]>([false]);
 
   // State for existing customer check (by phone)
   const [existingPhoneCustomer, setExistingPhoneCustomer] = useState<{
@@ -1287,7 +1287,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
       return newInterests;
     });
-    setInterestDetailsOpen(prev => [...prev, !isMobile ? true : false]);
+    setInterestDetailsOpen(prev => [...prev, false]);
   };
 
   const addProductToInterest = (idx: number) => {
