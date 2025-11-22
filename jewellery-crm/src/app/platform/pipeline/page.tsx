@@ -820,8 +820,9 @@ export default function CRMSalesPipelinePage() {
                    <PhoneInputComponent
                      value={newLead.phone}
                      onChange={(value) => handleInputChange('phone', value)}
-                     placeholder="9876543210"
+                     placeholder="Enter phone number"
                      required={false}
+                     defaultCountry="IN"
                    />
                  </div>
 

@@ -381,8 +381,9 @@ export default function TelecallerProfilePage() {
                         <PhoneInputComponent
                           value={editFormData.phone || ''}
                           onChange={(value) => handleEditInputChange('phone', value)}
-                          placeholder="9876543210"
+                          placeholder="Enter phone number"
                           disabled={saving}
+                          defaultCountry="IN"
                         />
                       ) : (
                         <div className="mt-1 p-2 bg-gray-50 rounded border">

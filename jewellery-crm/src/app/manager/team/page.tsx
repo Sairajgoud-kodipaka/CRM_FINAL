@@ -624,6 +624,8 @@ export default function ManagerTeamPage() {
                  <PhoneInputComponent
                    value={editData.phone || ''}
                    onChange={(value) => setEditData({...editData, phone: value})}
+                   placeholder="Enter phone number"
+                   defaultCountry="IN"
                  />
                </div>
 

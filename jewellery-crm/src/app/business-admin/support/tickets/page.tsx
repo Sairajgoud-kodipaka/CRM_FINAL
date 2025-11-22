@@ -315,8 +315,9 @@ export default function SupportTicketsPage() {
                       <PhoneInputComponent
                         value={newTicket.callback_phone || ''}
                         onChange={(value) => setNewTicket({ ...newTicket, callback_phone: value })}
-                        placeholder="9876543210"
+                        placeholder="Enter phone number"
                         required={false}
+                        defaultCountry="IN"
                       />
                     </div>
                     <div className="grid gap-2">

@@ -53,6 +53,9 @@ pywebpush==1.14.0
 # Excel Support
 openpyxl==3.1.2
 
+# Phone Number Validation
+phonenumbers==8.13.27
+
 # Google API Support - Updated for Render deployment
 google-api-python-client==2.108.0
 google-auth==2.23.4

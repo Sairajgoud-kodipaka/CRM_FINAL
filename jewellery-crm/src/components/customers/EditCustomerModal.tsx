@@ -778,7 +778,8 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
               <PhoneInputComponent
                 value={formData.phone}
                 onChange={(value) => handleInputChange("phone", value)}
-                placeholder="+91 98XXXXXX00"
+                placeholder="Enter phone number"
+                defaultCountry="IN"
               />
             </div>
             <div>

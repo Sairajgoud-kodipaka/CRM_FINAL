@@ -251,7 +251,8 @@ export default function NewTenantPage() {
               <PhoneInputComponent
                 value={form.phone}
                 onChange={handlePhoneChange}
-                placeholder="9876543210"
+                placeholder="Enter phone number"
+                defaultCountry="IN"
               />
             </div>
 

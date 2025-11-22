@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Client, ClientInteraction, Appointment, FollowUp, Task, Announcement, CustomerTag, AuditLog
 from apps.tenants.models import Tenant
 from .models import Purchase
-from shared.validators import validate_indian_phone_number, normalize_phone_number
+from shared.validators import validate_international_phone_number, normalize_phone_number
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -31,7 +31,7 @@ class ClientSerializer(serializers.ModelSerializer):
         required=False, 
         allow_blank=True, 
         allow_null=True,
-        validators=[validate_indian_phone_number]
+        validators=[validate_international_phone_number]
     )
     customer_type = serializers.CharField(required=False, default='individual')
     status = serializers.CharField(required=False, default='general')

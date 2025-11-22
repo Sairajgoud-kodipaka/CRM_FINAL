@@ -84,7 +84,7 @@ class SupportTicket(models.Model):
     # Additional fields
     is_urgent = models.BooleanField(default=False, help_text=_('Mark as urgent for quick response'))
     requires_callback = models.BooleanField(default=False, help_text=_('Business admin requested a callback'))
-    callback_phone = models.CharField(max_length=15, blank=True, null=True)
+    callback_phone = models.CharField(max_length=20, blank=True, null=True)
     callback_preferred_time = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:

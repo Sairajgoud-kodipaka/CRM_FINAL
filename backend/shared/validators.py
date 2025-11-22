@@ -3,15 +3,17 @@ Shared validation utilities for the CRM system.
 """
 import re
 from django.core.exceptions import ValidationError
+import phonenumbers
+from phonenumbers import NumberParseException
 
 
-def validate_indian_phone_number(value):
+def validate_international_phone_number(value):
     """
-    Validate Indian phone number format.
-    Expected format: +91 followed by exactly 10 digits starting with 6, 7, 8, or 9.
+    Validate international phone number format using phonenumbers library.
+    Supports all countries and their phone number formats.
     
     Args:
-        value (str): Phone number to validate
+        value (str): Phone number to validate (should include country code, e.g., +1XXXXXXXXXX, +91XXXXXXXXXX)
         
     Raises:
         ValidationError: If phone number format is invalid
@@ -19,60 +21,90 @@ def validate_indian_phone_number(value):
     if not value:
         return
     
-    # Remove all non-digit characters except +
-    cleaned_value = re.sub(r'[^\d+]', '', value)
-    
-    # Check if it starts with +91
-    if not cleaned_value.startswith('+91'):
-        # If it doesn't start with +91, assume it's just the mobile number
-        mobile_digits = cleaned_value
-    else:
-        # Extract mobile number part (after +91)
-        mobile_digits = cleaned_value[3:]
-    
-    # Validate mobile number: exactly 10 digits
-    if len(mobile_digits) != 10:
-        raise ValidationError('Phone number must have exactly 10 digits.')
-    
-    # Check if all characters are digits
-    if not mobile_digits.isdigit():
-        raise ValidationError('Phone number must contain only digits.')
-    
-    # Check if it starts with valid Indian mobile prefixes
-    first_digit = mobile_digits[0]
-    if first_digit not in ['6', '7', '8', '9']:
-        raise ValidationError('Indian mobile numbers must start with 6, 7, 8, or 9.')
+    try:
+        # Parse the phone number
+        parsed_number = phonenumbers.parse(value, None)
+        
+        # Check if the number is valid
+        if not phonenumbers.is_valid_number(parsed_number):
+            raise ValidationError('Please enter a valid phone number.')
+        
+        # Check if it's a possible number (less strict check)
+        if not phonenumbers.is_possible_number(parsed_number):
+            raise ValidationError('This phone number is not possible. Please check and try again.')
+            
+    except NumberParseException as e:
+        error_msg = str(e)
+        if "INVALID_COUNTRY_CODE" in error_msg:
+            raise ValidationError('Invalid country code. Please include a valid country code (e.g., +1 for US, +91 for India).')
+        elif "NOT_A_NUMBER" in error_msg:
+            raise ValidationError('Please enter a valid phone number.')
+        else:
+            raise ValidationError('Invalid phone number format. Please include country code (e.g., +1XXXXXXXXXX).')
     
     return value
 
 
+def validate_indian_phone_number(value):
+    """
+    Validate Indian phone number format (backward compatibility).
+    This function now uses the international validator but provides Indian-specific error messages.
+    
+    Args:
+        value (str): Phone number to validate
+        
+    Raises:
+        ValidationError: If phone number format is invalid
+    """
+    # Use the international validator for consistency
+    return validate_international_phone_number(value)
+
+
 def normalize_phone_number(value):
     """
-    Normalize phone number to consistent format (+91XXXXXXXXXX).
+    Normalize phone number to E.164 format (international standard: +[country code][number]).
+    Supports all countries and formats.
     
     Args:
         value (str): Phone number to normalize
         
     Returns:
-        str: Normalized phone number in +91XXXXXXXXXX format
+        str: Normalized phone number in E.164 format (e.g., +14155552671, +919876543210)
     """
     if not value:
         return value
     
-    # Remove all non-digit characters
-    digits_only = re.sub(r'\D', '', value)
-    
-    # If it starts with 91 and has 12 digits, it's already in correct format
-    if digits_only.startswith('91') and len(digits_only) == 12:
-        return f'+{digits_only}'
-    
-    # If it has 10 digits, add +91 prefix
-    if len(digits_only) == 10:
-        return f'+91{digits_only}'
-    
-    # If it has 11 digits and starts with 0, remove the 0 and add +91
-    if len(digits_only) == 11 and digits_only.startswith('0'):
-        return f'+91{digits_only[1:]}'
-    
-    # Return as is if it doesn't match expected patterns
-    return value
+    try:
+        # Try to parse the phone number
+        # First, try parsing with no default region (assumes international format)
+        parsed_number = phonenumbers.parse(value, None)
+        
+        # Format to E.164 (international format with + prefix)
+        normalized = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
+        return normalized
+        
+    except NumberParseException:
+        # If parsing fails, try to handle legacy Indian format (10 digits without country code)
+        # This maintains backward compatibility
+        digits_only = re.sub(r'\D', '', value)
+        
+        # Legacy: If it's 10 digits, assume it's an Indian number
+        if len(digits_only) == 10:
+            return f'+91{digits_only}'
+        
+        # Legacy: If it starts with 91 and has 12 digits, add + prefix
+        if digits_only.startswith('91') and len(digits_only) == 12:
+            return f'+{digits_only}'
+        
+        # Legacy: If it has 11 digits and starts with 0, remove the 0 and add +91
+        if len(digits_only) == 11 and digits_only.startswith('0'):
+            return f'+91{digits_only[1:]}'
+        
+        # If all else fails, return as is (might be already in correct format)
+        # Ensure it starts with + if it doesn't already
+        if value and not value.startswith('+'):
+            # Try to add + if it looks like it might be an international number
+            if digits_only and len(digits_only) > 10:
+                return f'+{digits_only}'
+        
+        return value

@@ -425,7 +425,8 @@ export default function TeamManagement() {
                         <PhoneInputComponent
                           value={selectedMember.phone}
                           onChange={(value) => setSelectedMember({ ...selectedMember, phone: value })}
-                          placeholder="Phone number"
+                          placeholder="Enter phone number"
+                          defaultCountry="IN"
                         />
                       </div>
                     </div>

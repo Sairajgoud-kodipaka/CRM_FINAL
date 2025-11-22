@@ -388,6 +388,7 @@ export default function TeamSettingsPage() {
                   value={createFormData.phone || ''}
                   onChange={(value) => handleInputChange('phone', value)}
                   placeholder="Enter phone number"
+                  defaultCountry="IN"
                 />
               </div>
               
@@ -515,6 +516,7 @@ export default function TeamSettingsPage() {
                   value={editingMember?.phone || ''}
                   onChange={(value) => setEditingMember(prev => prev ? {...prev, phone: value} : null)}
                   placeholder="Enter phone number"
+                  defaultCountry="IN"
                 />
               </div>
               

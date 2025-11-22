@@ -157,8 +157,9 @@ export function ExhibitionLeadModal({ open, onClose, onSuccess }: ExhibitionLead
             <PhoneInputComponent
               value={formData.phone}
               onChange={(value) => handleInputChange('phone', value)}
-              placeholder="9876543210"
+              placeholder="Enter phone number"
               required={true}
+              defaultCountry="IN"
             />
           </div>
 

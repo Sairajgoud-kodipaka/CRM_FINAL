@@ -351,7 +351,9 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
   // Check if customer exists by phone number
   const checkPhoneExists = async (phone: string) => {
-    if (!phone || phone.length < 10) {
+    // International phone numbers should have at least 8 digits (country code + number)
+    // Minimum length check: at least 8 characters (e.g., +1234567)
+    if (!phone || phone.replace(/\D/g, '').length < 8) {
       setExistingPhoneCustomer(null);
       return;
     }
@@ -1399,7 +1401,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             <div className="w-full overflow-hidden">
               <label className="block text-sm font-medium mb-1">Phone Number *</label>
               <PhoneInputComponent
-                placeholder="+91 98XXXXXX00"
+                placeholder="Enter phone number"
                 required
                 value={formData.phone}
                 onChange={(value) => {
@@ -1409,6 +1411,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 }}
                 onKeyDown={(e) => handleKeyDown(e, 'phone')}
                 disabled={checkingPhone}
+                defaultCountry="IN"
               />
               {checkingPhone && (
                 <div className="mt-1 text-xs text-blue-600">Checking phone number...</div>

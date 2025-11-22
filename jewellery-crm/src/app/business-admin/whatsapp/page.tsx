@@ -619,9 +619,10 @@ Create memories that last forever! 💕
                     <PhoneInputComponent
                       value={singleMessage.phone}
                       onChange={(value) => setSingleMessage(prev => ({ ...prev, phone: value }))}
-                      placeholder="9876543210"
+                      placeholder="Enter phone number"
                       required={true}
                       className="flex-1"
+                      defaultCountry="IN"
                     />
                     <Button
                       type="button"

@@ -194,8 +194,9 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit }: CaptureL
             <PhoneInputComponent
               value={formData.phone}
               onChange={(value) => handleInputChange('phone', value)}
-              placeholder="9876543210"
+              placeholder="Enter phone number"
               required={true}
+              defaultCountry="IN"
             />
             {errors.phone && (
               <p className="text-red-500 text-xs mt-1">{errors.phone}</p>

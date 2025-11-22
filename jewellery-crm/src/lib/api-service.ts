@@ -1072,7 +1072,8 @@ class ApiService {
     if (params?.start_date) queryParams.append('start_date', params.start_date);
     if (params?.end_date) queryParams.append('end_date', params.end_date);
 
-    return this.request(`/clients/clients/${queryParams.toString() ? `?${queryParams}` : ''}`);
+    const queryString = queryParams.toString();
+    return this.request(`/clients/clients/${queryString ? `?${queryString}` : ''}`);
   }
 
   async getClient(id: string): Promise<ApiResponse<Client>> {

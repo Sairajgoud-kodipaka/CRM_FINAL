@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User, TeamMember, TeamMemberActivity, TeamMemberPerformance
 from apps.stores.models import Store
-from shared.validators import validate_indian_phone_number, normalize_phone_number
+from shared.validators import validate_international_phone_number, normalize_phone_number
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -256,10 +256,10 @@ class TeamMemberCreateSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(max_length=30)
     role = serializers.ChoiceField(choices=User.Role.choices)
     phone = serializers.CharField(
-        max_length=15, 
+        max_length=20, 
         required=False, 
         allow_blank=True,
-        validators=[validate_indian_phone_number]
+        validators=[validate_international_phone_number]
     )
     address = serializers.CharField(required=False, allow_blank=True)
     store = serializers.PrimaryKeyRelatedField(queryset=Store.objects.none(), required=False, allow_null=True)
@@ -450,7 +450,7 @@ class TeamMemberUpdateSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(
         required=False, 
         allow_blank=True,
-        validators=[validate_indian_phone_number]
+        validators=[validate_international_phone_number]
     )
     role = serializers.ChoiceField(choices=User.Role.choices, required=False)
     store = serializers.PrimaryKeyRelatedField(queryset=Store.objects.all(), required=False, allow_null=True)

@@ -18,7 +18,7 @@ class Tenant(models.Model):
     
     # Contact Information
     email = models.EmailField(blank=True, null=True)
-    phone = models.CharField(max_length=15, blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     website = models.URLField(blank=True, null=True)
     google_maps_url = models.URLField(blank=True, null=True, help_text=_('Google Maps location URL'))

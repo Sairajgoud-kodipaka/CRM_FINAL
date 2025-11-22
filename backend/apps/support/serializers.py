@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import SupportTicket, TicketMessage, SupportNotification, SupportSettings
-from shared.validators import validate_indian_phone_number, normalize_phone_number
+from shared.validators import validate_international_phone_number, normalize_phone_number
 
 
 class TicketMessageSerializer(serializers.ModelSerializer):
@@ -95,7 +95,7 @@ class SupportTicketCreateSerializer(serializers.ModelSerializer):
         required=False,
         allow_blank=True,
         allow_null=True,
-        validators=[validate_indian_phone_number]
+        validators=[validate_international_phone_number]
     )
     
     class Meta:
@@ -125,7 +125,7 @@ class SupportTicketUpdateSerializer(serializers.ModelSerializer):
         required=False,
         allow_blank=True,
         allow_null=True,
-        validators=[validate_indian_phone_number]
+        validators=[validate_international_phone_number]
     )
     
     class Meta:
