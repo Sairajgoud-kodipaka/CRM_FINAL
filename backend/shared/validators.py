@@ -31,17 +31,33 @@ def validate_international_phone_number(value):
     parse_error = None
     
     # First, try parsing with no default region (assumes international format with +)
+    # This is the best approach for international numbers like +447887634495
     if value.startswith('+'):
         try:
             parsed_number = phonenumbers.parse(value, None)
+            # If parsing succeeds, check if it's a possible number
+            if phonenumbers.is_possible_number(parsed_number):
+                # Allow it even if not strictly valid (some valid numbers might fail strict validation)
+                return value
+            else:
+                # If not possible, try with specific regions
+                parsed_number = None  # Reset to try with regions
         except NumberParseException as e:
             parse_error = e
+            parsed_number = None
     
-    # If that fails, try with common regions as fallback
+    # If that fails, try with common regions as fallback (especially GB for UK numbers)
     if parsed_number is None:
-        for region in ['GB', 'US', 'IN', 'CA', 'AU', None]:
+        # Prioritize GB for numbers starting with +44 (UK)
+        regions_to_try = ['GB'] if value.startswith('+44') else []
+        regions_to_try.extend(['US', 'IN', 'CA', 'AU', None])
+        
+        for region in regions_to_try:
             try:
                 parsed_number = phonenumbers.parse(value, region)
+                # If parsing succeeds, check if it's a possible number
+                if phonenumbers.is_possible_number(parsed_number):
+                    return value
                 break
             except NumberParseException:
                 continue
@@ -120,20 +136,23 @@ def normalize_phone_number(value):
     
     # If already in E.164 format (starts with +), try to parse and normalize it
     if value.startswith('+'):
-        try:
-            # Parse the phone number with no default region (assumes international format)
-            parsed_number = phonenumbers.parse(value, None)
-            
-            # Format to E.164 (international format with + prefix)
-            normalized = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
-            return normalized
-        except NumberParseException:
-            # If parsing fails but it starts with +, it might be a valid format that just needs minor adjustment
-            # Try to parse with different regions as fallback
-            digits_only = re.sub(r'\D', '', value)
-            if digits_only and len(digits_only) >= 7:  # Minimum valid phone number length
-                # Return as-is if it looks like a valid international number
-                return value
+        # Try parsing with no default region first (best for international numbers)
+        for region in [None, 'GB', 'US', 'IN', 'CA', 'AU']:
+            try:
+                # Parse the phone number
+                parsed_number = phonenumbers.parse(value, region)
+                
+                # Format to E.164 (international format with + prefix)
+                normalized = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
+                return normalized
+            except NumberParseException:
+                continue
+        
+        # If all parsing attempts fail but it starts with + and has enough digits, return as-is
+        digits_only = re.sub(r'\D', '', value)
+        if digits_only and len(digits_only) >= 7:  # Minimum valid phone number length
+            # Return as-is if it looks like a valid international number
+            return value
     
     # Try parsing without + prefix (might be missing)
     try:
