@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Calendar, Eye } from 'lucide-react';
 import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal';
 import { cleanCustomerNameFromText } from '@/utils/name-utils';
 import { apiService } from '@/lib/api-service';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 const stats = [
   { label: 'Total Appointments', value: 6 },
@@ -46,12 +47,18 @@ interface Appointment {
 }
 
 export default function TelecallerAppointmentsPage() {
+  const isMobile = useIsMobile();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  
+  // Refs for single/double tap detection on mobile
+  const clickTimeoutRef = useRef<number | null>(null);
+  const lastTapRef = useRef<number>(0);
+  const shouldOpenEditRef = useRef<boolean>(false);
 
   useEffect(() => {
     fetchAppointments();
@@ -91,10 +98,70 @@ export default function TelecallerAppointmentsPage() {
     { label: 'Cancelled', value: Array.isArray(appointments) ? appointments.filter(a => a.status === 'cancelled').length : 0 },
   ];
 
-  const handleViewAppointment = (appointment: Appointment) => {
+  const handleViewAppointment = useCallback((appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setIsDetailModalOpen(true);
-  };
+    shouldOpenEditRef.current = false;
+  }, []);
+
+  const handleEditAppointment = useCallback((appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsDetailModalOpen(true);
+    shouldOpenEditRef.current = true; // Flag to open edit modal immediately
+  }, []);
+
+  const handleRowClick = useCallback((appointment: Appointment) => {
+    if (isMobile) {
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTapRef.current;
+      
+      if (timeSinceLastTap > 0 && timeSinceLastTap < 300) {
+        // Double tap detected - cancel single tap and open edit
+        lastTapRef.current = 0;
+        if (clickTimeoutRef.current) {
+          window.clearTimeout(clickTimeoutRef.current);
+          clickTimeoutRef.current = null;
+        }
+        // Set flag immediately to prevent view modal from opening
+        shouldOpenEditRef.current = true;
+        // Open edit modal
+        handleEditAppointment(appointment);
+        return;
+      }
+
+      // First tap - set timeout for single tap
+      lastTapRef.current = now;
+      // Reset flag for new tap sequence
+      shouldOpenEditRef.current = false;
+      
+      if (clickTimeoutRef.current) {
+        window.clearTimeout(clickTimeoutRef.current);
+      }
+
+      clickTimeoutRef.current = window.setTimeout(() => {
+        // Only open view if we haven't already opened edit (double tap didn't happen)
+        if (!shouldOpenEditRef.current) {
+          handleViewAppointment(appointment);
+        }
+        clickTimeoutRef.current = null;
+        lastTapRef.current = 0;
+      }, 300);
+    } else {
+      // Desktop: single click opens view
+      handleViewAppointment(appointment);
+    }
+  }, [handleViewAppointment, handleEditAppointment, isMobile]);
+
+  const handleRowDoubleClick = useCallback((appointment: Appointment) => {
+    // Cancel any pending single tap
+    if (clickTimeoutRef.current) {
+      window.clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
+    lastTapRef.current = 0;
+    // Open edit modal
+    handleEditAppointment(appointment);
+  }, [handleEditAppointment]);
 
   const handleAppointmentUpdated = () => {
     setIsDetailModalOpen(false);
@@ -117,7 +184,9 @@ export default function TelecallerAppointmentsPage() {
         onClose={() => {
           setIsDetailModalOpen(false);
           setSelectedAppointment(null);
+          shouldOpenEditRef.current = false;
         }}
+        openInEditMode={shouldOpenEditRef.current}
       />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div>
@@ -175,7 +244,12 @@ export default function TelecallerAppointmentsPage() {
                 </tr>
               ) : (
                 filteredAppointments.map((appointment) => (
-                  <tr key={appointment.id} className="border-t border-border hover:bg-gray-50">
+                  <tr 
+                    key={appointment.id} 
+                    className="border-t border-border hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleRowClick(appointment)}
+                    onDoubleClick={() => handleRowDoubleClick(appointment)}
+                  >
                     <td className="px-4 py-2 font-medium text-text-primary">
                       {appointment.client_name || `Customer #${appointment.client}`}
                     </td>

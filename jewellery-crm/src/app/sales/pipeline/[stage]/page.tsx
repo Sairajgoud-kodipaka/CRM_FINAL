@@ -10,9 +10,11 @@ import { apiService } from '@/lib/api-service';
 import { useRouter, useParams } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatCustomerName } from '@/utils/name-utils';
 
 interface CustomerInStage {
   id: number;
+  pipeline_id?: number; // Unique pipeline entry ID
   first_name: string;
   last_name: string;
   full_name: string;
@@ -146,9 +148,13 @@ export default function SalesPipelineStagePage() {
 
           return {
             id: pipeline.client?.id || 0,
+            pipeline_id: pipeline.id || pipeline.client?.id || 0, // Use pipeline entry ID for uniqueness
             first_name: pipeline.client?.first_name || '',
             last_name: pipeline.client?.last_name || '',
-            full_name: pipeline.client?.full_name || `${pipeline.client?.first_name || ''} ${pipeline.client?.last_name || ''}`.trim(),
+            full_name: formatCustomerName({
+              first_name: pipeline.client?.first_name,
+              last_name: pipeline.client?.last_name
+            }),
             email: pipeline.client?.email || '',
             phone: pipeline.client?.phone || '',
             customer_type: pipeline.client?.customer_type || '',
@@ -398,15 +404,18 @@ export default function SalesPipelineStagePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCustomers.map((customer) => (
+                  {filteredCustomers.map((customer, index) => (
                     <TableRow
-                      key={customer.id}
+                      key={customer.pipeline_id ? `pipeline-${customer.pipeline_id}` : `customer-${customer.id}-${index}`}
                       className="hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
                       onClick={() => handleCustomerProfileClick(customer)}
                     >
                       <TableCell className="py-3">
                         <div className="space-y-1">
-                          <div className="font-medium truncate">{customer.full_name}</div>
+                          <div className="font-medium truncate">{formatCustomerName({
+                            first_name: customer.first_name,
+                            last_name: customer.last_name
+                          })}</div>
                           <div className="text-sm text-muted-foreground truncate">
                             {customer.customer_type}
                           </div>
@@ -459,12 +468,18 @@ export default function SalesPipelineStagePage() {
             <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center gap-3">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <span className="text-blue-600 text-xl font-bold">
-                  {selectedCustomerProfile?.full_name?.charAt(0)?.toUpperCase()}
+                  {formatCustomerName({
+                    first_name: selectedCustomerProfile?.first_name,
+                    last_name: selectedCustomerProfile?.last_name
+                  })?.charAt(0)?.toUpperCase()}
                 </span>
               </div>
               <div>
                 <div className="text-2xl font-bold text-gray-800">
-                  {selectedCustomerProfile?.full_name}
+                  {formatCustomerName({
+                    first_name: selectedCustomerProfile?.first_name,
+                    last_name: selectedCustomerProfile?.last_name
+                  })}
                 </div>
                 <div className="text-sm text-gray-500 font-normal">
                   Customer ID: {selectedCustomerProfile?.id}

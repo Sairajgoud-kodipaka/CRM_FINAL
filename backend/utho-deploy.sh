@@ -76,6 +76,10 @@ fi
 
 cd "$PROJECT_ROOT" || exit 1
 
+# Fix Git ownership issue (common on Utho VMs)
+log "Configuring Git safe directory..."
+git config --global --add safe.directory "$PROJECT_ROOT" || warning "Git safe directory config skipped"
+
 info "Using code from: $(pwd)"
 info "Git management handled manually"
 

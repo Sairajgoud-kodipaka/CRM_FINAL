@@ -10,9 +10,12 @@ import { apiService } from '@/lib/api-service';
 import { useRouter, useParams } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatCustomerName } from '@/utils/name-utils';
+import { formatCustomerName } from '@/utils/name-utils';
 
 interface CustomerInStage {
   id: number;
+  pipeline_id?: number; // Unique pipeline entry ID
   first_name: string;
   last_name: string;
   full_name: string;
@@ -139,9 +142,13 @@ export default function PipelineStagePage() {
 
           return {
             id: pipeline.client?.id || 0,
+            pipeline_id: pipeline.id || pipeline.client?.id || 0, // Use pipeline entry ID for uniqueness
             first_name: pipeline.client?.first_name || '',
             last_name: pipeline.client?.last_name || '',
-            full_name: pipeline.client?.full_name || `${pipeline.client?.first_name || ''} ${pipeline.client?.last_name || ''}`.trim(),
+            full_name: formatCustomerName({
+              first_name: pipeline.client?.first_name,
+              last_name: pipeline.client?.last_name
+            }),
             email: pipeline.client?.email || '',
             phone: pipeline.client?.phone || '',
             customer_type: pipeline.client?.customer_type || '',
@@ -386,15 +393,18 @@ export default function PipelineStagePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCustomers.map((customer) => (
+                  {filteredCustomers.map((customer, index) => (
                     <TableRow
-                      key={customer.id}
+                      key={customer.pipeline_id ? `pipeline-${customer.pipeline_id}` : `customer-${customer.id}-${index}`}
                       className="hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
                       onClick={() => handleCustomerProfileClick(customer)}
                     >
                       <TableCell className="py-3">
                         <div className="space-y-1">
-                          <div className="font-medium truncate">{customer.full_name}</div>
+                          <div className="font-medium truncate">{formatCustomerName({
+                            first_name: customer.first_name,
+                            last_name: customer.last_name
+                          })}</div>
                           <div className="text-sm text-muted-foreground truncate">
                             {customer.customer_type}
                           </div>
@@ -446,7 +456,10 @@ export default function PipelineStagePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="w-5 h-5" />
-              Customer Profile: {selectedCustomerProfile?.full_name}
+              Customer Profile: {formatCustomerName({
+                first_name: selectedCustomerProfile?.first_name,
+                last_name: selectedCustomerProfile?.last_name
+              })}
             </DialogTitle>
           </DialogHeader>
           {selectedCustomerProfile && (
@@ -456,7 +469,10 @@ export default function PipelineStagePage() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Full Name</label>
                   <div className="text-sm text-gray-600 p-2 bg-gray-50 rounded">
-                    {selectedCustomerProfile.full_name}
+                    {formatCustomerName({
+                      first_name: selectedCustomerProfile.first_name,
+                      last_name: selectedCustomerProfile.last_name
+                    })}
                   </div>
                 </div>
                 <div>

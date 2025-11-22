@@ -17,16 +17,17 @@ interface AppointmentDetailModalProps {
   appointment: Appointment | null;
   open: boolean;
   onClose: () => void;
+  openInEditMode?: boolean; // New prop to open directly in edit mode
 }
 
-export function AppointmentDetailModal({ appointment, open, onClose }: AppointmentDetailModalProps) {
+export function AppointmentDetailModal({ appointment, open, onClose, openInEditMode = false }: AppointmentDetailModalProps) {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const [loading, setLoading] = useState(false);
   const [showOutcomeModal, setShowOutcomeModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(openInEditMode);
   const [outcomeNotes, setOutcomeNotes] = useState('');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
@@ -55,6 +56,34 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
     }
   }, [appointment]);
 
+  // Open edit modal if openInEditMode is true (but don't show view modal)
+  useEffect(() => {
+    if (open && openInEditMode && appointment) {
+      // Pre-populate edit form immediately
+      setEditData({
+        date: appointment.date,
+        time: appointment.time,
+        purpose: appointment.purpose || '',
+        notes: appointment.notes || '',
+        location: appointment.location || '',
+        duration: appointment.duration || 60,
+        client: appointment.client.toString()
+      });
+      // Open edit modal directly, view modal will be hidden
+      setShowEditModal(true);
+    } else if (open && !openInEditMode) {
+      // If opening in view mode, make sure edit modal is closed
+      setShowEditModal(false);
+    }
+  }, [open, openInEditMode, appointment]);
+
+  // Reset edit modal state when modal closes
+  useEffect(() => {
+    if (!open) {
+      setShowEditModal(false);
+    }
+  }, [open]);
+
     const fetchCustomerAndUserNames = async () => {
     if (!appointment) return;
 
@@ -72,24 +101,43 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
         setCreatedUserName(`User #${appointment.created_by}`);
       }
 
-      // Fetch customer name and phone if not already available
+      // Set customer name from appointment data if available
       if (appointment.client_name) {
         setCustomerName(appointment.client_name);
-      } else if (appointment.client) {
+      }
+      
+      // Use client_phone from appointment data if available (comes from backend serializer)
+      if (appointment.client_phone) {
+        setCustomerPhone(appointment.client_phone || 'Not provided');
+      }
+      
+      // Fallback: Fetch customer data only if name or phone is missing
+      if ((!appointment.client_name || !appointment.client_phone) && appointment.client) {
         try {
           const customerResponse = await apiService.getClient(appointment.client.toString());
           if (customerResponse.success && customerResponse.data) {
             const customer = customerResponse.data;
-            setCustomerName(`${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer');
-            setCustomerPhone(customer.phone || 'Not provided');
+            if (!appointment.client_name) {
+              setCustomerName(`${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer');
+            }
+            if (!appointment.client_phone) {
+              setCustomerPhone(customer.phone || 'Not provided');
+            }
           } else {
-            setCustomerName(`Customer #${appointment.client}`);
-            setCustomerPhone('Not provided');
+            if (!appointment.client_name) {
+              setCustomerName(`Customer #${appointment.client}`);
+            }
+            if (!appointment.client_phone) {
+              setCustomerPhone('Not provided');
+            }
           }
         } catch (error) {
-
-          setCustomerName(`Customer #${appointment.client}`);
-          setCustomerPhone('Not provided');
+          if (!appointment.client_name) {
+            setCustomerName(`Customer #${appointment.client}`);
+          }
+          if (!appointment.client_phone) {
+            setCustomerPhone('Not provided');
+          }
         }
       }
     } catch (error) {
@@ -270,6 +318,7 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
         alert('Appointment updated successfully!');
         setShowEditModal(false);
         onClose();
+        // Refresh the page to show updated data
         window.location.reload();
       } else {
         alert('Failed to update appointment. Please try again.');
@@ -284,8 +333,9 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
 
     return (
     <>
+      {/* View Modal - only show if not opening in edit mode */}
       <ResponsiveDialog
-        open={open}
+        open={open && !openInEditMode && !showEditModal}
         onOpenChange={onClose}
         title="Appointment Details"
         description="View detailed information about this appointment"
@@ -538,7 +588,13 @@ export function AppointmentDetailModal({ appointment, open, onClose }: Appointme
        </Dialog>
 
        {/* Edit Appointment Modal */}
-       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+       <Dialog open={showEditModal} onOpenChange={(isOpen) => {
+         setShowEditModal(isOpen);
+         if (!isOpen) {
+           // When edit modal closes, also close the parent modal
+           onClose();
+         }
+       }}>
          <DialogContent className="max-w-md">
            <DialogHeader>
              <DialogTitle>Edit Appointment</DialogTitle>

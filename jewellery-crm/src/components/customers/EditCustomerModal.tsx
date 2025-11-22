@@ -262,40 +262,103 @@ const mapCustomerToInterests = (customer: Client): ProductInterest[] => {
     return [];
   }
 
-  return raw
-    .map((entry: any) => {
-      let parsed = entry;
-      if (typeof entry === "string") {
-        try {
-          parsed = JSON.parse(entry);
-        } catch {
-          parsed = {};
-        }
+  // Group interests by category to match the frontend structure
+  // The frontend expects: { mainCategory, products: [{ product, revenue }], preferences }
+  // The backend returns: [{ category: {id, name}, product: {id, name}, revenue, preferences }]
+  
+  const categoryMap = new Map<string, ProductInterest>();
+  
+  raw.forEach((entry: any) => {
+    // Handle both string (legacy) and object formats
+    let parsed = entry;
+    if (typeof entry === "string") {
+      try {
+        parsed = JSON.parse(entry);
+      } catch {
+        parsed = {};
       }
+    }
 
-      const products = Array.isArray(parsed.products)
-        ? parsed.products.map((product: any) => ({
-            product: String(product.product ?? product.id ?? ""),
-            revenue: product.revenue ? String(product.revenue) : "",
-          }))
-        : [{ product: "", revenue: "" }];
+    // Extract category - can be object {id, name} or string
+    let categoryId = "";
+    if (parsed.category) {
+      if (typeof parsed.category === "object" && parsed.category.id) {
+        categoryId = String(parsed.category.id);
+      } else if (typeof parsed.category === "string") {
+        categoryId = parsed.category;
+      } else {
+        categoryId = parsed.mainCategory || "";
+      }
+    } else {
+      categoryId = parsed.mainCategory || "";
+    }
 
-      const preferences = parsed.preferences || {};
+    // Extract product - backend returns single product object {id, name}
+    let productId = "";
+    let revenue = 0;
+    
+    if (parsed.product) {
+      if (typeof parsed.product === "object" && parsed.product.id) {
+        productId = String(parsed.product.id);
+      } else if (typeof parsed.product === "string") {
+        productId = parsed.product;
+      }
+    }
+    
+    // Revenue can be a number or string
+    if (parsed.revenue !== undefined && parsed.revenue !== null) {
+      revenue = typeof parsed.revenue === "number" ? parsed.revenue : parseFloat(String(parsed.revenue)) || 0;
+    }
 
-      return {
-        mainCategory: parsed.mainCategory || parsed.category || "",
-        products,
-        preferences: {
-          designSelected: Boolean(preferences.designSelected),
-          wantsDiscount: Boolean(preferences.wantsDiscount),
-          checkingOthers: Boolean(preferences.checkingOthers),
-          lessVariety: Boolean(preferences.lessVariety),
-          purchased: Boolean(preferences.purchased),
-          other: preferences.other || "",
-        },
-      };
-    })
-    .filter(Boolean);
+    // Extract preferences
+    const preferences = parsed.preferences || {};
+
+    // Group by category - if category already exists, add product to it
+    // Note: We use the preferences from the first entry in each category group
+    if (categoryId && productId) {
+      if (categoryMap.has(categoryId)) {
+        const existing = categoryMap.get(categoryId)!;
+        // Add product to existing category
+        existing.products.push({
+          product: productId,
+          revenue: String(revenue),
+        });
+        // Merge preferences (OR logic for booleans, keep first "other" text)
+        // This ensures all preferences are captured
+        existing.preferences = {
+          designSelected: existing.preferences.designSelected || Boolean(preferences.designSelected),
+          wantsDiscount: existing.preferences.wantsDiscount || Boolean(preferences.wantsDiscount),
+          checkingOthers: existing.preferences.checkingOthers || Boolean(preferences.checkingOthers),
+          lessVariety: existing.preferences.lessVariety || Boolean(preferences.lessVariety),
+          purchased: existing.preferences.purchased || Boolean(preferences.purchased),
+          other: existing.preferences.other || preferences.other || "",
+        };
+      } else {
+        // Create new category entry
+        categoryMap.set(categoryId, {
+          mainCategory: categoryId,
+          products: [{
+            product: productId,
+            revenue: String(revenue),
+          }],
+          preferences: {
+            designSelected: Boolean(preferences.designSelected),
+            wantsDiscount: Boolean(preferences.wantsDiscount),
+            checkingOthers: Boolean(preferences.checkingOthers),
+            lessVariety: Boolean(preferences.lessVariety),
+            purchased: Boolean(preferences.purchased),
+            other: preferences.other || "",
+          },
+        });
+      }
+    }
+  });
+
+  // Convert map to array
+  const result = Array.from(categoryMap.values());
+  
+  // If no interests were mapped, return empty array (will show empty interest form)
+  return result.length > 0 ? result : [];
 };
 
 const mapCustomerToFormData = (customer: Client): FormData => ({

@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { apiService } from '@/lib/api-service';
 import { Calendar, Eye, Search, Plus, Clock, CheckCircle, XCircle, AlertTriangle, CalendarDays, RefreshCw, Users } from 'lucide-react';
 import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 // Local interface to match backend serializer
 interface Appointment {
@@ -63,6 +64,7 @@ interface AppointmentStats {
 
 export default function SalesAppointmentsPage() {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +83,11 @@ export default function SalesAppointmentsPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
+  
+  // Refs for single/double tap detection on mobile
+  const clickTimeoutRef = useRef<number | null>(null);
+  const lastTapRef = useRef<number>(0);
+  const shouldOpenEditRef = useRef<boolean>(false);
 
   // Add Appointment Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -296,10 +303,70 @@ export default function SalesAppointmentsPage() {
     return appointmentDateTime.toDateString() === today.toDateString();
   };
 
-  const handleViewAppointment = (appointment: Appointment) => {
+  const handleViewAppointment = useCallback((appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setIsDetailModalOpen(true);
-  };
+    shouldOpenEditRef.current = false;
+  }, []);
+
+  const handleEditAppointment = useCallback((appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsDetailModalOpen(true);
+    shouldOpenEditRef.current = true; // Flag to open edit modal immediately
+  }, []);
+
+  const handleRowClick = useCallback((appointment: Appointment) => {
+    if (isMobile) {
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTapRef.current;
+      
+      if (timeSinceLastTap > 0 && timeSinceLastTap < 300) {
+        // Double tap detected - cancel single tap and open edit
+        lastTapRef.current = 0;
+        if (clickTimeoutRef.current) {
+          window.clearTimeout(clickTimeoutRef.current);
+          clickTimeoutRef.current = null;
+        }
+        // Set flag immediately to prevent view modal from opening
+        shouldOpenEditRef.current = true;
+        // Open edit modal
+        handleEditAppointment(appointment);
+        return;
+      }
+
+      // First tap - set timeout for single tap
+      lastTapRef.current = now;
+      // Reset flag for new tap sequence
+      shouldOpenEditRef.current = false;
+      
+      if (clickTimeoutRef.current) {
+        window.clearTimeout(clickTimeoutRef.current);
+      }
+
+      clickTimeoutRef.current = window.setTimeout(() => {
+        // Only open view if we haven't already opened edit (double tap didn't happen)
+        if (!shouldOpenEditRef.current) {
+          handleViewAppointment(appointment);
+        }
+        clickTimeoutRef.current = null;
+        lastTapRef.current = 0;
+      }, 300);
+    } else {
+      // Desktop: single click opens view
+      handleViewAppointment(appointment);
+    }
+  }, [handleViewAppointment, handleEditAppointment, isMobile]);
+
+  const handleRowDoubleClick = useCallback((appointment: Appointment) => {
+    // Cancel any pending single tap
+    if (clickTimeoutRef.current) {
+      window.clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
+    lastTapRef.current = 0;
+    // Open edit modal
+    handleEditAppointment(appointment);
+  }, [handleEditAppointment]);
 
   const handleRescheduleAppointment = async (appointment: Appointment) => {
     // TODO: Implement reschedule functionality
@@ -530,11 +597,13 @@ export default function SalesAppointmentsPage() {
                   return (
                     <tr
                       key={appointment.id}
-                      className={`border-t border-border hover:bg-gray-50 ${
+                      className={`border-t border-border hover:bg-gray-50 cursor-pointer ${
                         isToday ? 'bg-blue-50' : ''
                       } ${
                         isOverdue ? 'bg-orange-50' : ''
                       }`}
+                      onClick={() => handleRowClick(appointment)}
+                      onDoubleClick={() => handleRowDoubleClick(appointment)}
                     >
                       <td className="px-4 py-3 font-medium text-text-primary">
                         <div className="flex items-center gap-2">
@@ -763,7 +832,9 @@ export default function SalesAppointmentsPage() {
         onClose={() => {
           setIsDetailModalOpen(false);
           setSelectedAppointment(null);
+          shouldOpenEditRef.current = false;
         }}
+        openInEditMode={shouldOpenEditRef.current}
       />
     </div>
   );

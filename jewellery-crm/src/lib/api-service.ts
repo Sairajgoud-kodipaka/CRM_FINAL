@@ -286,6 +286,7 @@ interface Appointment {
   id: number;
   client: number;
   client_name?: string;
+  client_phone?: string;
   tenant: number;
   date: string;
   time: string;

@@ -1241,6 +1241,7 @@ class ClientInteractionSerializer(serializers.ModelSerializer):
 
 class AppointmentSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
+    client_phone = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     assigned_to_name = serializers.CharField(source='assigned_to.get_full_name', read_only=True)
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
@@ -1254,6 +1255,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
         if hasattr(obj.client, 'full_name'):
             return obj.client.full_name
         return str(obj.client)
+    
+    def get_client_phone(self, obj):
+        if obj.client and hasattr(obj.client, 'phone'):
+            return obj.client.phone or ''
+        return ''
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

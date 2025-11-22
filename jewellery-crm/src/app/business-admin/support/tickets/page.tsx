@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { apiService } from '@/lib/api-service';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useTapNavigation } from '@/hooks/useTapNavigation';
 
 interface SupportTicket {
   id: number;
@@ -38,6 +40,7 @@ interface SupportTicket {
 
 export default function SupportTicketsPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const { isAuthenticated, user, isHydrated } = useAuth();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,14 +129,25 @@ export default function SupportTicketsPage() {
     }
   };
 
-  const handleViewTicket = (ticketId: number) => {
-
+  const handleViewTicket = useCallback((ticketId: number) => {
     try {
       router.push(`/business-admin/support/tickets/${ticketId}`);
     } catch (error) {
-
+      // Handle error
     }
-  };
+  }, [router]);
+
+  // For support tickets, we only have view (navigate to detail page), no edit
+  const handleViewTicketFromRow = useCallback((ticket: any) => {
+    handleViewTicket(ticket.id);
+  }, [handleViewTicket]);
+
+  // Since tickets don't have edit, we'll use the same handler for both
+  const { handleRowClick, handleRowDoubleClick } = useTapNavigation(
+    handleViewTicketFromRow,
+    handleViewTicketFromRow, // Same as view since no edit exists
+    isMobile
+  );
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -408,7 +422,12 @@ export default function SupportTicketsPage() {
                 </tr>
               ) : (
                 filteredTickets.map((ticket) => (
-                  <tr key={ticket.id} className="border-t border-border hover:bg-gray-50">
+                  <tr 
+                    key={ticket.id} 
+                    className="border-t border-border hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleRowClick(ticket)}
+                    onDoubleClick={() => handleRowDoubleClick(ticket)}
+                  >
                     <td className="px-4 py-2 font-medium text-text-primary">{ticket.ticket_id}</td>
                     <td className="px-4 py-2 text-text-primary">{ticket.title}</td>
                     <td className="px-4 py-2">{getStatusBadge(ticket.status)}</td>

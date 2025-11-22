@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { apiService, User } from '@/lib/api-service';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useTapNavigation } from '@/hooks/useTapNavigation';
 
 interface InviteMemberData {
   username: string;
@@ -227,7 +229,7 @@ export default function ManagerTeamPage() {
     }
   };
 
-  const handleEditMember = (member: User) => {
+  const handleEditMember = useCallback((member: User) => {
     setSelectedMember(member);
     setEditData({
       first_name: member.first_name,
@@ -238,7 +240,25 @@ export default function ManagerTeamPage() {
       address: member.address || ''
     });
     setShowEditModal(true);
-  };
+  }, []);
+
+  const handleViewMember = useCallback((member: User) => {
+    // For team members, view and edit are the same - open edit modal
+    handleEditMember(member);
+  }, [handleEditMember]);
+
+  const isMobile = useIsMobile();
+  
+  // For team members, both view and edit open the same modal
+  const handleEditMemberFromRow = useCallback((member: User) => {
+    handleEditMember(member);
+  }, [handleEditMember]);
+
+  const { handleRowClick, handleRowDoubleClick } = useTapNavigation(
+    handleViewMember,
+    handleEditMemberFromRow,
+    isMobile
+  );
 
   const handleUpdateMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -419,7 +439,12 @@ export default function ManagerTeamPage() {
                 </tr>
               ) : (
                 filteredTeam.map((member, i) => (
-                  <tr key={i} className="border-t border-border hover:bg-gray-50">
+                  <tr 
+                    key={i} 
+                    className="border-t border-border hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleRowClick(member)}
+                    onDoubleClick={() => handleRowDoubleClick(member)}
+                  >
                     <td className="px-4 py-2 font-medium text-text-primary">
                       {`${member.first_name} ${member.last_name}`}
                     </td>

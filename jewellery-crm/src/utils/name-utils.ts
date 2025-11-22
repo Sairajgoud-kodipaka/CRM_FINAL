@@ -17,8 +17,19 @@ export function formatCustomerName(
   customer: NameFields, 
   fallback: string = 'Unnamed Customer'
 ): string {
-  const firstName = customer.first_name?.trim() || '';
-  const lastName = customer.last_name?.trim() || '';
+  // Handle null, undefined, empty string, or the string "None"/"null"
+  const cleanName = (name: string | null | undefined): string => {
+    if (!name) return '';
+    const trimmed = name.trim();
+    // Remove "None" or "null" strings (case insensitive)
+    if (trimmed.toLowerCase() === 'none' || trimmed.toLowerCase() === 'null') {
+      return '';
+    }
+    return trimmed;
+  };
+  
+  const firstName = cleanName(customer.first_name);
+  const lastName = cleanName(customer.last_name);
   
   if (!firstName && !lastName) {
     return fallback;
