@@ -14,9 +14,8 @@ services:
     volumes:
       - ./backend:/app
       - /app/venv  # Exclude venv from volume
-    environment:
-      - DEBUG=True
-      - DJANGO_SETTINGS_MODULE=core.settings_dev
+    env_file:
+      - ./backend/.env
     depends_on:
       - db-dev
       - redis-dev
@@ -31,9 +30,8 @@ services:
     volumes:
       - ./jewellery-crm:/app
       - /app/node_modules  # Exclude node_modules from volume
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8001
-      - NODE_ENV=development
+    env_file:
+      - ./jewellery-crm/.env.dev
 
   # Development Database
   db-dev:
