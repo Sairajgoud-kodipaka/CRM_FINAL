@@ -3,6 +3,7 @@ from .models import Client, ClientInteraction, Appointment, FollowUp, Task, Anno
 from apps.tenants.models import Tenant
 from .models import Purchase
 from shared.validators import validate_international_phone_number, normalize_phone_number
+import re
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -52,6 +53,15 @@ class ClientSerializer(serializers.ModelSerializer):
     age_of_end_user = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     next_follow_up = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     summary_notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    # New import/transaction fields
+    sr_no = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    area = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    client_category = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    preferred_flag = serializers.BooleanField(required=False, default=False)
+    attended_by = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    item_category = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    item_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    visit_date = serializers.DateField(required=False, allow_null=True)
     tags = serializers.SerializerMethodField(read_only=True)
     tag_slugs = serializers.ListField(
         child=serializers.CharField(),
@@ -105,12 +115,32 @@ class ClientSerializer(serializers.ModelSerializer):
         if not value:
             return value
         
-        normalized = normalize_phone_number(value)
+        # Check if this is an import operation - skip normalization to preserve original format
+        is_import = self.context.get('is_import', False)
+        request = self.context.get('request')
+        if request:
+            path = getattr(request, 'path', '')
+            if 'import' in path.lower() or request.path.endswith('/import/'):
+                is_import = True
+        
+        # For imports, normalize but be more careful about preserving the original format
+        if is_import:
+            # For imports, if it's already a clean 10-digit number, normalize to +91 format
+            # Otherwise, normalize normally
+            digits_only = re.sub(r'\D', '', str(value))
+            if len(digits_only) == 10:
+                # It's a 10-digit Indian number, normalize to +91 format
+                normalized = f'+91{digits_only}'
+            else:
+                # Use standard normalization
+                normalized = normalize_phone_number(value)
+        else:
+            # For manual form submissions, always normalize
+            normalized = normalize_phone_number(value)
         
         # Check for duplicate phone number (only on create, not update)
         instance = getattr(self, 'instance', None)
         if instance is None:  # This is a create operation
-            request = self.context.get('request')
             if request and hasattr(request, 'user') and request.user.is_authenticated:
                 tenant = request.user.tenant
                 if tenant:
@@ -314,6 +344,9 @@ class ClientSerializer(serializers.ModelSerializer):
             'name', 'leadSource', 'reasonForVisit', 'ageOfEndUser', 'source', 
             'nextFollowUp', 'summaryNotes', 'assigned_to', 'customer_preference',
             'tags', 'tag_slugs',
+            # New import/transaction fields
+            'sr_no', 'area', 'client_category', 'preferred_flag', 'attended_by',
+            'item_category', 'item_name', 'visit_date',
             'catchment_area', 'next_follow_up_time', 'saving_scheme',
             # Store field for store-based visibility
             'store',
@@ -328,6 +361,7 @@ class ClientSerializer(serializers.ModelSerializer):
             'product_type', 'style', 'material_type', 'material_weight', 'material_value', 'material_unit',
             'product_subtype', 'customer_preferences',
         ]
+        # created_at is read-only by default, but we handle it specially in create() for imports
         read_only_fields = ['id', 'created_at', 'updated_at', 'tags', 'is_deleted', 'deleted_at', 'created_by']
     
     def create(self, validated_data):
@@ -338,6 +372,64 @@ class ClientSerializer(serializers.ModelSerializer):
         print(f"  - product_type: {validated_data.get('product_type')}")
         print(f"  - let_him_visit: {validated_data.get('let_him_visit')}")
         print(f"  - design_number: {validated_data.get('design_number')}")
+        
+        # Handle created_at for imports - get from context (extracted in to_internal_value)
+        # Also check context in case it was passed from view
+        created_at = None
+        created_at_str = getattr(self, '_import_created_at', None)
+        if not created_at_str:
+            # Try to get from context (passed from view)
+            context = getattr(self, 'context', {})
+            created_at_str = context.get('import_created_at')
+            if created_at_str:
+                print(f"Got created_at from context: {created_at_str}")
+        if created_at_str:
+            try:
+                from django.utils.dateparse import parse_datetime, parse_date
+                from django.utils import timezone
+                from datetime import datetime, date
+                
+                print(f"Attempting to parse created_at: '{created_at_str}'")
+                
+                # First try to parse as datetime
+                created_at = parse_datetime(created_at_str)
+                
+                if not created_at:
+                    # Try parsing as date first, then convert to datetime
+                    parsed_date = parse_date(created_at_str)
+                    if parsed_date:
+                        # Convert date to datetime at start of day
+                        created_at = datetime.combine(parsed_date, datetime.min.time())
+                        print(f"Parsed as date, converted to datetime: {created_at}")
+                
+                if not created_at:
+                    # Try ISO format
+                    try:
+                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                        print(f"Parsed using fromisoformat: {created_at}")
+                    except:
+                        # Try other formats
+                        for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%Y/%m/%d']:
+                            try:
+                                created_at = datetime.strptime(created_at_str, fmt)
+                                print(f"Parsed using format {fmt}: {created_at}")
+                                break
+                            except:
+                                continue
+                
+                if created_at:
+                    # Make timezone-aware if naive
+                    if timezone.is_naive(created_at):
+                        # Use the default timezone (usually UTC or server timezone)
+                        created_at = timezone.make_aware(created_at)
+                    print(f"Final created_at (timezone-aware): {created_at}")
+                else:
+                    print(f"WARNING: Could not parse created_at string: '{created_at_str}'")
+            except Exception as e:
+                import traceback
+                print(f"ERROR parsing created_at '{created_at_str}': {e}")
+                print(traceback.format_exc())
+                created_at = None
         
         # Email optional: allow None/blank
         if 'email' in validated_data and (validated_data['email'] == '' or validated_data['email'] is None):
@@ -388,18 +480,28 @@ class ClientSerializer(serializers.ModelSerializer):
                     validated_data.pop('assigned_to')
                     print("No authenticated user, removed assigned_to field")
             else:
-                # Try to find user by username or ID
+                # Try to find user by username or ID (scoped to tenant)
                 try:
                     from apps.users.models import User
+                    request = self.context.get('request')
+                    tenant = request.user.tenant if request and hasattr(request, 'user') and request.user.is_authenticated else None
+                    
                     if assigned_to_value.isdigit():
+                        # Lookup by ID, but verify it's in the same tenant
                         user = User.objects.get(id=int(assigned_to_value))
+                        if tenant and user.tenant != tenant:
+                            raise User.DoesNotExist(f"User {assigned_to_value} not in same tenant")
                     else:
-                        user = User.objects.get(username=assigned_to_value)
+                        # Lookup by username, scoped to tenant
+                        if tenant:
+                            user = User.objects.get(username=assigned_to_value, tenant=tenant)
+                        else:
+                            user = User.objects.get(username=assigned_to_value)
                     validated_data['assigned_to'] = user
-                    print(f"Assigned customer to user: {user}")
+                    print(f"Assigned customer to user: {user.username} ({user.get_full_name() or user.username})")
                 except User.DoesNotExist:
                     validated_data.pop('assigned_to')
-                    print(f"User '{assigned_to_value}' not found, removed assigned_to field")
+                    print(f"User '{assigned_to_value}' not found in tenant, removed assigned_to field")
         
         # ALWAYS assign tenant in create method
         request = self.context.get('request')
@@ -444,6 +546,32 @@ class ClientSerializer(serializers.ModelSerializer):
         
         try:
             result = super().create(validated_data)
+            
+            # Set created_at if provided (for historical imports)
+            if created_at:
+                result.created_at = created_at
+                result.save(update_fields=['created_at'])
+                print(f"✅ Set created_at to: {created_at}")
+            else:
+                # Fallback: check if it was preserved in context
+                preserved_date = getattr(self, '_import_created_at', None)
+                if preserved_date:
+                    try:
+                        from django.utils.dateparse import parse_datetime, parse_date
+                        from django.utils import timezone
+                        from datetime import datetime
+                        
+                        parsed_date = parse_date(preserved_date) if preserved_date else None
+                        if parsed_date:
+                            created_at_dt = datetime.combine(parsed_date, datetime.min.time())
+                            if timezone.is_naive(created_at_dt):
+                                created_at_dt = timezone.make_aware(created_at_dt)
+                            result.created_at = created_at_dt
+                            result.save(update_fields=['created_at'])
+                            print(f"✅ Set created_at from preserved value: {created_at_dt}")
+                    except Exception as e:
+                        print(f"⚠️ Could not set created_at from preserved value: {e}")
+            
             print(f"=== BACKEND SERIALIZER - CREATE SUCCESS ===")
             print(f"Created client: {result}")
             
@@ -1088,6 +1216,18 @@ class ClientSerializer(serializers.ModelSerializer):
         print(f"=== TO_INTERNAL_VALUE START ===")
         print(f"Input data: {data}")
         
+        # Extract created_at from raw data before validation (since it's read-only)
+        # Store it in context for use in create() method
+        print(f"=== CHECKING FOR created_at IN INPUT DATA ===")
+        print(f"Data keys: {list(data.keys())}")
+        print(f"'created_at' in data: {'created_at' in data}")
+        if 'created_at' in data:
+            self._import_created_at = data.pop('created_at')
+            print(f"✅ Extracted created_at for import: {self._import_created_at}")
+        else:
+            self._import_created_at = None
+            print(f"❌ No created_at found in input data")
+        
         # Remove tenant field from data if it exists
         if 'tenant' in data:
             data.pop('tenant')
@@ -1116,80 +1256,98 @@ class ClientSerializer(serializers.ModelSerializer):
         """
         Custom validation for the entire data set.
         Validates required fields (marked with * in frontend) while allowing optional fields to be null.
+        Skips strict validation during CSV import operations.
         """
         print(f"=== VALIDATING ENTIRE DATA SET ===")
         print(f"Data to validate: {data}")
+        
+        # Check if this is an import operation (skip strict validation)
+        request = self.context.get('request')
+        is_import = self.context.get('is_import', False)
+        if request:
+            # Also check the request path
+            path = getattr(request, 'path', '')
+            if 'import' in path.lower() or request.path.endswith('/import/'):
+                is_import = True
         
         errors = {}
         instance = getattr(self, 'instance', None)
         
         if instance is None:
             # This is a create operation - validate required fields (marked with * in frontend)
+            # BUT skip strict validation during CSV import
             
-            # Required fields from frontend (marked with *)
-            # 1. Full Name - check first_name (last_name can be empty)
-            if not data.get('first_name') or not str(data.get('first_name', '')).strip():
-                errors['first_name'] = "Full Name is required"
-            
-            # 2. Phone Number
-            if not data.get('phone') or not str(data.get('phone', '')).strip():
-                errors['phone'] = "Phone Number is required"
-            
-            # 3. City
-            if not data.get('city') or not str(data.get('city', '')).strip():
-                errors['city'] = "City is required"
-            
-            # 4. State
-            if not data.get('state') or not str(data.get('state', '')).strip():
-                errors['state'] = "State is required"
-            
-            # 5. Catchment Area
-            if not data.get('catchment_area') or not str(data.get('catchment_area', '')).strip():
-                errors['catchment_area'] = "Catchment Area is required"
-            
-            # 6. Sales Person
-            if not data.get('sales_person') or not str(data.get('sales_person', '')).strip():
-                errors['sales_person'] = "Sales Person is required"
-            
-            # 7. Reason for Visit
-            if not data.get('reason_for_visit') or not str(data.get('reason_for_visit', '')).strip():
-                errors['reason_for_visit'] = "Reason for Visit is required"
-            
-            # 8. Lead Source
-            if not data.get('lead_source') or not str(data.get('lead_source', '')).strip():
-                errors['lead_source'] = "Lead Source is required"
-            
-            # 9. Product Type
-            if not data.get('product_type') or not str(data.get('product_type', '')).strip():
-                errors['product_type'] = "Product Type is required"
-            
-            # 10. Expected Revenue - check customer_interests_input
-            customer_interests_input = data.get('customer_interests_input', [])
-            has_revenue = False
-            if customer_interests_input:
-                for interest_str in customer_interests_input:
-                    try:
-                        import json
-                        interest_data = json.loads(interest_str)
-                        products = interest_data.get('products', [])
-                        if products and len(products) > 0:
-                            revenue = products[0].get('revenue', '')
-                            # Treat blank as 0; allow 0 as valid revenue
-                            try:
-                                revenue_str = str(revenue).strip()
-                                if revenue_str == '':
-                                    revenue_str = '0'
-                                val = float(revenue_str)
-                                if val >= 0:
-                                    has_revenue = True
-                                    break
-                            except (ValueError, TypeError):
-                                pass
-                    except (json.JSONDecodeError, KeyError, TypeError):
-                        pass
-            
-            if not has_revenue:
-                errors['customer_interests_input'] = "Expected Revenue is required (0 allowed)"
+            # For imports, only require name OR phone (at least one)
+            if is_import:
+                has_name = data.get('first_name') or data.get('last_name')
+                has_phone = data.get('phone')
+                if not has_name and not has_phone:
+                    errors['name'] = "Either name or phone is required"
+            else:
+                # Required fields from frontend (marked with *) - only for manual form submissions
+                # 1. Full Name - check first_name (last_name can be empty)
+                if not data.get('first_name') or not str(data.get('first_name', '')).strip():
+                    errors['first_name'] = "Full Name is required"
+                
+                # 2. Phone Number
+                if not data.get('phone') or not str(data.get('phone', '')).strip():
+                    errors['phone'] = "Phone Number is required"
+                
+                # 3. City
+                if not data.get('city') or not str(data.get('city', '')).strip():
+                    errors['city'] = "City is required"
+                
+                # 4. State
+                if not data.get('state') or not str(data.get('state', '')).strip():
+                    errors['state'] = "State is required"
+                
+                # 5. Catchment Area
+                if not data.get('catchment_area') or not str(data.get('catchment_area', '')).strip():
+                    errors['catchment_area'] = "Catchment Area is required"
+                
+                # 6. Sales Person
+                if not data.get('sales_person') or not str(data.get('sales_person', '')).strip():
+                    errors['sales_person'] = "Sales Person is required"
+                
+                # 7. Reason for Visit
+                if not data.get('reason_for_visit') or not str(data.get('reason_for_visit', '')).strip():
+                    errors['reason_for_visit'] = "Reason for Visit is required"
+                
+                # 8. Lead Source
+                if not data.get('lead_source') or not str(data.get('lead_source', '')).strip():
+                    errors['lead_source'] = "Lead Source is required"
+                
+                # 9. Product Type
+                if not data.get('product_type') or not str(data.get('product_type', '')).strip():
+                    errors['product_type'] = "Product Type is required"
+                
+                # 10. Expected Revenue - check customer_interests_input
+                customer_interests_input = data.get('customer_interests_input', [])
+                has_revenue = False
+                if customer_interests_input:
+                    for interest_str in customer_interests_input:
+                        try:
+                            import json
+                            interest_data = json.loads(interest_str)
+                            products = interest_data.get('products', [])
+                            if products and len(products) > 0:
+                                revenue = products[0].get('revenue', '')
+                                # Treat blank as 0; allow 0 as valid revenue
+                                try:
+                                    revenue_str = str(revenue).strip()
+                                    if revenue_str == '':
+                                        revenue_str = '0'
+                                    val = float(revenue_str)
+                                    if val >= 0:
+                                        has_revenue = True
+                                        break
+                                except (ValueError, TypeError):
+                                    pass
+                        except (json.JSONDecodeError, KeyError, TypeError):
+                            pass
+                
+                if not has_revenue:
+                    errors['customer_interests_input'] = "Expected Revenue is required (0 allowed)"
             
             # Raise errors if any required fields are missing
             if errors:

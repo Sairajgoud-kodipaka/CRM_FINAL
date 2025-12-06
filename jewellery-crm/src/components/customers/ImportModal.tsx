@@ -1,12 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Upload, Download, X, FileText, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Upload, Download, X, CheckCircle2, XCircle, Loader2, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
-import { Skeleton } from '@/components/ui/skeleton';
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -14,387 +12,665 @@ interface ImportModalProps {
   onSuccess: () => void;
 }
 
-export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [importResults, setImportResults] = useState<{ imported: number; failed: number; errors?: string[] } | null>(null);
+interface CustomerImportData {
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+  assigned_to?: string;
+  sales_person?: string;
+  status?: string;
+  catchment_area?: string;
+  lead_source?: string;
+  product_interest?: string;
+  productInterest?: string;
+  reason_for_visit?: string;
+  reasonForVisit?: string;
+  product_type?: string;
+  productType?: string;
+  date_created?: string;
+  created_at?: string;
+  [key: string]: any; // For other CSV columns
+}
 
-  const resetState = () => {
-    setFile(null);
-    setUploading(false);
+interface ImportStatus {
+  index: number;
+  status: 'pending' | 'creating' | 'success' | 'error';
+  message?: string;
+}
+
+export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [importData, setImportData] = useState<CustomerImportData[]>([]);
+  const [importStatus, setImportStatus] = useState<ImportStatus[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const resetImport = () => {
+    setSelectedFile(null);
+    setImportData([]);
+    setImportStatus([]);
     setError(null);
-    setSuccess(false);
-    setImportResults(null);
+    setIsImporting(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleClose = () => {
-    resetState();
+    resetImport();
     onClose();
   };
 
-  // Reset state when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      resetState();
-    }
-  }, [isOpen]);
-
-  const downloadTemplate = async (type: 'csv' | 'xlsx') => {
+  // Download CSV Template
+  const downloadTemplate = async () => {
     try {
-      // Call backend API to get the template
-      const response = await fetch(`/api/clients/clients/template/download/?format=${type}`, {
-        method: 'GET',
+      const response = await fetch('/api/clients/template/download/?format=csv', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
       });
-
+      
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `customers_import_template.${type}`;
-        document.body.appendChild(a);
+        a.download = 'customers_import_template.csv';
         a.click();
-        document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-      } else {
-
-        // Fallback to local generation for CSV
-        if (type === 'csv') {
-          const headers = [
-            'first_name',
-            'last_name',
-            'email',
-            'phone',
-            'address',
-            'city',
-            'state',
-            'country'
-          ];
-
-          // Create sample data row to show the format
-          const sampleData = [
-            'John',
-            'Doe',
-            'john.doe@example.com',
-            '+1234567890',
-            '123 Main Street',
-            'New York',
-            'NY',
-            'USA'
-          ];
-
-          const csvContent = headers.join(',') + '\n' + sampleData.join(',') + '\n';
-          const blob = new Blob([csvContent], { type: 'text/csv' });
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'customers_import_template.csv';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-        }
+        return;
       }
-    } catch (error) {
-
-      // Fallback to local generation for CSV
-      if (type === 'csv') {
+    } catch (e) {
+      // Fallback to local template
+    }
+    
     const headers = [
-      'first_name',
-      'last_name',
-      'email',
-      'phone',
-      'address',
-      'city',
-      'state',
-          'country'
-        ];
-
-        // Create sample data row to show the format
-        const sampleData = [
-          'John',
-          'Doe',
-          'john.doe@example.com',
-          '+1234567890',
-          '123 Main Street',
-          'New York',
-          'NY',
-          'USA'
-        ];
-
-        const csvContent = headers.join(',') + '\n' + sampleData.join(',') + '\n';
+      'first_name', 'last_name', 'email', 'phone', 'customer_type',
+      'address', 'city', 'state', 'country', 'postal_code',
+      'date_of_birth', 'anniversary_date', 'preferred_metal', 'preferred_stone',
+      'ring_size', 'budget_range', 'lead_source', 'notes', 'community',
+      'mother_tongue', 'reason_for_visit', 'age_of_end_user', 'saving_scheme', 'status', 'assigned_to'
+    ];
+    const sampleData = [
+      ['Rahul', 'Sharma', 'rahul.sharma@gmail.com', '9876543210', 'individual', '123 MG Road', 'Ahmedabad', 'Gujarat', 'India', '380001', '1990-05-15', '2015-06-20', 'Gold', 'Diamond', '16', '50000-100000', 'walk_in', 'Interested in necklaces', '', '', 'Anniversary', '30-40', '', 'general', 'admin'],
+      ['Priya', 'Patel', '', '9876543211', 'individual', '456 CG Road', 'Mumbai', 'Maharashtra', 'India', '400001', '', '', 'Silver', '', '', '25000-50000', 'referral', '', '', '', 'Gift Purchase', '25-30', '', 'vip', ''],
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...sampleData.map(row => row.join(','))
+    ].join('\n');
+    
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'customers_import_template.csv';
-    document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-      }
-    }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      // Accept CSV, XLSX, and XLS files
-      const validTypes = [
-        'text/csv',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // XLSX
-        'application/vnd.ms-excel', // XLS
-        'application/octet-stream' // Some systems may use this for Excel files
-      ];
-
-      const validExtensions = ['.csv', '.xlsx', '.xls'];
-      const hasValidType = validTypes.includes(selectedFile.type);
-      const hasValidExtension = validExtensions.some(ext => selectedFile.name.toLowerCase().endsWith(ext));
-
-      if (hasValidType || hasValidExtension) {
-        setFile(selectedFile);
-        setError(null);
-      } else {
-        setError('Please select a valid file (CSV, XLSX, or XLS)');
-        setFile(null);
-      }
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file) {
-      setError('Please select a file to upload');
+  // Parse CSV file and show preview
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const validExtensions = ['.csv', '.xlsx', '.xls'];
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+    
+    if (!validExtensions.includes(fileExtension)) {
+      setError('Please upload a CSV or Excel file (.csv, .xlsx, .xls)');
       return;
     }
 
-    try {
-      setUploading(true);
-      setError(null);
+    // For now, only handle CSV files (Excel would need a library)
+    if (fileExtension !== '.csv') {
+      setError('Excel files (.xlsx, .xls) will be supported soon. Please use CSV for now.');
+      return;
+    }
 
-      const formData = new FormData();
-      formData.append('file', file);
-
-
-
-      const response = await apiService.importCustomers(formData);
-
-
-
-      if (response.success) {
-        setSuccess(true);
-        setImportResults(response.data);
-        // Show more detailed success information
-        const importedCount = response.data?.imported || 0;
-        const failedCount = response.data?.failed || 0;
-
-        if (importedCount > 0) {
-
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          setError('CSV file must have at least a header row and one data row');
+          return;
         }
 
-        if (failedCount > 0) {
+        // Parse CSV (handle quoted fields with commas)
+        const parseCSVLine = (line: string): string[] => {
+          const result: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        };
 
-          // Show errors even if some customers were imported
-          if (response.data?.errors && response.data.errors.length > 0) {
-            setImportResults({
-              imported: importedCount,
-              failed: failedCount,
-              errors: response.data.errors
-            });
-            setSuccess(true);
-            return; // Don't close modal yet, let user see the errors
+        const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+        const parsedData: CustomerImportData[] = [];
+        
+        // Debug: Log headers to see what we're parsing
+        console.log('CSV Headers:', headers);
+        console.log('Looking for assigned_to index:', headers.indexOf('assigned_to'));
+        
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          
+          const values = parseCSVLine(lines[i]).map(v => v.replace(/^"|"$/g, '').trim());
+          if (values.length < headers.length) {
+            // Pad with empty strings if needed
+            while (values.length < headers.length) {
+              values.push('');
+            }
+          }
+          
+          const row: any = {};
+          headers.forEach((header, index) => {
+            // Store with original header name (lowercase)
+            const value = values[index] || '';
+            row[header] = value;
+            // Also store with common variations for easier lookup
+            if (header.includes('_')) {
+              const spaced = header.replace(/_/g, ' ');
+              row[spaced] = value;
+            }
+          });
+          
+          // Debug: Log first few rows to verify parsing
+          if (i <= 3) {
+            console.log(`Row ${i} - assigned_to value:`, row.assigned_to, 'Full row:', row);
+          }
+          
+          // Handle Name field (split into first_name/last_name if needed)
+          if (row.name && !row.first_name) {
+            const nameParts = row.name.split(' ', 2);
+            row.first_name = nameParts[0] || '';
+            row.last_name = nameParts[1] || '';
+          }
+          
+          // Map CSV columns to our data structure
+          // Try multiple variations of assigned_to column name (exact match from CSV)
+          // Check ALL possible variations to find the assigned_to value
+          let assignedToValue = '';
+          
+          // Try all possible column name variations
+          const assignedToKeys = [
+            'assigned_to', 'assigned to', 'assigned-to', 'assignedto',
+            'sales_person', 'sales person', 'sales-person', 'salesperson',
+            'attended_by', 'attended by', 'attended-by', 'attendedby',
+            'assigned', 'salesperson', 'attended'
+          ];
+          
+          for (const key of assignedToKeys) {
+            if (row[key] && String(row[key]).trim()) {
+              assignedToValue = String(row[key]).trim();
+              break; // Use first non-empty value found
+            }
+          }
+          
+          // Debug log for first few rows
+          if (i <= 3 && assignedToValue) {
+            console.log(`Row ${i}: Found assigned_to = "${assignedToValue}"`);
+          }
+          
+          // Get customer name - use first_name + last_name, properly formatted
+          const firstName = (row.first_name || row['first name'] || '').trim();
+          const lastName = (row.last_name || row['last name'] || '').trim();
+          const fullName = firstName && lastName ? `${firstName} ${lastName}`.trim() : 
+                          firstName || lastName || (row.name || '').trim() || '';
+          
+          // Build customer data object - preserve exact CSV values
+          const customerData: CustomerImportData = {
+            first_name: firstName,
+            last_name: lastName,
+            name: fullName,
+            email: (row.email || '').trim(),
+            phone: (row.phone || row['mobile no'] || row['mobile_no'] || row['mobile'] || '').trim(),
+            city: (row.city || '').trim(),
+            state: (row.state || '').trim(),
+            assigned_to: assignedToValue, // EXACT value from CSV - preserve as-is
+            sales_person: assignedToValue, // For display - same as assigned_to
+            status: (row.status || 'general').trim(),
+            catchment_area: (row.catchment_area || row['catchment area'] || row['catchment_area'] || row.area || '').trim(),
+            lead_source: (row.lead_source || row['lead source'] || row['lead_source'] || '').trim(),
+            product_interest: (row.product_interest || row['product interest'] || row['product_interest'] || '').trim(),
+            reason_for_visit: (row.reason_for_visit || row['reason for visit'] || row['reason_for_visit'] || '').trim(),
+            product_type: (row.product_type || row['product type'] || row['product_type'] || '').trim(),
+            date_created: (row.date_created || row['date created'] || row['date_created'] || row.created_at || row['created_at'] || '').trim(),
+          };
+          
+          // Include all other CSV fields (but don't overwrite our mapped fields)
+          Object.entries(row).forEach(([key, value]) => {
+            if (!customerData.hasOwnProperty(key)) {
+              customerData[key] = typeof value === 'string' ? value.trim() : value;
+            }
+          });
+          
+          parsedData.push(customerData);
+        }
+        
+        if (parsedData.length === 0) {
+          setError('No valid data rows found in CSV file');
+          return;
+        }
+        
+        setImportData(parsedData);
+        setImportStatus(parsedData.map((_, index) => ({ index, status: 'pending' })));
+        setSelectedFile(file);
+        setError(null);
+      } catch (err: any) {
+        setError(`Error parsing CSV file: ${err.message}`);
+      }
+    };
+    
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
+  // Import customers one by one with live status
+  const handleBulkImport = async () => {
+    if (importData.length === 0) return;
+    
+    setIsImporting(true);
+    setError(null);
+    
+    let successCount = 0;
+    
+    for (let i = 0; i < importData.length; i++) {
+      const customer = importData[i];
+      
+      // Update status to creating
+      setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'creating' } : s));
+      
+      try {
+        // Prepare customer data
+        // Priority: assigned_to > sales_person (both should be username from CSV)
+        const assignedToValue = (customer.assigned_to || customer.sales_person || '').trim();
+        
+        // Map all CSV fields and provide defaults for required fields
+        // Helper function to check if a value is empty after trimming
+        const isEmpty = (val: any) => !val || (typeof val === 'string' && val.trim() === '');
+        
+        // Parse date_created if present - convert to ISO format for backend
+        let created_at: string | null = null;
+        const dateStr = (customer.date_created || customer.created_at);
+        if (dateStr && typeof dateStr === 'string') {
+          const trimmedDateStr = dateStr.trim();
+          if (trimmedDateStr) {
+            try {
+              // Try to parse various date formats
+              // Format: YYYY-MM-DD or YYYY/MM/DD
+              const dateMatch = trimmedDateStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+              if (dateMatch) {
+                const [, year, month, day] = dateMatch;
+                // Validate the date
+                const monthNum = parseInt(month);
+                const dayNum = parseInt(day);
+                if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+                  // Convert to ISO string format: YYYY-MM-DDTHH:MM:SS
+                  const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`;
+                  created_at = isoDate;
+                  console.log(`Parsed date: ${trimmedDateStr} -> ${isoDate}`);
+                } else {
+                  console.warn(`Invalid date values: month=${monthNum}, day=${dayNum}`);
+                }
+              } else {
+                console.warn(`Date format not recognized: ${trimmedDateStr}`);
+              }
+            } catch (e) {
+              console.warn(`Could not parse date: ${trimmedDateStr}`, e);
+            }
           }
         }
-
-        setTimeout(() => {
-          onSuccess();
-          handleClose();
-        }, 2000);
-      } else {
-
-        setError(response.message || 'Failed to import customers. Please check the console for details.');
+        
+        // For required fields, use "Not Specified" if empty to satisfy backend validation
+        const customerData: any = {
+          first_name: customer.first_name || '',
+          last_name: customer.last_name || '',
+          email: customer.email || undefined,
+          phone: customer.phone || '',
+          city: isEmpty(customer.city) ? 'Not Specified' : customer.city,
+          state: isEmpty(customer.state) ? 'Not Specified' : customer.state,
+          status: customer.status || 'general',
+          catchment_area: isEmpty(customer.catchment_area) ? 'Not Specified' : customer.catchment_area,
+          lead_source: isEmpty(customer.lead_source) ? 'Not Specified' : customer.lead_source,
+          // Map sales_person from assigned_to if available
+          sales_person: isEmpty(assignedToValue) ? 'Not Specified' : assignedToValue,
+          // Provide defaults for required fields that might be missing
+          reason_for_visit: isEmpty(customer.reason_for_visit) && isEmpty(customer.reasonForVisit) 
+            ? 'Not Specified' 
+            : (customer.reason_for_visit || customer.reasonForVisit),
+          product_type: isEmpty(customer.product_type) && isEmpty(customer.productType)
+            ? 'Not Specified'
+            : (customer.product_type || customer.productType),
+          // Include created_at if we parsed a date (will be added explicitly below)
+          // For customer_interests_input, create a default entry with 0 revenue if product_interest exists
+          customer_interests_input: [],
+        };
+        
+        // If product_interest exists in CSV, create a customer interest entry
+        if (customer.product_interest || customer.productInterest) {
+          const productInterest = customer.product_interest || customer.productInterest;
+          customerData.customer_interests_input = [JSON.stringify({
+            category: 'General',
+            products: [{
+              product: productInterest,
+              revenue: '0'
+            }],
+            preferences: {}
+          })];
+        } else {
+          // Provide default empty interest with 0 revenue to satisfy validation
+          customerData.customer_interests_input = [JSON.stringify({
+            category: 'General',
+            products: [{
+              product: 'Not Specified',
+              revenue: '0'
+            }],
+            preferences: {}
+          })];
+        }
+        
+        // Only add assigned_to if it has a value (username from CSV)
+        if (assignedToValue) {
+          customerData.assigned_to = assignedToValue; // Backend will look up user by username
+        }
+        
+        // Remove undefined values but keep empty strings for required fields
+        Object.keys(customerData).forEach(key => {
+          if (customerData[key] === undefined) {
+            delete customerData[key];
+          }
+        });
+        
+        // Debug: Log if created_at is being sent
+        if (created_at) {
+          console.log(`Sending created_at for ${customer.first_name}: ${created_at}`);
+        } else {
+          console.warn(`No created_at for ${customer.first_name} - date_created was: ${customer.date_created}`);
+        }
+        
+        // Ensure created_at is explicitly included if we have it
+        if (created_at && !customerData.created_at) {
+          customerData.created_at = created_at;
+        }
+        
+        console.log(`Full customerData being sent:`, JSON.stringify(customerData, null, 2));
+        
+        const response = await apiService.createClient(customerData);
+        
+        if (response.success) {
+          setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'success' } : s));
+          successCount++;
+        } else {
+          const errorMsg = response.message || 'Failed to import';
+          setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'error', message: errorMsg } : s));
+        }
+      } catch (err: any) {
+        setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'error', message: err.message || 'Error importing customer' } : s));
       }
-    } catch (error) {
-
-      setError(`Failed to import customers: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the console for details.`);
-    } finally {
-      setUploading(false);
+      
+      // Small delay between requests to avoid overwhelming the server
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
+    
+    setIsImporting(false);
+    
+    if (successCount > 0) {
+      onSuccess();
+    }
+  };
+
+  const getCustomerName = (customer: CustomerImportData) => {
+    if (customer.name) return customer.name;
+    if (customer.first_name || customer.last_name) {
+      return `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+    }
+    return 'Unnamed Customer';
+  };
+
+  const getSalesPerson = (customer: CustomerImportData) => {
+    // Show the EXACT assigned_to value from CSV (username) - no transformation
+    // Check in order: assigned_to (from our mapping) > sales_person > raw CSV field
+    const assigned = customer.assigned_to || 
+                     customer.sales_person || 
+                     (customer as any).assigned_to || // Direct from CSV
+                     '';
+    // Return exactly as it appears in CSV (trimmed, but preserve case and format)
+    return String(assigned).trim() || '-';
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-text-primary">Import Customers</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClose}
-            className="text-text-secondary hover:text-text-primary"
-          >
+          <Button variant="ghost" size="sm" onClick={handleClose}>
             <X className="w-4 h-4" />
           </Button>
         </div>
 
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <p className="text-sm text-blue-800">
-            💡 <strong>Simple Import:</strong> Import customers with just basic info (name, contact, address).
-            You can add more details later using the edit modal.
-          </p>
-        </div>
-
-        {success ? (
-          <div className="text-center py-6">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-green-600 text-xl">✓</span>
+        <div className="space-y-4">
+          {/* CSV Format Instructions */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-900 mb-2">CSV Format</h4>
+            <p className="text-sm text-blue-800 mb-2">
+              Upload a CSV file with the following columns:
+            </p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              <Badge variant="outline" className="bg-white text-xs">first_name*</Badge>
+              <Badge variant="outline" className="bg-white text-xs">phone*</Badge>
+              <Badge variant="outline" className="bg-white text-xs">email</Badge>
+              <Badge variant="outline" className="bg-white text-xs">city</Badge>
+              <Badge variant="outline" className="bg-white text-xs">assigned_to</Badge>
+              <Badge variant="outline" className="bg-white text-xs opacity-60">+ more</Badge>
             </div>
-            <h3 className="text-lg font-medium text-text-primary mb-2">Import Successful!</h3>
-            <p className="text-text-secondary">Basic customer information has been imported successfully.</p>
-            {importResults && (
-              <div className="mt-4 text-sm text-text-secondary">
-                <p><strong>Imported:</strong> {importResults.imported} customers</p>
-                <p><strong>Failed:</strong> {importResults.failed} customers</p>
-                {importResults?.errors && importResults.errors.length > 0 && (
-                  <div className="mt-2">
-                    <p className="font-medium text-red-600">Errors:</p>
-                    <ul className="text-xs text-red-600 mt-1 max-h-32 overflow-y-auto space-y-1">
-                      {importResults.errors.map((error, index) => (
-                        <li key={index} className="break-words">• {error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-800">
-                💡 <strong>Next Step:</strong> Use the edit modal to add more details like preferences,
-                budget, and other information for each customer.
-              </p>
-            </div>
-
-            {importResults?.errors && importResults.errors.length > 0 && (
-              <div className="mt-4 flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSuccess(false);
-                    setImportResults(null);
-                    setFile(null);
-                  }}
-                  className="flex-1"
-                >
-                  Try Again
-                </Button>
-                <Button
-                  onClick={handleClose}
-                  className="flex-1"
-                >
-                  Close
-                </Button>
-              </div>
-            )}
+            <p className="text-xs text-blue-700 mb-2">
+              <strong>Required:</strong> Either email OR phone must be provided for each row.
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={downloadTemplate}
+              className="text-xs"
+            >
+              <Download className="w-3 h-3 mr-1" /> Download Template
+            </Button>
           </div>
-        ) : (
-          <>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="file" className="text-sm font-medium text-text-primary">
-                  Upload CSV File
-                </Label>
-                <div className="mt-2">
-                  <Input
-                    id="file"
-                    type="file"
-                    accept=".csv,.xlsx,.xls"
-                    onChange={handleFileChange}
-                    className="cursor-pointer"
-                  />
-                </div>
-                {file && (
-                  <div className="mt-2 flex items-center gap-2 text-sm text-text-secondary">
-                    <FileText className="w-4 h-4" />
-                    {file.name}
-                  </div>
-                )}
-                <p className="text-xs text-text-secondary mt-1">
-                  Only essential fields are required. All other details can be added later in the edit modal.
-                  Supports CSV, XLSX, and XLS files. Download the template below for the correct format.
-                </p>
-              </div>
 
-              {error && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md">
-                  <AlertCircle className="w-4 h-4 text-red-600" />
-                  <div className="text-sm text-red-600">
-                    <p>{error}</p>
-                    <p className="text-xs mt-1">Check the browser console for more details.</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="border-t pt-4">
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => downloadTemplate('csv')}
-                    className="w-full flex items-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download CSV Template
+          {/* File Upload */}
+          {importData.length === 0 && (
+            <div 
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                selectedFile ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:border-primary'
+              }`}
+            >
+              {selectedFile ? (
+                <div className="flex flex-col items-center">
+                  <FileSpreadsheet className="w-10 h-10 text-green-500 mb-3" />
+                  <p className="text-sm font-medium text-gray-700 mb-1">{selectedFile.name}</p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {(selectedFile.size / 1024).toFixed(1)} KB
+                  </p>
+                  <Button variant="ghost" size="sm" onClick={resetImport} disabled={isImporting}>
+                    <X className="w-4 h-4 mr-1" /> Remove
                   </Button>
-                <Button
-                  variant="outline"
-                    onClick={() => downloadTemplate('xlsx')}
-                  className="w-full flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                    Download Excel Template
-                </Button>
                 </div>
-                <p className="text-xs text-text-secondary mt-2 text-center">
-                  Template includes: Name, Email, Phone, Address fields only.
-                  Works with CSV, XLSX, and XLS files.
-                </p>
+              ) : (
+                <>
+                  <Upload className="w-10 h-10 mx-auto text-gray-400 mb-3" />
+                  <p className="text-sm text-gray-600 mb-2">Click to upload or drag and drop</p>
+                  <p className="text-xs text-gray-400 mb-3">CSV files</p>
+                  <Button variant="outline" size="sm" asChild>
+                    <label className="cursor-pointer">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      Select File
+                    </label>
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Preview Table */}
+          {importData.length > 0 && (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
+                <span className="text-sm font-medium">{importData.length} customers to import</span>
+                <Button variant="ghost" size="sm" onClick={resetImport} disabled={isImporting}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Customer</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Email</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Phone</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Sales Person</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">City</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {importData.map((customer, index) => {
+                      const status = importStatus[index];
+                      return (
+                        <tr 
+                          key={index} 
+                          className={
+                            status?.status === 'error' ? 'bg-red-50' : 
+                            status?.status === 'success' ? 'bg-green-50' : 
+                            status?.status === 'creating' ? 'bg-blue-50' : ''
+                          }
+                        >
+                          <td className="px-3 py-2">
+                            {status?.status === 'pending' && <span className="text-gray-400 text-lg">●</span>}
+                            {status?.status === 'creating' && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
+                            {status?.status === 'success' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                            {status?.status === 'error' && (
+                              <span title={status.message} className="cursor-help">
+                                <XCircle className="w-4 h-4 text-red-500" />
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="font-medium">{getCustomerName(customer)}</div>
+                            {status?.status === 'error' && status.message && (
+                              <div className="text-xs text-red-500 mt-1">{status.message}</div>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-gray-500">{customer.email || '-'}</td>
+                          <td className="px-3 py-2 text-gray-500 font-mono text-xs">{customer.phone || '-'}</td>
+                          <td className="px-3 py-2">
+                            <Badge variant="outline" className="text-xs">
+                              {getSalesPerson(customer)}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2 text-gray-500">{customer.city || '-'}</td>
+                          <td className="px-3 py-2">
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {customer.status || 'general'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
+          )}
 
-            <div className="flex gap-3 mt-6">
+          {/* Import Progress */}
+          {isImporting && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                <span className="text-sm text-blue-800">
+                  Importing... {importStatus.filter(s => s.status === 'success' || s.status === 'error').length} of {importData.length} completed
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded text-sm flex items-center gap-2">
+              <XCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-2">
+            {importData.length > 0 && !isImporting && (
+              <Button
+                onClick={handleBulkImport}
+                disabled={isImporting}
+                className="flex-1"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Create {importData.length} Account{importData.length !== 1 ? 's' : ''}
+              </Button>
+            )}
+            {isImporting && (
+              <Button
+                disabled
+                className="flex-1"
+              >
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Importing...
+              </Button>
+            )}
+            {importData.length > 0 && !isImporting && importStatus.some(s => s.status === 'success' || s.status === 'error') && (
               <Button
                 variant="outline"
-                onClick={handleClose}
+                onClick={resetImport}
                 className="flex-1"
-                disabled={uploading}
               >
-                Cancel
+                Import Another File
               </Button>
-              <Button
-                onClick={handleUpload}
-                disabled={!file || uploading}
-                className="flex-1 flex items-center gap-2"
-              >
-                {uploading ? (
-                  <>
-                    <Skeleton className="w-4 h-4 rounded-full" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    Import Customers
-                  </>
-                )}
-              </Button>
-            </div>
-          </>
-        )}
+            )}
+            <Button
+              variant={importData.length > 0 ? 'outline' : 'default'}
+              onClick={handleClose}
+              disabled={isImporting}
+            >
+              {importData.length > 0 && importStatus.some(s => s.status === 'success' || s.status === 'error') ? 'Done' : 'Cancel'}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

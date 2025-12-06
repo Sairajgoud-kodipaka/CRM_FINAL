@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.decorators import action
 from django.db.models import Sum, Count, Q, F
 from django.utils import timezone
@@ -135,7 +135,17 @@ class ProductCreateView(generics.CreateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated, IsRoleAllowed.for_roles(['business_admin', 'manager'])]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]  # JSONParser first for JSON requests
+    
+    def create(self, request, *args, **kwargs):
+        print(f"🔵 ProductCreateView - Request data: {request.data}")
+        print(f"🔵 ProductCreateView - Content type: {request.content_type}")
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print(f"🔴 ProductCreateView - Validation errors: {serializer.errors}")
+            return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     def perform_create(self, serializer):
         # Store and scope are set in serializer.create() method
@@ -888,8 +898,8 @@ class ProductImportView(APIView):
             
             for row_num, row in enumerate(csv_data, start=2):  # Start from 2 because row 1 is header
                 try:
-                    # Validate required fields
-                    required_fields = ['name', 'sku', 'category', 'selling_price', 'cost_price']
+                    # Validate required fields (name and category are required)
+                    required_fields = ['name', 'category']
                     missing_fields = []
                     for field in required_fields:
                         if not row.get(field):
@@ -899,17 +909,19 @@ class ProductImportView(APIView):
                         errors.append(f"Row {row_num}: Missing required fields: {', '.join(missing_fields)}")
                         continue
                     
-                    # Validate numeric fields
+                    # Parse numeric fields with defaults (allow 0 or empty values)
                     try:
-                        selling_price = Decimal(row['selling_price'])
-                        cost_price = Decimal(row['cost_price'])
-                        quantity_str = row.get('quantity', '0')
-                        quantity = int(quantity_str) if quantity_str.strip() else 0  # Default to 0 if empty or not provided
+                        selling_price_str = row.get('selling_price', '0') or '0'
+                        cost_price_str = row.get('cost_price', '0') or '0'
+                        selling_price = Decimal(selling_price_str) if selling_price_str.strip() else Decimal('0')
+                        cost_price = Decimal(cost_price_str) if cost_price_str.strip() else Decimal('0')
+                        quantity_str = row.get('quantity', '0') or '0'
+                        quantity = int(quantity_str) if quantity_str.strip() else 0
                     except (ValueError, TypeError) as e:
                         errors.append(f"Row {row_num}: Invalid numeric values - {str(e)}")
                         continue
                     
-                    # Get or create category
+                    # Get or create category (required field)
                     category_name = row['category'].strip()
                     try:
                         # Set store and scope for category based on user role
@@ -948,9 +960,17 @@ class ProductImportView(APIView):
                         errors.append(f"Row {row_num}: Error with category '{category_name}' - {str(e)}")
                         continue
                     
+                    # Generate SKU if not provided
+                    sku = (row.get('sku') or '').strip()
+                    if not sku:
+                        # Auto-generate SKU from name
+                        import uuid
+                        name_prefix = ''.join(c for c in row['name'][:3].upper() if c.isalnum())
+                        sku = f"{name_prefix}-{uuid.uuid4().hex[:6].upper()}"
+                    
                     # Check if SKU already exists (unique per tenant)
-                    if Product.objects.filter(sku=row['sku'], tenant=request.user.tenant).exists():
-                        errors.append(f"Row {row_num}: SKU '{row['sku']}' already exists in your tenant")
+                    if Product.objects.filter(sku=sku, tenant=request.user.tenant).exists():
+                        errors.append(f"Row {row_num}: SKU '{sku}' already exists in your tenant")
                         continue
                     
                     # Create product
@@ -972,7 +992,7 @@ class ProductImportView(APIView):
                         
                         product = Product.objects.create(
                             name=row['name'].strip(),
-                            sku=row['sku'].strip(),
+                            sku=sku,
                             category=category,
                             selling_price=selling_price,
                             cost_price=cost_price,

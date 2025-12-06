@@ -152,6 +152,16 @@ class Client(models.Model):
     let_him_visit = models.CharField(max_length=100, blank=True, null=True)
     design_number = models.CharField(max_length=100, blank=True, null=True)
     add_to_pipeline = models.BooleanField(default=False)
+    
+    # Import/Transaction fields from CSV
+    sr_no = models.CharField(max_length=50, blank=True, null=True, help_text=_('Reference ID from import (e.g., ZJC12010)'))
+    area = models.CharField(max_length=100, blank=True, null=True, help_text=_('Locality/neighborhood within city'))
+    client_category = models.CharField(max_length=50, blank=True, null=True, help_text=_('Customer category: Z Regular, Z Privilege, Z Loyal, Z Potential, etc.'))
+    preferred_flag = models.BooleanField(default=False, help_text=_('Preferred/VIP customer flag'))
+    attended_by = models.CharField(max_length=100, blank=True, null=True, help_text=_('Sales representative who served the customer'))
+    item_category = models.CharField(max_length=50, blank=True, null=True, help_text=_('Item category: 22ct Gold, 18ct Gold, Diamond, Villandi'))
+    item_name = models.CharField(max_length=100, blank=True, null=True, help_text=_('Product name: CHAIN, RING, SET-HALF, BRACELET, etc.'))
+    visit_date = models.DateField(blank=True, null=True, help_text=_('Date of customer visit/transaction'))
 
     # Tenant relationship
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='clients', null=True, blank=True)

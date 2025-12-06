@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Search, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, X, Upload, Download, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -69,6 +69,10 @@ export default function TeamSettingsPage() {
   const [deletingMember, setDeletingMember] = useState<number | null>(null);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importData, setImportData] = useState<CreateTeamMemberData[]>([]);
+  const [importStatus, setImportStatus] = useState<{index: number; status: 'pending' | 'creating' | 'success' | 'error'; message?: string}[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
   const [createFormData, setCreateFormData] = useState<CreateTeamMemberData>({
     username: '',
     email: '',
@@ -259,6 +263,122 @@ export default function TeamSettingsPage() {
     return member?.name || member?.username || 'Unknown';
   };
 
+  // CSV Template download
+  const downloadCSVTemplate = () => {
+    const headers = ['first_name', 'last_name', 'email', 'username', 'password', 'role', 'phone'];
+    const sampleData = [
+      ['John', 'Doe', 'john@example.com', 'johndoe', 'Pass@123', 'inhouse_sales', '+919876543210'],
+      ['Jane', 'Smith', 'jane@example.com', 'janesmith', 'Pass@456', 'manager', '+919876543211'],
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...sampleData.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'team_import_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Parse CSV file
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        setError('CSV file must have at least a header row and one data row');
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const requiredHeaders = ['first_name', 'email', 'username', 'password', 'role'];
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      
+      if (missingHeaders.length > 0) {
+        setError(`Missing required columns: ${missingHeaders.join(', ')}`);
+        return;
+      }
+
+      const parsedData: CreateTeamMemberData[] = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length < headers.length) continue;
+        
+        const row: any = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+        
+        // Map to CreateTeamMemberData
+        parsedData.push({
+          first_name: row.first_name || '',
+          last_name: row.last_name || '',
+          email: row.email || '',
+          username: row.username || '',
+          password: row.password || '',
+          role: row.role || 'inhouse_sales',
+          phone: row.phone || '',
+        });
+      }
+      
+      setImportData(parsedData);
+      setImportStatus(parsedData.map((_, index) => ({ index, status: 'pending' })));
+      setError(null);
+    };
+    
+    reader.readAsText(file);
+    // Reset input so same file can be selected again
+    event.target.value = '';
+  };
+
+  // Bulk import team members
+  const handleBulkImport = async () => {
+    if (importData.length === 0) return;
+    
+    setIsImporting(true);
+    
+    for (let i = 0; i < importData.length; i++) {
+      // Update status to creating
+      setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'creating' } : s));
+      
+      try {
+        const response = await apiService.createTeamMember(importData[i]);
+        
+        if (response.success) {
+          setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'success' } : s));
+        } else {
+          setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'error', message: response.message || 'Failed' } : s));
+        }
+      } catch (err: any) {
+        setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'error', message: err.message || 'Error' } : s));
+      }
+      
+      // Small delay between requests
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    setIsImporting(false);
+    // Refresh team members list
+    await fetchTeamMembers();
+  };
+
+  const resetImport = () => {
+    setImportData([]);
+    setImportStatus([]);
+    setError(null);
+  };
+
   const filteredTeamMembers = (teamMembers || []).filter(member => {
     const fullName = getFullName(member)?.toLowerCase() || '';
     const email = member.email?.toLowerCase() || '';
@@ -296,13 +416,23 @@ export default function TeamSettingsPage() {
           <p className="text-text-secondary mt-1">Manage your team members and roles</p>
         </div>
         
-        {/* Create Team Member Modal */}
-        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogTrigger asChild>
-            <Button className="btn-primary text-sm flex items-center gap-1">
-              <Plus className="w-4 h-4" /> Add Member
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          {/* Import Team Button */}
+          <Button 
+            variant="outline" 
+            className="text-sm flex items-center gap-1"
+            onClick={() => setShowImportModal(true)}
+          >
+            <Upload className="w-4 h-4" /> Import Team
+          </Button>
+          
+          {/* Create Team Member Modal */}
+          <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+            <DialogTrigger asChild>
+              <Button className="btn-primary text-sm flex items-center gap-1">
+                <Plus className="w-4 h-4" /> Add Member
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Add New Team Member</DialogTitle>
@@ -315,112 +445,108 @@ export default function TeamSettingsPage() {
                 </div>
               )}
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="first_name">First Name *</Label>
+              {/* Row 1: First Name & Last Name */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="first_name" className="text-sm">First Name *</Label>
                   <Input
                     id="first_name"
                     value={createFormData.first_name}
                     onChange={(e) => handleInputChange('first_name', e.target.value)}
-                    placeholder="Enter first name"
+                    placeholder="John"
+                    className="h-9"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="last_name">Last Name</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="last_name" className="text-sm">Last Name</Label>
                   <Input
                     id="last_name"
                     value={createFormData.last_name}
                     onChange={(e) => handleInputChange('last_name', e.target.value)}
-                    placeholder="Enter last name"
+                    placeholder="Doe"
+                    className="h-9"
                   />
                 </div>
               </div>
               
-              <div>
-                <Label htmlFor="username">Username *</Label>
-                <Input
-                  id="username"
-                  value={createFormData.username}
-                  onChange={(e) => handleInputChange('username', e.target.value)}
-                  placeholder="Enter username"
-                />
+              {/* Row 2: Email & Username */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-sm">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={createFormData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="john@example.com"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="username" className="text-sm">Username *</Label>
+                  <Input
+                    id="username"
+                    value={createFormData.username}
+                    onChange={(e) => handleInputChange('username', e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                    placeholder="johndoe"
+                    className="h-9"
+                  />
+                </div>
               </div>
               
-              <div>
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={createFormData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="Enter email address"
-                />
+              {/* Row 3: Role & Phone */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="role" className="text-sm">Role *</Label>
+                  <Select value={createFormData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inhouse_sales">In-House Sales</SelectItem>
+                      <SelectItem value="marketing">Marketing</SelectItem>
+                      <SelectItem value="tele_calling">Tele-Calling</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="phone" className="text-sm">Phone</Label>
+                  <PhoneInputComponent
+                    value={createFormData.phone || ''}
+                    onChange={(value) => handleInputChange('phone', value)}
+                    placeholder="Phone number"
+                    defaultCountry="IN"
+                  />
+                </div>
               </div>
               
-              <div>
-                <Label htmlFor="password">Password *</Label>
-                <PasswordInput
-                  id="password"
-                  value={createFormData.password}
-                  onChange={(value) => handleInputChange('password', value)}
-                  placeholder="Enter password"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="role">Role *</Label>
-                <Select value={createFormData.role} onValueChange={(value) => handleInputChange('role', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="inhouse_sales">In-House Sales</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="tele_calling">Tele-Calling</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <PhoneInputComponent
-                  value={createFormData.phone || ''}
-                  onChange={(value) => handleInputChange('phone', value)}
-                  placeholder="Enter phone number"
-                  defaultCountry="IN"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
-                  value={createFormData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  placeholder="Enter address"
-                  rows={3}
-                />
-              </div>
-
-                             <div>
-                 <Label htmlFor="store">Assign Store</Label>
-                 <Select value={createFormData.store?.toString() || 'none'} onValueChange={(value) => handleInputChange('store', value === 'none' ? undefined : parseInt(value, 10))}>
-                   <SelectTrigger>
-                     <SelectValue placeholder="Select a store (optional)" />
-                   </SelectTrigger>
-                   <SelectContent>
-                     <SelectItem value="none">No store assigned</SelectItem>
-                     {!Array.isArray(stores) || stores.length === 0 ? (
-                       <SelectItem value="loading" disabled>Loading stores...</SelectItem>
-                     ) : (
-                      stores.map(store => (
+              {/* Row 4: Password & Store */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-sm">Password *</Label>
+                  <PasswordInput
+                    id="password"
+                    value={createFormData.password}
+                    onChange={(value) => handleInputChange('password', value)}
+                    placeholder="Create password"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="store" className="text-sm">Assign Store</Label>
+                  <Select value={createFormData.store?.toString() || 'none'} onValueChange={(value) => handleInputChange('store', value === 'none' ? undefined : parseInt(value, 10))}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select store" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No store assigned</SelectItem>
+                      {Array.isArray(stores) && stores.map(store => (
                         <SelectItem key={store.id} value={store.id.toString()}>{store.name}</SelectItem>
-                      ))
-                     )}
-                   </SelectContent>
-                 </Select>
-               </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               
               <div className="flex gap-3 pt-4">
                 <Button
@@ -571,6 +697,180 @@ export default function TeamSettingsPage() {
                   disabled={creatingMember}
                 >
                   Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        </div>
+        
+        {/* Import Team Modal */}
+        <Dialog open={showImportModal} onOpenChange={(open) => { setShowImportModal(open); if (!open) resetImport(); }}>
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Import Team Members</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Instructions */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">CSV Format</h4>
+                <p className="text-sm text-blue-800 mb-2">
+                  Upload a CSV file with the following columns:
+                </p>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  <Badge variant="outline" className="bg-white text-xs">first_name *</Badge>
+                  <Badge variant="outline" className="bg-white text-xs">last_name</Badge>
+                  <Badge variant="outline" className="bg-white text-xs">email *</Badge>
+                  <Badge variant="outline" className="bg-white text-xs">username *</Badge>
+                  <Badge variant="outline" className="bg-white text-xs">password *</Badge>
+                  <Badge variant="outline" className="bg-white text-xs">role *</Badge>
+                  <Badge variant="outline" className="bg-white text-xs">phone</Badge>
+                </div>
+                <p className="text-xs text-blue-700 mb-2">
+                  <strong>Roles:</strong> inhouse_sales, marketing, tele_calling, manager
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={downloadCSVTemplate}
+                  className="text-xs"
+                >
+                  <Download className="w-3 h-3 mr-1" /> Download Template
+                </Button>
+              </div>
+              
+              {/* File Upload */}
+              {importData.length === 0 ? (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors">
+                  <Upload className="w-10 h-10 mx-auto text-gray-400 mb-3" />
+                  <p className="text-sm text-gray-600 mb-2">Click to upload or drag and drop</p>
+                  <p className="text-xs text-gray-400">CSV files only</p>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    style={{ position: 'relative' }}
+                  />
+                  <Button variant="outline" size="sm" className="mt-3" asChild>
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      Select CSV File
+                    </label>
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {/* Preview Table */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-2 border-b flex items-center justify-between">
+                      <span className="text-sm font-medium">{importData.length} members to import</span>
+                      <Button variant="ghost" size="sm" onClick={resetImport} disabled={isImporting}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="max-h-[250px] overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Name</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Email</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Role</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {importData.map((member, index) => {
+                            const status = importStatus[index];
+                            return (
+                              <tr key={index} className={status?.status === 'error' ? 'bg-red-50' : ''}>
+                                <td className="px-3 py-2">
+                                  {status?.status === 'pending' && <span className="text-gray-400">●</span>}
+                                  {status?.status === 'creating' && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
+                                  {status?.status === 'success' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                                  {status?.status === 'error' && (
+                                    <span title={status.message}>
+                                      <XCircle className="w-4 h-4 text-red-500" />
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2">{member.first_name} {member.last_name}</td>
+                                <td className="px-3 py-2 text-gray-500">{member.email}</td>
+                                <td className="px-3 py-2">
+                                  <Badge variant="outline" className="text-xs">{member.role}</Badge>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  {/* Import Progress */}
+                  {isImporting && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-800">
+                        Creating accounts... {importStatus.filter(s => s.status === 'success').length} of {importData.length} completed
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Results Summary */}
+                  {!isImporting && importStatus.some(s => s.status === 'success' || s.status === 'error') && (
+                    <div className="flex gap-4 text-sm">
+                      <span className="text-green-600">
+                        ✓ {importStatus.filter(s => s.status === 'success').length} created
+                      </span>
+                      {importStatus.filter(s => s.status === 'error').length > 0 && (
+                        <span className="text-red-600">
+                          ✗ {importStatus.filter(s => s.status === 'error').length} failed
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded text-sm">
+                  {error}
+                </div>
+              )}
+              
+              <div className="flex gap-3 pt-2">
+                {importData.length > 0 && !importStatus.some(s => s.status === 'success') && (
+                  <Button
+                    onClick={handleBulkImport}
+                    disabled={isImporting || importData.length === 0}
+                    className="flex-1"
+                  >
+                    {isImporting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Creating Accounts...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Create {importData.length} Accounts
+                      </>
+                    )}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => { setShowImportModal(false); resetImport(); }}
+                  disabled={isImporting}
+                  className={importData.length === 0 || importStatus.some(s => s.status === 'success') ? 'flex-1' : ''}
+                >
+                  {importStatus.some(s => s.status === 'success') ? 'Done' : 'Cancel'}
                 </Button>
               </div>
             </div>

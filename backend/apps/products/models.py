@@ -91,9 +91,9 @@ class Product(models.Model):
         related_name='products'
     )
     
-    # Pricing
-    cost_price = models.DecimalField(max_digits=10, decimal_places=2, help_text=_('Cost price'))
-    selling_price = models.DecimalField(max_digits=10, decimal_places=2, help_text=_('Selling price'))
+    # Pricing (default=0 allows import without prices, can be updated later)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text=_('Cost price'))
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text=_('Selling price'))
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     
     # Inventory (keeping for backward compatibility, will be replaced by ProductInventory)

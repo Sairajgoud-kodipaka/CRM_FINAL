@@ -1,0 +1,74 @@
+name,sku,category,cost_price,selling_price,quantity,description,min_quantity,max_quantity,weight,dimensions,material,color,size,status,is_featured,is_bestseller
+SET - LONG,SKU-001,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+SET - HALF,SKU-002,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+MANIMALA,SKU-003,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+BANGLES,SKU-004,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+CHAIN,SKU-005,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+LUCKY,SKU-006,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+KADA,SKU-007,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+TOPS,SKU-008,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+MANGALSUTRA,SKU-009,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+PENDANT SET,SKU-010,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+KANTHI,SKU-011,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+Other Items,SKU-012,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+RUDRAKSH MALA,SKU-013,22ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+BRACELET,SKU-014,18ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+RING,SKU-015,18ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+KADI,SKU-016,Diamond,0,0,0,,,,,,,,,active,FALSE,FALSE
+PENDANT,SKU-017,18ct Gold,0,0,0,,,,,,,,,active,FALSE,FALSE
+SET - CHOKER,SKU-018,Villandi,0,0,0,,,,,,,,,active,FALSE,FALSE
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,Name,SKU,Category,C.G. Road Branch,Shivranjni Branch,,,,,,,
+,,,,,SET - LONG,SKU-001,22ct Gold,,,,,,,,,
+,,,,,SET - HALF,SKU-002,22ct Gold,Salespersons (11 total):,Salespersons (5 total):,,,,,,,
+,,,,,MANIMALA,SKU-003,22ct Gold,Brinda Pandya,Kamal Baraiya,,,,,,,
+,,,,,BANGLES,SKU-004,22ct Gold,Bhavin Rajput,Jinal Parekh,,,,,,,
+,,,,,CHAIN,SKU-005,22ct Gold,Surali Dobariya,Minesh Mistry,,,,,,,
+,,,,,LUCKY,SKU-006,22ct Gold,Pratik Soni,NEHAL PATEL,,,,,,,
+,,,,,KADA,SKU-007,22ct Gold,Paresh Makwana,Yamini Parekh,,,,,,,
+,,,,,TOPS,SKU-008,22ct Gold,Bharat Patel,,,,,,,,
+,,,,,MANGALSUTRA,SKU-009,22ct Gold,Jignesh Desai,,,,,,,,
+,,,,,PENDANT SET,SKU-010,22ct Gold,Roopalie Jain,,,,,,,,
+,,,,,KANTHI,SKU-011,22ct Gold,Saurabh Shah,,,,,,,,
+,,,,,Other Items,SKU-012,22ct Gold,ZJ,,,,,,,,
+,,,,,RUDRAKSH MALA,SKU-013,22ct Gold,Manisha Namha,,,,,,,,
+,,,,,BRACELET,SKU-014,18ct Gold,,,,,,,,,
+,,,,,RING,SKU-015,18ct Gold,,,,,,,,,
+,,,,,KADI,SKU-016,Diamond,,,,,,,,,
+,,,,,PENDANT,SKU-017,18ct Gold,,,,,,,,,
+,,,,,SET - CHOKER,SKU-018,Villandi,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,C.G. Road Branch,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,Salespersons (11 total):,,,,,,,,,,,
+,,,,,Brinda Pandya,Brinda,sales123@,,,,,,,,,
+,,,,,Bhavin Rajput,Bhavin,sales123@,,,,,,,,,
+,,,,,Surali Dobariya,Surali,sales123@,,,,,,,,,
+,,,,,Pratik Soni,Pratik,sales123@,,,,,,,,,
+,,,,,Paresh Makwana,Paresh,sales123@,,,,,,,,,
+,,,,,Bharat Patel,Bharat,sales123@,,,,,,,,,
+,,,,,Jignesh Desai,Jignesh,sales123@,,,,,,,,,
+,,,,,Roopalie Jain,Roopalie,sales123@,,,,,,,,,
+,,,,,Saurabh Shah,Saurabh,sales123@,,,,,,,,,
+,,,,,ZJ,ZJ,sales123@,,,,,,,,,
+,,,,,Manisha Namha,Manisha,sales123@,,,,,,,,,

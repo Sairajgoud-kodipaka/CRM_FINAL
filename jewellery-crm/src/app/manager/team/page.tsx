@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Upload, Download, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -57,6 +57,13 @@ export default function ManagerTeamPage() {
     phone: '',
     address: ''
   });
+  
+  // Import state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importData, setImportData] = useState<InviteMemberData[]>([]);
+  const [importStatus, setImportStatus] = useState<{index: number; status: 'pending' | 'creating' | 'success' | 'error'; message?: string}[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Generate a strong default password
   const generateStrongPassword = () => {
@@ -152,6 +159,121 @@ export default function ManagerTeamPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // CSV Template download for import
+  const downloadCSVTemplate = () => {
+    const headers = ['first_name', 'last_name', 'email', 'username', 'password', 'role', 'phone'];
+    const sampleData = [
+      ['John', 'Doe', 'john@example.com', 'johndoe', 'Pass@123', 'inhouse_sales', '+919876543210'],
+      ['Jane', 'Smith', 'jane@example.com', 'janesmith', 'Pass@456', 'tele_calling', '+919876543211'],
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...sampleData.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'team_import_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Parse CSV file for import
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        setImportError('CSV file must have at least a header row and one data row');
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const requiredHeaders = ['first_name', 'email', 'username', 'password', 'role'];
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      
+      if (missingHeaders.length > 0) {
+        setImportError(`Missing required columns: ${missingHeaders.join(', ')}`);
+        return;
+      }
+
+      const parsedData: InviteMemberData[] = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length < headers.length) continue;
+        
+        const row: any = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+        
+        // Map to InviteMemberData - only roles manager can create
+        const role = row.role || 'inhouse_sales';
+        const allowedRoles = ['inhouse_sales', 'tele_calling', 'marketing'];
+        
+        parsedData.push({
+          first_name: row.first_name || '',
+          last_name: row.last_name || '',
+          email: row.email || '',
+          username: row.username || '',
+          password: row.password || '',
+          role: allowedRoles.includes(role) ? role : 'inhouse_sales',
+          phone: row.phone || '',
+        });
+      }
+      
+      setImportData(parsedData);
+      setImportStatus(parsedData.map((_, index) => ({ index, status: 'pending' })));
+      setImportError(null);
+    };
+    
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
+  // Bulk import team members
+  const handleBulkImport = async () => {
+    if (importData.length === 0) return;
+    
+    setIsImporting(true);
+    
+    for (let i = 0; i < importData.length; i++) {
+      setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'creating' } : s));
+      
+      try {
+        const response = await apiService.createTeamMember(importData[i]);
+        
+        if (response.success) {
+          setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'success' } : s));
+        } else {
+          setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'error', message: response.message || 'Failed' } : s));
+        }
+      } catch (err: any) {
+        setImportStatus(prev => prev.map(s => s.index === i ? { ...s, status: 'error', message: err.message || 'Error' } : s));
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    setIsImporting(false);
+    await fetchTeam();
+  };
+
+  const resetImport = () => {
+    setImportData([]);
+    setImportStatus([]);
+    setImportError(null);
   };
 
   const handleInviteMember = async (e: React.FormEvent) => {
@@ -393,12 +515,21 @@ export default function ManagerTeamPage() {
             </div>
           )}
         </div>
-        <Button
-          onClick={() => setShowInviteModal(true)}
-          className="btn-primary text-sm flex items-center gap-1"
-        >
-          <Plus className="w-4 h-4" /> Add Member
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowImportModal(true)}
+            className="text-sm flex items-center gap-1"
+          >
+            <Upload className="w-4 h-4" /> Import Team
+          </Button>
+          <Button
+            onClick={() => setShowInviteModal(true)}
+            className="btn-primary text-sm flex items-center gap-1"
+          >
+            <Plus className="w-4 h-4" /> Add Member
+          </Button>
+        </div>
       </div>
 
       <Card className="p-4 flex flex-col gap-4">
@@ -746,6 +877,186 @@ export default function ManagerTeamPage() {
                    disabled={deleteLoading === memberToDelete.id.toString()}
                  >
                    Cancel
+                 </Button>
+               </div>
+             </div>
+           </div>
+         </div>
+       )}
+
+       {/* Import Team Modal */}
+       {showImportModal && (
+         <div className="fixed inset-0 bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+           <div className="bg-white rounded-lg p-6 w-full max-w-[600px] max-h-[80vh] overflow-y-auto mx-4">
+             <div className="flex justify-between items-center mb-4">
+               <h2 className="text-xl font-semibold">Import Team Members</h2>
+               <Button
+                 variant="ghost"
+                 size="icon"
+                 onClick={() => { setShowImportModal(false); resetImport(); }}
+               >
+                 <X className="w-4 h-4" />
+               </Button>
+             </div>
+             
+             <div className="space-y-4">
+               {/* Instructions */}
+               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                 <h4 className="font-medium text-blue-900 mb-2">CSV Format</h4>
+                 <p className="text-sm text-blue-800 mb-2">
+                   Upload a CSV file with the following columns:
+                 </p>
+                 <div className="flex flex-wrap gap-1.5 mb-3">
+                   <Badge variant="outline" className="bg-white text-xs">first_name *</Badge>
+                   <Badge variant="outline" className="bg-white text-xs">last_name</Badge>
+                   <Badge variant="outline" className="bg-white text-xs">email *</Badge>
+                   <Badge variant="outline" className="bg-white text-xs">username *</Badge>
+                   <Badge variant="outline" className="bg-white text-xs">password *</Badge>
+                   <Badge variant="outline" className="bg-white text-xs">role *</Badge>
+                   <Badge variant="outline" className="bg-white text-xs">phone</Badge>
+                 </div>
+                 <p className="text-xs text-blue-700 mb-2">
+                   <strong>Roles:</strong> inhouse_sales, marketing, tele_calling
+                 </p>
+                 <Button 
+                   variant="outline" 
+                   size="sm" 
+                   onClick={downloadCSVTemplate}
+                   className="text-xs"
+                 >
+                   <Download className="w-3 h-3 mr-1" /> Download Template
+                 </Button>
+               </div>
+               
+               {/* File Upload */}
+               {importData.length === 0 ? (
+                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors">
+                   <Upload className="w-10 h-10 mx-auto text-gray-400 mb-3" />
+                   <p className="text-sm text-gray-600 mb-2">Click to upload or drag and drop</p>
+                   <p className="text-xs text-gray-400 mb-3">CSV files only</p>
+                   <Button variant="outline" size="sm" asChild>
+                     <label className="cursor-pointer">
+                       <input
+                         type="file"
+                         accept=".csv"
+                         onChange={handleFileUpload}
+                         className="hidden"
+                       />
+                       Select CSV File
+                     </label>
+                   </Button>
+                 </div>
+               ) : (
+                 <>
+                   {/* Preview Table */}
+                   <div className="border rounded-lg overflow-hidden">
+                     <div className="bg-gray-50 px-4 py-2 border-b flex items-center justify-between">
+                       <span className="text-sm font-medium">{importData.length} members to import</span>
+                       <Button variant="ghost" size="sm" onClick={resetImport} disabled={isImporting}>
+                         <X className="w-4 h-4" />
+                       </Button>
+                     </div>
+                     <div className="max-h-[250px] overflow-y-auto">
+                       <table className="w-full text-sm">
+                         <thead className="bg-gray-50 sticky top-0">
+                           <tr>
+                             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
+                             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Name</th>
+                             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Email</th>
+                             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Role</th>
+                           </tr>
+                         </thead>
+                         <tbody className="divide-y divide-gray-100">
+                           {importData.map((member, index) => {
+                             const status = importStatus[index];
+                             return (
+                               <tr key={index} className={status?.status === 'error' ? 'bg-red-50' : status?.status === 'success' ? 'bg-green-50' : ''}>
+                                 <td className="px-3 py-2">
+                                   {status?.status === 'pending' && <span className="text-gray-400 text-lg">●</span>}
+                                   {status?.status === 'creating' && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
+                                   {status?.status === 'success' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                                   {status?.status === 'error' && (
+                                     <span title={status.message}>
+                                       <XCircle className="w-4 h-4 text-red-500" />
+                                     </span>
+                                   )}
+                                 </td>
+                                 <td className="px-3 py-2">{member.first_name} {member.last_name}</td>
+                                 <td className="px-3 py-2 text-gray-500">{member.email}</td>
+                                 <td className="px-3 py-2">
+                                   <Badge variant="outline" className="text-xs capitalize">{member.role.replace('_', ' ')}</Badge>
+                                 </td>
+                               </tr>
+                             );
+                           })}
+                         </tbody>
+                       </table>
+                     </div>
+                   </div>
+                   
+                   {/* Import Progress */}
+                   {isImporting && (
+                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                       <div className="flex items-center gap-2">
+                         <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                         <p className="text-sm text-blue-800">
+                           Creating accounts... {importStatus.filter(s => s.status === 'success').length} of {importData.length} completed
+                         </p>
+                       </div>
+                     </div>
+                   )}
+                   
+                   {/* Results Summary */}
+                   {!isImporting && importStatus.some(s => s.status === 'success' || s.status === 'error') && (
+                     <div className="flex gap-4 text-sm">
+                       <span className="text-green-600 flex items-center gap-1">
+                         <CheckCircle2 className="w-4 h-4" />
+                         {importStatus.filter(s => s.status === 'success').length} created
+                       </span>
+                       {importStatus.filter(s => s.status === 'error').length > 0 && (
+                         <span className="text-red-600 flex items-center gap-1">
+                           <XCircle className="w-4 h-4" />
+                           {importStatus.filter(s => s.status === 'error').length} failed
+                         </span>
+                       )}
+                     </div>
+                   )}
+                 </>
+               )}
+               
+               {importError && (
+                 <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded text-sm">
+                   {importError}
+                 </div>
+               )}
+               
+               <div className="flex gap-3 pt-2">
+                 {importData.length > 0 && !importStatus.some(s => s.status === 'success') && (
+                   <Button
+                     onClick={handleBulkImport}
+                     disabled={isImporting || importData.length === 0}
+                     className="flex-1"
+                   >
+                     {isImporting ? (
+                       <>
+                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                         Creating Accounts...
+                       </>
+                     ) : (
+                       <>
+                         <Upload className="w-4 h-4 mr-2" />
+                         Create {importData.length} Accounts
+                       </>
+                     )}
+                   </Button>
+                 )}
+                 <Button
+                   variant="outline"
+                   onClick={() => { setShowImportModal(false); resetImport(); }}
+                   disabled={isImporting}
+                   className={importData.length === 0 || importStatus.some(s => s.status === 'success') ? 'flex-1' : ''}
+                 >
+                   {importStatus.some(s => s.status === 'success') ? 'Done' : 'Cancel'}
                  </Button>
                </div>
              </div>

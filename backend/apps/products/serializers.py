@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Product, Category, ProductVariant, ProductInventory, StockTransfer
+from apps.stores.models import Store
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -51,11 +52,43 @@ class ProductSerializer(serializers.ModelSerializer):
     current_price = serializers.SerializerMethodField()
     profit_margin = serializers.SerializerMethodField()
     variant_count = serializers.SerializerMethodField()
+    # Allow category to be optional (can be ID, name string, or null)
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), required=False, allow_null=True)
+    # Store is auto-assigned based on user role, so make it optional
+    store = serializers.PrimaryKeyRelatedField(queryset=Store.objects.all(), required=False, allow_null=True)
     
     class Meta:
         model = Product
         fields = '__all__'
         read_only_fields = ['tenant', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'cost_price': {'required': False, 'default': 0},
+            'selling_price': {'required': False, 'default': 0},
+        }
+    
+    def to_internal_value(self, data):
+        # Handle category as string name (for imports)
+        if 'category' in data and data['category']:
+            category_value = data['category']
+            # If it's a string (category name), look it up or create it
+            if isinstance(category_value, str) and not category_value.isdigit():
+                user = self.context['request'].user
+                store = None
+                scope = 'global'
+                if user.role == 'manager':
+                    store = user.store
+                    scope = 'store'
+                
+                category, _ = Category.objects.get_or_create(
+                    name=category_value,
+                    tenant=user.tenant,
+                    store=store,
+                    scope=scope,
+                    defaults={'is_active': True}
+                )
+                data = data.copy()
+                data['category'] = category.id
+        return super().to_internal_value(data)
     
     def get_main_image_url(self, obj):
         if obj.main_image:
