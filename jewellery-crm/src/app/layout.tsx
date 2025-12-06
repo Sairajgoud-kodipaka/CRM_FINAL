@@ -54,7 +54,6 @@ export const metadata: Metadata = {
     },
   },
   manifest: '/manifest.webmanifest',
-  themeColor: '#0a84ff',
   applicationName: 'Jewellery CRM',
   appleWebApp: {
     capable: true,
@@ -77,6 +76,7 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: '#0a84ff',
 };
 
 export default function RootLayout({
