@@ -556,6 +556,11 @@ class ClientSerializer(serializers.ModelSerializer):
             print(f"Created default tenant for unauthenticated user in create: {tenant}")
             # Store will be null for unauthenticated users
         
+        # Ensure preferred_flag is always set to False if not provided
+        if 'preferred_flag' not in validated_data or validated_data.get('preferred_flag') is None:
+            validated_data['preferred_flag'] = False
+            print(f"Set preferred_flag to False (was not provided or was None)")
+        
         print(f"Final validated data before save: {validated_data}")
         
         try:
