@@ -198,6 +198,13 @@ class Client(models.Model):
     def __str__(self):
         return self.full_name
 
+    def save(self, *args, **kwargs):
+        """Override save to ensure preferred_flag is always set"""
+        # Safety net: ensure preferred_flag is never None
+        if self.preferred_flag is None:
+            self.preferred_flag = False
+        return super().save(*args, **kwargs)
+
     @property
     def full_name(self):
         """Return full name without null values"""

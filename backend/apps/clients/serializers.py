@@ -556,12 +556,21 @@ class ClientSerializer(serializers.ModelSerializer):
             print(f"Created default tenant for unauthenticated user in create: {tenant}")
             # Store will be null for unauthenticated users
         
-        # Ensure preferred_flag is always set to False if not provided
-        if 'preferred_flag' not in validated_data or validated_data.get('preferred_flag') is None:
+        # Ensure preferred_flag is always set to False if not provided or None
+        # This is critical because the database column has a NOT NULL constraint
+        if 'preferred_flag' not in validated_data:
             validated_data['preferred_flag'] = False
-            print(f"Set preferred_flag to False (was not provided or was None)")
+            print(f"Set preferred_flag to False (field was missing)")
+        elif validated_data.get('preferred_flag') is None:
+            validated_data['preferred_flag'] = False
+            print(f"Set preferred_flag to False (was None)")
+        # Ensure it's a boolean, not a string or other type
+        if not isinstance(validated_data.get('preferred_flag'), bool):
+            validated_data['preferred_flag'] = bool(validated_data.get('preferred_flag', False))
+            print(f"Converted preferred_flag to boolean: {validated_data['preferred_flag']}")
         
         print(f"Final validated data before save: {validated_data}")
+        print(f"preferred_flag value: {validated_data.get('preferred_flag')} (type: {type(validated_data.get('preferred_flag'))})")
         
         try:
             result = super().create(validated_data)
@@ -864,6 +873,19 @@ class ClientSerializer(serializers.ModelSerializer):
                     })
                 else:
                     raise serializers.ValidationError('A customer with these details already exists. Please check your information and try again.')
+            
+            # Check if it's the preferred_flag null constraint error
+            if "preferred_flag" in str(e).lower() and "null" in str(e).lower():
+                print(f"⚠️ CRITICAL: preferred_flag is still NULL! Retrying with explicit False...")
+                # Force set it and try again
+                validated_data['preferred_flag'] = False
+                try:
+                    result = super().create(validated_data)
+                    print(f"✅ Successfully created client after preferred_flag fix")
+                    return result
+                except Exception as retry_error:
+                    print(f"❌ Retry also failed: {retry_error}")
+                    raise serializers.ValidationError('Database error: preferred_flag field issue. Please contact support.')
             
             raise serializers.ValidationError('An error occurred while creating the customer. Please try again.')
     
