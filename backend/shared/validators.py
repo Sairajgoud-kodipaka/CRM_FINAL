@@ -156,8 +156,9 @@ def normalize_phone_number(value):
     
     # Try parsing without + prefix (might be missing)
     try:
-        # Try with common regions as fallback
-        for region in ['GB', 'US', 'IN', None]:
+        # For imports/CSV, prioritize India (IN) first, then other regions
+        # Try with India first as default for imports
+        for region in ['IN', 'GB', 'US', None]:
             try:
                 parsed_number = phonenumbers.parse(value, region)
                 normalized = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)

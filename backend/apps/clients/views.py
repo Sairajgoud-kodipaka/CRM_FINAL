@@ -159,10 +159,12 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             # This allows multiple salespersons to use the same login account but be tracked individually
             selected_salesperson_id = request.data.get('sales_person_id')
             selected_salesperson_name = request.data.get('sales_person')
+            assigned_to_value = request.data.get('assigned_to')  # This comes from CSV imports
             
             print(f"=== SALESPERSON ASSIGNMENT DEBUG ===")
             print(f"Selected salesperson ID: {selected_salesperson_id} (type: {type(selected_salesperson_id)})")
             print(f"Selected salesperson name: {selected_salesperson_name}")
+            print(f"Assigned to value (from CSV): {assigned_to_value}")
             print(f"Request user tenant: {request.user.tenant}")
             print(f"Request user store: {request.user.store}")
             
@@ -189,8 +191,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 except Exception as e:
                     print(f"=== ERROR FINDING SALESPERSON BY ID: {e}, USING LOGGED-IN USER ===")
                     self.selected_salesperson = request.user
-            elif selected_salesperson_name:
-                # Fallback: Try to find user by name (for backward compatibility)
+            elif selected_salesperson_name and selected_salesperson_name.strip() and selected_salesperson_name.lower() != 'not specified':
+                # Try to find user by name (for backward compatibility)
                 try:
                     # Try to find user by first_name and last_name combination
                     name_parts = selected_salesperson_name.split()
@@ -223,6 +225,31 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         print(f"=== SALESPERSON NOT FOUND BY NAME, USING LOGGED-IN USER: {request.user.username} ===")
                 except Exception as e:
                     print(f"=== ERROR FINDING SALESPERSON BY NAME: {e}, USING LOGGED-IN USER ===")
+                    self.selected_salesperson = request.user
+            elif assigned_to_value and assigned_to_value.strip() and assigned_to_value.lower() != 'not specified':
+                # Check assigned_to field (this is what comes from CSV imports)
+                # assigned_to should be a username string
+                try:
+                    assigned_to_username = assigned_to_value.strip()
+                    # Try to find user by username (don't filter by role - CSV might have any user type)
+                    selected_user = User.objects.filter(
+                        username__iexact=assigned_to_username,
+                        tenant=request.user.tenant,
+                        is_active=True
+                    ).first()
+                    
+                    if selected_user:
+                        self.selected_salesperson = selected_user
+                        print(f"=== ASSIGNED TO USER FROM CSV assigned_to FIELD: {selected_user.first_name} {selected_user.last_name} ({selected_user.username}) ===")
+                    else:
+                        # Don't fallback to manager - let the serializer handle assigned_to lookup
+                        # The serializer will handle the assigned_to field separately
+                        # For created_by, we'll use the manager (request.user) since the user from CSV wasn't found
+                        print(f"=== USER '{assigned_to_username}' NOT FOUND FROM assigned_to, USING MANAGER FOR created_by ===")
+                        # Set to manager for created_by, but sales_person and assigned_to will still use CSV value
+                        self.selected_salesperson = request.user
+                except Exception as e:
+                    print(f"=== ERROR FINDING USER FROM assigned_to: {e}, USING MANAGER ===")
                     self.selected_salesperson = request.user
             else:
                 # No salesperson selected, use logged-in user
@@ -1129,6 +1156,32 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                             errors.append(f'Row {row_num}: Either email or phone is required')
                             continue
                         
+                        # Normalize phone number for imports - default to India (+91)
+                        if phone:
+                            from shared.validators import normalize_phone_number
+                            digits_only = re.sub(r'\D', '', str(phone))
+                            
+                            # For imports, default to India (+91) if no country code
+                            if not str(phone).strip().startswith('+'):
+                                # If it's a 10-digit number, assume it's Indian
+                                if len(digits_only) == 10:
+                                    phone = f'+91{digits_only}'
+                                # If it starts with 91 and has 12 digits, add + prefix
+                                elif digits_only.startswith('91') and len(digits_only) == 12:
+                                    phone = f'+{digits_only}'
+                                # If it has 11 digits and starts with 0, remove 0 and add +91
+                                elif len(digits_only) == 11 and digits_only.startswith('0'):
+                                    phone = f'+91{digits_only[1:]}'
+                                # For any other number without country code, assume Indian
+                                elif len(digits_only) >= 7 and len(digits_only) <= 12:
+                                    phone = f'+91{digits_only}'
+                                else:
+                                    # Use standard normalization as fallback
+                                    phone = normalize_phone_number(phone)
+                            else:
+                                # Already has country code, normalize it
+                                phone = normalize_phone_number(phone)
+                        
                         # For imports, keep email as None if not provided (don't generate placeholder)
                         # The serializer will handle None emails correctly
                         
@@ -1137,10 +1190,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         if email:
                             existing_customer = Client.objects.filter(email=email, tenant=request.user.tenant, is_deleted=False).first()
                         if not existing_customer and phone:
-                            # Normalize phone for comparison
-                            from shared.validators import normalize_phone_number
-                            normalized_phone = normalize_phone_number(phone)
-                            existing_customer = Client.objects.filter(phone=normalized_phone, tenant=request.user.tenant, is_deleted=False).first()
+                            # Phone is already normalized, use it directly for comparison
+                            existing_customer = Client.objects.filter(phone=phone, tenant=request.user.tenant, is_deleted=False).first()
                         
                         if existing_customer:
                             identifier = email if email else phone
@@ -1229,7 +1280,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                             'tenant': request.user.tenant.id if request.user.tenant else None,
                             'store': store_id,
                             # New fields from CSV
-                            'sr_no': get_value(['SR.NO', 'SR_NO', 'sr_no', 'SR No', 'Reference ID'], ''),
+                            # 'sr_no': get_value(['SR.NO', 'SR_NO', 'sr_no', 'SR No', 'Reference ID'], ''),  # Temporarily commented - uncomment after running migration 0031
                             'area': get_value(['Area', 'area', 'AREA'], ''),
                             'client_category': get_value(['Client Category', 'client_category', 'CLIENT_CATEGORY'], ''),
                             'preferred_flag': preferred_flag,
@@ -1298,7 +1349,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                             'customer_status', 'style', 'material_type', 'product_subtype',
                             'gold_range', 'diamond_range', 'customer_preferences', 'design_selected',
                             'wants_more_discount', 'checking_other_jewellers', 'let_him_visit', 'design_number',
-                            'sr_no', 'area', 'client_category', 'attended_by', 'item_category', 'item_name'
+                            # 'sr_no',  # Temporarily commented - uncomment after running migration 0031
+                            'area', 'client_category', 'attended_by', 'item_category', 'item_name'
                         ]
                         for field in string_fields:
                             if field in client_data:

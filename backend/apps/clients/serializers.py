@@ -54,7 +54,7 @@ class ClientSerializer(serializers.ModelSerializer):
     next_follow_up = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     summary_notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     # New import/transaction fields
-    sr_no = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    # sr_no = serializers.CharField(required=False, allow_blank=True, allow_null=True)  # Removed - not in CSV and migration not applied
     area = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     client_category = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     preferred_flag = serializers.BooleanField(required=False, default=False)
@@ -123,16 +123,29 @@ class ClientSerializer(serializers.ModelSerializer):
             if 'import' in path.lower() or request.path.endswith('/import/'):
                 is_import = True
         
-        # For imports, normalize but be more careful about preserving the original format
+        # For imports, default to India (+91) for numbers without country code
         if is_import:
-            # For imports, if it's already a clean 10-digit number, normalize to +91 format
-            # Otherwise, normalize normally
+            # For imports, default to India (+91) for numbers without country code
             digits_only = re.sub(r'\D', '', str(value))
+            
+            # If it's a 10-digit number, assume it's Indian
             if len(digits_only) == 10:
-                # It's a 10-digit Indian number, normalize to +91 format
+                normalized = f'+91{digits_only}'
+            # If it starts with 91 and has 12 digits, it's already Indian format
+            elif digits_only.startswith('91') and len(digits_only) == 12:
+                normalized = f'+{digits_only}'
+            # If it has 11 digits and starts with 0, remove 0 and add +91
+            elif len(digits_only) == 11 and digits_only.startswith('0'):
+                normalized = f'+91{digits_only[1:]}'
+            # If it already starts with +, use standard normalization
+            elif str(value).strip().startswith('+'):
+                normalized = normalize_phone_number(value)
+            # For any other number without country code, assume it's Indian and add +91
+            elif len(digits_only) >= 7 and len(digits_only) <= 12:
+                # Default to India for imports - add +91 prefix
                 normalized = f'+91{digits_only}'
             else:
-                # Use standard normalization
+                # Use standard normalization as fallback
                 normalized = normalize_phone_number(value)
         else:
             # For manual form submissions, always normalize
@@ -345,7 +358,8 @@ class ClientSerializer(serializers.ModelSerializer):
             'nextFollowUp', 'summaryNotes', 'assigned_to', 'customer_preference',
             'tags', 'tag_slugs',
             # New import/transaction fields
-            'sr_no', 'area', 'client_category', 'preferred_flag', 'attended_by',
+            # 'sr_no',  # Temporarily commented out - uncomment after running migration 0031_add_import_transaction_fields
+            'area', 'client_category', 'preferred_flag', 'attended_by',
             'item_category', 'item_name', 'visit_date',
             'catchment_area', 'next_follow_up_time', 'saving_scheme',
             # Store field for store-based visibility
