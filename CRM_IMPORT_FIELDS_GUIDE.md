@@ -29,7 +29,11 @@ Based on your CSV file `feedbackmain_shivaranjni_cleaned (3).csv`, here are the 
 
 3. **`product_type`**: Can contain multiple values separated by commas (e.g., "22ct Gold, Gold, Villandi"). Stored as text.
 
-4. **`created_at`**: Date format should be DD-MM-YYYY (e.g., "28-08-2025"). The system will parse this into a proper DateTime.
+4. **`created_at`**: Date format should be **DD-MM-YYYY** (e.g., `28-08-2025`). 
+   - **IMPORTANT**: Dates must be plain text without quotes (no `'28-08-2025` or `"28-08-2025"`)
+   - Format: `DD-MM-YYYY` (day-month-year with dashes)
+   - Examples: `28-08-2025`, `04-11-2025`, `31-12-2024`
+   - The system will parse this into a proper DateTime.
 
 ## Customer Table Structure in CRM
 

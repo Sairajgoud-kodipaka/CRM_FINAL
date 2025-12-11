@@ -138,8 +138,14 @@ sudo journalctl -u crm-backend.service -f
 # Restart backend
 sudo systemctl restart crm-backend.service
 
+# Restart ALL services (one command)
+sudo systemctl restart crm-backend.service nginx.service postgresql.service redis.service 2>/dev/null; echo "✅ All services restarted"
+
 # Check service status
 sudo systemctl status crm-backend.service
+
+# Check all services status
+sudo systemctl status crm-backend.service nginx.service postgresql.service redis.service
 
 # Test API
 curl http://localhost:8000/api/health/

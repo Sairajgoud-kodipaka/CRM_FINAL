@@ -145,17 +145,20 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           return;
         }
 
-        // Parse CSV (handle quoted fields with commas)
+        // Parse CSV (handle quoted fields with commas - both double and single quotes)
         const parseCSVLine = (line: string): string[] => {
           const result: string[] = [];
           let current = '';
-          let inQuotes = false;
+          let inDoubleQuotes = false;
+          let inSingleQuotes = false;
           
           for (let i = 0; i < line.length; i++) {
             const char = line[i];
             if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
+              inDoubleQuotes = !inDoubleQuotes;
+            } else if (char === "'") {
+              inSingleQuotes = !inSingleQuotes;
+            } else if (char === ',' && !inDoubleQuotes && !inSingleQuotes) {
               result.push(current.trim());
               current = '';
             } else {
@@ -176,7 +179,15 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           
-          const values = parseCSVLine(lines[i]).map(v => v.replace(/^"|"$/g, '').trim());
+          const values = parseCSVLine(lines[i]).map(v => {
+            // Strip both double and single quotes from start/end
+            let cleaned = v.replace(/^["']+|["']+$/g, '').trim();
+            // Handle unclosed single quotes (common in date fields like '28-08-2025)
+            if (cleaned.startsWith("'") && !cleaned.endsWith("'")) {
+              cleaned = cleaned.replace(/^'+/g, '');
+            }
+            return cleaned;
+          });
           if (values.length < headers.length) {
             // Pad with empty strings if needed
             while (values.length < headers.length) {
@@ -187,7 +198,9 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           const row: any = {};
           headers.forEach((header, index) => {
             // Store with original header name (lowercase)
-            const value = values[index] || '';
+            let value = values[index] || '';
+            // Additional cleanup: strip any remaining leading/trailing quotes
+            value = value.replace(/^['"]+|['"]+$/g, '').trim();
             row[header] = value;
             // Also store with common variations for easier lookup
             if (header.includes('_')) {
@@ -256,9 +269,9 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
             product_interest: (row.product_interest || row['product interest'] || row['product_interest'] || '').trim(),
             reason_for_visit: (row.reason_for_visit || row['reason for visit'] || row['reason_for_visit'] || '').trim(),
             product_type: (row.product_type || row['product type'] || row['product_type'] || '').trim(),
-            date_created: (row.date_created || row['date created'] || row['date_created'] || row.created_at || row['created_at'] || '').trim(),
-            // Explicitly preserve created_at from CSV if it exists
-            created_at: (row.created_at || row['created_at'] || '').trim(),
+            date_created: (row.date_created || row['date created'] || row['date_created'] || row.created_at || row['created_at'] || '').trim().replace(/^['"]+|['"]+$/g, ''),
+            // Explicitly preserve created_at from CSV if it exists - strip quotes (handles unclosed quotes)
+            created_at: (row.created_at || row['created_at'] || '').trim().replace(/^['"]+|['"]+$/g, ''),
           };
           
           // Include all other CSV fields (but don't overwrite our mapped fields)
@@ -330,13 +343,18 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         });
         
         if (dateStr && typeof dateStr === 'string') {
-          const trimmedDateStr = dateStr.trim();
+          // Strip any leading/trailing quotes (single or double) from date string
+          let trimmedDateStr = dateStr.trim().replace(/^['"]+|['"]+$/g, '');
           if (trimmedDateStr && trimmedDateStr !== 'NULL' && trimmedDateStr !== 'null') {
             try {
               // Try to parse various date formats
+              let year: string = '';
+              let month: string = '';
+              let day: string = '';
+              let dateMatch: RegExpMatchArray | null = null;
+              
               // First try: YYYY-MM-DD or YYYY/MM/DD (year first)
-              let dateMatch = trimmedDateStr.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
-              let year: string, month: string, day: string;
+              dateMatch = trimmedDateStr.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
               
               if (dateMatch) {
                 [, year, month, day] = dateMatch;
@@ -358,7 +376,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                 }
               }
               
-              if (dateMatch) {
+              if (dateMatch && year && month && day) {
                 // Validate the date
                 const monthNum = parseInt(month);
                 const dayNum = parseInt(day);

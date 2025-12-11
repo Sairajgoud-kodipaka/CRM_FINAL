@@ -421,6 +421,18 @@ class ClientSerializer(serializers.ModelSerializer):
                 if not created_at:
                     # Try parsing as date first, then convert to datetime
                     parsed_date = parse_date(created_at_str)
+                    if not parsed_date:
+                        # Try DD-MM-YYYY format (Indian format) which parse_date doesn't support
+                        try:
+                            parsed_date = datetime.strptime(created_at_str.strip(), '%d-%m-%Y').date()
+                            print(f"✅ Parsed DD-MM-YYYY date: {parsed_date}")
+                        except ValueError:
+                            try:
+                                parsed_date = datetime.strptime(created_at_str.strip(), '%d/%m/%Y').date()
+                                print(f"✅ Parsed DD/MM/YYYY date: {parsed_date}")
+                            except ValueError:
+                                parsed_date = None
+                    
                     if parsed_date:
                         # Convert date to datetime at start of day
                         created_at = datetime.combine(parsed_date, datetime.min.time())
@@ -607,7 +619,21 @@ class ClientSerializer(serializers.ModelSerializer):
                         from django.utils import timezone
                         from datetime import datetime
                         
+                        # Try parse_date first (for ISO format)
                         parsed_date = parse_date(preserved_date) if preserved_date else None
+                        
+                        # If parse_date fails, try strptime with DD-MM-YYYY format
+                        if not parsed_date:
+                            try:
+                                parsed_date = datetime.strptime(preserved_date.strip(), '%d-%m-%Y').date()
+                                print(f"✅ Parsed DD-MM-YYYY date: {parsed_date}")
+                            except ValueError:
+                                try:
+                                    parsed_date = datetime.strptime(preserved_date.strip(), '%d/%m/%Y').date()
+                                    print(f"✅ Parsed DD/MM/YYYY date: {parsed_date}")
+                                except ValueError:
+                                    print(f"⚠️ Could not parse preserved date: {preserved_date}")
+                        
                         if parsed_date:
                             created_at_dt = datetime.combine(parsed_date, datetime.min.time())
                             if timezone.is_naive(created_at_dt):
@@ -617,6 +643,8 @@ class ClientSerializer(serializers.ModelSerializer):
                             print(f"✅ Set created_at from preserved value: {created_at_dt}")
                     except Exception as e:
                         print(f"⚠️ Could not set created_at from preserved value: {e}")
+                        import traceback
+                        print(traceback.format_exc())
             
             print(f"=== BACKEND SERIALIZER - CREATE SUCCESS ===")
             print(f"Created client: {result}")
