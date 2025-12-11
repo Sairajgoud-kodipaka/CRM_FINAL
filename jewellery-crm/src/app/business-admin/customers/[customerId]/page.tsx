@@ -285,6 +285,16 @@ export default function CustomerDetailPage() {
                   Customer since {new Date(customer.created_at).toLocaleDateString()}
                 </span>
               </div>
+
+              {/* Store information - only for business admin */}
+              {user?.role === 'business_admin' && (
+                <div className="flex items-center space-x-3">
+                  <Building className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">
+                    Store: {(customer as any).store_name || ((customer as any).store ? `Store #${(customer as any).store}` : 'Not assigned')}
+                  </span>
+                </div>
+              )}
             </div>
           </CardContainer>
 

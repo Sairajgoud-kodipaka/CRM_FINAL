@@ -126,6 +126,7 @@ export interface Customer {
   }>;
   tenant?: number;
   store?: number;
+  store_name?: string;
   tags: number[];
   created_at: string;
   updated_at: string;

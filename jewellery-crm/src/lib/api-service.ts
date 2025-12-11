@@ -131,6 +131,7 @@ interface Client {
 
   tenant?: number;
   store?: number;
+  store_name?: string;
   tags: number[];
   created_at: string;
   updated_at: string;
@@ -1106,12 +1107,23 @@ class ApiService {
 
   async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
     // Clean payload: remove undefined/null and empty string values to avoid serializer issues
+    // BUT preserve created_at even if it seems like an empty string (it's for historical imports)
     const cleaned: Record<string, any> = {};
+    const preservedCreatedAt = clientData.created_at;
     Object.entries(clientData || {}).forEach(([key, value]) => {
       if (value === undefined || value === null) return;
+      // Don't filter out created_at - it's needed for historical date imports
+      if (key === 'created_at') {
+        cleaned[key] = value;
+        return;
+      }
       if (typeof value === 'string' && value.trim() === '') return;
       cleaned[key] = value;
     });
+    // Ensure created_at is included if it was present
+    if (preservedCreatedAt && !cleaned.created_at) {
+      cleaned.created_at = preservedCreatedAt;
+    }
 
     const response = await this.request<Client>('/clients/clients/', {
       method: 'POST',

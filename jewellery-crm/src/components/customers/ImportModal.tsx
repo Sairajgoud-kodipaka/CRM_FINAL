@@ -257,6 +257,8 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
             reason_for_visit: (row.reason_for_visit || row['reason for visit'] || row['reason_for_visit'] || '').trim(),
             product_type: (row.product_type || row['product type'] || row['product_type'] || '').trim(),
             date_created: (row.date_created || row['date created'] || row['date_created'] || row.created_at || row['created_at'] || '').trim(),
+            // Explicitly preserve created_at from CSV if it exists
+            created_at: (row.created_at || row['created_at'] || '').trim(),
           };
           
           // Include all other CSV fields (but don't overwrite our mapped fields)
@@ -265,6 +267,11 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
               customerData[key] = typeof value === 'string' ? value.trim() : value;
             }
           });
+          
+          // Ensure created_at is preserved from CSV if date_created wasn't found
+          if (!customerData.date_created && customerData.created_at) {
+            customerData.date_created = customerData.created_at;
+          }
           
           parsedData.push(customerData);
         }
@@ -313,34 +320,77 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         
         // Parse date_created if present - convert to ISO format for backend
         let created_at: string | null = null;
-        const dateStr = (customer.date_created || customer.created_at);
+        // Check both date_created and created_at fields, and also check raw CSV fields
+        const dateStr = customer.date_created || customer.created_at || (customer as any).created_at || (customer as any).date_created;
+        console.log(`[DATE PARSE] Checking date for ${customer.first_name}:`, {
+          date_created: customer.date_created,
+          created_at: customer.created_at,
+          raw: (customer as any).created_at,
+          dateStr
+        });
+        
         if (dateStr && typeof dateStr === 'string') {
           const trimmedDateStr = dateStr.trim();
-          if (trimmedDateStr) {
+          if (trimmedDateStr && trimmedDateStr !== 'NULL' && trimmedDateStr !== 'null') {
             try {
               // Try to parse various date formats
-              // Format: YYYY-MM-DD or YYYY/MM/DD
-              const dateMatch = trimmedDateStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+              // First try: YYYY-MM-DD or YYYY/MM/DD (year first)
+              let dateMatch = trimmedDateStr.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+              let year: string, month: string, day: string;
+              
               if (dateMatch) {
-                const [, year, month, day] = dateMatch;
+                [, year, month, day] = dateMatch;
+                console.log(`✅ [DATE PARSE] Matched YYYY-MM-DD format: year=${year}, month=${month}, day=${day}`);
+              } else {
+                // Second try: DD-MM-YYYY or DD/MM/YYYY (day first - common in Indian format)
+                // Use ^ and $ anchors to ensure full string match
+                dateMatch = trimmedDateStr.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+                if (dateMatch) {
+                  [, day, month, year] = dateMatch;
+                  console.log(`✅ [DATE PARSE] Matched DD-MM-YYYY format: day=${day}, month=${month}, year=${year}`);
+                } else {
+                  // Third try: More flexible pattern without anchors (in case of extra whitespace)
+                  dateMatch = trimmedDateStr.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+                  if (dateMatch) {
+                    [, day, month, year] = dateMatch;
+                    console.log(`✅ [DATE PARSE] Matched DD-MM-YYYY format (flexible): day=${day}, month=${month}, year=${year}`);
+                  }
+                }
+              }
+              
+              if (dateMatch) {
                 // Validate the date
                 const monthNum = parseInt(month);
                 const dayNum = parseInt(day);
-                if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
-                  // Convert to ISO string format: YYYY-MM-DDTHH:MM:SS
-                  const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`;
-                  created_at = isoDate;
-                  console.log(`Parsed date: ${trimmedDateStr} -> ${isoDate}`);
+                const yearNum = parseInt(year);
+                
+                // Basic validation
+                if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900 && yearNum <= 2100) {
+                  // Send date as DD-MM-YYYY format - backend will parse it
+                  // Format: DD-MM-YYYY (e.g., "28-08-2025")
+                  const formattedDate = `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
+                  created_at = formattedDate;
+                  console.log(`✅ [DATE PARSE] Successfully parsed date: ${trimmedDateStr} -> ${formattedDate} (sending as DD-MM-YYYY to backend)`);
                 } else {
-                  console.warn(`Invalid date values: month=${monthNum}, day=${dayNum}`);
+                  console.warn(`❌ [DATE PARSE] Invalid date values: year=${yearNum}, month=${monthNum}, day=${dayNum}`);
                 }
               } else {
-                console.warn(`Date format not recognized: ${trimmedDateStr}`);
+                // If no match, try to send the date as-is if it looks like DD-MM-YYYY
+                if (trimmedDateStr.match(/^\d{1,2}[-\/]\d{1,2}[-\/]\d{4}$/)) {
+                  created_at = trimmedDateStr.replace(/\//g, '-'); // Convert slashes to dashes
+                  console.log(`✅ [DATE PARSE] Sending date as-is (DD-MM-YYYY): ${created_at}`);
+                } else {
+                  console.warn(`❌ [DATE PARSE] Date format not recognized: ${trimmedDateStr}`);
+                }
               }
             } catch (e) {
-              console.warn(`Could not parse date: ${trimmedDateStr}`, e);
+              console.warn(`❌ [DATE PARSE] Could not parse date: ${trimmedDateStr}`, e);
             }
+          } else {
+            console.warn(`⚠️ [DATE PARSE] Date string is empty or NULL: ${trimmedDateStr}`);
           }
+        } else {
+          console.warn(`⚠️ [DATE PARSE] No date string found for ${customer.first_name}`);
         }
         
         // For required fields, use "Not Specified" if empty to satisfy backend validation
@@ -363,7 +413,8 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           product_type: isEmpty(customer.product_type) && isEmpty(customer.productType)
             ? 'Not Specified'
             : (customer.product_type || customer.productType),
-          // Include created_at if we parsed a date (will be added explicitly below)
+          // Include created_at if we parsed a date
+          ...(created_at ? { created_at } : {}),
           // For customer_interests_input, create a default entry with 0 revenue if product_interest exists
           customer_interests_input: [],
         };
@@ -397,25 +448,27 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         }
         
         // Remove undefined values but keep empty strings for required fields
+        // BUT preserve created_at even if it seems undefined (it's a string)
+        const preservedCreatedAt = customerData.created_at;
         Object.keys(customerData).forEach(key => {
           if (customerData[key] === undefined) {
             delete customerData[key];
           }
         });
+        // Re-add created_at if it was present
+        if (preservedCreatedAt) {
+          customerData.created_at = preservedCreatedAt;
+        }
         
-        // Debug: Log if created_at is being sent
+        // Final check: Ensure created_at is explicitly included if we have it
         if (created_at) {
-          console.log(`Sending created_at for ${customer.first_name}: ${created_at}`);
-        } else {
-          console.warn(`No created_at for ${customer.first_name} - date_created was: ${customer.date_created}`);
-        }
-        
-        // Ensure created_at is explicitly included if we have it
-        if (created_at && !customerData.created_at) {
           customerData.created_at = created_at;
+          console.log(`✅ [IMPORT] Sending created_at for ${customer.first_name}: ${created_at}`);
+        } else {
+          console.warn(`⚠️ [IMPORT] No created_at for ${customer.first_name} - date_created was: ${customer.date_created}, created_at was: ${customer.created_at}`);
         }
         
-        console.log(`Full customerData being sent:`, JSON.stringify(customerData, null, 2));
+        console.log(`📤 [IMPORT] Full customerData being sent for ${customer.first_name}:`, JSON.stringify(customerData, null, 2));
         
         const response = await apiService.createClient(customerData);
         

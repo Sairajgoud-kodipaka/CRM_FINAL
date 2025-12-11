@@ -88,6 +88,9 @@ class ClientSerializer(serializers.ModelSerializer):
     # Created by field to show who created the customer
     created_by = serializers.SerializerMethodField()
     
+    # Store name field for display
+    store_name = serializers.SerializerMethodField()
+    
     def get_created_by(self, obj):
         if obj.created_by:
             return {
@@ -96,6 +99,11 @@ class ClientSerializer(serializers.ModelSerializer):
                 'last_name': obj.created_by.last_name,
                 'username': obj.created_by.username
             }
+        return None
+    
+    def get_store_name(self, obj):
+        if obj.store:
+            return obj.store.name
         return None
     
     def validate_date_of_birth(self, value):
@@ -357,13 +365,15 @@ class ClientSerializer(serializers.ModelSerializer):
             'name', 'leadSource', 'reasonForVisit', 'ageOfEndUser', 'source', 
             'nextFollowUp', 'summaryNotes', 'assigned_to', 'customer_preference',
             'tags', 'tag_slugs',
+            # Store information
+            'store', 'store_name',
             # New import/transaction fields
             # 'sr_no',  # Temporarily commented out - uncomment after running migration 0031_add_import_transaction_fields
             'area', 'client_category', 'preferred_flag', 'attended_by',
             'item_category', 'item_name', 'visit_date',
             'catchment_area', 'next_follow_up_time', 'saving_scheme',
             # Store field for store-based visibility
-            'store',
+            'store', 'store_name',
             # User who created the customer
             'created_by',
             # Customer interests
@@ -422,11 +432,19 @@ class ClientSerializer(serializers.ModelSerializer):
                         created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
                         print(f"Parsed using fromisoformat: {created_at}")
                     except:
-                        # Try other formats
-                        for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%Y/%m/%d']:
+                        # Try other formats - including DD-MM-YYYY (Indian format)
+                        for fmt in [
+                            '%Y-%m-%dT%H:%M:%S', 
+                            '%Y-%m-%d %H:%M:%S', 
+                            '%Y-%m-%d', 
+                            '%Y/%m/%d',
+                            '%d-%m-%Y',  # DD-MM-YYYY format (Indian format)
+                            '%d/%m/%Y',  # DD/MM/YYYY format
+                            '%d-%m-%Y %H:%M:%S',  # DD-MM-YYYY with time
+                        ]:
                             try:
-                                created_at = datetime.strptime(created_at_str, fmt)
-                                print(f"Parsed using format {fmt}: {created_at}")
+                                created_at = datetime.strptime(created_at_str.strip(), fmt)
+                                print(f"✅ Parsed using format {fmt}: {created_at}")
                                 break
                             except:
                                 continue
@@ -1247,6 +1265,7 @@ class ClientSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         # Add full_name for frontend compatibility
         data['name'] = instance.full_name
+        # Store name is already included by get_store_name
         # tags already included by get_tags
         return data
     

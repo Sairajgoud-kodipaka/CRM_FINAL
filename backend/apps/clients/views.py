@@ -508,10 +508,19 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     try:
                         created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
                     except:
-                        # Try other formats
-                        for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%Y/%m/%d']:
+                        # Try other formats - including DD-MM-YYYY (Indian format)
+                        for fmt in [
+                            '%Y-%m-%dT%H:%M:%S', 
+                            '%Y-%m-%d %H:%M:%S', 
+                            '%Y-%m-%d', 
+                            '%Y/%m/%d',
+                            '%d-%m-%Y',  # DD-MM-YYYY format (Indian format)
+                            '%d/%m/%Y',  # DD/MM/YYYY format
+                            '%d-%m-%Y %H:%M:%S',  # DD-MM-YYYY with time
+                        ]:
                             try:
-                                created_at = datetime.strptime(created_at_str, fmt)
+                                created_at = datetime.strptime(created_at_str.strip(), fmt)
+                                print(f"✅ PERFORM_CREATE: Parsed using format {fmt}: {created_at}")
                                 break
                             except:
                                 continue

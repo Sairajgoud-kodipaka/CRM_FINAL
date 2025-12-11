@@ -32,6 +32,10 @@ interface DateRangeFilterProps {
     value: string
     getDateRange: () => DateRange
   }>
+  showAllCustomers?: boolean
+  onAllCustomersSelect?: () => void
+  selectedPreset?: string
+  onPresetChange?: (preset: string) => void
 }
 
 const defaultPresets = [
@@ -111,14 +115,36 @@ export function DateRangeFilter({
   className,
   placeholder = "Pick a date range",
   showPresets = true,
-  presets = defaultPresets
+  presets = defaultPresets,
+  showAllCustomers = false,
+  onAllCustomersSelect,
+  selectedPreset: controlledSelectedPreset,
+  onPresetChange
 }: DateRangeFilterProps) {
   const [isOpen, setIsOpen] = React.useState(false)
-  const [selectedPreset, setSelectedPreset] = React.useState<string>("")
+  const [internalSelectedPreset, setInternalSelectedPreset] = React.useState<string>("")
+  
+  // Use controlled preset if provided, otherwise use internal state
+  const selectedPreset = controlledSelectedPreset !== undefined ? controlledSelectedPreset : internalSelectedPreset
+  
+  const setSelectedPreset = (value: string) => {
+    if (onPresetChange) {
+      onPresetChange(value)
+    } else {
+      setInternalSelectedPreset(value)
+    }
+  }
 
   const handlePresetChange = (presetValue: string) => {
+    setSelectedPreset(presetValue)
+    
     if (presetValue === "custom") {
-      setSelectedPreset("custom")
+      return
+    }
+
+    if (presetValue === "all_customers") {
+      onDateRangeChange?.(undefined)
+      onAllCustomersSelect?.()
       return
     }
 
@@ -126,7 +152,6 @@ export function DateRangeFilter({
     if (preset) {
       const newDateRange = preset.getDateRange()
       onDateRangeChange?.(newDateRange)
-      setSelectedPreset(presetValue)
     }
   }
 
@@ -160,6 +185,9 @@ export function DateRangeFilter({
                 {preset.label}
               </SelectItem>
             ))}
+            {showAllCustomers && (
+              <SelectItem value="all_customers">All Customers</SelectItem>
+            )}
             <SelectItem value="custom">Custom Range</SelectItem>
           </SelectContent>
         </Select>

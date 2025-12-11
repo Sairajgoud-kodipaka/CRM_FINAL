@@ -20,6 +20,7 @@ import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTab
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { DateRange } from 'react-day-picker';
 
 export default function CustomersPage() {
   const { user } = useAuth();
@@ -35,6 +36,7 @@ export default function CustomersPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
+  const [filterType, setFilterType] = useState<'date_range' | 'all_customers'>('date_range');
 
   // Check if user can delete customers (only business admin)
   const canDeleteCustomers = user?.role === 'business_admin';
@@ -56,19 +58,25 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchClients();
-  }, [currentPage, searchTerm, statusFilter, dateRange]);
+  }, [currentPage, searchTerm, statusFilter, dateRange, filterType]);
 
   const fetchClients = async () => {
     try {
       setLoading(true);
 
-
-      const response = await apiService.getClients({
+      // Only send date range if filter type is 'date_range'
+      const requestParams: any = {
         page: currentPage,
-        start_date: dateRange?.from?.toISOString(),
-        end_date: dateRange?.to?.toISOString(),
         status: statusFilter === 'all' ? undefined : statusFilter,
-      });
+      };
+
+      if (filterType === 'date_range') {
+        requestParams.start_date = dateRange?.from?.toISOString();
+        requestParams.end_date = dateRange?.to?.toISOString();
+      }
+      // If filterType is 'all_customers', don't send date range params
+
+      const response = await apiService.getClients(requestParams);
 
       if (response.success) {
         const data = response.data as any;
@@ -139,7 +147,8 @@ export default function CustomersPage() {
   };
 
   // Define columns for ResponsiveTable
-  const getCustomerColumns = (): ResponsiveColumn<Client>[] => [
+  const getCustomerColumns = (): ResponsiveColumn<Client>[] => {
+    const columns: ResponsiveColumn<Client>[] = [
     {
       key: 'name',
       title: 'Name',
@@ -226,7 +235,28 @@ export default function CustomersPage() {
         <span className="text-text-secondary">{formatDate(value as string)}</span>
       ),
     },
-  ];
+    ];
+    
+    // Add store column only for business admin
+    if (user?.role === 'business_admin') {
+      columns.push({
+        key: 'store',
+        title: 'Store',
+        priority: 'medium',
+        mobileLabel: 'Store',
+        render: (value, row) => {
+          const client = row as Client;
+          return (
+            <span className="text-text-secondary">
+              {client.store_name || (client.store ? `Store #${client.store}` : 'N/A')}
+            </span>
+          );
+        },
+      });
+    }
+    
+    return columns;
+  };
 
   const handleViewCustomer = (client: Client) => {
     // Open customer detail modal
@@ -385,14 +415,22 @@ export default function CustomersPage() {
       {/* Date Filter */}
       <Card className="shadow-sm border-blue-200 bg-blue-50">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-blue-800">Date Range Filter:</span>
-              <span className="text-sm text-blue-600">{formatDateRange(dateRange)}</span>
+              <span className="text-sm text-blue-600">
+                {filterType === 'all_customers' ? 'All Customers' : (dateRange?.from && dateRange?.to ? formatDateRange({ from: dateRange.from, to: dateRange.to }) : 'No date selected')}
+              </span>
             </div>
             <DateRangeFilter
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
+              dateRange={filterType === 'all_customers' ? undefined : dateRange}
+              onDateRangeChange={(newDateRange) => {
+                if (newDateRange) {
+                  setDateRange(newDateRange)
+                  setFilterType('date_range')
+                }
+              }}
+              showAllCustomers={false}
               className="w-auto"
             />
           </div>
@@ -412,6 +450,14 @@ export default function CustomersPage() {
                 className="pl-10"
               />
             </div>
+            <Button
+              variant={filterType === 'all_customers' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterType('all_customers')}
+              className={filterType === 'all_customers' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
+            >
+              All Customers
+            </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Filter by status" />
@@ -474,7 +520,12 @@ export default function CustomersPage() {
               }}
               mobileCardSubtitle={(client) => {
                 const clientData = client as unknown as Client;
-                return clientData.email || 'N/A';
+                const email = clientData.email || 'N/A';
+                // Add store info for business admin
+                if (user?.role === 'business_admin' && clientData.store_name) {
+                  return `${email} • ${clientData.store_name}`;
+                }
+                return email;
               }}
               mobileCardActions={(client) => {
                 const clientData = client as unknown as Client;

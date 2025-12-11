@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { ShopifyDatePicker } from '@/components/ui/shopify-date-picker';
 import { useGlobalDateRange, useFormattedDateRange } from '@/hooks/useGlobalDateRange';
+import { globalDateParameterService } from '@/lib/global-date-parameters';
 import {
   Calendar,
   RefreshCw,
@@ -121,6 +122,19 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
           </Button>
         )}
 
+        <Button
+          variant={dateRange === null ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            setDateRange(null);
+            globalDateParameterService.setDateRange(null);
+            applyDateRange();
+          }}
+          className={dateRange === null ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
+        >
+          All Customers
+        </Button>
+
         <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isLoading}>
           <RefreshCw className={cn("w-4 h-4")} />
         </Button>
@@ -158,6 +172,18 @@ export const GlobalDateFilter: React.FC<GlobalDateFilterProps> = ({
                 Apply Filter
               </Button>
             )}
+            <Button
+              variant={dateRange === null ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setDateRange(null);
+                globalDateParameterService.setDateRange(null);
+                applyDateRange();
+              }}
+              className={dateRange === null ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
+            >
+              All Customers
+            </Button>
           </div>
 
           {/* Right Section - Status & Actions */}

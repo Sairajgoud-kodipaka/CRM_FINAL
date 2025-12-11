@@ -41,10 +41,11 @@ export default function ManagerCustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Client | null>(null);
   const [filteredCustomers, setFilteredCustomers] = useState<Client[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
+  const [filterType, setFilterType] = useState<'date_range' | 'all_customers'>('date_range');
 
   useEffect(() => {
     fetchCustomers();
-  }, [dateRange, statusFilter]);
+  }, [dateRange, statusFilter, filterType]);
 
   useEffect(() => {
     // Filter customers based on search term and status
@@ -70,12 +71,18 @@ export default function ManagerCustomersPage() {
     try {
       setLoading(true);
 
-
-      const response = await apiService.getClients({
-        start_date: dateRange?.from?.toISOString(),
-        end_date: dateRange?.to?.toISOString(),
+      // Only send date range if filter type is 'date_range'
+      const requestParams: any = {
         status: statusFilter && statusFilter !== 'all' ? statusFilter : undefined,
-      });
+      };
+
+      if (filterType === 'date_range') {
+        requestParams.start_date = dateRange?.from?.toISOString();
+        requestParams.end_date = dateRange?.to?.toISOString();
+      }
+      // If filterType is 'all_customers', don't send date range params
+
+      const response = await apiService.getClients(requestParams);
 
 
 
@@ -353,10 +360,16 @@ export default function ManagerCustomersPage() {
           <h1 className="text-2xl font-semibold text-text-primary">Customers</h1>
           <p className="text-text-secondary mt-1">View and manage your store's customers</p>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center flex-wrap">
           <DateRangeFilter
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
+            dateRange={filterType === 'all_customers' ? undefined : dateRange}
+            onDateRangeChange={(newDateRange) => {
+              if (newDateRange) {
+                setDateRange(newDateRange)
+                setFilterType('date_range')
+              }
+            }}
+            showAllCustomers={false}
             placeholder="Filter by date range"
           />
           <Button
@@ -401,6 +414,14 @@ export default function ManagerCustomersPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <Button
+              variant={filterType === 'all_customers' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterType('all_customers')}
+              className={filterType === 'all_customers' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
+            >
+              All Customers
+            </Button>
             <select
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={statusFilter}
