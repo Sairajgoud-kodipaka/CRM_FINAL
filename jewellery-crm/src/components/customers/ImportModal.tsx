@@ -481,12 +481,18 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         // Final check: Ensure created_at is explicitly included if we have it
         if (created_at) {
           customerData.created_at = created_at;
-          console.log(`✅ [IMPORT] Sending created_at for ${customer.first_name}: ${created_at}`);
+          console.log(`✅ [IMPORT] Sending created_at for ${customer.first_name}: "${created_at}"`);
         } else {
-          console.warn(`⚠️ [IMPORT] No created_at for ${customer.first_name} - date_created was: ${customer.date_created}, created_at was: ${customer.created_at}`);
+          console.warn(`⚠️ [IMPORT] No created_at for ${customer.first_name}`);
+          console.warn(`   - date_created from CSV: "${customer.date_created}"`);
+          console.warn(`   - created_at from CSV: "${customer.created_at}"`);
+          console.warn(`   - parsed created_at: "${created_at}"`);
         }
         
-        console.log(`📤 [IMPORT] Full customerData being sent for ${customer.first_name}:`, JSON.stringify(customerData, null, 2));
+        // Log the exact payload being sent (especially created_at)
+        console.log(`📤 [IMPORT] Sending customer data for ${customer.first_name}:`);
+        console.log(`   - created_at: "${customerData.created_at || 'NOT SET'}"`);
+        console.log(`   - Full payload:`, JSON.stringify({ ...customerData, customer_interests_input: customerData.customer_interests_input?.length ? '[...]' : '[]' }, null, 2));
         
         const response = await apiService.createClient(customerData);
         

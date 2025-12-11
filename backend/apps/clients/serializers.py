@@ -415,53 +415,55 @@ class ClientSerializer(serializers.ModelSerializer):
                 
                 # Strip any leading/trailing quotes (single or double) from date string
                 created_at_str = created_at_str.strip().strip("'").strip('"').strip()
-                print(f"Attempting to parse created_at: '{created_at_str}'")
+                print(f"🔍 SERIALIZER: Attempting to parse created_at: '{created_at_str}'")
                 
-                # First try to parse as datetime
-                created_at = parse_datetime(created_at_str)
+                created_at = None
+                parsed_date = None
                 
-                if not created_at:
-                    # Try parsing as date first, then convert to datetime
-                    parsed_date = parse_date(created_at_str)
-                    if not parsed_date:
-                        # Try DD-MM-YYYY format (Indian format) which parse_date doesn't support
-                        try:
-                            parsed_date = datetime.strptime(created_at_str.strip(), '%d-%m-%Y').date()
-                            print(f"✅ Parsed DD-MM-YYYY date: {parsed_date}")
-                        except ValueError:
-                            try:
-                                parsed_date = datetime.strptime(created_at_str.strip(), '%d/%m/%Y').date()
-                                print(f"✅ Parsed DD/MM/YYYY date: {parsed_date}")
-                            except ValueError:
-                                parsed_date = None
-                    
-                    if parsed_date:
-                        # Convert date to datetime at start of day
-                        created_at = datetime.combine(parsed_date, datetime.min.time())
-                        print(f"Parsed as date, converted to datetime: {created_at}")
-                
-                if not created_at:
-                    # Try ISO format
+                # PRIORITY 1: Try DD-MM-YYYY format FIRST (most common for CSV imports like '28-08-2025)
+                try:
+                    parsed_date = datetime.strptime(created_at_str, '%d-%m-%Y').date()
+                    print(f"✅ SERIALIZER: Parsed DD-MM-YYYY date: {parsed_date}")
+                except ValueError:
                     try:
-                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                        print(f"Parsed using fromisoformat: {created_at}")
-                    except:
-                        # Try other formats - including DD-MM-YYYY (Indian format)
-                        for fmt in [
-                            '%Y-%m-%dT%H:%M:%S', 
-                            '%Y-%m-%d %H:%M:%S', 
-                            '%Y-%m-%d', 
-                            '%Y/%m/%d',
-                            '%d-%m-%Y',  # DD-MM-YYYY format (Indian format)
-                            '%d/%m/%Y',  # DD/MM/YYYY format
-                            '%d-%m-%Y %H:%M:%S',  # DD-MM-YYYY with time
-                        ]:
-                            try:
-                                created_at = datetime.strptime(created_at_str.strip(), fmt)
-                                print(f"✅ Parsed using format {fmt}: {created_at}")
-                                break
-                            except:
-                                continue
+                        # Try DD/MM/YYYY format
+                        parsed_date = datetime.strptime(created_at_str, '%d/%m/%Y').date()
+                        print(f"✅ SERIALIZER: Parsed DD/MM/YYYY date: {parsed_date}")
+                    except ValueError:
+                        # PRIORITY 2: Try parse_date (for ISO format YYYY-MM-DD)
+                        parsed_date = parse_date(created_at_str)
+                        if parsed_date:
+                            print(f"✅ SERIALIZER: Parsed ISO date: {parsed_date}")
+                        else:
+                            # PRIORITY 3: Try parse_datetime (for datetime strings)
+                            created_at = parse_datetime(created_at_str)
+                            if created_at:
+                                print(f"✅ SERIALIZER: Parsed datetime: {created_at}")
+                            else:
+                                # PRIORITY 4: Try other formats
+                                try:
+                                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                                    print(f"✅ SERIALIZER: Parsed using fromisoformat: {created_at}")
+                                except:
+                                    # Try other formats
+                                    for fmt in [
+                                        '%Y-%m-%dT%H:%M:%S', 
+                                        '%Y-%m-%d %H:%M:%S', 
+                                        '%Y-%m-%d', 
+                                        '%Y/%m/%d',
+                                        '%d-%m-%Y %H:%M:%S',
+                                    ]:
+                                        try:
+                                            created_at = datetime.strptime(created_at_str, fmt)
+                                            print(f"✅ SERIALIZER: Parsed using format {fmt}: {created_at}")
+                                            break
+                                        except:
+                                            continue
+                
+                # Convert parsed_date to datetime if we got a date
+                if parsed_date and not created_at:
+                    created_at = datetime.combine(parsed_date, datetime.min.time())
+                    print(f"✅ SERIALIZER: Converted date to datetime: {created_at}")
                 
                 if created_at:
                     # Make timezone-aware if naive
@@ -625,20 +627,26 @@ class ClientSerializer(serializers.ModelSerializer):
                         from django.utils import timezone
                         from datetime import datetime
                         
-                        # Try parse_date first (for ISO format)
-                        parsed_date = parse_date(preserved_date) if preserved_date else None
+                        # Strip quotes from preserved_date (handles '28-08-2025 format)
+                        preserved_date = str(preserved_date).strip().strip("'").strip('"').strip()
+                        print(f"🔍 SERIALIZER FALLBACK: Processing preserved_date: '{preserved_date}'")
                         
-                        # If parse_date fails, try strptime with DD-MM-YYYY format
-                        if not parsed_date:
+                        # Try DD-MM-YYYY format FIRST (most common for CSV imports)
+                        parsed_date = None
+                        try:
+                            parsed_date = datetime.strptime(preserved_date, '%d-%m-%Y').date()
+                            print(f"✅ SERIALIZER FALLBACK: Parsed DD-MM-YYYY date: {parsed_date}")
+                        except ValueError:
                             try:
-                                parsed_date = datetime.strptime(preserved_date.strip(), '%d-%m-%Y').date()
-                                print(f"✅ Parsed DD-MM-YYYY date: {parsed_date}")
+                                parsed_date = datetime.strptime(preserved_date, '%d/%m/%Y').date()
+                                print(f"✅ SERIALIZER FALLBACK: Parsed DD/MM/YYYY date: {parsed_date}")
                             except ValueError:
-                                try:
-                                    parsed_date = datetime.strptime(preserved_date.strip(), '%d/%m/%Y').date()
-                                    print(f"✅ Parsed DD/MM/YYYY date: {parsed_date}")
-                                except ValueError:
-                                    print(f"⚠️ Could not parse preserved date: {preserved_date}")
+                                # Try parse_date (for ISO format)
+                                parsed_date = parse_date(preserved_date)
+                                if parsed_date:
+                                    print(f"✅ SERIALIZER FALLBACK: Parsed ISO date: {parsed_date}")
+                                else:
+                                    print(f"⚠️ SERIALIZER FALLBACK: Could not parse preserved date: '{preserved_date}'")
                         
                         if parsed_date:
                             created_at_dt = datetime.combine(parsed_date, datetime.min.time())
