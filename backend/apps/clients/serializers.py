@@ -413,6 +413,8 @@ class ClientSerializer(serializers.ModelSerializer):
                 from django.utils import timezone
                 from datetime import datetime, date
                 
+                # Strip any leading/trailing quotes (single or double) from date string
+                created_at_str = created_at_str.strip().strip("'").strip('"').strip()
                 print(f"Attempting to parse created_at: '{created_at_str}'")
                 
                 # First try to parse as datetime
@@ -606,10 +608,14 @@ class ClientSerializer(serializers.ModelSerializer):
             result = super().create(validated_data)
             
             # Set created_at if provided (for historical imports)
+            # CRITICAL: Must use update_fields to override auto_now_add
             if created_at:
                 result.created_at = created_at
                 result.save(update_fields=['created_at'])
-                print(f"✅ Set created_at to: {created_at}")
+                print(f"✅ SERIALIZER: Set created_at to: {created_at}")
+                # Verify it was saved
+                result.refresh_from_db()
+                print(f"✅ SERIALIZER: Verified created_at from DB: {result.created_at}")
             else:
                 # Fallback: check if it was preserved in context
                 preserved_date = getattr(self, '_import_created_at', None)
@@ -640,7 +646,10 @@ class ClientSerializer(serializers.ModelSerializer):
                                 created_at_dt = timezone.make_aware(created_at_dt)
                             result.created_at = created_at_dt
                             result.save(update_fields=['created_at'])
-                            print(f"✅ Set created_at from preserved value: {created_at_dt}")
+                            print(f"✅ SERIALIZER: Set created_at from preserved value: {created_at_dt}")
+                            # Verify it was saved
+                            result.refresh_from_db()
+                            print(f"✅ SERIALIZER: Verified created_at from DB: {result.created_at}")
                     except Exception as e:
                         print(f"⚠️ Could not set created_at from preserved value: {e}")
                         import traceback

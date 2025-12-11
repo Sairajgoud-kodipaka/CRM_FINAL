@@ -487,6 +487,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         instance = serializer.save(created_by=created_by_user)
         
         # Set created_at if it was preserved for import (historical dates)
+        # CRITICAL: This MUST happen before any save() calls to override auto_now_add
+        parsed_created_at = None
         if hasattr(self, '_import_created_at') and self._import_created_at:
             try:
                 from django.utils.dateparse import parse_datetime, parse_date
@@ -494,67 +496,103 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 from datetime import datetime
                 
                 created_at_str = self._import_created_at
+                # Strip any leading/trailing quotes (single or double) from date string
+                created_at_str = created_at_str.strip().strip("'").strip('"').strip()
                 print(f"=== PERFORM_CREATE: Setting created_at from preserved value: {created_at_str} ===")
                 
-                # Parse the date
-                created_at = parse_datetime(created_at_str)
-                if not created_at:
-                    parsed_date = parse_date(created_at_str)
-                    if parsed_date:
-                        created_at = datetime.combine(parsed_date, datetime.min.time())
+                # Parse the date - try DD-MM-YYYY FIRST (most common for imports)
+                created_at = None
                 
-                if not created_at:
-                    # Try ISO format
+                # First try: DD-MM-YYYY format (Indian format - most common in CSV imports)
+                try:
+                    parsed_date = datetime.strptime(created_at_str.strip(), '%d-%m-%Y').date()
+                    created_at = datetime.combine(parsed_date, datetime.min.time())
+                    print(f"✅ PERFORM_CREATE: Parsed DD-MM-YYYY: {created_at}")
+                except ValueError:
                     try:
-                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                    except:
-                        # Try other formats - including DD-MM-YYYY (Indian format)
-                        for fmt in [
-                            '%Y-%m-%dT%H:%M:%S', 
-                            '%Y-%m-%d %H:%M:%S', 
-                            '%Y-%m-%d', 
-                            '%Y/%m/%d',
-                            '%d-%m-%Y',  # DD-MM-YYYY format (Indian format)
-                            '%d/%m/%Y',  # DD/MM/YYYY format
-                            '%d-%m-%Y %H:%M:%S',  # DD-MM-YYYY with time
-                        ]:
-                            try:
-                                created_at = datetime.strptime(created_at_str.strip(), fmt)
-                                print(f"✅ PERFORM_CREATE: Parsed using format {fmt}: {created_at}")
-                                break
-                            except:
-                                continue
+                        # Try DD/MM/YYYY format
+                        parsed_date = datetime.strptime(created_at_str.strip(), '%d/%m/%Y').date()
+                        created_at = datetime.combine(parsed_date, datetime.min.time())
+                        print(f"✅ PERFORM_CREATE: Parsed DD/MM/YYYY: {created_at}")
+                    except ValueError:
+                        # Try parse_date (for ISO format)
+                        parsed_date = parse_date(created_at_str)
+                        if parsed_date:
+                            created_at = datetime.combine(parsed_date, datetime.min.time())
+                            print(f"✅ PERFORM_CREATE: Parsed ISO date: {created_at}")
+                        else:
+                            # Try parse_datetime
+                            created_at = parse_datetime(created_at_str)
+                            if created_at:
+                                print(f"✅ PERFORM_CREATE: Parsed datetime: {created_at}")
+                            else:
+                                # Try other formats
+                                for fmt in [
+                                    '%Y-%m-%dT%H:%M:%S', 
+                                    '%Y-%m-%d %H:%M:%S', 
+                                    '%Y-%m-%d', 
+                                    '%Y/%m/%d',
+                                    '%d-%m-%Y %H:%M:%S',
+                                ]:
+                                    try:
+                                        created_at = datetime.strptime(created_at_str.strip(), fmt)
+                                        print(f"✅ PERFORM_CREATE: Parsed using format {fmt}: {created_at}")
+                                        break
+                                    except:
+                                        continue
                 
                 if created_at:
                     # Make timezone-aware if naive
                     if timezone.is_naive(created_at):
                         created_at = timezone.make_aware(created_at)
-                    instance.created_at = created_at
-                    print(f"✅ PERFORM_CREATE: Set created_at to: {created_at}")
+                    parsed_created_at = created_at
+                    print(f"✅ PERFORM_CREATE: Final parsed created_at: {parsed_created_at}")
+                else:
+                    print(f"❌ PERFORM_CREATE: Could not parse created_at: '{created_at_str}'")
             except Exception as e:
-                print(f"⚠️ PERFORM_CREATE: Error setting created_at: {e}")
+                print(f"⚠️ PERFORM_CREATE: Error parsing created_at: {e}")
                 import traceback
                 print(traceback.format_exc())
         
         # Set tenant and store if not already set
         user = self.request.user
         needs_save = False
+        update_fields_list = []
+        
         if user.tenant and not instance.tenant:
             instance.tenant = user.tenant
             needs_save = True
+            update_fields_list.append('tenant')
         if user.store and not instance.store:
             instance.store = user.store
             needs_save = True
+            update_fields_list.append('store')
+        
+        # CRITICAL: Set created_at if we parsed it - MUST use update_fields to override auto_now_add
+        if parsed_created_at:
+            instance.created_at = parsed_created_at
+            needs_save = True
+            if 'created_at' not in update_fields_list:
+                update_fields_list.append('created_at')
+            print(f"✅ PERFORM_CREATE: Will save with created_at: {parsed_created_at}")
         
         # Set audit log user for tracking (before any save)
         instance._auditlog_user = created_by_user
         
-        # Only save once if needed (before creating notifications)
-        # Also save if we set created_at
-        if needs_save or (hasattr(self, '_import_created_at') and self._import_created_at):
-            instance.save()
-            if hasattr(self, '_import_created_at') and self._import_created_at:
-                print(f"✅ PERFORM_CREATE: Saved instance with created_at: {instance.created_at}")
+        # CRITICAL: Save with update_fields to override auto_now_add for created_at
+        # This MUST happen to preserve historical dates from CSV imports
+        if needs_save:
+            if update_fields_list:
+                instance.save(update_fields=update_fields_list)
+                print(f"✅ PERFORM_CREATE: Saved instance with update_fields: {update_fields_list}")
+                if 'created_at' in update_fields_list:
+                    print(f"✅ PERFORM_CREATE: Created_at successfully saved as: {instance.created_at}")
+                    # Verify it was actually saved
+                    instance.refresh_from_db()
+                    print(f"✅ PERFORM_CREATE: Verified created_at from DB: {instance.created_at}")
+            else:
+                instance.save()
+                print(f"✅ PERFORM_CREATE: Saved instance (no update_fields)")
         
         # Create notifications for new customer using the actual creator
         # Only create if this is a new customer (not an update)
