@@ -10,6 +10,7 @@ import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal'
 import { EditCustomerModal } from '@/components/customers/EditCustomerModal';
 import { TrashModal } from '@/components/customers/TrashModal';
 import { ImportModal } from '@/components/customers/ImportModal';
+import { ExportModal } from '@/components/customers/ExportModal';
 import { apiService, Client } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCustomerName } from '@/utils/name-utils';
@@ -30,6 +31,7 @@ export default function ManagerCustomersPage() {
   
   const [modalOpen, setModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [customers, setCustomers] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -263,31 +265,8 @@ export default function ManagerCustomersPage() {
     },
   ];
 
-  const exportCustomers = async (format: 'csv' | 'json') => {
-    try {
-      const response = await apiService.exportCustomers({
-        format,
-        fields: ['first_name', 'last_name', 'email', 'phone', 'status', 'customer_type', 'created_at']
-      });
-
-      if (response.success && response.data) {
-        // Create and download the file
-        const blob = new Blob([response.data], {
-          type: format === 'csv' ? 'text/csv' : 'application/json'
-        });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `customers_export.${format}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (error) {
-
-      alert('Failed to export customers');
-    }
+  const handleExportSuccess = () => {
+    // Export doesn't need to refresh the list
   };
 
   if (loading) {
@@ -355,6 +334,13 @@ export default function ManagerCustomersPage() {
         onCustomerRestored={handleCustomerRestored}
       />
 
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onSuccess={handleExportSuccess}
+      />
+
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">Customers</h1>
@@ -389,13 +375,9 @@ export default function ManagerCustomersPage() {
             <Upload className="w-4 h-4 mr-2" />
             Import
           </Button>
-          <Button variant="outline" size="sm" onClick={() => exportCustomers('csv')}>
+          <Button variant="outline" size="sm" onClick={() => setExportModalOpen(true)}>
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => exportCustomers('json')}>
-            <Download className="w-4 h-4 mr-2" />
-            Export JSON
+            Export
           </Button>
         </div>
       </div>

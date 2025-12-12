@@ -2111,31 +2111,70 @@ class ApiService {
   async exportCustomers(params: {
     format: string;
     fields: string[];
+    start_date?: string;
+    end_date?: string;
+    status?: string;
+    store?: string;
   }): Promise<ApiResponse<any>> {
     // Use the correct endpoint based on format
+    // Custom path in urls.py: 'clients/export/csv/' 
+    // Included at 'api/clients/' in core/urls.py
+    // Full path: /api/clients/clients/export/csv/
+    // getApiUrl adds '/api', so we use '/clients/clients/export/csv/'
     let endpoint: string;
     switch (params.format) {
       case 'csv':
-        endpoint = '/clients/export/csv/';
+        endpoint = '/clients/clients/export/csv/';
         break;
       case 'xlsx':
         // Temporarily redirect XLSX to CSV since XLSX is not implemented yet
-        endpoint = '/clients/export/csv/';
+        endpoint = '/clients/clients/export/csv/';
         break;
       default:
-        endpoint = '/clients/export/json/';
+        endpoint = '/clients/clients/export/json/';
     }
 
-    // Add fields as query parameter if provided
+    // Add query parameters
     const queryParams = new URLSearchParams();
     if (params.fields && params.fields.length > 0) {
       queryParams.append('fields', params.fields.join(','));
     }
+    if (params.start_date) {
+      queryParams.append('start_date', params.start_date);
+    }
+    if (params.end_date) {
+      queryParams.append('end_date', params.end_date);
+    }
+    if (params.status) {
+      queryParams.append('status', params.status);
+    }
+    if (params.store) {
+      queryParams.append('store', params.store);
+    }
 
     const url = queryParams.toString() ? `${endpoint}?${queryParams}` : endpoint;
-    return this.request(url, {
+    
+    // For export, we need to handle blob response directly
+    const token = this.getAuthToken();
+    const apiUrl = getApiUrl(url);
+    
+    const response = await fetch(apiUrl, {
       method: 'GET',
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Export failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const blob = await response.blob();
+    return {
+      data: blob as any,
+      success: true,
+    };
   }
 
   // Announcements

@@ -890,6 +890,36 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         try:
             queryset = self.get_queryset()
             
+            # Apply date filters if provided (get_queryset already applies GlobalDateFilterMixin)
+            # But we also check query params directly for export
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            if start_date and end_date:
+                try:
+                    from datetime import datetime
+                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                    queryset = queryset.filter(
+                        created_at__gte=start_dt,
+                        created_at__lte=end_dt
+                    )
+                except ValueError:
+                    pass
+            
+            # Apply status filter if provided
+            status = request.query_params.get('status')
+            if status and status != 'all':
+                queryset = queryset.filter(status=status)
+            
+            # Apply store filter if provided
+            store = request.query_params.get('store')
+            if store:
+                try:
+                    store_id = int(store)
+                    queryset = queryset.filter(store_id=store_id)
+                except ValueError:
+                    pass
+            
             # Get requested fields from query parameters
             fields_param = request.GET.get('fields', '')
             if fields_param:
@@ -905,6 +935,15 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     'catchment_area', 'next_follow_up', 'summary_notes', 'status',
                     'created_at', 'updated_at', 'tags'
                 ]
+            
+            # Check if customer_interests is requested - if so, replace with product_name and category
+            has_customer_interests = 'customer_interests' in requested_fields
+            if has_customer_interests:
+                requested_fields.remove('customer_interests')
+                if 'product_name' not in requested_fields:
+                    requested_fields.append('product_name')
+                if 'category' not in requested_fields:
+                    requested_fields.append('category')
             
             # Create CSV response
             response = HttpResponse(content_type='text/csv')
@@ -922,6 +961,35 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         row[field] = client.anniversary_date.strftime('%Y-%m-%d')
                     elif field in ['created_at', 'updated_at']:
                         row[field] = getattr(client, field).strftime('%Y-%m-%d %H:%M:%S')
+                    elif field == 'created_by':
+                        # Handle created_by field - show creator's name
+                        if client.created_by:
+                            created_by_name = f"{client.created_by.first_name or ''} {client.created_by.last_name or ''}".strip()
+                            if not created_by_name:
+                                created_by_name = client.created_by.username or ''
+                            row[field] = created_by_name
+                        else:
+                            row[field] = ''
+                    elif field == 'product_name':
+                        # Extract product names from customer interests
+                        product_names = []
+                        try:
+                            for interest in client.interests.all():
+                                if interest.product:
+                                    product_names.append(interest.product.name)
+                        except Exception as e:
+                            print(f"Error exporting product_name: {e}")
+                        row[field] = ', '.join(product_names) if product_names else ''
+                    elif field == 'category':
+                        # Extract category names from customer interests
+                        category_names = []
+                        try:
+                            for interest in client.interests.all():
+                                if interest.category:
+                                    category_names.append(interest.category.name)
+                        except Exception as e:
+                            print(f"Error exporting category: {e}")
+                        row[field] = ', '.join(category_names) if category_names else ''
                     elif field == 'tags':
                         row[field] = ', '.join([tag.name for tag in client.tags.all()])
                     else:
@@ -944,6 +1012,35 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         try:
             queryset = self.get_queryset()
             
+            # Apply date filters if provided
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            if start_date and end_date:
+                try:
+                    from datetime import datetime
+                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                    queryset = queryset.filter(
+                        created_at__gte=start_dt,
+                        created_at__lte=end_dt
+                    )
+                except ValueError:
+                    pass
+            
+            # Apply status filter if provided
+            status = request.query_params.get('status')
+            if status and status != 'all':
+                queryset = queryset.filter(status=status)
+            
+            # Apply store filter if provided
+            store = request.query_params.get('store')
+            if store:
+                try:
+                    store_id = int(store)
+                    queryset = queryset.filter(store_id=store_id)
+                except ValueError:
+                    pass
+            
             # Get requested fields from query parameters
             fields_param = request.GET.get('fields', '')
             if fields_param:
@@ -960,6 +1057,15 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     'created_at', 'updated_at', 'tags'
                 ]
             
+            # Check if customer_interests is requested - if so, replace with product_name and category
+            has_customer_interests = 'customer_interests' in requested_fields
+            if has_customer_interests:
+                requested_fields.remove('customer_interests')
+                if 'product_name' not in requested_fields:
+                    requested_fields.append('product_name')
+                if 'category' not in requested_fields:
+                    requested_fields.append('category')
+            
             # Serialize data with only requested fields
             data = []
             for client in queryset:
@@ -971,6 +1077,35 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         client_data[field] = client.anniversary_date.strftime('%Y-%m-%d')
                     elif field in ['created_at', 'updated_at']:
                         client_data[field] = getattr(client, field).strftime('%Y-%m-%d %H:%M:%S')
+                    elif field == 'created_by':
+                        # Handle created_by field - show creator's name
+                        if client.created_by:
+                            created_by_name = f"{client.created_by.first_name or ''} {client.created_by.last_name or ''}".strip()
+                            if not created_by_name:
+                                created_by_name = client.created_by.username or ''
+                            client_data[field] = created_by_name
+                        else:
+                            client_data[field] = ''
+                    elif field == 'product_name':
+                        # Extract product names from customer interests
+                        product_names = []
+                        try:
+                            for interest in client.interests.all():
+                                if interest.product:
+                                    product_names.append(interest.product.name)
+                        except Exception as e:
+                            print(f"Error exporting product_name: {e}")
+                        client_data[field] = product_names if product_names else []
+                    elif field == 'category':
+                        # Extract category names from customer interests
+                        category_names = []
+                        try:
+                            for interest in client.interests.all():
+                                if interest.category:
+                                    category_names.append(interest.category.name)
+                        except Exception as e:
+                            print(f"Error exporting category: {e}")
+                        client_data[field] = category_names if category_names else []
                     elif field == 'tags':
                         client_data[field] = [tag.name for tag in client.tags.all()]
                     else:
