@@ -419,6 +419,16 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         if status and status != 'all':
             queryset = queryset.filter(status=status)
         
+        # Apply store filter
+        store = request.query_params.get('store')
+        if store and store != 'all':
+            try:
+                store_id = int(store)
+                queryset = queryset.filter(store_id=store_id)
+            except (ValueError, TypeError):
+                # If store ID is invalid, ignore the filter
+                pass
+        
         # Apply date range filter
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')

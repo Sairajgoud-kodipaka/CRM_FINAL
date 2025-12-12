@@ -50,6 +50,7 @@ import {
 import { apiService } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import SegmentDetailsModal from '@/components/segmentation/SegmentDetailsModal';
+import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 
 interface CustomerSegment {
   id: string;
@@ -302,12 +303,57 @@ export default function CustomerSegmentationPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-center py-12">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
           <div className="flex items-center gap-3">
-            <RefreshCw className="w-5 h-5 opacity-50 text-blue-600" />
-            <div className="text-gray-600">Loading customer segments...</div>
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-32" />
           </div>
         </div>
+
+        {/* Overview Stats Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-8 w-20" />
+                  </div>
+                  <Skeleton className="h-8 w-8 rounded" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Filters Skeleton */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex-1">
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-48" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Table Skeleton */}
+        <Card>
+          <CardContent className="p-4">
+            <TableSkeleton rows={8} columns={8} />
+          </CardContent>
+        </Card>
       </div>
     );
   }

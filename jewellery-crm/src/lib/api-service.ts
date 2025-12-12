@@ -1065,6 +1065,7 @@ class ApiService {
     assigned_to?: string;
     start_date?: string;
     end_date?: string;
+    store?: string;
   }): Promise<ApiResponse<Client[]>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
@@ -1073,6 +1074,7 @@ class ApiService {
     if (params?.assigned_to) queryParams.append('assigned_to', params.assigned_to);
     if (params?.start_date) queryParams.append('start_date', params.start_date);
     if (params?.end_date) queryParams.append('end_date', params.end_date);
+    if (params?.store) queryParams.append('store', params.store);
 
     const queryString = queryParams.toString();
     return this.request(`/clients/clients/${queryString ? `?${queryString}` : ''}`);

@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Download, Upload, Plus, Filter, MoreHorizontal, Eye, Trash2 } from 'lucide-react';
-import { apiService, Client } from '@/lib/api-service';
+import { Search, Download, Upload, Plus, MoreHorizontal, Eye, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { apiService, Client, Store } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { formatCustomerName } from '@/utils/name-utils';
@@ -28,15 +28,33 @@ export default function CustomersPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
   const [filterType, setFilterType] = useState<'date_range' | 'all_customers'>('date_range');
+  const [storeFilter, setStoreFilter] = useState<string>('all');
+  const [stores, setStores] = useState<Store[]>([]);
+  
+  // Column header filters and sorting
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [nameHeaderFilter, setNameHeaderFilter] = useState<string>('all');
+  const [contactHeaderFilter, setContactHeaderFilter] = useState<string>('all');
+  const [statusHeaderFilter, setStatusHeaderFilter] = useState<string>('all');
+  const [sourceHeaderFilter, setSourceHeaderFilter] = useState<string>('all');
+  const [createdByHeaderFilter, setCreatedByHeaderFilter] = useState<string>('all');
+  const [createdDateHeaderFilter, setCreatedDateHeaderFilter] = useState<string>('all');
+  const [storeHeaderFilter, setStoreHeaderFilter] = useState<string>('all');
 
   // Check if user can delete customers (only business admin)
   const canDeleteCustomers = user?.role === 'business_admin';
@@ -56,36 +74,246 @@ export default function CustomersPage() {
     }
   );
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1); // Reset to page 1 when search changes
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, dateRange, filterType, storeFilter]);
+
   useEffect(() => {
     fetchClients();
-  }, [currentPage, searchTerm, statusFilter, dateRange, filterType]);
+  }, [currentPage, debouncedSearchTerm, statusFilter, dateRange, filterType, storeFilter]);
+
+  useEffect(() => {
+    fetchStores();
+  }, []);
+
+  const fetchStores = async () => {
+    try {
+      const response = await apiService.getStores();
+      if (response.success) {
+        const data = response.data as any;
+        setStores(Array.isArray(data) ? data : data.results || []);
+      }
+    } catch (error) {
+      setStores([]);
+    }
+  };
 
   const fetchClients = async () => {
     try {
       setLoading(true);
 
-      // Only send date range if filter type is 'date_range'
-      const requestParams: any = {
-        page: currentPage,
-        status: statusFilter === 'all' ? undefined : statusFilter,
-      };
+      // When "All Customers" is selected, fetch ALL customers from ALL stores
+      if (filterType === 'all_customers') {
+        const requestParams: any = {
+          status: statusFilter === 'all' ? undefined : statusFilter,
+          // Don't filter by store when "All Customers" - get customers from ALL stores
+          store: storeFilter === 'all' ? undefined : storeFilter,
+        };
 
-      if (filterType === 'date_range') {
+        // Add search parameter if search term exists
+        if (debouncedSearchTerm.trim()) {
+          requestParams.search = debouncedSearchTerm.trim();
+        }
+
+        // CRITICAL: Don't send page parameter - backend returns ALL customers when page is not provided
+        // According to backend code: if page is not provided, it returns all results
+        const response = await apiService.getClients(requestParams);
+
+        if (response.success) {
+          const data = response.data as any;
+          
+          // Backend returns array directly when page parameter is not sent
+          // If we get exactly 50 results, backend might still be paginating, so fetch more pages
+          if (Array.isArray(data)) {
+            let allClients: Client[] = [...data];
+            
+            // If we got exactly 50 results, backend might be defaulting to pagination
+            // Fetch remaining pages until we get less than 50 results
+            if (data.length === 50) {
+              let currentPage = 2;
+              let hasMorePages = true;
+              
+              // Fetch all remaining pages in batches
+              const batchSize = 10;
+              while (hasMorePages) {
+                const batchEnd = currentPage + batchSize - 1;
+                const pagePromises = [];
+                
+                for (let page = currentPage; page <= batchEnd; page++) {
+                  const pageParams = { ...requestParams, page };
+                  pagePromises.push(apiService.getClients(pageParams));
+                }
+
+                const pageResponses = await Promise.all(pagePromises);
+                let foundAnyResults = false;
+                
+                for (const pageResponse of pageResponses) {
+                  if (pageResponse.success) {
+                    const pageData = pageResponse.data as any;
+                    let pageResults: Client[] = [];
+                    
+                    if (Array.isArray(pageData)) {
+                      pageResults = pageData;
+                    } else if (pageData && typeof pageData === 'object' && 'results' in pageData) {
+                      pageResults = Array.isArray(pageData.results) ? pageData.results : [];
+                    }
+                    
+                    if (pageResults.length > 0) {
+                      allClients.push(...pageResults);
+                      foundAnyResults = true;
+                      
+                      // If we got less than 50 results, we've reached the end
+                      if (pageResults.length < 50) {
+                        hasMorePages = false;
+                        break;
+                      }
+                    } else {
+                      // No results means we've reached the end
+                      hasMorePages = false;
+                      break;
+                    }
+                  }
+                }
+                
+                // If no results found, stop
+                if (!foundAnyResults) {
+                  hasMorePages = false;
+                }
+                
+                currentPage = batchEnd + 1;
+                
+                // Safety check - don't fetch more than 20 pages (1000 customers)
+                if (currentPage > 20) {
+                  hasMorePages = false;
+                }
+              }
+            }
+            
+            // Set all customers and use actual fetched count
+            setClients(allClients);
+            setTotalCount(allClients.length); // This will be 426 (or whatever we fetched)
+            setTotalPages(1);
+            setHasNext(false);
+            setHasPrevious(false);
+          } else if (data && typeof data === 'object' && 'results' in data) {
+            // Paginated response format (if backend returns this)
+            const firstPageResults = Array.isArray(data.results) ? data.results : [];
+            const allClients: Client[] = [...firstPageResults];
+            const apiTotalCount = data.count || 0;
+            const totalPages = data.total_pages || (apiTotalCount > 0 ? Math.ceil(apiTotalCount / 50) : 1);
+
+            // Fetch all remaining pages
+            if (totalPages > 1 || (firstPageResults.length === 50 && apiTotalCount > firstPageResults.length)) {
+              const actualTotalPages = totalPages > 1 ? totalPages : Math.ceil(apiTotalCount / 50);
+              
+              const batchSize = 10;
+              for (let batchStart = 2; batchStart <= actualTotalPages; batchStart += batchSize) {
+                const batchEnd = Math.min(batchStart + batchSize - 1, actualTotalPages);
+                const pagePromises = [];
+                
+                for (let page = batchStart; page <= batchEnd; page++) {
+                  const pageParams = { ...requestParams, page };
+                  pagePromises.push(apiService.getClients(pageParams));
+                }
+
+                const pageResponses = await Promise.all(pagePromises);
+                
+                for (const pageResponse of pageResponses) {
+                  if (pageResponse.success) {
+                    const pageData = pageResponse.data as any;
+                    if (pageData && typeof pageData === 'object' && 'results' in pageData) {
+                      allClients.push(...(Array.isArray(pageData.results) ? pageData.results : []));
+                    } else if (Array.isArray(pageData)) {
+                      allClients.push(...pageData);
+                    }
+                  }
+                }
+              }
+            }
+
+            const finalCount = apiTotalCount > 0 ? apiTotalCount : allClients.length;
+            setClients(allClients);
+            setTotalCount(finalCount);
+            setTotalPages(1);
+            setHasNext(false);
+            setHasPrevious(false);
+          } else {
+            setClients([]);
+            setTotalCount(0);
+            setTotalPages(1);
+            setHasNext(false);
+            setHasPrevious(false);
+          }
+        } else {
+          setClients([]);
+          setTotalCount(0);
+          setTotalPages(1);
+          setHasNext(false);
+          setHasPrevious(false);
+        }
+      } else {
+        // Date range filter - use pagination
+        const requestParams: any = {
+          page: currentPage,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+          store: storeFilter === 'all' ? undefined : storeFilter,
+        };
+
+        // Add search parameter if search term exists
+        if (debouncedSearchTerm.trim()) {
+          requestParams.search = debouncedSearchTerm.trim();
+        }
+
         requestParams.start_date = dateRange?.from?.toISOString();
         requestParams.end_date = dateRange?.to?.toISOString();
-      }
-      // If filterType is 'all_customers', don't send date range params
 
-      const response = await apiService.getClients(requestParams);
+        const response = await apiService.getClients(requestParams);
 
-      if (response.success) {
-        const data = response.data as any;
-        setClients(Array.isArray(data) ? data : data.results || []);
+        if (response.success) {
+          const data = response.data as any;
+          
+          // Handle paginated response
+          if (data && typeof data === 'object' && 'results' in data) {
+            setClients(Array.isArray(data.results) ? data.results : []);
+            // Always use API's count value - this is the actual total from backend
+            setTotalCount(data.count || 0);
+            setTotalPages(data.total_pages || Math.ceil((data.count || 0) / 50) || 1);
+            setHasNext(!!data.next);
+            setHasPrevious(!!data.previous);
+          } else if (Array.isArray(data)) {
+            // Fallback for non-paginated response
+            setClients(data);
+            setTotalCount(data.length);
+            setTotalPages(1);
+            setHasNext(false);
+            setHasPrevious(false);
+          } else {
+            setClients([]);
+            setTotalCount(0);
+            setTotalPages(1);
+            setHasNext(false);
+            setHasPrevious(false);
+          }
+        }
       }
     } catch (error) {
-
       // Fallback to empty array if API fails
       setClients([]);
+      setTotalCount(0);
+      setTotalPages(1);
+      setHasNext(false);
+      setHasPrevious(false);
     } finally {
       setLoading(false);
     }
@@ -144,6 +372,233 @@ export default function CustomersPage() {
     } catch (error) {
       return 'Invalid Date';
     }
+  };
+
+  // Get unique values for column filters
+  const getUniqueNames = () => {
+    const names = new Set<string>();
+    clients.forEach(client => {
+      const name = formatCustomerName(client);
+      if (name && name.trim()) {
+        names.add(name);
+      }
+    });
+    return Array.from(names).sort();
+  };
+
+  const getUniquePhoneNumbers = () => {
+    const phones = new Set<string>();
+    clients.forEach(client => {
+      if (client.phone && client.phone.trim()) {
+        phones.add(client.phone);
+      }
+    });
+    return Array.from(phones).sort();
+  };
+
+  const getUniqueStatuses = () => {
+    const statuses = new Set<string>();
+    clients.forEach(client => {
+      if (client.status) {
+        statuses.add(client.status);
+      }
+    });
+    return Array.from(statuses).sort();
+  };
+
+  const getUniqueSources = () => {
+    const sources = new Set<string>();
+    clients.forEach(client => {
+      if (client.lead_source) {
+        sources.add(client.lead_source);
+      }
+    });
+    return Array.from(sources).sort();
+  };
+
+  const getUniqueCreatedBy = () => {
+    const creators = new Set<string>();
+    clients.forEach(client => {
+      if (client.created_by) {
+        const name = `${client.created_by.first_name || ''} ${client.created_by.last_name || ''}`.trim() || client.created_by.username || 'Unknown';
+        creators.add(name);
+      } else if (client.assigned_to) {
+        creators.add(`User ID: ${client.assigned_to}`);
+      } else {
+        creators.add('System');
+      }
+    });
+    return Array.from(creators).sort();
+  };
+
+  const getUniqueCreatedDates = () => {
+    const dates = new Set<string>();
+    clients.forEach(client => {
+      if (client.created_at) {
+        const date = new Date(client.created_at);
+        if (!isNaN(date.getTime())) {
+          const monthYear = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+          dates.add(monthYear);
+        }
+      }
+    });
+    return Array.from(dates).sort((a, b) => {
+      const dateA = new Date(a);
+      const dateB = new Date(b);
+      return dateB.getTime() - dateA.getTime(); // Sort newest first
+    });
+  };
+
+  // Handle column sorting
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sort icon for column
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 text-muted-foreground" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600" />
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600" />;
+  };
+
+  // Apply filters and sorting to clients
+  const getFilteredAndSortedClients = () => {
+    let filtered = [...clients];
+
+    // Apply name filter
+    if (nameHeaderFilter !== 'all') {
+      filtered = filtered.filter(client => {
+        const name = formatCustomerName(client);
+        return name === nameHeaderFilter;
+      });
+    }
+
+    // Apply contact/phone filter
+    if (contactHeaderFilter !== 'all') {
+      filtered = filtered.filter(client => {
+        return client.phone === contactHeaderFilter;
+      });
+    }
+
+    // Apply status filter
+    if (statusHeaderFilter !== 'all') {
+      filtered = filtered.filter(client => client.status === statusHeaderFilter);
+    }
+
+    // Apply source filter
+    if (sourceHeaderFilter !== 'all') {
+      filtered = filtered.filter(client => client.lead_source === sourceHeaderFilter);
+    }
+
+    // Apply created by filter
+    if (createdByHeaderFilter !== 'all') {
+      filtered = filtered.filter(client => {
+        const createdBy = client.created_by
+          ? `${client.created_by.first_name || ''} ${client.created_by.last_name || ''}`.trim() || client.created_by.username || 'Unknown'
+          : client.assigned_to
+            ? `User ID: ${client.assigned_to}`
+            : 'System';
+        return createdBy === createdByHeaderFilter;
+      });
+    }
+
+    // Apply created date filter
+    if (createdDateHeaderFilter !== 'all') {
+      filtered = filtered.filter(client => {
+        if (!client.created_at) return false;
+        const date = new Date(client.created_at);
+        if (isNaN(date.getTime())) return false;
+        const monthYear = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+        return monthYear === createdDateHeaderFilter;
+      });
+    }
+
+    // Apply store filter
+    if (storeHeaderFilter !== 'all') {
+      filtered = filtered.filter(client => {
+        const storeId = client.store?.toString() || client.store_name;
+        return storeId === storeHeaderFilter || client.store_name === storeHeaderFilter;
+      });
+    }
+
+    // Apply sorting
+    if (sortColumn) {
+      filtered.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortColumn) {
+          case 'name':
+            aValue = formatCustomerName(a).toLowerCase();
+            bValue = formatCustomerName(b).toLowerCase();
+            break;
+          case 'contact':
+            aValue = (a.email || a.phone || '').toLowerCase();
+            bValue = (b.email || b.phone || '').toLowerCase();
+            break;
+          case 'status':
+            aValue = (a.status || '').toLowerCase();
+            bValue = (b.status || '').toLowerCase();
+            break;
+          case 'source':
+            aValue = (a.lead_source || '').toLowerCase();
+            bValue = (b.lead_source || '').toLowerCase();
+            break;
+          case 'created_by':
+            const aCreatedBy = a.created_by
+              ? `${a.created_by.first_name || ''} ${a.created_by.last_name || ''}`.trim() || a.created_by.username || 'Unknown'
+              : a.assigned_to
+                ? `User ID: ${a.assigned_to}`
+                : 'System';
+            const bCreatedBy = b.created_by
+              ? `${b.created_by.first_name || ''} ${b.created_by.last_name || ''}`.trim() || b.created_by.username || 'Unknown'
+              : b.assigned_to
+                ? `User ID: ${b.assigned_to}`
+                : 'System';
+            aValue = aCreatedBy.toLowerCase();
+            bValue = bCreatedBy.toLowerCase();
+            break;
+          case 'created':
+            aValue = a.created_at ? new Date(a.created_at).getTime() : 0;
+            bValue = b.created_at ? new Date(b.created_at).getTime() : 0;
+            break;
+          case 'store':
+            aValue = (a.store_name || a.store?.toString() || '').toLowerCase();
+            bValue = (b.store_name || b.store?.toString() || '').toLowerCase();
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  };
+
+  // Check if any header filters are active
+  const hasActiveHeaderFilters = nameHeaderFilter !== 'all' || contactHeaderFilter !== 'all' || statusHeaderFilter !== 'all' || sourceHeaderFilter !== 'all' || createdByHeaderFilter !== 'all' || createdDateHeaderFilter !== 'all' || storeHeaderFilter !== 'all';
+
+  // Clear all header filters
+  const clearHeaderFilters = () => {
+    setNameHeaderFilter('all');
+    setContactHeaderFilter('all');
+    setStatusHeaderFilter('all');
+    setSourceHeaderFilter('all');
+    setCreatedByHeaderFilter('all');
+    setCreatedDateHeaderFilter('all');
+    setStoreHeaderFilter('all');
   };
 
   // Define columns for ResponsiveTable
@@ -352,7 +807,7 @@ export default function CustomersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-secondary">Total Customers</p>
-                <p className="text-2xl font-bold text-text-primary">{clients.length || 0}</p>
+                <p className="text-2xl font-bold text-text-primary">{totalCount || 0}</p>
               </div>
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <span className="text-blue-600 text-sm font-semibold">👥</span>
@@ -453,7 +908,17 @@ export default function CustomersPage() {
             <Button
               variant={filterType === 'all_customers' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFilterType('all_customers')}
+              onClick={() => {
+                if (filterType === 'all_customers') {
+                  // Turn off: reset to current month
+                  setDateRange(getCurrentMonthDateRange())
+                  setFilterType('date_range')
+                } else {
+                  // Turn on: show all customers
+                  setFilterType('all_customers')
+                }
+                setCurrentPage(1); // Reset to page 1 when toggling
+              }}
               className={filterType === 'all_customers' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
             >
               All Customers
@@ -470,10 +935,19 @@ export default function CustomersPage() {
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              More Filters
-            </Button>
+            <Select value={storeFilter} onValueChange={setStoreFilter}>
+              <SelectTrigger className="w-full md:w-48">
+                <SelectValue placeholder="By store" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stores</SelectItem>
+                {stores.map((store) => (
+                  <SelectItem key={store.id} value={store.id.toString()}>
+                    {store.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -481,7 +955,33 @@ export default function CustomersPage() {
       {/* Customers Table */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>All Customers</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>All Customers</CardTitle>
+            {/* Pagination Controls at Top-Right - Only show for date range filter */}
+            {!loading && clients.length > 0 && filterType === 'date_range' && (
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-text-secondary">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={!hasPrevious || currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={!hasNext || currentPage >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -496,77 +996,343 @@ export default function CustomersPage() {
               </Button>
             </div>
           ) : (
-            <ResponsiveTable
-              data={clients as unknown as Record<string, unknown>[]}
-              columns={getCustomerColumns() as unknown as ResponsiveColumn<Record<string, unknown>>[]}
-              loading={loading}
-              searchable={false} // We have our own search above
-              selectable={false}
-              onRowClick={(client) => handleViewCustomer(client as unknown as Client)}
-              onAction={(action, client) => {
-                const clientData = client as unknown as Client;
-                switch (action) {
-                  case 'view':
-                    handleViewCustomer(clientData);
-                    break;
-                  case 'delete':
-                    handleDeleteCustomer(clientData);
-                    break;
-                }
-              }}
-              mobileCardTitle={(client) => {
-                const clientData = client as unknown as Client;
-                return formatCustomerName(clientData);
-              }}
-              mobileCardSubtitle={(client) => {
-                const clientData = client as unknown as Client;
-                const email = clientData.email || 'N/A';
-                // Add store info for business admin
-                if (user?.role === 'business_admin' && clientData.store_name) {
-                  return `${email} • ${clientData.store_name}`;
-                }
-                return email;
-              }}
-              mobileCardActions={(client) => {
-                const clientData = client as unknown as Client;
-                return (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewCustomer(clientData);
-                      }}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    {canDeleteCustomers && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCustomer(clientData);
-                        }}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                );
-              }}
-              emptyState={
-                <div className="text-center py-8">
-                  <div className="text-text-secondary mb-2">No customers found</div>
-                  <Button onClick={() => setShowAddModal(true)} variant="outline">
-                    Add your first customer
+            <div className="space-y-4">
+              {/* Clear Filters Button */}
+              {hasActiveHeaderFilters && (
+                <div className="flex items-center justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearHeaderFilters}
+                    className="text-xs"
+                  >
+                    Clear Header Filters
                   </Button>
                 </div>
-              }
-            />
+              )}
+              
+              {/* Custom Table */}
+              <div className="overflow-x-auto rounded-lg border border-border bg-white">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleSort('name')}
+                            className="flex items-center hover:text-foreground transition-colors"
+                          >
+                            NAME
+                            {getSortIcon('name')}
+                          </button>
+                          <Select value={nameHeaderFilter} onValueChange={setNameHeaderFilter}>
+                            <SelectTrigger className="h-8 text-xs w-full">
+                              <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Names</SelectItem>
+                              {getUniqueNames().map((name) => (
+                                <SelectItem key={name} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleSort('contact')}
+                            className="flex items-center hover:text-foreground transition-colors"
+                          >
+                            CONTACT
+                            {getSortIcon('contact')}
+                          </button>
+                          <Select value={contactHeaderFilter} onValueChange={setContactHeaderFilter}>
+                            <SelectTrigger className="h-8 text-xs w-full">
+                              <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Phone Numbers</SelectItem>
+                              {getUniquePhoneNumbers().map((phone) => (
+                                <SelectItem key={phone} value={phone}>
+                                  {phone}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleSort('status')}
+                            className="flex items-center hover:text-foreground transition-colors"
+                          >
+                            STATUS
+                            {getSortIcon('status')}
+                          </button>
+                          <Select value={statusHeaderFilter} onValueChange={setStatusHeaderFilter}>
+                            <SelectTrigger className="h-8 text-xs w-full">
+                              <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              {getUniqueStatuses().map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleSort('source')}
+                            className="flex items-center hover:text-foreground transition-colors"
+                          >
+                            SOURCE
+                            {getSortIcon('source')}
+                          </button>
+                          <Select value={sourceHeaderFilter} onValueChange={setSourceHeaderFilter}>
+                            <SelectTrigger className="h-8 text-xs w-full">
+                              <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Sources</SelectItem>
+                              {getUniqueSources().map((source) => (
+                                <SelectItem key={source} value={source}>
+                                  {source}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleSort('created_by')}
+                            className="flex items-center hover:text-foreground transition-colors"
+                          >
+                            CREATED BY
+                            {getSortIcon('created_by')}
+                          </button>
+                          <Select value={createdByHeaderFilter} onValueChange={setCreatedByHeaderFilter}>
+                            <SelectTrigger className="h-8 text-xs w-full">
+                              <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Users</SelectItem>
+                              {getUniqueCreatedBy().map((creator) => (
+                                <SelectItem key={creator} value={creator}>
+                                  {creator}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleSort('created')}
+                            className="flex items-center hover:text-foreground transition-colors"
+                          >
+                            CREATED
+                            {getSortIcon('created')}
+                          </button>
+                          <Select value={createdDateHeaderFilter} onValueChange={setCreatedDateHeaderFilter}>
+                            <SelectTrigger className="h-8 text-xs w-full">
+                              <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Dates</SelectItem>
+                              {getUniqueCreatedDates().map((date) => (
+                                <SelectItem key={date} value={date}>
+                                  {date}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </th>
+                      {user?.role === 'business_admin' && (
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => handleSort('store')}
+                              className="flex items-center hover:text-foreground transition-colors"
+                            >
+                              STORE
+                              {getSortIcon('store')}
+                            </button>
+                            <Select value={storeHeaderFilter} onValueChange={setStoreHeaderFilter}>
+                              <SelectTrigger className="h-8 text-xs w-full">
+                                <SelectValue placeholder="All" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Stores</SelectItem>
+                                {stores.map((store) => (
+                                  <SelectItem key={store.id} value={store.id.toString()}>
+                                    {store.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </th>
+                      )}
+                      <th className="w-12 px-6 py-3">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-card divide-y divide-border">
+                    {getFilteredAndSortedClients().length === 0 ? (
+                      <tr>
+                        <td colSpan={user?.role === 'business_admin' ? 8 : 7} className="px-6 py-8 text-center text-text-secondary">
+                          No customers found
+                        </td>
+                      </tr>
+                    ) : (
+                      getFilteredAndSortedClients().map((client) => (
+                        <tr
+                          key={client.id}
+                          onClick={() => handleViewCustomer(client)}
+                          className="hover:bg-muted/50 cursor-pointer"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="font-medium text-text-primary">
+                                {formatCustomerName(client)}
+                              </div>
+                              {client.preferred_metal && (
+                                <div className="text-sm text-text-secondary">
+                                  Prefers: {client.preferred_metal}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-text-primary">{client.email || 'N/A'}</div>
+                              <div className="text-sm text-text-secondary">{client.phone || 'N/A'}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge variant={getStatusBadgeVariant(client.status)}>
+                              {client.status
+                                ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
+                                : 'Unknown'
+                              }
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-text-secondary">{client.lead_source || 'N/A'}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-text-secondary">
+                              {client.created_by
+                                ? `${client.created_by.first_name || ''} ${client.created_by.last_name || ''}`.trim() || client.created_by.username || 'Unknown'
+                                : client.assigned_to
+                                  ? `User ID: ${client.assigned_to}`
+                                  : 'System'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-text-secondary">{formatDate(client.created_at || '')}</span>
+                          </td>
+                          {user?.role === 'business_admin' && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="text-text-secondary">
+                                {client.store_name || (client.store ? `Store #${client.store}` : 'N/A')}
+                              </span>
+                            </td>
+                          )}
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewCustomer(client); }}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  View
+                                </DropdownMenuItem>
+                                {canDeleteCustomers && (
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteCustomer(client);
+                                    }}
+                                    className="text-red-600"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Show filtered count */}
+              {getFilteredAndSortedClients().length !== clients.length && (
+                <div className="text-sm text-text-secondary text-center mt-2">
+                  Showing {getFilteredAndSortedClients().length} of {clients.length} customers
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Pagination Controls - Only show when using date range filter */}
+          {!loading && clients.length > 0 && filterType === 'date_range' && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div className="text-sm text-text-secondary">
+                Showing {((currentPage - 1) * 50) + 1} to {Math.min(currentPage * 50, totalCount)} of {totalCount} customers
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={!hasPrevious || currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="text-sm text-text-secondary">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={!hasNext || currentPage >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Show total count when "All Customers" is selected */}
+          {!loading && filterType === 'all_customers' && clients.length > 0 && (
+            <div className="flex items-center justify-center mt-4 pt-4 border-t">
+              <div className="text-sm text-text-secondary">
+                Showing all {totalCount} customers
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
