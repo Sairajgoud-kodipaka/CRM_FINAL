@@ -1140,17 +1140,20 @@ class ApiService {
     const preservedInterests = clientData.customer_interests_input;
     
     Object.entries(clientData || {}).forEach(([key, value]) => {
+      // Special handling for customer_interests_input - always include it (even if empty array)
+      if (key === 'customer_interests_input') {
+        cleaned[key] = value !== undefined ? value : [];
+        return;
+      }
+      
       if (value === undefined || value === null) return;
+      
       // Don't filter out created_at - it's needed for historical date imports
       if (key === 'created_at') {
         cleaned[key] = value;
         return;
       }
-      // Don't filter out customer_interests_input - it's an array and backend needs it
-      if (key === 'customer_interests_input') {
-        cleaned[key] = value;
-        return;
-      }
+      
       if (typeof value === 'string' && value.trim() === '') return;
       cleaned[key] = value;
     });
@@ -1158,9 +1161,9 @@ class ApiService {
     if (preservedCreatedAt && !cleaned.created_at) {
       cleaned.created_at = preservedCreatedAt;
     }
-    // Ensure customer_interests_input is included if it was present
-    if (preservedInterests !== undefined && !cleaned.customer_interests_input) {
-      cleaned.customer_interests_input = preservedInterests;
+    // Ensure customer_interests_input is always included (even if empty array)
+    if (!('customer_interests_input' in cleaned)) {
+      cleaned.customer_interests_input = preservedInterests !== undefined ? preservedInterests : [];
     }
     
     console.log('🔍 createClient - Request body:', {
@@ -1389,7 +1392,10 @@ class ApiService {
       lead_source: leadSource,
       customer_type: leadData.customer_type || 'individual',
       exhibition: exhibitionId || null,
-      customer_interests_input: leadData.customer_interests_input || []
+      // Always ensure customer_interests_input is an array (never undefined)
+      customer_interests_input: Array.isArray(leadData.customer_interests_input) 
+        ? leadData.customer_interests_input 
+        : (leadData.customer_interests_input ? [leadData.customer_interests_input] : [])
     };
     
     console.log('🔍 createExhibitionLead - Request body:', {

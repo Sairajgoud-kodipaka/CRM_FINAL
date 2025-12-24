@@ -359,10 +359,18 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit, exhibition
         exhibition_name: formData.exhibition_name || undefined,
         exhibition_date: formData.exhibition_date || undefined,
         exhibition_tag: formData.exhibition_tag ? parseInt(formData.exhibition_tag) : undefined,
-        customer_interests_input: customer_interests_input.length > 0 ? customer_interests_input : undefined
+        // Always send an array (empty if no valid interests) so backend knows to process it
+        customer_interests_input: customer_interests_input.length > 0 ? customer_interests_input : []
       };
       
-      console.log('Submitting customer interests:', customer_interests_input);
+      console.log('🔍 CaptureLeadModal - Submitting customer interests:', {
+        customer_interests_input: customer_interests_input,
+        customer_interests_input_length: customer_interests_input.length,
+        customer_interests_input_type: typeof customer_interests_input,
+        customer_interests_input_is_array: Array.isArray(customer_interests_input),
+        raw_interests: interests,
+        raw_interests_length: interests.length
+      });
       await onSubmit(submitData);
       handleClose();
     } catch (error: any) {

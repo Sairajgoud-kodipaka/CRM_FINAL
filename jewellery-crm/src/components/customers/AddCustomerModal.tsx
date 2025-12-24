@@ -825,8 +825,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               }
             });
           
-          // Only include if there are valid interests
-          return filteredInterests.length > 0 ? filteredInterests : undefined;
+          // Always return an array (empty if no valid interests) so backend knows to process it
+          return filteredInterests.length > 0 ? filteredInterests : [];
         })(),
 
         style: emptyToNull(formData.style) as string | null,
@@ -862,16 +862,31 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
 
       // Remove undefined values but keep null values (null indicates optional fields that are empty)
+      // BUT preserve customer_interests_input even if it's an empty array
       const cleanedCustomerData = Object.fromEntries(
-        Object.entries(customerData).filter(([_, value]) => value !== undefined)
+        Object.entries(customerData).filter(([key, value]) => {
+          // Always include customer_interests_input, even if it's an empty array
+          if (key === 'customer_interests_input') {
+            return true;
+          }
+          return value !== undefined;
+        })
       );
+
+      // Ensure customer_interests_input is always an array (never undefined)
+      if (!('customer_interests_input' in cleanedCustomerData) || cleanedCustomerData.customer_interests_input === undefined) {
+        cleanedCustomerData.customer_interests_input = [];
+      }
 
       // Log customer interests for debugging
       const interestsInput = cleanedCustomerData.customer_interests_input;
       console.log('🔍 AddCustomerModal - Submitting customer interests:', {
         customer_interests_input: interestsInput,
         customer_interests_input_length: Array.isArray(interestsInput) ? interestsInput.length : 0,
-        raw_interests: interests
+        customer_interests_input_type: typeof interestsInput,
+        customer_interests_input_is_array: Array.isArray(interestsInput),
+        raw_interests: interests,
+        raw_interests_length: interests.length
       });
 
       // Sending customer data to API

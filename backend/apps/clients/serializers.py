@@ -536,18 +536,25 @@ class ClientSerializer(serializers.ModelSerializer):
             interests_value = validated_data.pop('customer_interests_input')
             print(f"🔍 Customer interests found in validated_data: {interests_value}")
             print(f"🔍 Type: {type(interests_value)}")
-            if interests_value:
-                # Handle both list and single value
+            print(f"🔍 Is None: {interests_value is None}")
+            print(f"🔍 Is empty list: {interests_value == []}")
+            print(f"🔍 Length (if list): {len(interests_value) if isinstance(interests_value, list) else 'N/A'}")
+            
+            # Handle both list and single value - even if empty list, we want to process it
+            if interests_value is not None:
                 if isinstance(interests_value, list):
                     customer_interests_data = interests_value
+                    print(f"✅ Stored {len(customer_interests_data)} customer interests (list) for later processing")
                 elif isinstance(interests_value, str):
                     # Single JSON string
                     customer_interests_data = [interests_value]
+                    print(f"✅ Stored 1 customer interest (string) for later processing")
                 else:
                     customer_interests_data = [interests_value] if interests_value else []
-                print(f"✅ Stored {len(customer_interests_data)} customer interests for later processing")
+                    print(f"✅ Stored {len(customer_interests_data)} customer interests (other type) for later processing")
             else:
-                print(f"⚠️ customer_interests_input is empty/None: {interests_value}")
+                print(f"⚠️ customer_interests_input is None - will skip processing")
+                customer_interests_data = []
         elif 'customer_interests' in validated_data:
             print(f"Customer interests found (legacy field): {validated_data['customer_interests']}")
             customer_interests_data = validated_data.pop('customer_interests')
@@ -721,7 +728,8 @@ class ClientSerializer(serializers.ModelSerializer):
             print(f"Created client: {result}")
             
             # Process customer interests after client creation
-            if customer_interests_data and len(customer_interests_data) > 0:
+            # Check if customer_interests_data exists and is not empty
+            if customer_interests_data is not None and len(customer_interests_data) > 0:
                 print(f"=== PROCESSING CUSTOMER INTERESTS ===")
                 print(f"Processing {len(customer_interests_data)} customer interests for client {result.id}")
                 print(f"Raw customer_interests_data: {customer_interests_data}")
@@ -734,6 +742,16 @@ class ClientSerializer(serializers.ModelSerializer):
                     customer_interests_data = [customer_interests_data] if customer_interests_data else []
                 
                 from .models import CustomerInterest
+                
+                # For new customers, check existing interests to avoid duplicates
+                existing_interests = CustomerInterest.objects.filter(client=result)
+                existing_identifiers = set()
+                for existing in existing_interests:
+                    identifier = f"{existing.category.name}_{existing.product.name}_{existing.revenue}"
+                    existing_identifiers.add(identifier)
+                    print(f"   Existing interest: {existing.category.name} - {existing.product.name} (₹{existing.revenue})")
+                
+                new_interests_created = 0
                 for i, interest_data in enumerate(customer_interests_data):
                     try:
                         print(f"\n--- Processing interest {i+1}/{len(customer_interests_data)} ---")
@@ -985,7 +1003,8 @@ class ClientSerializer(serializers.ModelSerializer):
                 # Log summary of interest processing
                 final_interests = CustomerInterest.objects.filter(client=result)
                 print(f"✅ Interest processing complete:")
-                print(f"   - Total interests created: {final_interests.count()}")
+                print(f"   - New interests created in this session: {new_interests_created}")
+                print(f"   - Total interests for this client: {final_interests.count()}")
                 if final_interests.count() > 0:
                     for interest in final_interests:
                         print(f"     • {interest.category.name if interest.category else 'No Category'}: {interest.product.name if interest.product else 'No Product'} (₹{interest.revenue})")
@@ -1340,29 +1359,29 @@ class ClientSerializer(serializers.ModelSerializer):
                                     
                                     # Create the customer interest
                                     try:
-                                        # Check if this interest already exists to avoid duplicates
-                                        new_interest_identifier = f"{category_obj.name}_{product_obj.name}_{revenue_value}"
-                                        if new_interest_identifier in existing_identifiers:
-                                            print(f"WARNING: Interest already exists, skipping: {category_obj.name} - {product_obj.name} (₹{revenue_value})")
-                                            continue
-                                        
-                                        interest = CustomerInterest.objects.create(
+                                        # Use get_or_create to avoid duplicates (no need to check existing_identifiers manually)
+                                        interest, created = CustomerInterest.objects.get_or_create(
                                             client=result,
                                             category=category_obj,
                                             product=product_obj,
                                             revenue=revenue_value,
                                             tenant=result.tenant,
-                                            notes=notes
+                                            defaults={'notes': notes}
                                         )
-                                        new_interests_created += 1
-                                        print(f"SUCCESS: Successfully created customer interest: {interest}")
-                                        print(f"  - ID: {interest.id}")
-                                        print(f"  - Client: {interest.client.full_name}")
-                                        print(f"  - Category: {interest.category.name if interest.category else 'No Category'}")
-                                        print(f"  - Product: {interest.product.name if interest.product else 'No Product'}")
-                                        print(f"  - Revenue: {interest.revenue}")
+                                        if created:
+                                            new_interests_created += 1
+                                            print(f"SUCCESS: Successfully created new customer interest: {interest}")
+                                            print(f"  - ID: {interest.id}")
+                                            print(f"  - Client: {interest.client.full_name}")
+                                            print(f"  - Category: {interest.category.name if interest.category else 'No Category'}")
+                                            print(f"  - Product: {interest.product.name if interest.product else 'No Product'}")
+                                            print(f"  - Revenue: {interest.revenue}")
+                                        else:
+                                            print(f"INFO: Customer interest already exists: {interest}")
                                     except Exception as interest_error:
                                         print(f"ERROR: Error creating customer interest: {interest_error}")
+                                        import traceback
+                                        print(f"CustomerInterest creation traceback: {traceback.format_exc()}")
                                         continue
                                 except Exception as e:
                                     print(f"ERROR: Error processing product: {e}")
