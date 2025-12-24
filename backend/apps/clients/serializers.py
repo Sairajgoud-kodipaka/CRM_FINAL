@@ -963,7 +963,11 @@ class ClientSerializer(serializers.ModelSerializer):
                                                     product=product_obj,
                                                     revenue=revenue_value,
                                                     tenant=result.tenant,
-                                                    defaults={'notes': notes}
+                                                    defaults={
+                                                        'notes': notes,
+                                                        'is_purchased': False,
+                                                        'is_not_purchased': False
+                                                    }
                                                 )
                                                 if created:
                                                     print(f"SUCCESS: Successfully created new customer interest: {interest}")
@@ -1371,7 +1375,11 @@ class ClientSerializer(serializers.ModelSerializer):
                                             product=product_obj,
                                             revenue=revenue_value,
                                             tenant=result.tenant,
-                                            defaults={'notes': notes}
+                                            defaults={
+                                                'notes': notes,
+                                                'is_purchased': False,
+                                                'is_not_purchased': False
+                                            }
                                         )
                                         if created:
                                             new_interests_created += 1
