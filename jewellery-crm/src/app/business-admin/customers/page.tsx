@@ -21,6 +21,7 @@ import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { DateRange } from 'react-day-picker';
+import { SALES_STAGE_LABELS } from '@/constants';
 
 export default function CustomersPage() {
   const { user } = useAuth();
@@ -342,6 +343,11 @@ export default function CustomersPage() {
 
   const formatPipelineStage = (stage: string | undefined) => {
     if (!stage) return 'Unknown';
+    
+    // Use SALES_STAGE_LABELS if available, otherwise convert snake_case to Title Case
+    if (SALES_STAGE_LABELS[stage as keyof typeof SALES_STAGE_LABELS]) {
+      return SALES_STAGE_LABELS[stage as keyof typeof SALES_STAGE_LABELS];
+    }
     
     // Convert snake_case to Title Case
     return stage
@@ -687,7 +693,7 @@ export default function CustomersPage() {
         return (
           <Badge variant={getStatusBadgeVariant(client.pipeline_stage || client.status)}>
             {client.pipeline_stage
-              ? formatPipelineStage(client.pipeline_stage)
+              ? (SALES_STAGE_LABELS[client.pipeline_stage as keyof typeof SALES_STAGE_LABELS] || formatPipelineStage(client.pipeline_stage))
               : client.status
                 ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
                 : 'Unknown'

@@ -433,6 +433,9 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         """List clients with filtering support"""
         queryset = self.get_queryset()
         
+        # Optimize query by prefetching pipelines to avoid N+1 queries for pipeline_stage
+        queryset = queryset.prefetch_related('pipelines')
+        
         # Apply search filter
         search = request.query_params.get('search')
         if search:
@@ -1978,10 +1981,16 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @action(detail=True, methods=['post'], url_path=r'interests/(?P<interest_id>\d+)/mark-purchased')
-    def mark_interest_purchased(self, request, pk=None, interest_id=None):
+    def mark_interest_purchased(self, request, pk=None, *args, **kwargs):
         """Mark a customer interest as purchased"""
         try:
+            # Get interest_id from kwargs
+            interest_id = kwargs.get('interest_id')
+            if not interest_id:
+                return Response(
+                    {'error': 'Interest ID is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             client = self.get_object()
             interest = CustomerInterest.objects.get(id=interest_id, client=client)
             
@@ -2011,10 +2020,16 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    @action(detail=True, methods=['post'], url_path=r'interests/(?P<interest_id>\d+)/mark-not-purchased')
-    def mark_interest_not_purchased(self, request, pk=None, interest_id=None):
+    def mark_interest_not_purchased(self, request, pk=None, *args, **kwargs):
         """Mark a customer interest as not purchased"""
         try:
+            # Get interest_id from kwargs
+            interest_id = kwargs.get('interest_id')
+            if not interest_id:
+                return Response(
+                    {'error': 'Interest ID is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             client = self.get_object()
             interest = CustomerInterest.objects.get(id=interest_id, client=client)
             

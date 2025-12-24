@@ -113,13 +113,26 @@ class ClientSerializer(serializers.ModelSerializer):
     def get_pipeline_stage(self, obj):
         """Get the latest pipeline stage for this customer"""
         try:
-            # Get the most recent pipeline entry for this client
-            latest_pipeline = obj.pipelines.order_by('-created_at').first()
-            if latest_pipeline:
-                return latest_pipeline.stage
-        except Exception:
-            pass
-        return None
+            # Check if pipelines are already prefetched
+            if hasattr(obj, '_prefetched_objects_cache') and 'pipelines' in obj._prefetched_objects_cache:
+                # Use prefetched pipelines
+                pipelines = obj._prefetched_objects_cache['pipelines']
+                if pipelines:
+                    # Get the most recent pipeline (already sorted by updated_at in model Meta)
+                    latest_pipeline = max(pipelines, key=lambda p: p.updated_at)
+                    return latest_pipeline.stage
+            else:
+                # Query pipelines if not prefetched
+                latest_pipeline = obj.pipelines.order_by('-updated_at').first()
+                if latest_pipeline:
+                    return latest_pipeline.stage
+            return None
+        except Exception as e:
+            # Log error but don't break the serializer
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error getting pipeline stage for client {obj.id}: {str(e)}")
+            return None
     
     def validate_date_of_birth(self, value):
         """Handle empty strings for date_of_birth field"""

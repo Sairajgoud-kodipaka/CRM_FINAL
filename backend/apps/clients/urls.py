@@ -24,6 +24,10 @@ urlpatterns = [
     path('clients/trash/', ClientViewSet.as_view({'get': 'trash'}), name='client-trash'),
     path('clients/<int:pk>/restore/', ClientViewSet.as_view({'post': 'restore'}), name='client-restore'),
     
+    # Interest management URLs
+    path('clients/<int:pk>/interests/<int:interest_id>/mark-purchased/', ClientViewSet.as_view({'post': 'mark_interest_purchased'}), name='client-mark-interest-purchased'),
+    path('clients/<int:pk>/interests/<int:interest_id>/mark-not-purchased/', ClientViewSet.as_view({'post': 'mark_interest_not_purchased'}), name='client-mark-interest-not-purchased'),
+    
     # Import/Export URLs
     path('clients/export/csv/', ClientViewSet.as_view({'get': 'export_csv'}), name='client-export-csv'),
     path('clients/export/json/', ClientViewSet.as_view({'get': 'export_json'}), name='client-export-json'),
