@@ -23,6 +23,7 @@ import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange, toUtcStartOfDay, toUtcEndOfDay } from '@/lib/date-utils';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { SALES_STAGE_LABELS } from '@/constants';
 
 function SalesCustomersPageContent() {
   const router = useRouter();
@@ -685,7 +686,7 @@ function SalesCustomersPageContent() {
                       <td className="px-4 py-3">
                         <Badge variant={getStatusBadgeVariant(customer.pipeline_stage || customer.status)} className="capitalize text-xs">
                           {customer.pipeline_stage
-                            ? formatPipelineStage(customer.pipeline_stage)
+                            ? (SALES_STAGE_LABELS[customer.pipeline_stage as keyof typeof SALES_STAGE_LABELS] || formatPipelineStage(customer.pipeline_stage))
                             : customer.status
                               ? customer.status.charAt(0).toUpperCase() + customer.status.slice(1)
                               : 'Unknown'

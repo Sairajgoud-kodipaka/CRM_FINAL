@@ -990,7 +990,13 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     elif field == 'anniversary_date' and client.anniversary_date:
                         row[field] = client.anniversary_date.strftime('%Y-%m-%d')
                     elif field in ['created_at', 'updated_at']:
-                        row[field] = getattr(client, field).strftime('%Y-%m-%d %H:%M:%S')
+                        row[field] = getattr(client, field).strftime('%d-%m-%Y')
+                    elif field == 'phone' and getattr(client, field):
+                        # Remove country code from phone number (e.g., +919849831614 -> 9849831614)
+                        phone = str(getattr(client, field))
+                        # Remove leading + and country codes (1-3 digits after +)
+                        phone_cleaned = re.sub(r'^\+\d{1,3}', '', phone)
+                        row[field] = phone_cleaned
                     elif field == 'created_by':
                         # Handle created_by field - show creator's name
                         if client.created_by:
@@ -1123,7 +1129,13 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     elif field == 'anniversary_date' and client.anniversary_date:
                         client_data[field] = client.anniversary_date.strftime('%Y-%m-%d')
                     elif field in ['created_at', 'updated_at']:
-                        client_data[field] = getattr(client, field).strftime('%Y-%m-%d %H:%M:%S')
+                        client_data[field] = getattr(client, field).strftime('%d-%m-%Y')
+                    elif field == 'phone' and getattr(client, field):
+                        # Remove country code from phone number (e.g., +919849831614 -> 9849831614)
+                        phone = str(getattr(client, field))
+                        # Remove leading + and country codes (1-3 digits after +)
+                        phone_cleaned = re.sub(r'^\+\d{1,3}', '', phone)
+                        client_data[field] = phone_cleaned
                     elif field == 'created_by':
                         # Handle created_by field - show creator's name
                         if client.created_by:
@@ -1966,7 +1978,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @action(detail=True, methods=['post'], url_path='interests/(?P<interest_id>[^/.]+)/mark-purchased')
+    @action(detail=True, methods=['post'], url_path=r'interests/(?P<interest_id>\d+)/mark-purchased')
     def mark_interest_purchased(self, request, pk=None, interest_id=None):
         """Mark a customer interest as purchased"""
         try:
@@ -1999,7 +2011,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    @action(detail=True, methods=['post'], url_path='interests/(?P<interest_id>[^/.]+)/mark-not-purchased')
+    @action(detail=True, methods=['post'], url_path=r'interests/(?P<interest_id>\d+)/mark-not-purchased')
     def mark_interest_not_purchased(self, request, pk=None, interest_id=None):
         """Mark a customer interest as not purchased"""
         try:
