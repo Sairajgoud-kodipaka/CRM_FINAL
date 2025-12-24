@@ -20,19 +20,6 @@ services:
       - db-dev
       - redis-dev
 
-  # Development Frontend
-  frontend-dev:
-    build:
-      context: ./jewellery-crm
-      dockerfile: Dockerfile.dev
-    ports:
-      - "3001:3000"  # Different port from production
-    volumes:
-      - ./jewellery-crm:/app
-      - /app/node_modules  # Exclude node_modules from volume
-    env_file:
-      - ./jewellery-crm/.env.dev
-
   # Development Database
   db-dev:
     image: postgres:15
