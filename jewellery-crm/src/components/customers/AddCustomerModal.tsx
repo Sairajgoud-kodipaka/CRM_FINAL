@@ -799,21 +799,21 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               const hasProductNames = interest.products.some(p => p.product && p.product.trim() !== '');
               return hasCategory && hasProducts && hasProductNames;
             })
-            .map((interest) => {
+          .map((interest) => {
               const normalizedProducts = (interest.products || [])
                 .filter(p => p.product && p.product.trim() !== '') // Filter out empty products
                 .map(p => ({
-                  product: p.product,
-                  revenue: String(parseFloat(p.revenue || '0') || 0)
-                }));
-              return {
-                category: interest.mainCategory,
-                products: normalizedProducts,
-                preferences: interest.preferences || {}
-              };
-            })
-            // Keep interests even when revenue is 0; only drop if there are no products at all
-            .filter(it => Array.isArray(it.products) && it.products.length > 0)
+              product: p.product,
+              revenue: String(parseFloat(p.revenue || '0') || 0)
+            }));
+            return {
+              category: interest.mainCategory,
+              products: normalizedProducts,
+              preferences: interest.preferences || {}
+            };
+          })
+          // Keep interests even when revenue is 0; only drop if there are no products at all
+          .filter(it => Array.isArray(it.products) && it.products.length > 0)
             .map(it => JSON.stringify(it))
             .filter(jsonStr => {
               // Double-check: parse and verify the interest has valid data
@@ -862,34 +862,19 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
 
       // Remove undefined values but keep null values (null indicates optional fields that are empty)
-      // BUT preserve customer_interests_input even if it's an empty array
       const cleanedCustomerData = Object.fromEntries(
-        Object.entries(customerData).filter(([key, value]) => {
-          // Always include customer_interests_input, even if it's an empty array
-          if (key === 'customer_interests_input') {
-            return true;
-          }
-          return value !== undefined;
-        })
+        Object.entries(customerData).filter(([_, value]) => value !== undefined)
       );
-
-      // Ensure customer_interests_input is always an array (never undefined)
-      if (!('customer_interests_input' in cleanedCustomerData) || cleanedCustomerData.customer_interests_input === undefined) {
-        cleanedCustomerData.customer_interests_input = [];
-      }
 
       // Log customer interests for debugging
       const interestsInput = cleanedCustomerData.customer_interests_input;
       console.log('🔍 AddCustomerModal - Submitting customer interests:', {
         customer_interests_input: interestsInput,
         customer_interests_input_length: Array.isArray(interestsInput) ? interestsInput.length : 0,
-        customer_interests_input_type: typeof interestsInput,
-        customer_interests_input_is_array: Array.isArray(interestsInput),
-        raw_interests: interests,
-        raw_interests_length: interests.length
+        raw_interests: interests
       });
 
-      // Sending customer data to API
+              // Sending customer data to API
 
       // Call API to create customer
       const response = await apiService.createClient(cleanedCustomerData);
@@ -1495,29 +1480,29 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                     </div>
                   ) : (
                     <>
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={useExistingCustomer}
-                          className="text-xs"
-                        >
-                          ✓ Use Existing Customer
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setExistingPhoneCustomer(null)}
-                          className="text-xs"
-                        >
-                          Create New Visit Entry
-                        </Button>
-                      </div>
-                      <div className="mt-2 text-xs text-amber-700">
-                        💡 Tip: Multiple visits can be created for the same customer. Each visit is tracked separately.
-                      </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={useExistingCustomer}
+                      className="text-xs"
+                    >
+                      ✓ Use Existing Customer
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setExistingPhoneCustomer(null)}
+                      className="text-xs"
+                    >
+                      Create New Visit Entry
+                    </Button>
+                  </div>
+                  <div className="mt-2 text-xs text-amber-700">
+                    💡 Tip: Multiple visits can be created for the same customer. Each visit is tracked separately.
+                  </div>
                     </>
                   )}
                 </div>

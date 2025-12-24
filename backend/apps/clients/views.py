@@ -107,7 +107,20 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         print(f"Sales person ID from request: {request.data.get('sales_person_id')}")
         print(f"Sales person name from request: {request.data.get('sales_person')}")
         print(f"Request data type: {type(request.data)}")
+        print(f"=== VIEW: Request data received ===")
+        print(f"Request data keys: {list(request.data.keys())}")
         print(f"Request data: {request.data}")
+        
+        # Log customer_interests_input specifically
+        if 'customer_interests_input' in request.data:
+            print(f"🔍 VIEW: customer_interests_input found in request.data")
+            print(f"🔍 VIEW: Type: {type(request.data.get('customer_interests_input'))}")
+            print(f"🔍 VIEW: Value: {request.data.get('customer_interests_input')}")
+            if isinstance(request.data.get('customer_interests_input'), list):
+                print(f"🔍 VIEW: Length: {len(request.data.get('customer_interests_input'))}")
+        else:
+            print(f"⚠️ VIEW: customer_interests_input NOT found in request.data!")
+            print(f"⚠️ VIEW: Available keys: {list(request.data.keys())}")
         
         try:
             # Extract created_at BEFORE validation (since serializer will remove it)

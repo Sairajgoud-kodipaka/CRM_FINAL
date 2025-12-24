@@ -427,12 +427,17 @@ class ClientSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         print("=== BACKEND SERIALIZER - CREATE METHOD START ===")
+        print(f"Initial validated_data keys: {list(validated_data.keys())}")
         print(f"Initial validated_data: {validated_data}")
         print(f"Fields being processed:")
         print(f"  - sales_person: {validated_data.get('sales_person')}")
         print(f"  - product_type: {validated_data.get('product_type')}")
         print(f"  - let_him_visit: {validated_data.get('let_him_visit')}")
         print(f"  - design_number: {validated_data.get('design_number')}")
+        print(f"  - customer_interests_input in validated_data: {'customer_interests_input' in validated_data}")
+        if 'customer_interests_input' in validated_data:
+            print(f"  - customer_interests_input value: {validated_data.get('customer_interests_input')}")
+            print(f"  - customer_interests_input type: {type(validated_data.get('customer_interests_input'))}")
         
         # Handle created_at for imports - get from context (extracted in to_internal_value)
         # Also check context in case it was passed from view
