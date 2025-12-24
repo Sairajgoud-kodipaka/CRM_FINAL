@@ -11,6 +11,9 @@ import { useRouter, useParams } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCustomerName } from '@/utils/name-utils';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
+import { DateRange } from 'react-day-picker';
+import { getCurrentMonthDateRange } from '@/lib/date-utils';
 
 interface CustomerInStage {
   id: number;
@@ -74,6 +77,7 @@ export default function SalesPipelineStagePage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [stageInfo, setStageInfo] = useState<PipelineStage | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
 
   // Stage transition states
   const [showStageTransitionModal, setShowStageTransitionModal] = useState(false);
@@ -109,7 +113,7 @@ export default function SalesPipelineStagePage() {
         });
       }
     }
-  }, [stageValue]);
+  }, [stageValue, dateRange]);
 
   // Debug: Log customer profile data when modal opens
   useEffect(() => {
@@ -121,7 +125,15 @@ export default function SalesPipelineStagePage() {
   const fetchCustomersInStage = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getSalesPipeline({ stage: stageValue });
+      const params: any = { stage: stageValue };
+      
+      // Add date filtering if date range is selected
+      if (dateRange?.from && dateRange?.to) {
+        params.start_date = dateRange.from.toISOString();
+        params.end_date = dateRange.to.toISOString();
+      }
+      
+      const response = await apiService.getSalesPipeline(params);
 
       if (response.success) {
         const pipelineData = response.data;
@@ -347,6 +359,22 @@ export default function SalesPipelineStagePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Date Filter */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">Date Range Filter:</span>
+              <DateRangeFilter
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                className="w-auto"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Search and Actions */}
       <div className="flex items-center gap-4">

@@ -88,6 +88,7 @@ class Client(models.Model):
 
     # Address
     address = models.TextField(blank=True, null=True)
+    full_address = models.TextField(blank=True, null=True, help_text=_('Complete full address'))
     city = models.CharField(max_length=50, blank=True, null=True)
     state = models.CharField(max_length=50, blank=True, null=True)
     country = models.CharField(max_length=50, blank=True, null=True)
@@ -171,6 +172,16 @@ class Client(models.Model):
 
     # Tags relationship
     tags = models.ManyToManyField('CustomerTag', related_name='clients', blank=True)
+
+    # Exhibition relationship
+    exhibition = models.ForeignKey(
+        'exhibition.Exhibition',
+        on_delete=models.SET_NULL,
+        related_name='leads',
+        null=True,
+        blank=True,
+        help_text=_('Exhibition this lead was captured from')
+    )
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -782,6 +793,20 @@ class CustomerInterest(models.Model):
     
     revenue = models.DecimalField(max_digits=10, decimal_places=2, help_text="Estimated revenue opportunity")
     notes = models.TextField(blank=True, null=True, help_text="Additional notes about this interest")
+    
+    # Purchase tracking
+    is_purchased = models.BooleanField(default=False, help_text="Whether this interest was fulfilled/purchased")
+    is_not_purchased = models.BooleanField(default=False, help_text="Whether customer explicitly didn't buy this product")
+    purchased_at = models.DateTimeField(blank=True, null=True, help_text="When this product was purchased")
+    not_purchased_at = models.DateTimeField(blank=True, null=True, help_text="When customer decided not to buy")
+    related_sale = models.ForeignKey(
+        'sales.Sale',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fulfilled_interests',
+        help_text="Sale that fulfilled this interest"
+    )
     
     # Tenant relationship
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='customer_interests')

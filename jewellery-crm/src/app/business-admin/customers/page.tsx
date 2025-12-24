@@ -340,10 +340,42 @@ export default function CustomersPage() {
     // Export doesn't need to refresh the list
   };
 
+  const formatPipelineStage = (stage: string | undefined) => {
+    if (!stage) return 'Unknown';
+    
+    // Convert snake_case to Title Case
+    return stage
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   const getStatusBadgeVariant = (status: string | undefined) => {
     if (!status) return 'outline';
 
-    switch (status.toLowerCase()) {
+    const statusLower = status.toLowerCase();
+    
+    // Handle pipeline stages
+    switch (statusLower) {
+      case 'exhibition':
+        return 'outline';
+      case 'social_media':
+        return 'outline';
+      case 'interested':
+        return 'secondary';
+      case 'store_walkin':
+        return 'default';
+      case 'negotiation':
+        return 'default';
+      case 'closed_won':
+        return 'default';
+      case 'closed_lost':
+        return 'destructive';
+      case 'future_prospect':
+        return 'outline';
+      case 'not_qualified':
+        return 'destructive';
+      // Legacy status values
       case 'customer':
         return 'default';
       case 'prospect':
@@ -399,8 +431,10 @@ export default function CustomersPage() {
   const getUniqueStatuses = () => {
     const statuses = new Set<string>();
     clients.forEach(client => {
-      if (client.status) {
-        statuses.add(client.status);
+      // Use pipeline_stage if available, otherwise fall back to status
+      const statusValue = client.pipeline_stage || client.status;
+      if (statusValue) {
+        statuses.add(statusValue);
       }
     });
     return Array.from(statuses).sort();
@@ -488,9 +522,12 @@ export default function CustomersPage() {
       });
     }
 
-    // Apply status filter
+    // Apply status filter (use pipeline_stage if available, otherwise status)
     if (statusHeaderFilter !== 'all') {
-      filtered = filtered.filter(client => client.status === statusHeaderFilter);
+      filtered = filtered.filter(client => {
+        const statusValue = client.pipeline_stage || client.status;
+        return statusValue === statusHeaderFilter;
+      });
     }
 
     // Apply source filter
@@ -648,10 +685,12 @@ export default function CustomersPage() {
       render: (value, row) => {
         const client = row as Client;
         return (
-          <Badge variant={getStatusBadgeVariant(client.status)}>
-            {client.status
-              ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
-              : 'Unknown'
+          <Badge variant={getStatusBadgeVariant(client.pipeline_stage || client.status)}>
+            {client.pipeline_stage
+              ? formatPipelineStage(client.pipeline_stage)
+              : client.status
+                ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
+                : 'Unknown'
             }
           </Badge>
         );
@@ -1224,10 +1263,12 @@ export default function CustomersPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge variant={getStatusBadgeVariant(client.status)}>
-                              {client.status
-                                ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
-                                : 'Unknown'
+                            <Badge variant={getStatusBadgeVariant(client.pipeline_stage || client.status)}>
+                              {client.pipeline_stage
+                                ? formatPipelineStage(client.pipeline_stage)
+                                : client.status
+                                  ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
+                                  : 'Unknown'
                               }
                             </Badge>
                           </td>

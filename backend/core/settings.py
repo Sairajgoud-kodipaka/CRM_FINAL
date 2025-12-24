@@ -249,8 +249,8 @@ SIMPLE_JWT = {
 }
 
 # Feature flags and lightweight auth configs
-# Sales PIN quick login is disabled by default to avoid affecting existing auth flows
-SALES_PIN_LOGIN_ENABLED = config('SALES_PIN_LOGIN_ENABLED', default=False, cast=bool)
+# Sales PIN quick login is enabled by default for sales users
+SALES_PIN_LOGIN_ENABLED = config('SALES_PIN_LOGIN_ENABLED', default=True, cast=bool)
 # Default PIN for UAT; override via environment in production
 SALES_PIN_CODE = config('SALES_PIN_CODE', default='1234')
 # Roles allowed to use PIN login (sales-only)

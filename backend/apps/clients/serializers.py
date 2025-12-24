@@ -37,6 +37,7 @@ class ClientSerializer(serializers.ModelSerializer):
     customer_type = serializers.CharField(required=False, default='individual')
     status = serializers.CharField(required=False, default='general')
     address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    full_address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     city = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     state = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     country = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -91,6 +92,9 @@ class ClientSerializer(serializers.ModelSerializer):
     # Store name field for display
     store_name = serializers.SerializerMethodField()
     
+    # Pipeline stage field - get the latest pipeline stage for this customer
+    pipeline_stage = serializers.SerializerMethodField()
+    
     def get_created_by(self, obj):
         if obj.created_by:
             return {
@@ -104,6 +108,17 @@ class ClientSerializer(serializers.ModelSerializer):
     def get_store_name(self, obj):
         if obj.store:
             return obj.store.name
+        return None
+    
+    def get_pipeline_stage(self, obj):
+        """Get the latest pipeline stage for this customer"""
+        try:
+            # Get the most recent pipeline entry for this client
+            latest_pipeline = obj.pipelines.order_by('-created_at').first()
+            if latest_pipeline:
+                return latest_pipeline.stage
+        except Exception:
+            pass
         return None
     
     def validate_date_of_birth(self, value):
@@ -231,7 +246,12 @@ class ClientSerializer(serializers.ModelSerializer):
                     'revenue': float(interest.revenue) if interest.revenue else 0,
                     'notes': interest.notes,
                     'preferences': self._extract_preferences_from_notes(interest.notes),
-                    'status': self._determine_interest_status(interest.notes)
+                    'status': self._determine_interest_status(interest.notes),
+                    'is_purchased': interest.is_purchased,
+                    'is_not_purchased': interest.is_not_purchased,
+                    'purchased_at': interest.purchased_at.isoformat() if interest.purchased_at else None,
+                    'not_purchased_at': interest.not_purchased_at.isoformat() if interest.not_purchased_at else None,
+                    'related_sale_id': interest.related_sale.id if interest.related_sale else None
                 }
                 for interest in interests
             ]
@@ -356,7 +376,7 @@ class ClientSerializer(serializers.ModelSerializer):
         model = Client
         fields = [
             'id', 'first_name', 'last_name', 'email', 'phone', 'customer_type', 'status',
-            'address', 'city', 'state', 'country', 'postal_code',
+            'address', 'full_address', 'city', 'state', 'country', 'postal_code',
             'date_of_birth', 'anniversary_date', 'preferred_metal', 'preferred_stone',
             'ring_size', 'budget_range', 'lead_source', 'notes', 'community',
             'mother_tongue', 'reason_for_visit', 'age_of_end_user', 'next_follow_up', 'summary_notes',
@@ -376,6 +396,8 @@ class ClientSerializer(serializers.ModelSerializer):
             'store', 'store_name',
             # User who created the customer
             'created_by',
+            # Exhibition relationship
+            'exhibition',
             # Customer interests
             'customer_interests', 'customer_interests_display', 'customer_interests_input',
             # Soft delete fields
@@ -384,6 +406,8 @@ class ClientSerializer(serializers.ModelSerializer):
             'pincode', 'sales_person', 'sales_person_id', 'customer_status',
             'product_type', 'style', 'material_type', 'material_weight', 'material_value', 'material_unit',
             'product_subtype', 'customer_preferences',
+            # Pipeline stage
+            'pipeline_stage',
         ]
         # created_at is read-only by default, but we handle it specially in create() for imports
         read_only_fields = ['id', 'created_at', 'updated_at', 'tags', 'is_deleted', 'deleted_at', 'created_by']
@@ -1389,7 +1413,13 @@ class ClientSerializer(serializers.ModelSerializer):
                 if not has_name and not has_phone:
                     errors['name'] = "Either name or phone is required"
             else:
-                # Required fields from frontend (marked with *) - only for manual form submissions
+                # Check if this is an exhibition lead - skip strict validation
+                is_exhibition_lead = (
+                    data.get('lead_source') == 'exhibition' or 
+                    data.get('status') == 'exhibition'
+                )
+                
+                # Required fields from frontend (marked with * in frontend)
                 # 1. Full Name - check first_name (last_name can be empty)
                 if not data.get('first_name') or not str(data.get('first_name', '')).strip():
                     errors['first_name'] = "Full Name is required"
@@ -1398,61 +1428,64 @@ class ClientSerializer(serializers.ModelSerializer):
                 if not data.get('phone') or not str(data.get('phone', '')).strip():
                     errors['phone'] = "Phone Number is required"
                 
-                # 3. City
-                if not data.get('city') or not str(data.get('city', '')).strip():
-                    errors['city'] = "City is required"
+                # For exhibition leads, only require name and phone
+                if not is_exhibition_lead:
+                    # 3. City
+                    if not data.get('city') or not str(data.get('city', '')).strip():
+                        errors['city'] = "City is required"
+                    
+                    # 4. State
+                    if not data.get('state') or not str(data.get('state', '')).strip():
+                        errors['state'] = "State is required"
+                    
+                    # 5. Catchment Area
+                    if not data.get('catchment_area') or not str(data.get('catchment_area', '')).strip():
+                        errors['catchment_area'] = "Catchment Area is required"
+                    
+                    # 6. Sales Person
+                    if not data.get('sales_person') or not str(data.get('sales_person', '')).strip():
+                        errors['sales_person'] = "Sales Person is required"
+                    
+                    # 7. Reason for Visit
+                    if not data.get('reason_for_visit') or not str(data.get('reason_for_visit', '')).strip():
+                        errors['reason_for_visit'] = "Reason for Visit is required"
+                    
+                    # 8. Lead Source
+                    if not data.get('lead_source') or not str(data.get('lead_source', '')).strip():
+                        errors['lead_source'] = "Lead Source is required"
+                    
+                    # 9. Product Type
+                    if not data.get('product_type') or not str(data.get('product_type', '')).strip():
+                        errors['product_type'] = "Product Type is required"
                 
-                # 4. State
-                if not data.get('state') or not str(data.get('state', '')).strip():
-                    errors['state'] = "State is required"
-                
-                # 5. Catchment Area
-                if not data.get('catchment_area') or not str(data.get('catchment_area', '')).strip():
-                    errors['catchment_area'] = "Catchment Area is required"
-                
-                # 6. Sales Person
-                if not data.get('sales_person') or not str(data.get('sales_person', '')).strip():
-                    errors['sales_person'] = "Sales Person is required"
-                
-                # 7. Reason for Visit
-                if not data.get('reason_for_visit') or not str(data.get('reason_for_visit', '')).strip():
-                    errors['reason_for_visit'] = "Reason for Visit is required"
-                
-                # 8. Lead Source
-                if not data.get('lead_source') or not str(data.get('lead_source', '')).strip():
-                    errors['lead_source'] = "Lead Source is required"
-                
-                # 9. Product Type
-                if not data.get('product_type') or not str(data.get('product_type', '')).strip():
-                    errors['product_type'] = "Product Type is required"
-                
-                # 10. Expected Revenue - check customer_interests_input
-                customer_interests_input = data.get('customer_interests_input', [])
-                has_revenue = False
-                if customer_interests_input:
-                    for interest_str in customer_interests_input:
-                        try:
-                            import json
-                            interest_data = json.loads(interest_str)
-                            products = interest_data.get('products', [])
-                            if products and len(products) > 0:
-                                revenue = products[0].get('revenue', '')
-                                # Treat blank as 0; allow 0 as valid revenue
-                                try:
-                                    revenue_str = str(revenue).strip()
-                                    if revenue_str == '':
-                                        revenue_str = '0'
-                                    val = float(revenue_str)
-                                    if val >= 0:
-                                        has_revenue = True
-                                        break
-                                except (ValueError, TypeError):
-                                    pass
-                        except (json.JSONDecodeError, KeyError, TypeError):
-                            pass
-                
-                if not has_revenue:
-                    errors['customer_interests_input'] = "Expected Revenue is required (0 allowed)"
+                # 10. Expected Revenue - check customer_interests_input (skip for exhibition leads)
+                if not is_exhibition_lead:
+                    customer_interests_input = data.get('customer_interests_input', [])
+                    has_revenue = False
+                    if customer_interests_input:
+                        for interest_str in customer_interests_input:
+                            try:
+                                import json
+                                interest_data = json.loads(interest_str)
+                                products = interest_data.get('products', [])
+                                if products and len(products) > 0:
+                                    revenue = products[0].get('revenue', '')
+                                    # Treat blank as 0; allow 0 as valid revenue
+                                    try:
+                                        revenue_str = str(revenue).strip()
+                                        if revenue_str == '':
+                                            revenue_str = '0'
+                                        val = float(revenue_str)
+                                        if val >= 0:
+                                            has_revenue = True
+                                            break
+                                    except (ValueError, TypeError):
+                                        pass
+                            except (json.JSONDecodeError, KeyError, TypeError):
+                                pass
+                    
+                    if not has_revenue:
+                        errors['customer_interests_input'] = "Expected Revenue is required (0 allowed)"
             
             # Raise errors if any required fields are missing
             if errors:

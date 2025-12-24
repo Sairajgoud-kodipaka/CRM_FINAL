@@ -63,7 +63,10 @@ export default function ManagerCustomersPage() {
     }
 
     if (statusFilter && statusFilter !== 'all') {
-      filtered = filtered.filter(customer => customer.status === statusFilter);
+      filtered = filtered.filter(customer => {
+        const statusValue = customer.pipeline_stage || customer.status;
+        return statusValue === statusFilter;
+      });
     }
 
     setFilteredCustomers(filtered);
@@ -74,9 +77,8 @@ export default function ManagerCustomersPage() {
       setLoading(true);
 
       // Only send date range if filter type is 'date_range'
-      const requestParams: any = {
-        status: statusFilter && statusFilter !== 'all' ? statusFilter : undefined,
-      };
+      // Note: Status filtering is done client-side to support pipeline_stage
+      const requestParams: any = {};
 
       if (filterType === 'date_range') {
         requestParams.start_date = dateRange?.from?.toISOString();
@@ -152,25 +154,93 @@ export default function ManagerCustomersPage() {
     return new Date(dateString).toLocaleDateString('en-IN');
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
+  const formatPipelineStage = (stage: string | undefined) => {
+    if (!stage) return 'Unknown';
+    
+    // Convert snake_case to Title Case
+    return stage
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Get unique statuses from pipeline_stage or status
+  const getUniqueStatuses = () => {
+    const statuses = new Set<string>();
+    customers.forEach(customer => {
+      const statusValue = customer.pipeline_stage || customer.status;
+      if (statusValue) {
+        statuses.add(statusValue);
+      }
+    });
+    return Array.from(statuses).sort();
+  };
+
+  const getStatusBadgeVariant = (status: string | undefined) => {
+    if (!status) return 'outline';
+
+    const statusLower = status.toLowerCase();
+    
+    // Handle pipeline stages
+    switch (statusLower) {
+      case 'exhibition':
+        return 'outline';
+      case 'social_media':
+        return 'outline';
+      case 'interested':
+        return 'secondary';
+      case 'store_walkin':
+        return 'default';
+      case 'negotiation':
+        return 'default';
+      case 'closed_won':
+        return 'default';
+      case 'closed_lost':
+        return 'destructive';
+      case 'future_prospect':
+        return 'outline';
+      case 'not_qualified':
+        return 'destructive';
+      // Legacy status values
       case 'customer':
         return 'default';
-      case 'lead':
-        return 'secondary';
       case 'prospect':
+        return 'secondary';
+      case 'lead':
         return 'outline';
       case 'inactive':
         return 'destructive';
-      case 'exhibition':
-        return 'outline';
       default:
         return 'outline';
     }
   };
 
-  const getStatusBadgeClasses = (status: string) => {
-    switch (status) {
+  const getStatusBadgeClasses = (status: string | undefined) => {
+    if (!status) return '';
+    
+    const statusLower = status.toLowerCase();
+    
+    // Handle pipeline stages
+    switch (statusLower) {
+      case 'exhibition':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'social_media':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'interested':
+        return 'bg-amber-100 text-amber-900 border-amber-200';
+      case 'store_walkin':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'negotiation':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'closed_won':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'closed_lost':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'future_prospect':
+        return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'not_qualified':
+        return 'bg-red-100 text-red-800 border-red-200';
+      // Legacy status values
       case 'customer':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'lead':
@@ -179,8 +249,6 @@ export default function ManagerCustomersPage() {
         return 'bg-amber-100 text-amber-900 border-amber-200';
       case 'inactive':
         return 'bg-gray-100 text-gray-700 border-gray-200';
-      case 'exhibition':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
       default:
         return '';
     }
@@ -201,15 +269,6 @@ export default function ManagerCustomersPage() {
           </span>
         );
       },
-    },
-    {
-      key: 'email',
-      title: 'Email',
-      priority: 'high',
-      mobileLabel: 'Email',
-      render: (value) => (
-        <span className="text-text-primary">{value as string}</span>
-      ),
     },
     {
       key: 'phone',
@@ -240,14 +299,20 @@ export default function ManagerCustomersPage() {
       title: 'Status',
       priority: 'high',
       mobileLabel: 'Status',
-      render: (value) => {
-        const status = value as string || 'unknown';
+      render: (value, row) => {
+        const customer = row as Client;
+        const statusValue = customer.pipeline_stage || customer.status || 'unknown';
         return (
           <Badge
-            variant={getStatusBadgeVariant(status)}
-            className={`capitalize text-xs font-semibold ${getStatusBadgeClasses(status)}`}
+            variant={getStatusBadgeVariant(statusValue)}
+            className={`capitalize text-xs font-semibold ${getStatusBadgeClasses(statusValue)}`}
           >
-            {status}
+            {customer.pipeline_stage
+              ? formatPipelineStage(customer.pipeline_stage)
+              : customer.status
+                ? customer.status.charAt(0).toUpperCase() + customer.status.slice(1)
+                : 'Unknown'
+            }
           </Badge>
         );
       },
@@ -410,11 +475,11 @@ export default function ManagerCustomersPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="all">All Status</option>
-              <option value="lead">Lead</option>
-              <option value="prospect">Prospect</option>
-              <option value="customer">Customer</option>
-              <option value="inactive">Inactive</option>
-              <option value="exhibition">Exhibition</option>
+              {getUniqueStatuses().map(status => (
+                <option key={status} value={status}>
+                  {status.includes('_') ? formatPipelineStage(status) : status.charAt(0).toUpperCase() + status.slice(1)}
+                </option>
+              ))}
             </select>
           </div>
         </div>

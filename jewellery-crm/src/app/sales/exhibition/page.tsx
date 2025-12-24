@@ -5,11 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PhoneInputComponent } from '@/components/ui/phone-input';
 import { Plus, RefreshCw, Search, Users, TrendingUp, ArrowUpRight, User, Phone, Mail, Calendar, MapPin } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useToast } from '@/hooks/use-toast';
+import CaptureLeadModal from '@/components/exhibition/CaptureLeadModal';
 
 // Define Client interface locally since it's not exported from types
 interface Client {
@@ -42,19 +41,30 @@ export default function SalesExhibitionPage() {
     alreadyPromoted: 0
   });
   const [showAddModal, setShowAddModal] = useState(false);
-  const [formData, setFormData] = useState({
-    fullName: '',
-    phone: '',
-    email: '',
-    city: ''
-  });
-  const [submitting, setSubmitting] = useState(false);
+  const [exhibitionTags, setExhibitionTags] = useState<Array<{ id: number; name: string; color: string }>>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchExhibitionLeads();
     fetchStats();
+    // Fetch tags in background, don't block on errors
+    fetchExhibitionTags().catch(() => {
+      // Silently fail - form will work without tags
+    });
   }, []);
+
+  const fetchExhibitionTags = async () => {
+    try {
+      const response = await apiService.getExhibitionTags();
+      if (response.success && Array.isArray(response.data)) {
+        setExhibitionTags(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching exhibition tags:', error);
+      // Set empty array on error so form still works without tags
+      setExhibitionTags([]);
+    }
+  };
 
   const fetchExhibitionLeads = async () => {
     try {
@@ -156,55 +166,32 @@ export default function SalesExhibitionPage() {
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleSubmitLead = async () => {
-    if (!formData.fullName.trim() || !formData.phone.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Full name and phone are required",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleCaptureLead = async (leadData: {
+    first_name: string;
+    last_name?: string;
+    email?: string;
+    phone: string;
+    city?: string;
+    notes?: string;
+    customer_type: string;
+    exhibition_name?: string;
+    exhibition_date?: string;
+    exhibition_tag?: number;
+    customer_interests_input?: string[];
+  }) => {
     try {
-      setSubmitting(true);
-
-      // Create new client with exhibition status
-      const response = await apiService.createExhibitionLead({
-        first_name: formData.fullName.split(' ')[0] || formData.fullName,
-        last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
-        email: formData.email || '',
-        phone: formData.phone,
-        city: formData.city || '',
-        notes: '',
-        customer_type: 'individual'
-      });
-
+      const response = await apiService.createExhibitionLead(leadData);
+      
       if (response.success) {
         toast({
           title: "Success",
           description: "Exhibition lead captured successfully!",
         });
 
-        // Reset form and close modal
-        setFormData({
-          fullName: '',
-          phone: '',
-          email: '',
-          city: ''
-        });
-        setShowAddModal(false);
-
         // Refresh the leads list and stats
         fetchExhibitionLeads();
         fetchStats();
+        setShowAddModal(false);
       } else {
         toast({
           title: "Error",
@@ -212,26 +199,34 @@ export default function SalesExhibitionPage() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error creating exhibition lead:', error);
+      let errorMessage = "Failed to capture lead";
+      
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (typeof errorData === 'object') {
+          const firstError = Object.values(errorData)[0];
+          if (Array.isArray(firstError)) {
+            errorMessage = firstError[0];
+          } else if (typeof firstError === 'string') {
+            errorMessage = firstError;
+          }
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
 
       toast({
         title: "Error",
-        description: "Failed to capture lead",
+        description: errorMessage,
         variant: "destructive",
       });
-    } finally {
-      setSubmitting(false);
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      fullName: '',
-      phone: '',
-      email: '',
-      city: ''
-    });
-    setShowAddModal(false);
   };
 
   const filteredLeads = Array.isArray(exhibitionLeads) ? exhibitionLeads.filter(lead => {
@@ -418,69 +413,13 @@ export default function SalesExhibitionPage() {
         </CardContent>
       </Card>
 
-      {/* Add Lead Modal */}
-      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Capture Exhibition Lead</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-              <Input
-                placeholder="Enter full name"
-                value={formData.fullName}
-                onChange={(e) => handleInputChange('fullName', e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-              <PhoneInputComponent
-                value={formData.phone}
-                onChange={(value) => handleInputChange('phone', value)}
-                placeholder="Enter phone number"
-                required={true}
-                defaultCountry="IN"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
-              <Input
-                placeholder="Enter email address"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-              <Input
-                placeholder="Enter city"
-                value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
-              />
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button
-                onClick={resetForm}
-                variant="outline"
-                className="flex-1"
-                disabled={submitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSubmitLead}
-                className="flex-1 bg-orange-600 hover:bg-orange-700"
-                disabled={submitting}
-              >
-                {submitting ? 'Capturing...' : 'Capture Lead'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Capture Lead Modal */}
+      <CaptureLeadModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSubmit={handleCaptureLead}
+        exhibitionTags={exhibitionTags}
+      />
     </div>
   );
 }

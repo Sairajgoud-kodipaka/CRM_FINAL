@@ -58,6 +58,7 @@ interface FormData {
   birthDate: string;
   anniversaryDate: string;
   streetAddress: string;
+  fullAddress: string;
   city: string;
   state: string;
   country: string;
@@ -164,6 +165,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     birthDate: "",
     anniversaryDate: "",
     streetAddress: "",
+    fullAddress: "",
     city: "",
     state: "",
     country: "India",
@@ -306,6 +308,9 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     email: string;
     total_visits: number;
     last_visit?: string;
+    store_name?: string;
+    store_id?: number;
+    is_different_store?: boolean;
   } | null>(null);
   
   // State for existing customer check (by email)
@@ -369,7 +374,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           status: response.data.customer!.status,
           email: response.data.customer!.email,
           total_visits: response.data.customer!.total_visits,
-          last_visit: response.data.customer!.last_visit
+          last_visit: response.data.customer!.last_visit,
+          store_name: response.data.customer!.store_name,
+          store_id: response.data.customer!.store_id,
+          is_different_store: response.data.is_different_store || false
         });
       } else {
         setExistingPhoneCustomer(null);
@@ -775,6 +783,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
         // Optional fields - convert empty strings to null
         address: emptyToNull(formData.streetAddress) as string | null,
+        full_address: emptyToNull(formData.fullAddress) as string | null,
         date_of_birth: formatDateForAPI(formData.birthDate),
         anniversary_date: formatDateForAPI(formData.anniversaryDate),
         customer_status: emptyToNull(formData.customerStatus) as string | null,
@@ -886,6 +895,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           birthDate: "",
           anniversaryDate: "",
           streetAddress: "",
+          fullAddress: "",
           city: "",
           state: "",
           country: "India",
@@ -1422,6 +1432,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                     📞 Customer with this phone already exists
                   </div>
                   <div className="text-sm text-amber-800 space-y-1">
+                    {existingPhoneCustomer.store_name && (
+                      <div className="font-semibold text-amber-900 mb-1 pb-1 border-b border-amber-300">
+                        🏪 Store: {existingPhoneCustomer.store_name}
+                      </div>
+                    )}
                     <div><strong>Name:</strong> {existingPhoneCustomer.name}</div>
                     <div><strong>Email:</strong> {existingPhoneCustomer.email}</div>
                     <div><strong>Status:</strong> {existingPhoneCustomer.status}</div>
@@ -1430,29 +1445,37 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       <div><strong>Last Visit:</strong> {new Date(existingPhoneCustomer.last_visit).toLocaleDateString()}</div>
                     )}
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={useExistingCustomer}
-                      className="text-xs"
-                    >
-                      ✓ Use Existing Customer
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setExistingPhoneCustomer(null)}
-                      className="text-xs"
-                    >
-                      Create New Visit Entry
-                    </Button>
-                  </div>
-                  <div className="mt-2 text-xs text-amber-700">
-                    💡 Tip: Multiple visits can be created for the same customer. Each visit is tracked separately.
-                  </div>
+                  {existingPhoneCustomer.is_different_store ? (
+                    <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+                      ℹ️ This customer belongs to a different store. Please contact <strong>{existingPhoneCustomer.store_name}</strong> for customer information and edits.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={useExistingCustomer}
+                          className="text-xs"
+                        >
+                          ✓ Use Existing Customer
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExistingPhoneCustomer(null)}
+                          className="text-xs"
+                        >
+                          Create New Visit Entry
+                        </Button>
+                      </div>
+                      <div className="mt-2 text-xs text-amber-700">
+                        💡 Tip: Multiple visits can be created for the same customer. Each visit is tracked separately.
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1542,6 +1565,19 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               </p>
             </div>
             )}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1">Full Address (Optional)</label>
+              <Textarea
+                placeholder="Enter complete full address including street, area, landmark, etc."
+                value={formData.fullAddress}
+                onChange={(e) => handleInputChange('fullAddress', e.target.value)}
+                rows={3}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Complete address for delivery or reference
+              </p>
+            </div>
             <div>
               <label className="block text-sm font-medium mb-1">City *</label>
               <ComboboxSelect

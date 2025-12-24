@@ -10,6 +10,7 @@ import { AddCustomerModal } from '@/components/customers/AddCustomerModal';
 import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal';
 import { EditCustomerModal } from '@/components/customers/EditCustomerModal';
 import { TrashModal } from '@/components/customers/TrashModal';
+import { ExportModal } from '@/components/customers/ExportModal';
 import { apiService, Client } from '@/lib/api-service';
 import { Search, Filter, Download, Plus, Eye, Edit, Trash2, Archive } from 'lucide-react';
 import { useScopedVisibility } from '@/lib/scoped-visibility';
@@ -42,6 +43,7 @@ function SalesCustomersPageContent() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [trashModalOpen, setTrashModalOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Client | null>(null);
   const [filteredCustomers, setFilteredCustomers] = useState<Client[]>([]);
@@ -90,6 +92,64 @@ function SalesCustomersPageContent() {
     fetchCustomers();
   }, [fetchCustomers, dateRange]);
 
+  // Listen for customer detail updates (e.g., stage changes)
+  useEffect(() => {
+    const handleRefresh = async (event: CustomEvent) => {
+      if (event.detail?.customerId) {
+        const { customerId, newStage } = event.detail;
+        
+        // Optimistically update the customer in the list immediately
+        if (customerId && newStage) {
+          setCustomers(prevCustomers => 
+            prevCustomers.map(customer => 
+              customer.id?.toString() === customerId.toString()
+                ? { ...customer, pipeline_stage: newStage, status: newStage }
+                : customer
+            )
+          );
+          
+          // Also update filtered customers if they exist
+          setFilteredCustomers(prevFiltered => 
+            prevFiltered.map(customer => 
+              customer.id?.toString() === customerId.toString()
+                ? { ...customer, pipeline_stage: newStage, status: newStage }
+                : customer
+            )
+          );
+        }
+        
+        // Refresh the customer list from server to ensure we have the latest data
+        // Use a small delay to ensure the backend has processed the update
+        // Add timestamp to bypass cache
+        setTimeout(async () => {
+          try {
+            const response = await apiService.getClients({
+              start_date: toUtcStartOfDay(dateRange?.from),
+              end_date: toUtcEndOfDay(dateRange?.to),
+              // Add timestamp to force fresh fetch
+            } as any);
+            
+            if (response.success) {
+              const customersData = Array.isArray(response.data) ? response.data : [];
+              setCustomers(customersData);
+              // Reset selected IDs after refresh
+              setSelectedIds(new Set());
+            }
+          } catch (error) {
+            console.error('Error refreshing customers:', error);
+            // Even if refresh fails, optimistic update is already applied
+          }
+        }, 500);
+      }
+    };
+
+    window.addEventListener('refreshCustomerDetails', handleRefresh as EventListener);
+
+    return () => {
+      window.removeEventListener('refreshCustomerDetails', handleRefresh as EventListener);
+    };
+  }, [dateRange]);
+
   useEffect(() => {
     const action = searchParams?.get('action');
     if (action === 'addCustomer' && !hasHandledActionRef.current) {
@@ -127,7 +187,10 @@ function SalesCustomersPageContent() {
     }
 
     if (statusFilter) {
-      filtered = filtered.filter(customer => customer.status === statusFilter);
+      filtered = filtered.filter(customer => {
+        const statusValue = customer.pipeline_stage || customer.status;
+        return statusValue === statusFilter;
+      });
     }
 
     setFilteredCustomers(filtered);
@@ -278,56 +341,69 @@ function SalesCustomersPageContent() {
     return new Date(dateString).toLocaleDateString('en-IN');
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
+  const formatPipelineStage = (stage: string | undefined) => {
+    if (!stage) return 'Unknown';
+    
+    // Convert snake_case to Title Case
+    return stage
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Get unique statuses from pipeline_stage or status
+  const getUniqueStatuses = () => {
+    const statuses = new Set<string>();
+    customers.forEach(customer => {
+      const statusValue = customer.pipeline_stage || customer.status;
+      if (statusValue) {
+        statuses.add(statusValue);
+      }
+    });
+    return Array.from(statuses).sort();
+  };
+
+  const getStatusBadgeVariant = (status: string | undefined) => {
+    if (!status) return 'outline';
+
+    const statusLower = status.toLowerCase();
+    
+    // Handle pipeline stages
+    switch (statusLower) {
+      case 'exhibition':
+        return 'outline';
+      case 'social_media':
+        return 'outline';
+      case 'interested':
+        return 'secondary';
+      case 'store_walkin':
+        return 'default';
+      case 'negotiation':
+        return 'default';
+      case 'closed_won':
+        return 'default';
+      case 'closed_lost':
+        return 'destructive';
+      case 'future_prospect':
+        return 'outline';
+      case 'not_qualified':
+        return 'destructive';
+      // Legacy status values
       case 'customer':
         return 'default';
-      case 'lead':
-        return 'secondary';
       case 'prospect':
+        return 'secondary';
+      case 'lead':
         return 'outline';
       case 'inactive':
         return 'destructive';
-      case 'exhibition':
-        return 'outline';
       default:
         return 'outline';
     }
   };
 
-  const exportCustomers = async (format: 'csv' | 'json') => {
-    try {
-      const response = await apiService.exportCustomers({
-        format,
-        fields: ['first_name', 'last_name', 'email', 'phone', 'status', 'created_at']
-      });
-
-      // Create download link
-      const blob = new Blob([response.data], {
-        type: format === 'csv' ? 'text/csv' : 'application/json'
-      });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `customers.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast({
-        title: "Export Successful",
-        description: `Customers exported as ${format.toUpperCase()} successfully!`,
-        variant: "success",
-      });
-    } catch (error) {
-
-      toast({
-        title: "Export Failed",
-        description: "Failed to export customers. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleExportSuccess = () => {
+    // Export doesn't need to refresh the list
   };
 
   const handleRowClick = useCallback((customer: Client) => {
@@ -419,6 +495,11 @@ function SalesCustomersPageContent() {
         onClose={() => setTrashModalOpen(false)}
         onCustomerRestored={handleCustomerRestored}
       />
+      <ExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onSuccess={handleExportSuccess}
+      />
 
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
           <div>
@@ -463,11 +544,10 @@ function SalesCustomersPageContent() {
               <Plus className="w-4 h-4 mr-2" />
               Add Customer
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportCustomers('csv')}>
+            <Button variant="outline" size="sm" onClick={() => setExportModalOpen(true)}>
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </Button>
-            {/* Export JSON removed for sales */}
           </div>
         </div>
 
@@ -491,10 +571,11 @@ function SalesCustomersPageContent() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">All Status</option>
-              <option value="lead">Lead</option>
-              <option value="prospect">Prospect</option>
-              <option value="customer">Customer</option>
-              <option value="inactive">Inactive</option>
+              {getUniqueStatuses().map(status => (
+                <option key={status} value={status}>
+                  {status.includes('_') ? formatPipelineStage(status) : status.charAt(0).toUpperCase() + status.slice(1)}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -507,18 +588,7 @@ function SalesCustomersPageContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={async () => {
-                    try {
-                      const res = await apiService.exportCustomers({ format: 'csv', fields: [] });
-                      const blob = res.data as unknown as Blob;
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'customers.csv';
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    } catch {}
-                  }}
+                  onClick={() => setExportModalOpen(true)}
                 >
                   <Download className="w-4 h-4 mr-1" /> Export CSV
                 </Button>
@@ -562,9 +632,9 @@ function SalesCustomersPageContent() {
                   </th>
                 )}
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Customer</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Email</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Phone</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Status</th>
+                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Lead Source</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Created By</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Created</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Actions</th>
@@ -611,12 +681,19 @@ function SalesCustomersPageContent() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-text-primary">{customer.email}</td>
                       <td className="px-4 py-3 text-text-primary">{customer.phone || '-'}</td>
                       <td className="px-4 py-3">
-                        <Badge variant={getStatusBadgeVariant(customer.status || '')} className="capitalize text-xs">
-                          {customer.status || 'unknown'}
+                        <Badge variant={getStatusBadgeVariant(customer.pipeline_stage || customer.status)} className="capitalize text-xs">
+                          {customer.pipeline_stage
+                            ? formatPipelineStage(customer.pipeline_stage)
+                            : customer.status
+                              ? customer.status.charAt(0).toUpperCase() + customer.status.slice(1)
+                              : 'Unknown'
+                          }
                         </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary">
+                        {customer.lead_source || '-'}
                       </td>
                       <td className="px-4 py-3 text-text-secondary">
                         {customer.created_by ? (
@@ -642,9 +719,9 @@ function SalesCustomersPageContent() {
                                 handleViewCustomer(customer.id.toString());
                               }
                             }}
+                            title="View"
                           >
-                            <Eye className="w-4 h-4 mr-1" />
-                            View
+                            <Eye className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -655,13 +732,13 @@ function SalesCustomersPageContent() {
                               handleEditCustomer(customer);
                             }}
                             disabled={updatingCustomer === customer.id?.toString()}
+                            title="Edit"
                           >
-                                                          {updatingCustomer === customer.id?.toString() ? (
-                              <Skeleton className="w-4 h-4 mr-1 rounded" />
+                            {updatingCustomer === customer.id?.toString() ? (
+                              <Skeleton className="w-4 h-4 rounded" />
                             ) : (
-                              <Edit className="w-4 h-4 mr-1" />
+                              <Edit className="w-4 h-4" />
                             )}
-                            {updatingCustomer === customer.id?.toString() ? 'Updating...' : 'Edit'}
                           </Button>
                           {canDeleteCustomers && (
                             <Button

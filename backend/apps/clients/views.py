@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db.models import Q, Count
 from django.contrib.auth import get_user_model
 import logging
-from .models import Client, ClientInteraction, Appointment, FollowUp, Task, Announcement, Purchase, AuditLog, CustomerTag
+from .models import Client, ClientInteraction, Appointment, FollowUp, Task, Announcement, Purchase, AuditLog, CustomerTag, CustomerInterest
 from .serializers import (
     ClientSerializer, ClientInteractionSerializer, AppointmentSerializer, FollowUpSerializer, 
     TaskSerializer, AnnouncementSerializer, PurchaseSerializer, AuditLogSerializer,
@@ -255,7 +255,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 # No salesperson selected, use logged-in user
                 self.selected_salesperson = request.user
             
-            # Check for duplicate phone before creating
+            # Check for duplicate phone before creating - if found, update existing customer
             existing_phone_customer = None
             phone = request.data.get('phone')
             if phone:
@@ -267,22 +267,42 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     is_deleted=False
                 ).first()
             
+            # If existing customer found, update instead of creating new
+            if existing_phone_customer:
+                print(f"=== EXISTING CUSTOMER FOUND: {existing_phone_customer.id} - UPDATING INSTEAD OF CREATING ===")
+                # Update existing customer with new data
+                serializer = self.get_serializer(existing_phone_customer, data=request.data, partial=True)
+                if not serializer.is_valid():
+                    print(f"=== UPDATE VALIDATION FAILED: {serializer.errors} ===")
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Save the updated customer
+                serializer.save()
+                client = serializer.instance
+                
+                # Update the updated_at timestamp to current time (so it shows in current month)
+                from django.utils import timezone
+                client.updated_at = timezone.now()
+                client.save(update_fields=['updated_at'])
+                
+                # Also update the SalesPipeline entry's updated_at so it shows in current month pipeline
+                from apps.sales.models import SalesPipeline
+                pipeline_entries = SalesPipeline.objects.filter(client=client)
+                if pipeline_entries.exists():
+                    pipeline_entries.update(updated_at=timezone.now())
+                    print(f"=== UPDATED {pipeline_entries.count()} PIPELINE ENTRIES FOR CUSTOMER {client.id} ===")
+                
+                # Return updated customer data
+                response_data = serializer.data
+                response_data['updated'] = True
+                response_data['message'] = 'Existing customer updated successfully'
+                return Response(response_data, status=status.HTTP_200_OK)
+            
+            # No existing customer found, create new one
             response = super().create(request, *args, **kwargs)
             print("=== DJANGO VIEW - CREATE SUCCESS ===")
             print(f"Response status: {response.status_code}")
             print(f"Response data: {response.data}")
-            
-            # Add duplicate phone warning to response if found
-            if existing_phone_customer and response.status_code == 201:
-                # Include existing customer info in response for frontend to show suggestion
-                response.data['existing_phone_customer'] = {
-                    'id': existing_phone_customer.id,
-                    'name': existing_phone_customer.full_name,
-                    'email': existing_phone_customer.email or 'No email',
-                    'status': existing_phone_customer.get_status_display(),
-                    'phone': existing_phone_customer.phone,
-                    'warning': 'A customer with this phone number already exists. You can use the existing customer or create a new one for this visit.'
-                }
             
             # Create appointment if follow-up date is provided
             if response.status_code == 201 and response.data:
@@ -375,6 +395,12 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         ).first()
         
         if existing_customer:
+            # Get store name if available
+            store_name = existing_customer.store.name if existing_customer.store else 'No store assigned'
+            # Get current user's store
+            current_user_store_id = request.user.store.id if request.user.store else None
+            customer_store_id = existing_customer.store.id if existing_customer.store else None
+            
             return Response({
                 'exists': True,
                 'customer': {
@@ -384,9 +410,12 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     'status': existing_customer.get_status_display(),
                     'phone': existing_customer.phone,
                     'total_visits': existing_customer.appointments.count(),
-                    'last_visit': existing_customer.appointments.order_by('-date').first().date.isoformat() if existing_customer.appointments.exists() else None
+                    'last_visit': existing_customer.appointments.order_by('-date').first().date.isoformat() if existing_customer.appointments.exists() else None,
+                    'store_name': store_name,
+                    'store_id': customer_store_id
                 },
-                'message': 'A customer with this phone number already exists. You can use the existing customer or create a new visit entry.'
+                'is_different_store': current_user_store_id is not None and customer_store_id is not None and current_user_store_id != customer_store_id,
+                'message': f'A customer with this phone number already exists in {store_name}. You can use the existing customer or create a new visit entry.'
             })
         
         return Response({
@@ -892,6 +921,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             
             # Apply date filters if provided (get_queryset already applies GlobalDateFilterMixin)
             # But we also check query params directly for export
+            # Use updated_at instead of created_at so updated customers show in current month
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
             if start_date and end_date:
@@ -900,8 +930,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
                     end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
                     queryset = queryset.filter(
-                        created_at__gte=start_dt,
-                        created_at__lte=end_dt
+                        updated_at__gte=start_dt,
+                        updated_at__lte=end_dt
                     )
                 except ValueError:
                     pass
@@ -971,25 +1001,41 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         else:
                             row[field] = ''
                     elif field == 'product_name':
-                        # Extract product names from customer interests
-                        product_names = []
+                        # Extract product names from customer interests with purchase status
+                        product_info = []
                         try:
-                            for interest in client.interests.all():
+                            for idx, interest in enumerate(client.interests.all(), 1):
                                 if interest.product:
-                                    product_names.append(interest.product.name)
+                                    product_name = interest.product.name
+                                    category_name = interest.category.name if interest.category else 'N/A'
+                                    purchase_status = ''
+                                    if interest.is_purchased:
+                                        purchase_status = ' (Purchased)'
+                                    elif interest.is_not_purchased:
+                                        purchase_status = ' (Not Purchased)'
+                                    # Format: "Product Name (Customer Interest 1) - Category: Category Name [Purchase Status]"
+                                    product_info.append(f"{product_name} (Customer Interest {idx}) - Category: {category_name}{purchase_status}")
                         except Exception as e:
                             print(f"Error exporting product_name: {e}")
-                        row[field] = ', '.join(product_names) if product_names else ''
+                        row[field] = ' | '.join(product_info) if product_info else ''
                     elif field == 'category':
-                        # Extract category names from customer interests
-                        category_names = []
+                        # Extract category names from customer interests with purchase status
+                        category_info = []
                         try:
-                            for interest in client.interests.all():
+                            for idx, interest in enumerate(client.interests.all(), 1):
                                 if interest.category:
-                                    category_names.append(interest.category.name)
+                                    category_name = interest.category.name
+                                    product_name = interest.product.name if interest.product else 'N/A'
+                                    purchase_status = ''
+                                    if interest.is_purchased:
+                                        purchase_status = ' (Purchased)'
+                                    elif interest.is_not_purchased:
+                                        purchase_status = ' (Not Purchased)'
+                                    # Format: "Category Name (Customer Interest 1) - Product: Product Name [Purchase Status]"
+                                    category_info.append(f"{category_name} (Customer Interest {idx}) - Product: {product_name}{purchase_status}")
                         except Exception as e:
                             print(f"Error exporting category: {e}")
-                        row[field] = ', '.join(category_names) if category_names else ''
+                        row[field] = ' | '.join(category_info) if category_info else ''
                     elif field == 'tags':
                         row[field] = ', '.join([tag.name for tag in client.tags.all()])
                     else:
@@ -1013,6 +1059,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             queryset = self.get_queryset()
             
             # Apply date filters if provided
+            # Use updated_at instead of created_at so updated customers show in current month
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
             if start_date and end_date:
@@ -1021,8 +1068,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
                     end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
                     queryset = queryset.filter(
-                        created_at__gte=start_dt,
-                        created_at__lte=end_dt
+                        updated_at__gte=start_dt,
+                        updated_at__lte=end_dt
                     )
                 except ValueError:
                     pass
@@ -1087,25 +1134,41 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         else:
                             client_data[field] = ''
                     elif field == 'product_name':
-                        # Extract product names from customer interests
-                        product_names = []
+                        # Extract product names from customer interests with purchase status
+                        product_info = []
                         try:
-                            for interest in client.interests.all():
+                            for idx, interest in enumerate(client.interests.all(), 1):
                                 if interest.product:
-                                    product_names.append(interest.product.name)
+                                    product_name = interest.product.name
+                                    category_name = interest.category.name if interest.category else 'N/A'
+                                    purchase_status = ''
+                                    if interest.is_purchased:
+                                        purchase_status = ' (Purchased)'
+                                    elif interest.is_not_purchased:
+                                        purchase_status = ' (Not Purchased)'
+                                    # Format: "Product Name (Customer Interest 1) - Category: Category Name [Purchase Status]"
+                                    product_info.append(f"{product_name} (Customer Interest {idx}) - Category: {category_name}{purchase_status}")
                         except Exception as e:
                             print(f"Error exporting product_name: {e}")
-                        client_data[field] = product_names if product_names else []
+                        client_data[field] = ' | '.join(product_info) if product_info else ''
                     elif field == 'category':
-                        # Extract category names from customer interests
-                        category_names = []
+                        # Extract category names from customer interests with purchase status
+                        category_info = []
                         try:
-                            for interest in client.interests.all():
+                            for idx, interest in enumerate(client.interests.all(), 1):
                                 if interest.category:
-                                    category_names.append(interest.category.name)
+                                    category_name = interest.category.name
+                                    product_name = interest.product.name if interest.product else 'N/A'
+                                    purchase_status = ''
+                                    if interest.is_purchased:
+                                        purchase_status = ' (Purchased)'
+                                    elif interest.is_not_purchased:
+                                        purchase_status = ' (Not Purchased)'
+                                    # Format: "Category Name (Customer Interest 1) - Product: Product Name [Purchase Status]"
+                                    category_info.append(f"{category_name} (Customer Interest {idx}) - Product: {product_name}{purchase_status}")
                         except Exception as e:
                             print(f"Error exporting category: {e}")
-                        client_data[field] = category_names if category_names else []
+                        client_data[field] = ' | '.join(category_info) if category_info else ''
                     elif field == 'tags':
                         client_data[field] = [tag.name for tag in client.tags.all()]
                     else:
@@ -1900,6 +1963,72 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         except Exception as e:
             return Response(
                 {'error': f'Template download failed: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'], url_path='interests/(?P<interest_id>[^/.]+)/mark-purchased')
+    def mark_interest_purchased(self, request, pk=None, interest_id=None):
+        """Mark a customer interest as purchased"""
+        try:
+            client = self.get_object()
+            interest = CustomerInterest.objects.get(id=interest_id, client=client)
+            
+            interest.is_purchased = True
+            interest.is_not_purchased = False  # Reset not purchased if marking as purchased
+            interest.purchased_at = timezone.now()
+            interest.save()
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'id': interest.id,
+                    'is_purchased': interest.is_purchased,
+                    'is_not_purchased': interest.is_not_purchased,
+                    'purchased_at': interest.purchased_at.isoformat() if interest.purchased_at else None
+                },
+                'message': f'Interest "{interest.product.name}" marked as purchased'
+            })
+        except CustomerInterest.DoesNotExist:
+            return Response(
+                {'error': 'Interest not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['post'], url_path='interests/(?P<interest_id>[^/.]+)/mark-not-purchased')
+    def mark_interest_not_purchased(self, request, pk=None, interest_id=None):
+        """Mark a customer interest as not purchased"""
+        try:
+            client = self.get_object()
+            interest = CustomerInterest.objects.get(id=interest_id, client=client)
+            
+            interest.is_purchased = False
+            interest.is_not_purchased = True
+            interest.not_purchased_at = timezone.now()
+            interest.save()
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'id': interest.id,
+                    'is_purchased': interest.is_purchased,
+                    'is_not_purchased': interest.is_not_purchased,
+                    'not_purchased_at': interest.not_purchased_at.isoformat() if interest.not_purchased_at else None
+                },
+                'message': f'Interest "{interest.product.name}" marked as not purchased'
+            })
+        except CustomerInterest.DoesNotExist:
+            return Response(
+                {'error': 'Interest not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

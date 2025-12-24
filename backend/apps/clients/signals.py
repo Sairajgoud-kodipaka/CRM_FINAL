@@ -1,13 +1,17 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Client, CustomerTag
-from apps.sales.models import Sale, SalesPipeline
+from .models import Client, CustomerTag, CustomerInterest, Appointment
+from apps.sales.models import Sale, SalesPipeline, SaleItem
 from datetime import date
+from django.utils import timezone
 
 @receiver(post_save, sender=Sale)
 def update_customer_status_on_sale(sender, instance, created, **kwargs):
     """Automatically update customer status when a sale is created or updated."""
     if instance.client:
+        # Note: Interest purchase marking is now done manually via UI buttons
+        # No automatic marking of interests when sale is created
+        
         # Update customer status based on their behavior
         status_message = instance.client.update_status_based_on_behavior()
         print(f"Customer {instance.client.full_name}: {status_message}")
@@ -183,4 +187,44 @@ def auto_apply_tags(sender, instance, created, **kwargs):
         instance.tags.add(*tag_objs)
         print(f"[DEBUG] Tags assigned to client {instance.id}")
     else:
-        print(f"[DEBUG] No tags assigned to client {instance.id}") 
+        print(f"[DEBUG] No tags assigned to client {instance.id}")
+
+@receiver(post_save, sender=Appointment)
+def handle_customer_return(sender, instance, created, **kwargs):
+    """
+    Handle customer return scenario:
+    - If customer was in closed_won and comes back (new appointment/visit),
+    - Create a new pipeline entry in 'interested' stage to track new opportunity
+    """
+    if created and instance.client:
+        try:
+            # Check if customer has a pipeline entry in closed_won
+            from apps.sales.models import SalesPipeline
+            
+            closed_won_pipelines = SalesPipeline.objects.filter(
+                client=instance.client,
+                stage='closed_won'
+            ).order_by('-updated_at')
+            
+            if closed_won_pipelines.exists():
+                # Customer was closed_won, now they're back
+                # Check if there's already an active pipeline (not closed_won or closed_lost)
+                active_pipelines = SalesPipeline.objects.filter(
+                    client=instance.client
+                ).exclude(stage__in=['closed_won', 'closed_lost']).order_by('-created_at')
+                
+                if not active_pipelines.exists():
+                    # Create new pipeline entry for the return visit
+                    new_pipeline = SalesPipeline.objects.create(
+                        client=instance.client,
+                        title=f"Return Visit - {instance.purpose}",
+                        stage='interested',  # Start fresh as interested
+                        expected_value=0,
+                        probability=25,
+                        sales_representative=instance.assigned_to or instance.created_by,
+                        tenant=instance.tenant,
+                        notes=f"Customer returned after previous purchase. Appointment: {instance.purpose}"
+                    )
+                    print(f"✅ Created new pipeline entry for returning customer {instance.client.full_name}")
+        except Exception as e:
+            print(f"❌ Error handling customer return: {e}") 

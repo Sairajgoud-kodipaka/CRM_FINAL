@@ -55,6 +55,7 @@ export function ExportModal({ isOpen, onClose, onSuccess }: ExportModalProps) {
     { key: 'phone', label: 'Phone' },
     { key: 'date_of_birth', label: 'Date of Birth' },
     { key: 'address', label: 'Address' },
+    { key: 'full_address', label: 'Full Address' },
     { key: 'city', label: 'City' },
     { key: 'state', label: 'State' },
     { key: 'country', label: 'Country' },

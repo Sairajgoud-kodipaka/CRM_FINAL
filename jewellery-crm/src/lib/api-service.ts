@@ -52,7 +52,9 @@ interface Client {
   phone?: string;
   customer_type: string;
   status?: string;
+  pipeline_stage?: string;
   address?: string;
+  full_address?: string;
   city?: string;
   state?: string;
   country?: string;
@@ -1080,8 +1082,27 @@ class ApiService {
     return this.request(`/clients/clients/${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getClient(id: string): Promise<ApiResponse<Client>> {
+  async getClient(id: string, forceRefresh: boolean = false): Promise<ApiResponse<Client>> {
+    if (forceRefresh) {
+      this.invalidateCache(`/clients/clients/${id}/`);
+    }
     return this.request(`/clients/clients/${id}/`);
+  }
+
+  async markInterestPurchased(clientId: string, interestId: string): Promise<ApiResponse<any>> {
+    // Invalidate cache for this client to force refresh
+    this.invalidateCache(`/clients/clients/${clientId}`);
+    return this.request(`/clients/clients/${clientId}/interests/${interestId}/mark-purchased/`, {
+      method: 'POST',
+    });
+  }
+
+  async markInterestNotPurchased(clientId: string, interestId: string): Promise<ApiResponse<any>> {
+    // Invalidate cache for this client to force refresh
+    this.invalidateCache(`/clients/clients/${clientId}`);
+    return this.request(`/clients/clients/${clientId}/interests/${interestId}/mark-not-purchased/`, {
+      method: 'POST',
+    });
   }
 
   async checkPhoneExists(phone: string): Promise<ApiResponse<{
@@ -1094,7 +1115,10 @@ class ApiService {
       phone: string;
       total_visits: number;
       last_visit?: string;
+      store_name?: string;
+      store_id?: number;
     };
+    is_different_store?: boolean;
     message: string;
   }>> {
     const queryParams = new URLSearchParams();
@@ -1285,21 +1309,155 @@ class ApiService {
 
   async createExhibitionLead(leadData: {
     first_name: string;
-    last_name: string;
-    email: string;
+    last_name?: string;
+    email?: string;
     phone: string;
     city?: string;
     notes?: string;
     customer_type?: string;
+    exhibition_name?: string;
+    exhibition_date?: string;
+    exhibition_tag?: number;
+    customer_interests_input?: string[];
   }): Promise<ApiResponse<Client>> {
+    // First, create or get the exhibition if provided
+    let exhibitionId: number | undefined;
+    
+    if (leadData.exhibition_name && leadData.exhibition_date) {
+      try {
+        // Try to find existing exhibition
+        const exhibitionsResponse = await this.request('/exhibition/exhibitions/', {
+          method: 'GET',
+        });
+        
+        if (exhibitionsResponse.success && Array.isArray(exhibitionsResponse.data)) {
+          const existing = exhibitionsResponse.data.find(
+            (ex: any) => ex.name === leadData.exhibition_name && ex.date === leadData.exhibition_date
+          );
+          
+          if (existing) {
+            exhibitionId = existing.id;
+          } else {
+            // Create new exhibition
+            const createExhibitionResponse = await this.request('/exhibition/exhibitions/', {
+              method: 'POST',
+              body: JSON.stringify({
+                name: leadData.exhibition_name,
+                date: leadData.exhibition_date,
+                tag: leadData.exhibition_tag || null,
+                is_active: true
+              }),
+            });
+            
+            if (createExhibitionResponse.success) {
+              exhibitionId = createExhibitionResponse.data.id;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error creating/finding exhibition:', error);
+      }
+    }
+    
+    // Set lead_source to include exhibition name if provided
+    let leadSource = 'exhibition';
+    if (leadData.exhibition_name) {
+      leadSource = leadData.exhibition_name;
+    }
+    
     return this.request('/clients/clients/', {
       method: 'POST',
       body: JSON.stringify({
         ...leadData,
         status: 'exhibition',
-        lead_source: 'exhibition',
-        customer_type: leadData.customer_type || 'individual'
+        lead_source: leadSource,
+        customer_type: leadData.customer_type || 'individual',
+        exhibition: exhibitionId || null,
+        customer_interests_input: leadData.customer_interests_input || []
       }),
+    });
+  }
+
+  // Exhibition management
+  async getExhibitions(date?: string): Promise<ApiResponse<any[]>> {
+    const url = date 
+      ? `/exhibition/exhibitions/?date=${date}`
+      : '/exhibition/exhibitions/';
+    return this.request(url, {
+      method: 'GET',
+    });
+  }
+
+  async createExhibition(exhibitionData: {
+    name: string;
+    date: string;
+    tag?: number;
+    description?: string;
+    location?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.request('/exhibition/exhibitions/', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...exhibitionData,
+        is_active: true
+      }),
+    });
+  }
+
+  async updateExhibition(id: number, exhibitionData: Partial<{
+    name: string;
+    date: string;
+    tag?: number;
+    description?: string;
+    location?: string;
+    is_active?: boolean;
+  }>): Promise<ApiResponse<any>> {
+    return this.request(`/exhibition/exhibitions/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(exhibitionData),
+    });
+  }
+
+  async deleteExhibition(id: number): Promise<ApiResponse<any>> {
+    return this.request(`/exhibition/exhibitions/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Exhibition Tag management
+  async getExhibitionTags(): Promise<ApiResponse<any[]>> {
+    return this.request('/exhibition/exhibition-tags/', {
+      method: 'GET',
+    });
+  }
+
+  async createExhibitionTag(tagData: {
+    name: string;
+    color?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.request('/exhibition/exhibition-tags/', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...tagData,
+        is_active: true
+      }),
+    });
+  }
+
+  async updateExhibitionTag(id: number, tagData: Partial<{
+    name: string;
+    color?: string;
+    is_active?: boolean;
+  }>): Promise<ApiResponse<any>> {
+    return this.request(`/exhibition/exhibition-tags/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(tagData),
+    });
+  }
+
+  async deleteExhibitionTag(id: number): Promise<ApiResponse<any>> {
+    return this.request(`/exhibition/exhibition-tags/${id}/`, {
+      method: 'DELETE',
     });
   }
 
@@ -1610,11 +1768,15 @@ class ApiService {
     page?: number;
     stage?: string;
     assigned_to?: string;
+    start_date?: string;
+    end_date?: string;
   }): Promise<ApiResponse<SalesPipeline[]>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.stage) queryParams.append('stage', params.stage);
     if (params?.assigned_to) queryParams.append('assigned_to', params.assigned_to);
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
 
     const response = await this.request<SalesPipeline[]>(`/sales/pipeline/${queryParams.toString() ? `?${queryParams}` : ''}`);
     return response;

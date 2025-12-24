@@ -13,7 +13,9 @@ import { Calendar, Phone, Mail, MapPin, User, Clock, Edit, Trash2, X as XIcon, A
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { SALES_STAGES, SALES_STAGE_LABELS } from "@/constants";
 
 interface CustomerDetailModalProps {
   open: boolean;
@@ -51,6 +53,9 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   const [showLostDialog, setShowLostDialog] = useState(false);
   const [lostReason, setLostReason] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [selectedStage, setSelectedStage] = useState<string>("");
+  const [updatingStage, setUpdatingStage] = useState(false);
+  const [updatingInterest, setUpdatingInterest] = useState<string | null>(null);
 
   // Check if user can delete customers (only business admin)
   const canDeleteCustomers = user?.role === 'business_admin';
@@ -71,6 +76,13 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
       fetchCustomerDetails();
     }
   }, [open, customerId]);
+
+  // Set selected stage when customer data is loaded
+  useEffect(() => {
+    if (customer) {
+      setSelectedStage(customer.pipeline_stage || customer.status || "");
+    }
+  }, [customer]);
 
   // Listen for refresh events from parent components
   useEffect(() => {
@@ -224,26 +236,76 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   };
 
   const markBought = async () => {
-    if (!customer) return;
+    if (!customer || !user) return;
     setProcessing(true);
     try {
-      const response = await apiService.updateClient(customer.id.toString(), { status: 'closed_won' });
-      if (response.success) {
-        await fetchCustomerDetails();
-        setShowBoughtConfirm(false);
-        toast({
-          title: "Success",
-          description: "Customer marked as Bought successfully.",
-          variant: "default",
-        });
+      // First, try to find the customer's pipeline entry
+      const pipelineResponse = await apiService.getSalesPipeline({});
+      
+      if (pipelineResponse.success) {
+        const pipelineData = pipelineResponse.data;
+        const dataArray = Array.isArray(pipelineData) ? pipelineData :
+                         (pipelineData as any)?.results ? (pipelineData as any).results :
+                         (pipelineData as any)?.data ? (pipelineData as any).data : [];
+        
+        // Find pipeline entry for this customer
+        let pipeline = dataArray.find((p: any) => p.client?.id === customer.id);
+        
+        if (pipeline) {
+          // Update the existing pipeline stage to closed_won
+          const updateResponse = await apiService.updatePipelineStage(pipeline.id.toString(), { stage: 'closed_won' });
+          
+          if (updateResponse.success) {
+            await fetchCustomerDetails();
+            setShowBoughtConfirm(false);
+            toast({
+              title: "Success",
+              description: "Customer marked as Bought successfully.",
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to update pipeline stage. Please try again.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          // No pipeline entry found - create one with closed_won stage
+          const createResponse = await apiService.createSalesPipeline({
+            client_id: customer.id,
+            title: `${formatCustomerName(customer)} - Purchase`,
+            stage: 'closed_won',
+            probability: 100,
+            expected_value: 0,
+            sales_representative: user.id,
+          });
+          
+          if (createResponse.success) {
+            await fetchCustomerDetails();
+            setShowBoughtConfirm(false);
+            toast({
+              title: "Success",
+              description: "Customer marked as Bought successfully.",
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to create pipeline entry. Please try again.",
+              variant: "destructive",
+            });
+          }
+        }
       } else {
         toast({
           title: "Error",
-          description: "Failed to mark as Bought. Please try again.",
+          description: "Failed to fetch pipeline data. Please try again.",
           variant: "destructive",
         });
       }
     } catch (e) {
+      console.error('Error marking as bought:', e);
       toast({
         title: "Error",
         description: "Failed to mark as Bought. Please try again.",
@@ -260,30 +322,125 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   };
 
   const markLost = async () => {
-    if (!customer) return;
+    if (!customer || !user) return;
+    
+    // Require a reason before marking as lost
+    if (!lostReason || lostReason.trim() === '') {
+      toast({
+        title: "Reason Required",
+        description: "Please provide a reason for marking this customer as Lost.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setProcessing(true);
     try {
-      const response = await apiService.updateClient(customer.id.toString(), { 
-        status: 'closed_lost', 
-        summary_notes: lostReason || customer.summary_notes 
-      });
-      if (response.success) {
-        await fetchCustomerDetails();
-        setShowLostDialog(false);
-        setLostReason("");
-        toast({
-          title: "Success",
-          description: "Customer marked as Lost successfully.",
-          variant: "default",
-        });
+      // First, try to find the customer's pipeline entry
+      const pipelineResponse = await apiService.getSalesPipeline({});
+      
+      if (pipelineResponse.success) {
+        const pipelineData = pipelineResponse.data;
+        const dataArray = Array.isArray(pipelineData) ? pipelineData :
+                         (pipelineData as any)?.results ? (pipelineData as any).results :
+                         (pipelineData as any)?.data ? (pipelineData as any).data : [];
+        
+        // Find pipeline entry for this customer
+        let pipeline = dataArray.find((p: any) => p.client?.id === customer.id);
+        
+        // Format the lost reason with a prefix
+        const formattedReason = `Lost Reason: ${lostReason.trim()}`;
+        const updatedNotes = customer.summary_notes 
+          ? `${customer.summary_notes}\n\n${formattedReason}`
+          : formattedReason;
+        
+        if (pipeline) {
+          // Update the existing pipeline stage to closed_lost and add notes
+          const updateStageResponse = await apiService.updatePipelineStage(pipeline.id.toString(), { stage: 'closed_lost' });
+          
+          if (updateStageResponse.success) {
+            // Also update pipeline notes with the lost reason
+            try {
+              await apiService.updatePipeline(pipeline.id.toString(), { 
+                notes: pipeline.notes 
+                  ? `${pipeline.notes}\n\n${formattedReason}`
+                  : formattedReason
+              });
+            } catch (e) {
+              console.warn('Failed to update pipeline notes:', e);
+            }
+            
+            // Update customer summary_notes with the lost reason
+            try {
+              await apiService.updateClient(customer.id.toString(), { 
+                summary_notes: updatedNotes 
+              });
+            } catch (e) {
+              console.warn('Failed to update customer notes:', e);
+            }
+            
+            await fetchCustomerDetails();
+            setShowLostDialog(false);
+            setLostReason("");
+            toast({
+              title: "Success",
+              description: "Customer marked as Lost successfully. Reason saved in notes.",
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to update pipeline stage. Please try again.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          // No pipeline entry found - create one with closed_lost stage
+          const createResponse = await apiService.createSalesPipeline({
+            client_id: customer.id,
+            title: `${formatCustomerName(customer)} - Lost`,
+            stage: 'closed_lost',
+            probability: 0,
+            expected_value: 0,
+            sales_representative: user.id,
+            notes: formattedReason,
+          });
+          
+          if (createResponse.success) {
+            // Update customer summary_notes with the lost reason
+            try {
+              await apiService.updateClient(customer.id.toString(), { 
+                summary_notes: updatedNotes 
+              });
+            } catch (e) {
+              console.warn('Failed to update customer notes:', e);
+            }
+            
+            await fetchCustomerDetails();
+            setShowLostDialog(false);
+            setLostReason("");
+            toast({
+              title: "Success",
+              description: "Customer marked as Lost successfully. Reason saved in notes.",
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to create pipeline entry. Please try again.",
+              variant: "destructive",
+            });
+          }
+        }
       } else {
         toast({
           title: "Error",
-          description: "Failed to mark as Lost. Please try again.",
+          description: "Failed to fetch pipeline data. Please try again.",
           variant: "destructive",
         });
       }
     } catch (e) {
+      console.error('Error marking as lost:', e);
       toast({
         title: "Error",
         description: "Failed to mark as Lost. Please try again.",
@@ -291,6 +448,121 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
       });
     } finally {
       setProcessing(false);
+    }
+  };
+
+  // Handle pipeline stage change
+  const handleStageChange = async (newStage: string) => {
+    if (!customer || !user || newStage === selectedStage) return;
+
+    setUpdatingStage(true);
+    try {
+      // First, try to find the customer's pipeline entry
+      const pipelineResponse = await apiService.getSalesPipeline({});
+      
+      if (pipelineResponse.success) {
+        const pipelineData = pipelineResponse.data;
+        const dataArray = Array.isArray(pipelineData) ? pipelineData :
+                         (pipelineData as any)?.results ? (pipelineData as any).results :
+                         (pipelineData as any)?.data ? (pipelineData as any).data : [];
+        
+        // Find pipeline entry for this customer
+        let pipeline = dataArray.find((p: any) => p.client?.id === customer.id);
+        
+        if (pipeline) {
+          // Update the existing pipeline stage
+          const updateResponse = await apiService.updatePipelineStage(pipeline.id.toString(), { stage: newStage });
+          
+          if (updateResponse.success) {
+            // Dispatch event to refresh parent components immediately
+            // Use setTimeout to ensure event is dispatched after state updates
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('refreshCustomerDetails', { 
+                detail: { customerId: customer.id, newStage: newStage } 
+              }));
+            }, 0);
+            
+            // Refresh customer details to get updated status
+            await fetchCustomerDetails();
+            
+            toast({
+              title: "Success",
+              description: `Customer moved to ${SALES_STAGE_LABELS[newStage as keyof typeof SALES_STAGE_LABELS] || newStage} stage successfully.`,
+              variant: "default",
+            });
+            
+            // Close modal after successful update
+            setTimeout(() => {
+              onClose();
+            }, 500);
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to update pipeline stage. Please try again.",
+              variant: "destructive",
+            });
+            setSelectedStage(customer.pipeline_stage || customer.status || "");
+          }
+        } else {
+          // No pipeline entry found - create one with the new stage
+          const createResponse = await apiService.createSalesPipeline({
+            client_id: customer.id,
+            title: `${formatCustomerName(customer)} - ${SALES_STAGE_LABELS[newStage as keyof typeof SALES_STAGE_LABELS] || newStage}`,
+            stage: newStage,
+            probability: 0,
+            expected_value: 0,
+            sales_representative: user.id,
+          });
+          
+          if (createResponse.success) {
+            // Dispatch event to refresh parent components immediately
+            // Use setTimeout to ensure event is dispatched after state updates
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('refreshCustomerDetails', { 
+                detail: { customerId: customer.id, newStage: newStage } 
+              }));
+            }, 0);
+            
+            // Refresh customer details
+            await fetchCustomerDetails();
+            
+            toast({
+              title: "Success",
+              description: `Customer moved to ${SALES_STAGE_LABELS[newStage as keyof typeof SALES_STAGE_LABELS] || newStage} stage successfully.`,
+              variant: "default",
+            });
+            
+            // Close modal after successful update
+            setTimeout(() => {
+              onClose();
+            }, 500);
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to create pipeline entry. Please try again.",
+              variant: "destructive",
+            });
+            setSelectedStage(customer.pipeline_stage || customer.status || "");
+          }
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch pipeline data. Please try again.",
+          variant: "destructive",
+        });
+        setSelectedStage(customer.pipeline_stage || customer.status || "");
+      }
+    } catch (e) {
+      console.error('Error updating stage:', e);
+      toast({
+        title: "Error",
+        description: "Failed to update stage. Please try again.",
+        variant: "destructive",
+      });
+      setSelectedStage(customer.pipeline_stage || customer.status || "");
+    } finally {
+      setUpdatingStage(false);
     }
   };
 
@@ -441,12 +713,35 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                   <div className="p-3 rounded-md bg-gray-50 border">
                     <div className="text-xs text-gray-600">Status</div>
                     <div className="text-sm font-medium text-gray-900">
-                      {customer.status ? (
+                      {customer.pipeline_stage ? (
+                        <Badge variant={getStatusBadgeVariant(customer.pipeline_stage)} className="capitalize">
+                          {SALES_STAGE_LABELS[customer.pipeline_stage as keyof typeof SALES_STAGE_LABELS] || customer.pipeline_stage}
+                        </Badge>
+                      ) : customer.status ? (
                         <Badge variant={getStatusBadgeVariant(customer.status)} className="capitalize">
                           {customer.status}
                         </Badge>
                       ) : 'Not provided'}
                     </div>
+                  </div>
+                  <div className="p-3 rounded-md bg-gray-50 border md:col-span-2">
+                    <div className="text-xs text-gray-600 mb-2">Move to Different Stage</div>
+                    <Select
+                      value={selectedStage}
+                      onValueChange={handleStageChange}
+                      disabled={updatingStage}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={updatingStage ? "Updating..." : "Select stage..."} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(SALES_STAGE_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="p-3 rounded-md bg-gray-50 border">
                     <div className="text-xs text-gray-600">Customer Type</div>
@@ -459,6 +754,12 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
               <div className="border rounded-lg p-4 mb-4">
                 <div className="font-semibold mb-3 text-lg">📍 Address</div>
                 <div className="space-y-2">
+                  {customer.full_address && (
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-3">
+                      <div className="text-xs text-blue-600 font-medium mb-1">Full Address</div>
+                      <p className="text-gray-900 font-medium whitespace-pre-wrap">{customer.full_address}</p>
+                    </div>
+                  )}
                   {customer.address && (
                     <div className="p-3 bg-gray-50 rounded-lg border">
                       <p className="text-gray-900 font-medium">{customer.address}</p>
@@ -472,7 +773,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                     <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Pincode</div><div className="text-sm font-medium text-gray-900">{customer.pincode || 'Not provided'}</div></div>
                     <div className="p-3 rounded-md bg-gray-50 border md:col-span-2"><div className="text-xs text-gray-600">Catchment Area</div><div className="text-sm font-medium text-gray-900 break-words">{customer.catchment_area || 'Not provided'}</div></div>
                   </div>
-                  {!customer.address && !customer.city && !customer.state && (
+                  {!customer.full_address && !customer.address && !customer.city && !customer.state && (
                     <div className="text-center py-4 text-gray-500">No address information available</div>
                   )}
                 </div>
@@ -483,7 +784,32 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                 <div className="font-semibold mb-3 text-lg">💼 Sales Information</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Sales Person</div><div className="text-sm font-medium text-gray-900">{customer.sales_person || 'Not provided'}</div></div>
-                  <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Customer Status</div><div className="text-sm font-medium text-gray-900">{customer.customer_status || 'Not provided'}</div></div>
+                  <div className="p-3 rounded-md bg-gray-50 border md:col-span-2">
+                    <div className="text-xs text-gray-600 mb-2">Move to Different Stage</div>
+                    <Select
+                      value={selectedStage}
+                      onValueChange={handleStageChange}
+                      disabled={updatingStage}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={updatingStage ? "Updating..." : "Select stage..."} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(SALES_STAGE_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {customer.pipeline_stage && (
+                      <div className="text-xs text-gray-500 mt-2">
+                        Current: <Badge variant={getStatusBadgeVariant(customer.pipeline_stage)} className="capitalize text-xs">
+                          {SALES_STAGE_LABELS[customer.pipeline_stage as keyof typeof SALES_STAGE_LABELS] || customer.pipeline_stage}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
                   <div className="p-3 rounded-md bg-gray-50 border md:col-span-2"><div className="text-xs text-gray-600">Lead Source</div><div className="text-sm font-medium text-gray-900">{customer.lead_source || 'Not provided'}</div></div>
                 </div>
               </div>
@@ -589,23 +915,149 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                     const shouldShowSingleProduct = hasSingleProduct && (!products || products.length === 0);
                     const displayProducts = shouldShowSingleProduct ? [{ product: singleProduct, revenue: revenue }] : products;
 
+                    // Check purchase status
+                    const isPurchased = parsedInterest.is_purchased || false;
+                    const isNotPurchased = parsedInterest.is_not_purchased || false;
+
                     return (
-                      <div key={index} className="border rounded-lg p-4 bg-gray-50 mb-4">
+                      <div key={index} className={`border rounded-lg p-4 mb-4 ${
+                        isPurchased ? 'bg-green-50 border-green-200' :
+                        isNotPurchased ? 'bg-red-50 border-red-200' :
+                        'bg-gray-50'
+                      }`}>
                         <div className="flex items-center justify-between mb-3">
-                          <h5 className="font-medium text-lg">Interest #{index + 1}</h5>
-                          {parsedInterest.status && (
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium border ${
-                              parsedInterest.status === 'closed_won' ? 'bg-green-100 text-green-800 border-green-200' :
-                              parsedInterest.status === 'negotiation' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                              parsedInterest.status === 'interested' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                              'bg-gray-100 text-gray-800 border-gray-200'
-                            }`}>
-                               {parsedInterest.status === 'closed_won' ? 'Bought' :
-                                parsedInterest.status === 'closed_lost' ? 'Lost' :
-                                parsedInterest.status === 'negotiation' ? 'Under Negotiation' :
-                                parsedInterest.status === 'interested' ? 'Interested' : 'Unknown'}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <h5 className="font-medium text-lg">Interest #{index + 1}</h5>
+                            {isPurchased && (
+                              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                                ✓ Purchased
+                              </Badge>
+                            )}
+                            {isNotPurchased && (
+                              <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+                                ✗ Not Purchased
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {parsedInterest.status && (
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium border ${
+                                parsedInterest.status === 'closed_won' ? 'bg-green-100 text-green-800 border-green-200' :
+                                parsedInterest.status === 'negotiation' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                parsedInterest.status === 'interested' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                'bg-gray-100 text-gray-800 border-gray-200'
+                              }`}>
+                                 {parsedInterest.status === 'closed_won' ? 'Bought' :
+                                  parsedInterest.status === 'closed_lost' ? 'Lost' :
+                                  parsedInterest.status === 'negotiation' ? 'Under Negotiation' :
+                                  parsedInterest.status === 'interested' ? 'Interested' : 'Unknown'}
+                              </span>
+                            )}
+                            {!isPurchased && !isNotPurchased && parsedInterest.id && (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300 text-xs"
+                                  onClick={async () => {
+                                    if (!customer?.id || !parsedInterest.id) return;
+                                    setUpdatingInterest(parsedInterest.id.toString());
+                                    try {
+                                      const response = await apiService.markInterestPurchased(
+                                        customer.id.toString(),
+                                        parsedInterest.id.toString()
+                                      );
+                                      if (response && response.success) {
+                                        // Invalidate cache and force refresh
+                                        apiService.forceRefresh(`/clients/clients/${customer.id}`);
+                                        // Wait a bit for cache to clear, then refresh with force
+                                        await new Promise(resolve => setTimeout(resolve, 150));
+                                        // Force refresh by bypassing cache
+                                        const freshResponse = await apiService.getClient(customer.id.toString(), true);
+                                        if (freshResponse.success && freshResponse.data) {
+                                          setCustomer(freshResponse.data);
+                                        }
+                                        toast({
+                                          title: "Success",
+                                          description: "Interest marked as purchased",
+                                          variant: "default",
+                                        });
+                                      } else {
+                                        const errorMsg = response?.message || response?.error || "Failed to mark interest as purchased";
+                                        toast({
+                                          title: "Error",
+                                          description: errorMsg,
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    } catch (error: any) {
+                                      console.error('Error marking interest as purchased:', error);
+                                      toast({
+                                        title: "Error",
+                                        description: error?.message || "Failed to mark interest as purchased",
+                                        variant: "destructive",
+                                      });
+                                    } finally {
+                                      setUpdatingInterest(null);
+                                    }
+                                  }}
+                                  disabled={updatingInterest === parsedInterest.id.toString()}
+                                >
+                                  {updatingInterest === parsedInterest.id.toString() ? 'Updating...' : '✓ Mark Purchased'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-red-50 hover:bg-red-100 text-red-700 border-red-300 text-xs"
+                                  onClick={async () => {
+                                    if (!customer?.id || !parsedInterest.id) return;
+                                    setUpdatingInterest(parsedInterest.id.toString());
+                                    try {
+                                      const response = await apiService.markInterestNotPurchased(
+                                        customer.id.toString(),
+                                        parsedInterest.id.toString()
+                                      );
+                                      if (response && response.success) {
+                                        // Invalidate cache and force refresh
+                                        apiService.forceRefresh(`/clients/clients/${customer.id}`);
+                                        // Wait a bit for cache to clear, then refresh with force
+                                        await new Promise(resolve => setTimeout(resolve, 150));
+                                        // Force refresh by bypassing cache
+                                        const freshResponse = await apiService.getClient(customer.id.toString(), true);
+                                        if (freshResponse.success && freshResponse.data) {
+                                          setCustomer(freshResponse.data);
+                                        }
+                                        toast({
+                                          title: "Success",
+                                          description: "Interest marked as not purchased",
+                                          variant: "default",
+                                        });
+                                      } else {
+                                        const errorMsg = response?.message || response?.error || "Failed to mark interest as not purchased";
+                                        toast({
+                                          title: "Error",
+                                          description: errorMsg,
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    } catch (error: any) {
+                                      console.error('Error marking interest as not purchased:', error);
+                                      toast({
+                                        title: "Error",
+                                        description: error?.message || "Failed to mark interest as not purchased",
+                                        variant: "destructive",
+                                      });
+                                    } finally {
+                                      setUpdatingInterest(null);
+                                    }
+                                  }}
+                                  disabled={updatingInterest === parsedInterest.id.toString()}
+                                >
+                                  {updatingInterest === parsedInterest.id.toString() ? 'Updating...' : '✗ Mark Not Purchased'}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Product Summary - More Prominent Display */}
@@ -817,17 +1269,21 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
         <DialogHeader>
           <DialogTitle>Mark as Lost</DialogTitle>
           <DialogDescription>
-            Please provide a reason for no conversion. This will update the customer status to "closed_lost".
+            Please provide a reason for no conversion. This will update the pipeline stage to "closed_lost" and save the reason in the customer notes.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <Textarea
-            placeholder="e.g., Wanted more variety/discount, bought from other store, etc."
+            placeholder="e.g., Wanted more variety/discount, bought from other store, etc. (Required)"
             value={lostReason}
             onChange={(e) => setLostReason(e.target.value)}
             rows={4}
             className="w-full"
+            required
           />
+          {lostReason.trim() === '' && (
+            <p className="text-sm text-red-500 mt-2">Please provide a reason before marking as Lost.</p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setShowLostDialog(false)} disabled={processing}>
@@ -836,7 +1292,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
           <Button 
             onClick={markLost} 
             variant="destructive"
-            disabled={processing}
+            disabled={processing || lostReason.trim() === ''}
           >
             {processing ? 'Processing...' : 'Mark as Lost'}
           </Button>

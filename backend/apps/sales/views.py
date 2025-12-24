@@ -96,8 +96,8 @@ class SalesPipelineListView(generics.ListAPIView, ScopedVisibilityMixin, GlobalD
         queryset = self.get_scoped_queryset(SalesPipeline)
         print(f"After scoped filtering: {queryset.count()} pipelines")
         
-        # Apply global date filtering
-        queryset = self.get_date_filtered_queryset(queryset, 'created_at')
+        # Apply global date filtering by updated_at so updated customers show in current month
+        queryset = self.get_date_filtered_queryset(queryset, 'updated_at')
         
         # Search by title or client name
         search = self.request.query_params.get('search', None)

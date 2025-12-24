@@ -7,6 +7,100 @@ from apps.clients.models import Client
 from apps.clients.serializers import ClientSerializer
 from apps.users.permissions import IsRoleAllowed
 from apps.users.middleware import ScopedVisibilityMixin
+from .models import Exhibition, ExhibitionTag
+from .serializers import ExhibitionSerializer, ExhibitionTagSerializer
+
+
+class ExhibitionTagViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing exhibition tags.
+    Tenant-specific tag management.
+    """
+    serializer_class = ExhibitionTagSerializer
+    pagination_class = None  # Disable pagination for tags (usually small list)
+    
+    def get_permissions(self):
+        """Allow sales users to read tags, but only managers/admins can modify"""
+        if self.action in ['list', 'retrieve']:
+            # Allow sales users to read tags
+            PermissionClass = IsRoleAllowed.for_roles(['manager', 'business_admin', 'inhouse_sales', 'tele_calling'])
+            return [PermissionClass()]
+        else:
+            # Only managers and admins can create/edit/delete
+            PermissionClass = IsRoleAllowed.for_roles(['manager', 'business_admin'])
+            return [PermissionClass()]
+    
+    def get_queryset(self):
+        """Filter tags by tenant"""
+        user = self.request.user
+        queryset = ExhibitionTag.objects.filter(is_active=True)
+        
+        # Filter by tenant if user has tenant
+        if hasattr(user, 'tenant') and user.tenant:
+            queryset = queryset.filter(tenant=user.tenant)
+        
+        return queryset.order_by('name')
+    
+    def perform_create(self, serializer):
+        """Set tenant when creating tag"""
+        user = self.request.user
+        try:
+            if hasattr(user, 'tenant') and user.tenant:
+                serializer.save(tenant=user.tenant)
+            else:
+                serializer.save()
+        except Exception as e:
+            # Handle unique constraint violation
+            from django.db import IntegrityError
+            if isinstance(e, IntegrityError):
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'name': 'A tag with this name already exists for your organization.'})
+            raise
+
+
+class ExhibitionViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
+    """
+    ViewSet for managing exhibitions.
+    Tenant-specific exhibitions with tags.
+    """
+    serializer_class = ExhibitionSerializer
+    permission_classes = [IsRoleAllowed.for_roles(['manager', 'business_admin', 'inhouse_sales', 'tele_calling'])]
+    
+    def get_queryset(self):
+        """Filter exhibitions by tenant and active status"""
+        user = self.request.user
+        queryset = Exhibition.objects.filter(is_active=True)
+        
+        # Filter by tenant if user has tenant
+        if hasattr(user, 'tenant') and user.tenant:
+            queryset = queryset.filter(tenant=user.tenant)
+        
+        # Filter by date if provided
+        date_filter = self.request.query_params.get('date', None)
+        if date_filter:
+            queryset = queryset.filter(date=date_filter)
+        
+        return queryset.order_by('-date', '-created_at')
+    
+    def perform_create(self, serializer):
+        """Set tenant and created_by when creating exhibition"""
+        user = self.request.user
+        if hasattr(user, 'tenant') and user.tenant:
+            serializer.save(tenant=user.tenant, created_by=user)
+        else:
+            serializer.save(created_by=user)
+    
+    @action(detail=True, methods=['get'])
+    def leads(self, request, pk=None):
+        """Get all leads captured for this exhibition"""
+        exhibition = self.get_object()
+        leads = Client.objects.filter(
+            exhibition=exhibition,
+            is_deleted=False
+        ).order_by('-created_at')
+        
+        serializer = ClientSerializer(leads, many=True)
+        return Response(serializer.data)
 
 
 class ExhibitionLeadViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
@@ -24,6 +118,11 @@ class ExhibitionLeadViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         # Filter for exhibition leads (only those with status='exhibition')
         # This ensures promoted leads don't appear in the list
         queryset = queryset.filter(status='exhibition')
+        
+        # Filter by exhibition if provided
+        exhibition_id = self.request.query_params.get('exhibition', None)
+        if exhibition_id:
+            queryset = queryset.filter(exhibition_id=exhibition_id)
         
         return queryset
     
@@ -135,8 +234,9 @@ class ExhibitionLeadViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Update status to 'lead'
-            client.status = 'lead'
+            # Keep status as 'exhibition' to track that customer came from exhibition
+            # The promotion just makes it visible in main customer system
+            # Status remains 'exhibition' to maintain source tracking
             client.save()
             
             # Log the promotion action
@@ -146,7 +246,7 @@ class ExhibitionLeadViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                 action='update',
                 user=request.user,
                 before={'status': 'exhibition'},
-                after={'status': 'lead'},
+                after={'status': 'exhibition', 'promoted': True},
                 timestamp=timezone.now()
             )
             
@@ -201,8 +301,9 @@ class ExhibitionLeadViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                         })
                         continue
                     
-                    # Update status
-                    client.status = 'lead'
+                    # Keep status as 'exhibition' to track that customer came from exhibition
+                    # The promotion just makes it visible in main customer system
+                    # Status remains 'exhibition' to maintain source tracking
                     client.save()
                     
                     # Log the promotion
@@ -212,7 +313,7 @@ class ExhibitionLeadViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                         action='update',
                         user=request.user,
                         before={'status': 'exhibition'},
-                        after={'status': 'lead'},
+                        after={'status': 'exhibition', 'promoted': True},
                         timestamp=timezone.now()
                     )
                     
@@ -281,10 +382,11 @@ class ExhibitionLeadViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         writer = csv.writer(response)
         writer.writerow([
             'ID', 'First Name', 'Last Name', 'Email', 'Phone', 'City', 
-            'Status', 'Lead Source', 'Summary Notes', 'Created Date'
+            'Status', 'Lead Source', 'Exhibition', 'Summary Notes', 'Created Date'
         ])
         
         for client in queryset:
+            exhibition_name = client.exhibition.name if client.exhibition else ''
             writer.writerow([
                 client.id,
                 client.first_name or '',
@@ -294,6 +396,7 @@ class ExhibitionLeadViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
                 client.city or '',
                 client.status,
                 client.lead_source or '',
+                exhibition_name,
                 client.summary_notes or '',
                 client.created_at.strftime('%Y-%m-%d %H:%M:%S')
             ])
