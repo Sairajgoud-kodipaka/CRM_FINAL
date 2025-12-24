@@ -790,21 +790,44 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         saving_scheme: formData.savingScheme || 'Inactive',
         customer_interests: formData.customerInterests.length > 0 ? formData.customerInterests : [],
         // Normalize interests for backend: coerce revenue to number-like string and drop empties
-        customer_interests_input: interests
-          .map((interest) => {
-            const normalizedProducts = (interest.products || []).map(p => ({
-              product: p.product,
-              revenue: String(parseFloat(p.revenue || '0') || 0)
-            }));
-            return {
-              category: interest.mainCategory,
-              products: normalizedProducts,
-              preferences: interest.preferences || {}
-            };
-          })
-          // Keep interests even when revenue is 0; only drop if there are no products at all
-          .filter(it => Array.isArray(it.products) && it.products.length > 0)
-          .map(it => JSON.stringify(it)),
+        customer_interests_input: (() => {
+          const filteredInterests = interests
+            .filter(interest => {
+              // Only include interests that have a category and at least one product with a product name
+              const hasCategory = interest.mainCategory && interest.mainCategory.trim() !== '';
+              const hasProducts = interest.products && interest.products.length > 0;
+              const hasProductNames = interest.products.some(p => p.product && p.product.trim() !== '');
+              return hasCategory && hasProducts && hasProductNames;
+            })
+            .map((interest) => {
+              const normalizedProducts = (interest.products || [])
+                .filter(p => p.product && p.product.trim() !== '') // Filter out empty products
+                .map(p => ({
+                  product: p.product,
+                  revenue: String(parseFloat(p.revenue || '0') || 0)
+                }));
+              return {
+                category: interest.mainCategory,
+                products: normalizedProducts,
+                preferences: interest.preferences || {}
+              };
+            })
+            // Keep interests even when revenue is 0; only drop if there are no products at all
+            .filter(it => Array.isArray(it.products) && it.products.length > 0)
+            .map(it => JSON.stringify(it))
+            .filter(jsonStr => {
+              // Double-check: parse and verify the interest has valid data
+              try {
+                const parsed = JSON.parse(jsonStr);
+                return parsed.category && parsed.products && parsed.products.length > 0;
+              } catch {
+                return false;
+              }
+            });
+          
+          // Only include if there are valid interests
+          return filteredInterests.length > 0 ? filteredInterests : undefined;
+        })(),
 
         style: emptyToNull(formData.style) as string | null,
         customer_preference: emptyToNull(formData.customerPreference) as string | null,
@@ -843,9 +866,15 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         Object.entries(customerData).filter(([_, value]) => value !== undefined)
       );
 
+      // Log customer interests for debugging
+      const interestsInput = cleanedCustomerData.customer_interests_input;
+      console.log('🔍 AddCustomerModal - Submitting customer interests:', {
+        customer_interests_input: interestsInput,
+        customer_interests_input_length: Array.isArray(interestsInput) ? interestsInput.length : 0,
+        raw_interests: interests
+      });
 
-
-              // Sending customer data to API
+      // Sending customer data to API
 
       // Call API to create customer
       const response = await apiService.createClient(cleanedCustomerData);

@@ -531,22 +531,39 @@ class ClientSerializer(serializers.ModelSerializer):
             print(f"Split name - first_name: '{validated_data['first_name']}', last_name: '{validated_data['last_name']}'")
         
         # Handle customer interests
+        customer_interests_data = []
         if 'customer_interests_input' in validated_data:
-            print(f"Customer interests found: {validated_data['customer_interests_input']}")
-            # Store the interests for later processing after client creation
-            customer_interests_data = validated_data.pop('customer_interests_input')
-            print(f"Stored customer interests for later processing: {customer_interests_data}")
+            interests_value = validated_data.pop('customer_interests_input')
+            print(f"🔍 Customer interests found in validated_data: {interests_value}")
+            print(f"🔍 Type: {type(interests_value)}")
+            if interests_value:
+                # Handle both list and single value
+                if isinstance(interests_value, list):
+                    customer_interests_data = interests_value
+                elif isinstance(interests_value, str):
+                    # Single JSON string
+                    customer_interests_data = [interests_value]
+                else:
+                    customer_interests_data = [interests_value] if interests_value else []
+                print(f"✅ Stored {len(customer_interests_data)} customer interests for later processing")
+            else:
+                print(f"⚠️ customer_interests_input is empty/None: {interests_value}")
         elif 'customer_interests' in validated_data:
             print(f"Customer interests found (legacy field): {validated_data['customer_interests']}")
             customer_interests_data = validated_data.pop('customer_interests')
+            if not isinstance(customer_interests_data, list):
+                customer_interests_data = [customer_interests_data] if customer_interests_data else []
             print(f"Stored customer interests for later processing: {customer_interests_data}")
         else:
-            customer_interests_data = []
+            print(f"⚠️ No customer_interests_input field found in validated_data")
+            print(f"Available fields: {list(validated_data.keys())}")
         
         # Also check for interests field (frontend might send it differently)
         if 'interests' in validated_data:
             print(f"Interests field found: {validated_data['interests']}")
             customer_interests_data = validated_data.pop('interests')
+            if not isinstance(customer_interests_data, list):
+                customer_interests_data = [customer_interests_data] if customer_interests_data else []
             print(f"Stored interests for later processing: {customer_interests_data}")
         
         # Handle assigned_to field
@@ -704,7 +721,7 @@ class ClientSerializer(serializers.ModelSerializer):
             print(f"Created client: {result}")
             
             # Process customer interests after client creation
-            if customer_interests_data:
+            if customer_interests_data and len(customer_interests_data) > 0:
                 print(f"=== PROCESSING CUSTOMER INTERESTS ===")
                 print(f"Processing {len(customer_interests_data)} customer interests for client {result.id}")
                 print(f"Raw customer_interests_data: {customer_interests_data}")
@@ -736,14 +753,29 @@ class ClientSerializer(serializers.ModelSerializer):
                         print(f"Processing category: '{category}' with {len(products)} products")
                         print(f"Products data: {products}")
                         
+                        # Validate that we have both category and products
+                        if not category or not str(category).strip():
+                            print(f"⚠️ Skipping interest: category is empty")
+                            continue
+                        
+                        if not products or len(products) == 0:
+                            print(f"⚠️ Skipping interest: no products found")
+                            continue
+                        
                         if category and products:
-                            print(f"Processing {len(products)} products for category '{category}'")
+                            print(f"✅ Processing {len(products)} products for category '{category}'")
+                            products_processed = 0
                             for product_info in products:
                                 product_name = product_info.get('product')
                                 revenue = product_info.get('revenue')
                                 
                                 print(f"Product info: name='{product_name}', revenue='{revenue}'")
                                 print(f"Product info type: {type(product_name)}, revenue type: {type(revenue)}")
+                                
+                                # Skip if product name is empty
+                                if not product_name or not str(product_name).strip():
+                                    print(f"⚠️ Skipping product: product name is empty")
+                                    continue
                                 
                                 if product_name and (revenue is not None):
                                     try:
@@ -949,9 +981,22 @@ class ClientSerializer(serializers.ModelSerializer):
                         import traceback
                         print(f"Traceback: {traceback.format_exc()}")
                         continue
+                
+                # Log summary of interest processing
+                final_interests = CustomerInterest.objects.filter(client=result)
+                print(f"✅ Interest processing complete:")
+                print(f"   - Total interests created: {final_interests.count()}")
+                if final_interests.count() > 0:
+                    for interest in final_interests:
+                        print(f"     • {interest.category.name if interest.category else 'No Category'}: {interest.product.name if interest.product else 'No Product'} (₹{interest.revenue})")
+                else:
+                    print(f"   ⚠️ WARNING: No interests were created! Check logs above for errors.")
             else:
                 print(f"=== NO CUSTOMER INTERESTS TO PROCESS ===")
                 print(f"customer_interests_data is empty or None: {customer_interests_data}")
+                print(f"Type: {type(customer_interests_data)}")
+                if customer_interests_data is not None:
+                    print(f"Length: {len(customer_interests_data) if hasattr(customer_interests_data, '__len__') else 'N/A'}")
             
             return result
         except serializers.ValidationError as e:

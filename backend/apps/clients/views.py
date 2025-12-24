@@ -1984,15 +1984,35 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
     def mark_interest_purchased(self, request, pk=None, *args, **kwargs):
         """Mark a customer interest as purchased"""
         try:
-            # Get interest_id from kwargs
-            interest_id = kwargs.get('interest_id')
+            # When using as_view(), URL parameters are in self.kwargs
+            # Extract pk and interest_id from URL path
+            pk = pk or self.kwargs.get('pk')
+            interest_id = self.kwargs.get('interest_id')
+            
+            if not pk:
+                return Response(
+                    {'error': 'Client ID is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             if not interest_id:
                 return Response(
                     {'error': 'Interest ID is required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            client = self.get_object()
-            interest = CustomerInterest.objects.get(id=interest_id, client=client)
+            
+            # Convert to int if they're strings
+            try:
+                pk = int(pk)
+                interest_id = int(interest_id)
+            except (ValueError, TypeError):
+                return Response(
+                    {'error': 'Invalid ID format'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get the client object
+            client = Client.objects.get(pk=pk, tenant=request.user.tenant)
+            interest = CustomerInterest.objects.get(id=interest_id, client=client, tenant=request.user.tenant)
             
             interest.is_purchased = True
             interest.is_not_purchased = False  # Reset not purchased if marking as purchased
@@ -2023,15 +2043,35 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
     def mark_interest_not_purchased(self, request, pk=None, *args, **kwargs):
         """Mark a customer interest as not purchased"""
         try:
-            # Get interest_id from kwargs
-            interest_id = kwargs.get('interest_id')
+            # When using as_view(), URL parameters are in self.kwargs
+            # Extract pk and interest_id from URL path
+            pk = pk or self.kwargs.get('pk')
+            interest_id = self.kwargs.get('interest_id')
+            
+            if not pk:
+                return Response(
+                    {'error': 'Client ID is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             if not interest_id:
                 return Response(
                     {'error': 'Interest ID is required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            client = self.get_object()
-            interest = CustomerInterest.objects.get(id=interest_id, client=client)
+            
+            # Convert to int if they're strings
+            try:
+                pk = int(pk)
+                interest_id = int(interest_id)
+            except (ValueError, TypeError):
+                return Response(
+                    {'error': 'Invalid ID format'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get the client object
+            client = Client.objects.get(pk=pk, tenant=request.user.tenant)
+            interest = CustomerInterest.objects.get(id=interest_id, client=client, tenant=request.user.tenant)
             
             interest.is_purchased = False
             interest.is_not_purchased = True

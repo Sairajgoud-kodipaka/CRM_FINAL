@@ -316,18 +316,37 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit, exhibition
       // Split full name into first and last name
       const nameParts = formData.first_name.trim().split(' ');
       
-      // Format interests for API
-      const customer_interests_input = interests.map(interest => {
-        const interestData = {
-          category: interest.mainCategory,
-          products: interest.products.map(p => ({
-            product: p.product,
-            revenue: p.revenue || '0'
-          })),
-          preferences: interest.preferences
-        };
-        return JSON.stringify(interestData);
-      });
+      // Format interests for API - filter out empty interests
+      const customer_interests_input = interests
+        .filter(interest => {
+          // Only include interests that have a category and at least one product with a product name
+          const hasCategory = interest.mainCategory && interest.mainCategory.trim() !== '';
+          const hasProducts = interest.products && interest.products.length > 0;
+          const hasProductNames = interest.products.some(p => p.product && p.product.trim() !== '');
+          return hasCategory && hasProducts && hasProductNames;
+        })
+        .map(interest => {
+          const interestData = {
+            category: interest.mainCategory,
+            products: interest.products
+              .filter(p => p.product && p.product.trim() !== '') // Filter out empty products
+              .map(p => ({
+                product: p.product,
+                revenue: p.revenue || '0'
+              })),
+            preferences: interest.preferences
+          };
+          return JSON.stringify(interestData);
+        })
+        .filter(jsonStr => {
+          // Double-check: parse and verify the interest has valid data
+          try {
+            const parsed = JSON.parse(jsonStr);
+            return parsed.category && parsed.products && parsed.products.length > 0;
+          } catch {
+            return false;
+          }
+        });
 
       const submitData = {
         first_name: nameParts[0] || formData.first_name,
@@ -342,6 +361,8 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit, exhibition
         exhibition_tag: formData.exhibition_tag ? parseInt(formData.exhibition_tag) : undefined,
         customer_interests_input: customer_interests_input.length > 0 ? customer_interests_input : undefined
       };
+      
+      console.log('Submitting customer interests:', customer_interests_input);
       await onSubmit(submitData);
       handleClose();
     } catch (error: any) {

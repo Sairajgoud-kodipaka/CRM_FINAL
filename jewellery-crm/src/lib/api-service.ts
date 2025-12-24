@@ -1134,12 +1134,20 @@ class ApiService {
   async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
     // Clean payload: remove undefined/null and empty string values to avoid serializer issues
     // BUT preserve created_at even if it seems like an empty string (it's for historical imports)
+    // AND preserve customer_interests_input arrays (even if empty, backend will handle it)
     const cleaned: Record<string, any> = {};
     const preservedCreatedAt = clientData.created_at;
+    const preservedInterests = clientData.customer_interests_input;
+    
     Object.entries(clientData || {}).forEach(([key, value]) => {
       if (value === undefined || value === null) return;
       // Don't filter out created_at - it's needed for historical date imports
       if (key === 'created_at') {
+        cleaned[key] = value;
+        return;
+      }
+      // Don't filter out customer_interests_input - it's an array and backend needs it
+      if (key === 'customer_interests_input') {
         cleaned[key] = value;
         return;
       }
@@ -1150,6 +1158,16 @@ class ApiService {
     if (preservedCreatedAt && !cleaned.created_at) {
       cleaned.created_at = preservedCreatedAt;
     }
+    // Ensure customer_interests_input is included if it was present
+    if (preservedInterests !== undefined && !cleaned.customer_interests_input) {
+      cleaned.customer_interests_input = preservedInterests;
+    }
+    
+    console.log('🔍 createClient - Request body:', {
+      ...cleaned,
+      customer_interests_input: cleaned.customer_interests_input,
+      customer_interests_input_length: Array.isArray(cleaned.customer_interests_input) ? cleaned.customer_interests_input.length : 0
+    });
 
     const response = await this.request<Client>('/clients/clients/', {
       method: 'POST',
@@ -1365,16 +1383,24 @@ class ApiService {
       leadSource = leadData.exhibition_name;
     }
     
+    const requestBody = {
+      ...leadData,
+      status: 'exhibition',
+      lead_source: leadSource,
+      customer_type: leadData.customer_type || 'individual',
+      exhibition: exhibitionId || null,
+      customer_interests_input: leadData.customer_interests_input || []
+    };
+    
+    console.log('🔍 createExhibitionLead - Request body:', {
+      ...requestBody,
+      customer_interests_input: requestBody.customer_interests_input,
+      customer_interests_input_length: requestBody.customer_interests_input?.length || 0
+    });
+    
     return this.request('/clients/clients/', {
       method: 'POST',
-      body: JSON.stringify({
-        ...leadData,
-        status: 'exhibition',
-        lead_source: leadSource,
-        customer_type: leadData.customer_type || 'individual',
-        exhibition: exhibitionId || null,
-        customer_interests_input: leadData.customer_interests_input || []
-      }),
+      body: JSON.stringify(requestBody),
     });
   }
 
