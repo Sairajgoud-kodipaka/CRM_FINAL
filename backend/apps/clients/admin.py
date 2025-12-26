@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django import forms
 from .models import (
     Client, ClientInteraction, Appointment, FollowUp, Task, 
     Announcement, CustomerTag, AuditLog, Purchase, CustomerInterest
@@ -276,12 +277,61 @@ class AuditLogAdmin(admin.ModelAdmin):
     readonly_fields = ['timestamp']
 
 
+class CustomerInterestAdminForm(forms.ModelForm):
+    """Custom form to allow editing created_at field"""
+    created_at = forms.DateTimeField(
+        required=False,
+        help_text="Date and time when this interest was created. Can be edited for backdating.",
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'})
+    )
+    
+    class Meta:
+        model = CustomerInterest
+        # Explicitly exclude created_at from automatic field inclusion since it has auto_now_add=True
+        # We'll add it manually as a custom field above
+        exclude = ['created_at']
+        widgets = {
+            'updated_at': forms.DateTimeInput(attrs={'readonly': True}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set initial value for created_at if editing existing instance
+        if self.instance and self.instance.pk and self.instance.created_at:
+            # Format datetime for HTML5 datetime-local input
+            from django.utils import timezone
+            dt = self.instance.created_at
+            if hasattr(dt, 'strftime'):
+                # Convert to local timezone-aware datetime string for input
+                if timezone.is_aware(dt):
+                    dt = timezone.localtime(dt)
+                # Format for datetime-local input (YYYY-MM-DDTHH:MM)
+                self.initial['created_at'] = dt.strftime('%Y-%m-%dT%H:%M')
+        elif not self.instance.pk:
+            # For new instances, set current time as default
+            from django.utils import timezone
+            now = timezone.now()
+            if timezone.is_aware(now):
+                now = timezone.localtime(now)
+            self.initial['created_at'] = now.strftime('%Y-%m-%dT%H:%M')
+    
+    def clean_created_at(self):
+        """Ensure created_at is timezone-aware"""
+        from django.utils import timezone
+        created_at = self.cleaned_data.get('created_at')
+        if created_at and timezone.is_naive(created_at):
+            # Make timezone-aware if naive
+            created_at = timezone.make_aware(created_at)
+        return created_at
+
+
 @admin.register(CustomerInterest)
 class CustomerInterestAdmin(admin.ModelAdmin):
+    form = CustomerInterestAdminForm
     list_display = ['client', 'category', 'product', 'revenue', 'created_at']
     list_filter = ['category', 'created_at']
     search_fields = ['client__first_name', 'client__last_name', 'product__name', 'category__name']
-    readonly_fields = ['created_at', 'updated_at']
+    readonly_fields = ['updated_at']  # created_at is now editable for backdating interests
     autocomplete_fields = ['client', 'category', 'product']
     
     fieldsets = (
@@ -297,6 +347,12 @@ class CustomerInterestAdmin(admin.ModelAdmin):
         }),
     )
     
+    def get_form(self, request, obj=None, **kwargs):
+        """Override to use our custom form"""
+        # Explicitly return our custom form to bypass Django's field validation
+        kwargs['form'] = CustomerInterestAdminForm
+        return super().get_form(request, obj, **kwargs)
+    
     def get_queryset(self, request):
         """Filter by tenant"""
         qs = super().get_queryset(request)
@@ -311,7 +367,7 @@ class CustomerInterestAdmin(admin.ModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
     def save_model(self, request, obj, form, change):
-        """Override to automatically set tenant for new customer interests"""
+        """Override to automatically set tenant and handle created_at editing"""
         if not change:  # New instance
             if not obj.tenant:
                 # Set tenant from the client if available
@@ -320,4 +376,26 @@ class CustomerInterestAdmin(admin.ModelAdmin):
                 else:
                     # Fallback to user's tenant
                     obj.tenant = request.user.tenant
+        
+        # Handle created_at if provided in form
+        created_at_value = None
+        if 'created_at' in form.cleaned_data:
+            created_at_value = form.cleaned_data['created_at']
+            if created_at_value:
+                # Temporarily store the value
+                obj.created_at = created_at_value
+        
+        # Save the object first (this will set created_at if it's a new instance and not provided)
         super().save_model(request, obj, form, change)
+        
+        # If created_at was provided in the form, update it explicitly using update_fields
+        # This bypasses auto_now_add=True
+        if created_at_value:
+            from django.utils import timezone
+            # Ensure timezone awareness
+            if timezone.is_naive(created_at_value):
+                created_at_value = timezone.make_aware(created_at_value)
+            # Update using queryset to bypass auto_now_add
+            CustomerInterest.objects.filter(pk=obj.pk).update(created_at=created_at_value)
+            # Refresh the object to get the updated value
+            obj.refresh_from_db()

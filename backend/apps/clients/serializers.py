@@ -258,13 +258,16 @@ class ClientSerializer(serializers.ModelSerializer):
                     },
                     'revenue': float(interest.revenue) if interest.revenue else 0,
                     'notes': interest.notes,
+                    'designNumber': self._extract_design_number_from_notes(interest.notes),
+                    'images': self._extract_images_from_notes(interest.notes),
                     'preferences': self._extract_preferences_from_notes(interest.notes),
                     'status': self._determine_interest_status(interest.notes),
                     'is_purchased': interest.is_purchased,
                     'is_not_purchased': interest.is_not_purchased,
                     'purchased_at': interest.purchased_at.isoformat() if interest.purchased_at else None,
                     'not_purchased_at': interest.not_purchased_at.isoformat() if interest.not_purchased_at else None,
-                    'related_sale_id': interest.related_sale.id if interest.related_sale else None
+                    'related_sale_id': interest.related_sale.id if interest.related_sale else None,
+                    'created_at': interest.created_at.isoformat() if interest.created_at else None
                 }
                 for interest in interests
             ]
@@ -303,6 +306,53 @@ class ClientSerializer(serializers.ModelSerializer):
                 pass
         
         return preferences
+    
+    def _extract_design_number_from_notes(self, notes):
+        """Extract design number from notes field"""
+        if not notes:
+            return ''
+        
+        try:
+            if 'Design Number:' in notes:
+                design_part = notes.split('Design Number:')[1].strip()
+                # Extract until next section (Images: or end)
+                if 'Images:' in design_part:
+                    design_number = design_part.split('Images:')[0].strip()
+                else:
+                    design_number = design_part
+                # Remove trailing period and whitespace if present
+                design_number = design_number.rstrip('. ').strip()
+                # Also handle case where it might be separated by ". " at the end
+                if design_number.endswith('.'):
+                    design_number = design_number[:-1].strip()
+                return design_number
+        except Exception as e:
+            print(f"Error extracting design number: {e}")
+            pass
+        
+        return ''
+    
+    def _extract_images_from_notes(self, notes):
+        """Extract images from notes field"""
+        if not notes:
+            return []
+        
+        try:
+            if 'Images:' in notes:
+                images_part = notes.split('Images:')[1].strip()
+                # Remove any trailing period that might be after the JSON
+                if images_part.endswith('.'):
+                    images_part = images_part[:-1].strip()
+                # Try to parse as JSON
+                import json
+                images = json.loads(images_part)
+                if isinstance(images, list):
+                    return images
+        except Exception as e:
+            print(f"Error extracting images: {e}, images_part: {images_part if 'images_part' in locals() else 'N/A'}")
+            pass
+        
+        return []
     
     def _determine_interest_status(self, notes):
         """Determine interest status based on preferences"""
@@ -817,6 +867,10 @@ class ClientSerializer(serializers.ModelSerializer):
                                             print(f"Invalid revenue value '{revenue}' for product '{product_name}'")
                                             continue
                                         
+                                        # Extract design number and images from interest data
+                                        design_number = interest_data.get('designNumber', '')
+                                        images = interest_data.get('images', [])
+                                        
                                         # Create notes from preferences
                                         preference_notes = []
                                         if preferences.get('designSelected'):
@@ -827,10 +881,24 @@ class ClientSerializer(serializers.ModelSerializer):
                                             preference_notes.append("Checking Other Jewellers")
                                         if preferences.get('lessVariety'):
                                             preference_notes.append("Felt Less Variety")
+                                        if preferences.get('purchased'):
+                                            preference_notes.append("Purchased")
                                         if preferences.get('other'):
                                             preference_notes.append(f"Other: {preferences['other']}")
                                         
-                                        notes = f"Category: {category}. Preferences: {', '.join(preference_notes) if preference_notes else 'None'}"
+                                        # Build notes with design number and images
+                                        notes_parts = [f"Category: {category}"]
+                                        if preference_notes:
+                                            notes_parts.append(f"Preferences: {', '.join(preference_notes)}")
+                                        if design_number:
+                                            notes_parts.append(f"Design Number: {design_number}")
+                                        if images:
+                                            # Store images as JSON in notes
+                                            import json
+                                            images_json = json.dumps(images)
+                                            notes_parts.append(f"Images: {images_json}")
+                                        
+                                        notes = '. '.join(notes_parts) if notes_parts else 'None'
                                         
                                         print(f"Creating CustomerInterest: category={category}, product={product_name}, revenue={revenue_value}, notes={notes}")
                                         
@@ -1244,6 +1312,10 @@ class ClientSerializer(serializers.ModelSerializer):
                                         print(f"Invalid revenue value '{revenue}' for product '{product_name}', defaulting to 0")
                                         revenue_value = 0.0
                                     
+                                    # Extract design number and images from interest data
+                                    design_number = interest_data.get('designNumber', '')
+                                    images = interest_data.get('images', [])
+                                    
                                     # Create notes from preferences
                                     preference_notes = []
                                     if preferences.get('designSelected'):
@@ -1259,7 +1331,19 @@ class ClientSerializer(serializers.ModelSerializer):
                                     if preferences.get('other'):
                                         preference_notes.append(f"Other: {preferences['other']}")
                                     
-                                    notes = f"Category: {category}. Preferences: {', '.join(preference_notes) if preference_notes else 'None'}"
+                                    # Build notes with design number and images
+                                    notes_parts = [f"Category: {category}"]
+                                    if preference_notes:
+                                        notes_parts.append(f"Preferences: {', '.join(preference_notes)}")
+                                    if design_number:
+                                        notes_parts.append(f"Design Number: {design_number}")
+                                    if images:
+                                        # Store images as JSON in notes
+                                        import json
+                                        images_json = json.dumps(images)
+                                        notes_parts.append(f"Images: {images_json}")
+                                    
+                                    notes = '. '.join(notes_parts) if notes_parts else 'None'
                                     
                                     print(f"Creating CustomerInterest: category={category}, product={product_name}, revenue={revenue_value}, notes={notes}")
                                     
@@ -1370,7 +1454,7 @@ class ClientSerializer(serializers.ModelSerializer):
                                                 continue
                                             print(f"WARNING: Using fallback product: {product_obj}")
                                     
-                                    # Create the customer interest
+                                    # Create or update the customer interest
                                     try:
                                         # Use get_or_create to avoid duplicates (no need to check existing_identifiers manually)
                                         interest, created = CustomerInterest.objects.get_or_create(
@@ -1394,7 +1478,12 @@ class ClientSerializer(serializers.ModelSerializer):
                                             print(f"  - Product: {interest.product.name if interest.product else 'No Product'}")
                                             print(f"  - Revenue: {interest.revenue}")
                                         else:
-                                            print(f"INFO: Customer interest already exists: {interest}")
+                                            # Update existing interest with new notes (including design number and images)
+                                            interest.notes = notes
+                                            interest.revenue = revenue_value
+                                            interest.save()
+                                            print(f"INFO: Updated existing customer interest: {interest}")
+                                            print(f"  - Updated notes with design number and images")
                                     except Exception as interest_error:
                                         print(f"ERROR: Error creating customer interest: {interest_error}")
                                         import traceback

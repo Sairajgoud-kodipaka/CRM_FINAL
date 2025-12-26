@@ -87,6 +87,8 @@ interface FormData {
 interface ProductInterest {
   mainCategory: string;
   products: { product: string; revenue: string }[];
+  designNumber?: string;
+  images?: { url: string; thumbUrl: string }[];
   preferences: {
     designSelected: boolean;
     wantsDiscount: boolean;
@@ -142,6 +144,8 @@ const createInitialFormData = (): FormData => ({
 const createEmptyInterest = (): ProductInterest => ({
       mainCategory: "",
       products: [{ product: "", revenue: "" }],
+      designNumber: "",
+      images: [],
       preferences: {
         designSelected: false,
         wantsDiscount: false,
@@ -250,6 +254,8 @@ const normalizeInterestsForSubmit = (interests: ProductInterest[]): string[] =>
       return {
         category: interest.mainCategory,
         products: normalizedProducts,
+        designNumber: interest.designNumber || "",
+        images: interest.images || [],
         preferences: interest.preferences || {},
       };
     })
@@ -315,8 +321,10 @@ const mapCustomerToInterests = (customer: Client): ProductInterest[] => {
       revenue = typeof parsed.revenue === "number" ? parsed.revenue : parseFloat(String(parsed.revenue)) || 0;
     }
 
-    // Extract preferences
+    // Extract preferences, design number, and images
     const preferences = parsed.preferences || {};
+    const designNumber = parsed.designNumber || entry.designNumber || "";
+    const images = parsed.images || entry.images || [];
 
     // Group by category - if category already exists, add product to it
     // Note: We use the preferences from the first entry in each category group
@@ -338,6 +346,13 @@ const mapCustomerToInterests = (customer: Client): ProductInterest[] => {
           purchased: existing.preferences.purchased || Boolean(preferences.purchased),
           other: existing.preferences.other || preferences.other || "",
         };
+        // Keep design number and images from first entry (or merge if needed)
+        if (!existing.designNumber && designNumber) {
+          existing.designNumber = designNumber;
+        }
+        if (!existing.images || existing.images.length === 0) {
+          existing.images = images;
+        }
       } else {
         // Create new category entry
         categoryMap.set(categoryName, {
@@ -346,6 +361,8 @@ const mapCustomerToInterests = (customer: Client): ProductInterest[] => {
             product: productId,
             revenue: String(revenue),
           }],
+          designNumber: designNumber,
+          images: images,
           preferences: {
             designSelected: Boolean(preferences.designSelected),
             wantsDiscount: Boolean(preferences.wantsDiscount),
@@ -425,6 +442,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
   const [summaryImages, setSummaryImages] = useState<SummaryImageReference[]>([]);
   const [imageUploading, setImageUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const focusNext = useCallback(
     (fieldId: string) => {
@@ -771,7 +789,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         ageing_percentage: emptyToNull(formData.ageingPercentage),
         pipeline_stage: formData.pipelineStage,
         customer_type: formData.customerType,
-        summary_notes: buildSummaryNotes(formData.summaryNotes, summaryImages, uploadedImage),
+        summary_notes: buildSummaryNotes(formData.summaryNotes, summaryImages, null),
       } as Record<string, unknown>;
 
       const cleanedPayload = Object.fromEntries(
@@ -1063,41 +1081,6 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         <div className={`border rounded-lg ${isMobile ? "p-3" : "p-4"}`}>
           <div className="font-semibold text-lg mb-4">Product Interests</div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Product Type</label>
-              <Input
-                value={formData.productType}
-                onChange={(e) => handleInputChange("productType", e.target.value)}
-                placeholder="Necklace, Ring, ..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Style</label>
-              <Input
-                value={formData.style}
-                onChange={(e) => handleInputChange("style", e.target.value)}
-                placeholder="Traditional, Contemporary..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Customer Preference</label>
-              <Input
-                value={formData.customerPreference}
-                onChange={(e) => handleInputChange("customerPreference", e.target.value)}
-                placeholder="Preferred designs or motifs"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Design Number</label>
-              <Input
-                value={formData.designNumber}
-                onChange={(e) => handleInputChange("designNumber", e.target.value)}
-                placeholder="Internal reference"
-              />
-            </div>
-          </div>
-
           <div className="border rounded p-4 bg-gray-50">
             <div className="flex items-center justify-between mb-3">
               <div className="font-medium">Detailed Interests</div>
@@ -1221,6 +1204,132 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                   </div>
                 </div>
 
+                {/* Design Number Field */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1">Design Number</label>
+                  <Input
+                    placeholder="Enter design number..."
+                    value={interest.designNumber || ""}
+                    onChange={(e) => {
+                      const updated = [...interests];
+                      updated[index].designNumber = e.target.value;
+                      setInterests(updated);
+                    }}
+                  />
+                </div>
+
+                {/* Image Upload per Interest */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1">Product Images (Max 2)</label>
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      id={`edit-interest-image-${index}`}
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length === 0) return;
+                        
+                        // Limit to 2 images total per interest
+                        const currentImages = interest.images || [];
+                        const remainingSlots = 2 - currentImages.length;
+                        if (remainingSlots <= 0) {
+                          toast({
+                            title: "Limit reached",
+                            description: "Maximum 2 images per interest",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+                        
+                        const filesToUpload = files.slice(0, remainingSlots);
+                        const newImages: { url: string; thumbUrl: string }[] = [];
+                        
+                        for (const file of filesToUpload) {
+                          if (!isAllowedImageFile(file)) {
+                            toast({
+                              title: "Invalid image",
+                              description: "Use JPG/PNG/WebP up to 5MB.",
+                              variant: "destructive"
+                            });
+                            continue;
+                          }
+                          
+                          try {
+                            setImageUploading(true);
+                            const res = await uploadImageToCloudinary(file);
+                            newImages.push({ url: res.url, thumbUrl: res.thumbUrl });
+                          } catch (e: any) {
+                            toast({
+                              title: "Upload failed",
+                              description: e?.message || "Could not upload image.",
+                              variant: "destructive"
+                            });
+                          }
+                        }
+                        
+                        if (newImages.length > 0) {
+                          setInterests(prev => {
+                            const copy = [...prev];
+                            copy[index].images = [...(copy[index].images || []), ...newImages];
+                            return copy;
+                          });
+                        }
+                        
+                        setImageUploading(false);
+                        // Reset input
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById(`edit-interest-image-${index}`)?.click()}
+                      disabled={imageUploading || (interest.images?.length || 0) >= 2}
+                      className="w-full"
+                    >
+                      {imageUploading ? "Uploading..." : (interest.images?.length || 0) >= 2 ? "Max 2 images" : "Choose Images"}
+                    </Button>
+                    
+                    {/* Show uploaded images preview */}
+                    {interest.images && interest.images.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {interest.images.map((img, imgIdx) => (
+                          <div key={imgIdx} className="relative">
+                            <img
+                              src={img.thumbUrl || img.url}
+                              alt={`Product image ${imgIdx + 1}`}
+                              className="w-full h-24 object-cover rounded border"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-1 right-1 bg-red-500 text-white hover:bg-red-600 h-6 w-6 p-0"
+                              onClick={() => {
+                                setInterests(prev => {
+                                  const copy = [...prev];
+                                  copy[index].images = copy[index].images?.filter((_, i) => i !== imgIdx) || [];
+                                  return copy;
+                                });
+                              }}
+                            >
+                              ×
+                            </Button>
+                            {interest.designNumber && (
+                              <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                                {interest.designNumber}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <label className="flex items-center gap-2 text-sm">
                     <Checkbox
@@ -1290,22 +1399,6 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
         <div className={`border rounded-lg ${isMobile ? "p-3" : "p-4"}`}>
           <div className="font-semibold text-lg mb-4">📝 Additional Details</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-              <label className="block text-sm font-medium mb-1">Product Subtype</label>
-                <Input
-                value={formData.productSubtype}
-                onChange={(e) => handleInputChange("productSubtype", e.target.value)}
-                placeholder="e.g., DI.RING"
-              />
-              </div>
-              <div>
-              <label className="block text-sm font-medium mb-1">Ageing Percentage</label>
-              <Input
-                value={formData.ageingPercentage}
-                onChange={(e) => handleInputChange("ageingPercentage", e.target.value)}
-                placeholder="e.g., 30%"
-              />
-            </div>
             <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Summary Notes</label>
                 <Textarea
@@ -1314,93 +1407,32 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                 placeholder="Key discussion points, customer preferences, next steps..."
                 rows={4}
               />
-              <div className="mt-3 flex flex-wrap gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => document.getElementById("edit-camera-input")?.click()}
-                  className="sm:w-auto w-full"
-                >
-                  Take Photo
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById("edit-gallery-input")?.click()}
-                  className="sm:w-auto w-full"
-                >
-                  Choose from Gallery
-                </Button>
-                <input
-                  id="edit-camera-input"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUploadImage(file);
-                    e.currentTarget.value = "";
-                  }}
-                />
-                <input
-                  id="edit-gallery-input"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUploadImage(file);
-                    e.currentTarget.value = "";
-                  }}
-                />
-                {imageUploading && <span className="text-sm text-gray-500">Uploading...</span>}
-                {summaryImages.length > 0 && (
-                  <div className="flex flex-col gap-2 w-full mt-2">
-                    <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-                      Existing uploads
-                    </span>
-                    <div className="flex flex-wrap gap-3">
+              {/* Display existing images (read-only) */}
+              {summaryImages && summaryImages.length > 0 && (
+                <div className="mt-3">
+                  <div className="text-sm text-gray-600 mb-2">Existing Images (read-only)</div>
+                  <div className="flex flex-wrap gap-3">
                     {summaryImages.map((image, index) => {
                       const src = image.thumb || image.url;
+                      const fullSrc = image.url || image.thumb;
                       if (!src) return null;
-                      const host = (() => {
-                        if (!image.url) return null;
-                        try {
-                          return new URL(image.url).hostname;
-                        } catch {
-                          return null;
-                        }
-                      })();
                       return (
-                        <div key={`${image.url || image.thumb || index}`} className="flex flex-col gap-1">
+                        <div key={index} className="relative">
                           <img
                             src={src}
-                            alt={`Existing upload ${index + 1}`}
-                            className="w-32 h-32 object-cover rounded border shadow-sm pointer-events-none select-none"
+                            alt={`Summary image ${index + 1}`}
+                            className="w-32 h-32 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => setSelectedImage(fullSrc || "")}
                           />
-                          {host && (
-                            <span className="text-[10px] text-gray-500 break-all max-w-[8rem]">
-                              {host}
-                            </span>
-                          )}
                         </div>
                       );
                     })}
-                    </div>
                   </div>
-                )}
-                {uploadedImage && (
-                  <div className="w-full mt-2">
-                    <div className="text-xs text-blue-600 mb-1">New upload (will save on update)</div>
-                    <img
-                      src={uploadedImage.thumbUrl || uploadedImage.url}
-                      alt="New upload preview"
-                      className="w-32 h-32 object-cover rounded border shadow-sm"
-                    />
-                  </div>
-                )}
-              </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Note: Image upload has been removed. These images are preserved from previous entries.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1426,6 +1458,31 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
             </div>
           </div>
         </div>
+
+        {/* Image Viewer Modal */}
+        {selectedImage && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+            onClick={() => setSelectedImage(null)}
+          >
+            <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center">
+              <img
+                src={selectedImage}
+                alt="Enlarged view"
+                className="max-w-full max-h-full object-contain rounded"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-4 right-4 bg-white text-black hover:bg-gray-200"
+                onClick={() => setSelectedImage(null)}
+              >
+                ✕ Close
+              </Button>
+            </div>
+          </div>
+        )}
     </ResponsiveDialog>
   );
 }

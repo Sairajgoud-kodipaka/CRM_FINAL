@@ -53,6 +53,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   const [showLostDialog, setShowLostDialog] = useState(false);
   const [lostReason, setLostReason] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedStage, setSelectedStage] = useState<string>("");
   const [updatingStage, setUpdatingStage] = useState(false);
   const [updatingInterest, setUpdatingInterest] = useState<string | null>(null);
@@ -856,13 +857,15 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                             <div className="flex flex-wrap gap-3">
                               {images.map((image, index) => {
                                 const src = image.thumb || image.url;
+                                const fullSrc = image.url || image.thumb;
                                 if (!src) return null;
                                 return (
                                   <img
                                     key={`${image.url || image.thumb || index}`}
                                     src={src}
                                     alt={`Uploaded reference ${index + 1}`}
-                                    className="w-40 max-w-full h-auto rounded shadow pointer-events-none select-none"
+                                    className="w-40 max-w-full h-auto rounded shadow cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => setSelectedImage(fullSrc || "")}
                                   />
                                 );
                               })}
@@ -884,7 +887,42 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
               <div className="space-y-4 max-h-[60vh] overflow-y-auto">
               {customer.customer_interests && customer.customer_interests.length > 0 ? (
                 <div className="space-y-4">
-                  {customer.customer_interests.map((interest, index) => {
+                  {[...customer.customer_interests]
+                    .sort((a, b) => {
+                      // Sort by created_at date (oldest first)
+                      let dateA: Date | null = null;
+                      let dateB: Date | null = null;
+                      
+                      // Extract created_at from interest
+                      const getCreatedAt = (interest: any): Date | null => {
+                        let parsed = interest;
+                        if (typeof interest === 'string') {
+                          try {
+                            parsed = JSON.parse(interest);
+                          } catch {
+                            return null;
+                          }
+                        }
+                        if (parsed.created_at) {
+                          return new Date(parsed.created_at);
+                        }
+                        return null;
+                      };
+                      
+                      dateA = getCreatedAt(a);
+                      dateB = getCreatedAt(b);
+                      
+                      // If both have dates, sort by date (oldest first)
+                      if (dateA && dateB) {
+                        return dateA.getTime() - dateB.getTime();
+                      }
+                      // If only one has a date, put it first
+                      if (dateA && !dateB) return -1;
+                      if (!dateA && dateB) return 1;
+                      // If neither has a date, maintain original order
+                      return 0;
+                    })
+                    .map((interest, index) => {
                     // Interest is now a structured object from the API
                     const interestData = interest;
                     let parsedInterest;
@@ -906,6 +944,18 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                     const products = parsedInterest.products || [];
                     const preferences = parsedInterest.preferences || {};
                     const revenue = parsedInterest.revenue || '0';
+                    const designNumber = parsedInterest.designNumber || '';
+                    const images = parsedInterest.images || [];
+                    
+                    // Debug: Log to see what we're getting
+                    console.log('Interest data:', {
+                      index,
+                      parsedInterest,
+                      designNumber,
+                      images,
+                      hasDesignNumber: !!designNumber,
+                      notes: parsedInterest.notes
+                    });
 
                     // Handle new backend format (single product per interest)
                     const singleProduct = parsedInterest.product;
@@ -920,174 +970,163 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                     const isNotPurchased = parsedInterest.is_not_purchased || false;
 
                     return (
-                      <div key={index} className={`border rounded-lg p-4 mb-4 ${
+                      <div key={index} className={`border rounded-lg p-3 mb-3 ${
                         isPurchased ? 'bg-green-50 border-green-200' :
                         isNotPurchased ? 'bg-red-50 border-red-200' :
                         'bg-gray-50'
                       }`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <h5 className="font-medium text-lg">Interest #{index + 1}</h5>
-                            {isPurchased && (
-                              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
-                                ✓ Purchased
-                              </Badge>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h5 className="font-medium text-sm">Interest #{index + 1}</h5>
+                            {parsedInterest.created_at && (
+                              <span className="text-xs text-gray-500">
+                                {new Date(parsedInterest.created_at).toLocaleDateString('en-IN', { 
+                                  day: 'numeric', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                })}
+                              </span>
                             )}
-                            {isNotPurchased && (
-                              <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
-                                ✗ Not Purchased
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
                             {parsedInterest.status && (
-                              <span className={`px-3 py-1 rounded-full text-sm font-medium border ${
-                                parsedInterest.status === 'closed_won' ? 'bg-green-100 text-green-800 border-green-200' :
-                                parsedInterest.status === 'negotiation' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                parsedInterest.status === 'interested' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                                'bg-gray-100 text-gray-800 border-gray-200'
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                parsedInterest.status === 'closed_won' ? 'bg-green-100 text-green-800' :
+                                parsedInterest.status === 'closed_lost' ? 'bg-red-100 text-red-800' :
+                                parsedInterest.status === 'negotiation' ? 'bg-yellow-100 text-yellow-800' :
+                                parsedInterest.status === 'interested' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
                               }`}>
                                  {parsedInterest.status === 'closed_won' ? 'Bought' :
                                   parsedInterest.status === 'closed_lost' ? 'Lost' :
-                                  parsedInterest.status === 'negotiation' ? 'Under Negotiation' :
+                                  parsedInterest.status === 'negotiation' ? 'Negotiating' :
                                   parsedInterest.status === 'interested' ? 'Interested' : 'Unknown'}
                               </span>
                             )}
-                            {!isPurchased && !isNotPurchased && parsedInterest.id && (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300 text-xs"
-                                  onClick={async () => {
-                                    if (!customer?.id || !parsedInterest.id) return;
-                                    setUpdatingInterest(parsedInterest.id.toString());
-                                    try {
-                                      const response = await apiService.markInterestPurchased(
-                                        customer.id.toString(),
-                                        parsedInterest.id.toString()
-                                      );
-                                      if (response && response.success) {
-                                        // Invalidate cache and force refresh
-                                        apiService.forceRefresh(`/clients/clients/${customer.id}`);
-                                        // Wait a bit for cache to clear, then refresh with force
-                                        await new Promise(resolve => setTimeout(resolve, 150));
-                                        // Force refresh by bypassing cache
-                                        const freshResponse = await apiService.getClient(customer.id.toString(), true);
-                                        if (freshResponse.success && freshResponse.data) {
-                                          setCustomer(freshResponse.data);
-                                        }
-                                        toast({
-                                          title: "Success",
-                                          description: "Interest marked as purchased",
-                                          variant: "default",
-                                        });
-                                      } else {
-                                        const errorMsg = response?.message || response?.error || "Failed to mark interest as purchased";
-                                        toast({
-                                          title: "Error",
-                                          description: errorMsg,
-                                          variant: "destructive",
-                                        });
-                                      }
-                                    } catch (error: any) {
-                                      console.error('Error marking interest as purchased:', error);
-                                      toast({
-                                        title: "Error",
-                                        description: error?.message || "Failed to mark interest as purchased",
-                                        variant: "destructive",
-                                      });
-                                    } finally {
-                                      setUpdatingInterest(null);
-                                    }
-                                  }}
-                                  disabled={updatingInterest === parsedInterest.id.toString()}
-                                >
-                                  {updatingInterest === parsedInterest.id.toString() ? 'Updating...' : '✓ Mark Purchased'}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="bg-red-50 hover:bg-red-100 text-red-700 border-red-300 text-xs"
-                                  onClick={async () => {
-                                    if (!customer?.id || !parsedInterest.id) return;
-                                    setUpdatingInterest(parsedInterest.id.toString());
-                                    try {
-                                      const response = await apiService.markInterestNotPurchased(
-                                        customer.id.toString(),
-                                        parsedInterest.id.toString()
-                                      );
-                                      if (response && response.success) {
-                                        // Invalidate cache and force refresh
-                                        apiService.forceRefresh(`/clients/clients/${customer.id}`);
-                                        // Wait a bit for cache to clear, then refresh with force
-                                        await new Promise(resolve => setTimeout(resolve, 150));
-                                        // Force refresh by bypassing cache
-                                        const freshResponse = await apiService.getClient(customer.id.toString(), true);
-                                        if (freshResponse.success && freshResponse.data) {
-                                          setCustomer(freshResponse.data);
-                                        }
-                                        toast({
-                                          title: "Success",
-                                          description: "Interest marked as not purchased",
-                                          variant: "default",
-                                        });
-                                      } else {
-                                        const errorMsg = response?.message || response?.error || "Failed to mark interest as not purchased";
-                                        toast({
-                                          title: "Error",
-                                          description: errorMsg,
-                                          variant: "destructive",
-                                        });
-                                      }
-                                    } catch (error: any) {
-                                      console.error('Error marking interest as not purchased:', error);
-                                      toast({
-                                        title: "Error",
-                                        description: error?.message || "Failed to mark interest as not purchased",
-                                        variant: "destructive",
-                                      });
-                                    } finally {
-                                      setUpdatingInterest(null);
-                                    }
-                                  }}
-                                  disabled={updatingInterest === parsedInterest.id.toString()}
-                                >
-                                  {updatingInterest === parsedInterest.id.toString() ? 'Updating...' : '✗ Mark Not Purchased'}
-                                </Button>
-                              </div>
+                            {isPurchased && (
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
+                                ✓ Purchased
+                              </span>
+                            )}
+                            {isNotPurchased && (
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">
+                                ✗ Not Purchased
+                              </span>
                             )}
                           </div>
+                          {!isPurchased && !isNotPurchased && parsedInterest.id && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-300 text-xs"
+                                onClick={async () => {
+                                  if (!customer?.id || !parsedInterest.id) return;
+                                  setUpdatingInterest(parsedInterest.id.toString());
+                                  try {
+                                    const response = await apiService.markInterestPurchased(
+                                      customer.id.toString(),
+                                      parsedInterest.id.toString()
+                                    );
+                                    if (response && response.success) {
+                                      apiService.forceRefresh(`/clients/clients/${customer.id}`);
+                                      await new Promise(resolve => setTimeout(resolve, 150));
+                                      const freshResponse = await apiService.getClient(customer.id.toString(), true);
+                                      if (freshResponse.success && freshResponse.data) {
+                                        setCustomer(freshResponse.data);
+                                      }
+                                      toast({
+                                        title: "Success",
+                                        description: "Interest marked as purchased",
+                                        variant: "default",
+                                      });
+                                    } else {
+                                      const errorMsg = response?.message || response?.error || "Failed to mark interest as purchased";
+                                      toast({
+                                        title: "Error",
+                                        description: errorMsg,
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  } catch (error: any) {
+                                    console.error('Error marking interest as purchased:', error);
+                                    toast({
+                                      title: "Error",
+                                      description: error?.message || "Failed to mark interest as purchased",
+                                      variant: "destructive",
+                                    });
+                                  } finally {
+                                    setUpdatingInterest(null);
+                                  }
+                                }}
+                                disabled={updatingInterest === parsedInterest.id.toString()}
+                              >
+                                {updatingInterest === parsedInterest.id.toString() ? '...' : '✓'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 bg-red-50 hover:bg-red-100 text-red-700 border-red-300 text-xs"
+                                onClick={async () => {
+                                  if (!customer?.id || !parsedInterest.id) return;
+                                  setUpdatingInterest(parsedInterest.id.toString());
+                                  try {
+                                    const response = await apiService.markInterestNotPurchased(
+                                      customer.id.toString(),
+                                      parsedInterest.id.toString()
+                                    );
+                                    if (response && response.success) {
+                                      apiService.forceRefresh(`/clients/clients/${customer.id}`);
+                                      await new Promise(resolve => setTimeout(resolve, 150));
+                                      const freshResponse = await apiService.getClient(customer.id.toString(), true);
+                                      if (freshResponse.success && freshResponse.data) {
+                                        setCustomer(freshResponse.data);
+                                      }
+                                      toast({
+                                        title: "Success",
+                                        description: "Interest marked as not purchased",
+                                        variant: "default",
+                                      });
+                                    } else {
+                                      const errorMsg = response?.message || response?.error || "Failed to mark interest as not purchased";
+                                      toast({
+                                        title: "Error",
+                                        description: errorMsg,
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  } catch (error: any) {
+                                    console.error('Error marking interest as not purchased:', error);
+                                    toast({
+                                      title: "Error",
+                                      description: error?.message || "Failed to mark interest as not purchased",
+                                      variant: "destructive",
+                                    });
+                                  } finally {
+                                    setUpdatingInterest(null);
+                                  }
+                                }}
+                                disabled={updatingInterest === parsedInterest.id.toString()}
+                              >
+                                {updatingInterest === parsedInterest.id.toString() ? '...' : '✗'}
+                              </Button>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Product Summary - More Prominent Display */}
-                        {displayProducts && displayProducts.length > 0 && (
-                          <div className="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-sm text-gray-600 mb-1">Product</p>
-                                <p className="font-semibold text-blue-800 text-lg break-words">
-                                  {typeof displayProducts[0]?.product === 'object' && displayProducts[0]?.product?.name
-                                    ? displayProducts[0].product.name
-                                    : typeof displayProducts[0]?.product === 'string'
-                                      ? displayProducts[0].product
-                                      : 'Product Name'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-gray-600 mb-1">Revenue</p>
-                                <p className="font-semibold text-green-600 text-lg">
-                                  ₹{typeof revenue === 'number' ? revenue.toLocaleString() : revenue}
-                                </p>
-                              </div>
-                            </div>
+                        {/* Compact Product Info */}
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div className="bg-white rounded p-2 border">
+                            <p className="text-xs text-gray-500 mb-0.5">Product</p>
+                            <p className="font-semibold text-sm text-blue-800 break-words">
+                              {typeof displayProducts[0]?.product === 'object' && displayProducts[0]?.product?.name
+                                ? displayProducts[0].product.name
+                                : typeof displayProducts[0]?.product === 'string'
+                                  ? displayProducts[0].product
+                                  : singleProduct?.name || 'N/A'}
+                            </p>
                           </div>
-                        )}
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="p-3 bg-white rounded-lg border">
-                            <p className="text-sm text-gray-500 mb-1">Category</p>
-                            <p className="font-medium text-lg break-words">
+                          <div className="bg-white rounded p-2 border">
+                            <p className="text-xs text-gray-500 mb-0.5">Category</p>
+                            <p className="font-semibold text-sm break-words">
                               {typeof category === 'object' && category?.name
                                 ? category.name
                                 : typeof category === 'string'
@@ -1095,44 +1134,22 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                                   : 'Not specified'}
                             </p>
                           </div>
-                          <div className="p-3 bg-white rounded-lg border">
-                            <p className="text-sm text-gray-500 mb-1">Revenue Opportunity</p>
-                            <p className="font-medium text-green-600 text-lg">
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div className="bg-white rounded p-2 border">
+                            <p className="text-xs text-gray-500 mb-0.5">Revenue</p>
+                            <p className="font-semibold text-sm text-green-600">
                               ₹{typeof revenue === 'number' ? revenue.toLocaleString() : revenue}
                             </p>
                           </div>
-                        </div>
-
-                        {/* Products Section */}
-                        {displayProducts && displayProducts.length > 0 && (
-                          <div>
-                            <p className="text-sm text-gray-500 mb-2">Products</p>
-                            <div className="space-y-2">
-                              {displayProducts.map((product: any, pIndex: number) => {
-
-
-                                return (
-                                  <div key={pIndex} className="flex items-center gap-4 p-2 bg-gray-50 rounded">
-                                    <div className="flex-1">
-                                      <p className="font-medium">
-                                        {typeof product.product === 'object' && product.product?.name
-                                          ? product.product.name
-                                          : typeof product.product === 'string'
-                                            ? product.product
-                                            : 'Product'}
-                                      </p>
-                                    </div>
-                                    {product.revenue && (
-                                      <div className="text-sm text-green-600">
-                                        ₹{typeof product.revenue === 'number' ? product.revenue.toLocaleString() : product.revenue}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                          {designNumber && (
+                            <div className="bg-white rounded p-2 border">
+                              <p className="text-xs text-gray-500 mb-0.5">Design Number</p>
+                              <p className="font-semibold text-sm text-gray-900">{designNumber}</p>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                         {/* Debug info for products */}
                         {(!displayProducts || displayProducts.length === 0) && (
@@ -1148,54 +1165,72 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                           </div>
                         )}
 
-                        {/* Customer Preferences */}
-                        <div className="mt-4 p-3 bg-white rounded-lg border">
-                          <p className="text-sm text-gray-500 mb-2">Customer Preferences</p>
-                          <div className="space-y-2">
-                            {preferences.designSelected && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                <span className="text-sm text-green-700 font-medium">Design Selected</span>
-                              </div>
-                            )}
-                            {preferences.wantsDiscount && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                                <span className="text-sm text-yellow-700 font-medium">Wants Discount</span>
-                              </div>
-                            )}
-                            {preferences.checkingOthers && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                                <span className="text-sm text-orange-700 font-medium">Checking Others</span>
-                              </div>
-                            )}
-                            {preferences.lessVariety && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                <span className="text-sm text-red-700 font-medium">Less Variety</span>
-                              </div>
-                            )}
-                            {preferences.purchased && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                                <span className="text-sm text-blue-700 font-medium">Purchased</span>
-                              </div>
-                            )}
-                            {preferences.other && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
-                                <span className="text-sm text-gray-700 font-medium">Other: {preferences.other}</span>
-                              </div>
-                            )}
-                            {!preferences.designSelected && !preferences.wantsDiscount && !preferences.checkingOthers && !preferences.lessVariety && !preferences.purchased && !preferences.other && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-                                <span className="text-sm text-gray-500">No specific preferences</span>
-                              </div>
-                            )}
+                        {/* Customer Preferences - Compact */}
+                        {(preferences.designSelected || preferences.wantsDiscount || preferences.checkingOthers || 
+                          preferences.lessVariety || preferences.purchased || preferences.other) && (
+                          <div className="mb-2">
+                            <p className="text-xs text-gray-500 mb-1">Preferences</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {preferences.designSelected && (
+                                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">Design Selected</span>
+                              )}
+                              {preferences.wantsDiscount && (
+                                <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded">Wants Discount</span>
+                              )}
+                              {preferences.checkingOthers && (
+                                <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded">Checking Others</span>
+                              )}
+                              {preferences.lessVariety && (
+                                <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">Less Variety</span>
+                              )}
+                              {preferences.purchased && (
+                                <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Purchased</span>
+                              )}
+                              {preferences.other && (
+                                <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded">Other: {preferences.other}</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
+
+                        {/* Design Number - Show if exists, otherwise show in grid above */}
+                        {!designNumber && (
+                          <div className="mb-2">
+                            <p className="text-xs text-gray-500 mb-0.5">Design Number</p>
+                            <p className="text-xs text-gray-400 italic">Not specified</p>
+                          </div>
+                        )}
+
+                        {/* Images - Compact Grid */}
+                        {images && images.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-500 mb-1">Product Images</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {images.map((img: any, imgIdx: number) => {
+                                const imageUrl = img.thumbUrl || img.url || img.thumb || img;
+                                const fullImageUrl = img.url || img.thumbUrl || img.thumb || img;
+                                return (
+                                  <div 
+                                    key={imgIdx} 
+                                    className="relative cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => setSelectedImage(fullImageUrl)}
+                                  >
+                                    <img
+                                      src={imageUrl}
+                                      alt={`Product image ${imgIdx + 1}`}
+                                      className="w-full h-24 object-cover rounded border"
+                                    />
+                                    {designNumber && (
+                                      <div className="absolute bottom-0.5 left-0.5 bg-black bg-opacity-60 text-white text-[10px] px-1 rounded">
+                                        {designNumber}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Fallback for old format */}
                         {!products && !preferences && (
@@ -1299,6 +1334,33 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Image Viewer Modal */}
+    {selectedImage && (
+      <div
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100]"
+        onClick={() => setSelectedImage(null)}
+      >
+        <div
+          className="relative max-w-5xl max-h-[90vh] p-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-2 right-2 z-10 bg-white/20 hover:bg-white/30 text-white"
+          >
+            <XIcon className="h-6 w-6" />
+          </Button>
+          <img
+            src={selectedImage}
+            alt="Enlarged product image"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg"
+          />
+        </div>
+      </div>
+    )}
   </>
   );
 }

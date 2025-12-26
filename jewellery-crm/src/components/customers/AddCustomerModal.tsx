@@ -106,6 +106,8 @@ interface FormData {
 interface ProductInterest {
   mainCategory: string;
   products: { product: string; revenue: string }[];
+  designNumber?: string;
+  images?: { url: string; thumbUrl: string }[];
   preferences: {
     designSelected: boolean;
     wantsDiscount: boolean;
@@ -286,6 +288,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       {
         mainCategory: "",
         products: [{ product: "", revenue: "" }],
+        designNumber: "",
+        images: [],
         preferences: {
           designSelected: false,
           wantsDiscount: false,
@@ -809,6 +813,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             return {
               category: interest.mainCategory,
               products: normalizedProducts,
+              designNumber: interest.designNumber || "",
+              images: interest.images || [],
               preferences: interest.preferences || {}
             };
           })
@@ -834,14 +840,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         design_number: emptyToNull(formData.designNumber) as string | null,
         next_follow_up: formatDateForAPI(formData.nextFollowUpDate),
         next_follow_up_time: formData.nextFollowUpTime || null,
-        summary_notes: (() => {
-          const base = (formData.summaryNotes || '').trim();
-          const parts: string[] = [];
-          if (uploadedImage?.url) parts.push(`[image]: ${uploadedImage.url}`);
-          if (uploadedImage?.thumbUrl) parts.push(`[thumb]: ${uploadedImage.thumbUrl}`);
-          const combined = [base, ...parts].filter(Boolean).join('\n');
-          return emptyToNull(combined) as string | null;
-        })(),
+        summary_notes: emptyToNull(formData.summaryNotes) as string | null,
 
         // New Critical Fields - optional
         age_of_end_user: emptyToNull(formData.ageOfEndUser) as string | null,
@@ -969,6 +968,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         setInterests([{
           mainCategory: "",
           products: [{ product: "", revenue: "" }],
+          designNumber: "",
+          images: [],
           preferences: {
             designSelected: false,
             wantsDiscount: false,
@@ -1313,6 +1314,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     const newInterest = {
         mainCategory: "",
         products: [{ product: "", revenue: "" }],
+        designNumber: "",
+        images: [],
         preferences: {
           designSelected: false,
           wantsDiscount: false,
@@ -1321,7 +1324,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           purchased: false,
           other: "",
         },
-    };
+      };
 
     setInterests(prev => {
       const newInterests = [...prev, newInterest];
@@ -2082,6 +2085,135 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       }}
                     />
                   </div>
+
+                  {/* Design Number Field */}
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium mb-2">Design Number</label>
+                    <Input
+                      placeholder="Enter design number..."
+                      className="w-full"
+                      value={interest.designNumber || ""}
+                      onChange={(e) => {
+                        setInterests(prev => {
+                          const copy = [...prev];
+                          copy[idx].designNumber = e.target.value;
+                          return copy;
+                        });
+                      }}
+                    />
+                  </div>
+
+                  {/* Image Upload per Interest */}
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium mb-2">Product Images (Max 2)</label>
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        id={`interest-image-${idx}`}
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (files.length === 0) return;
+                          
+                          // Limit to 2 images total per interest
+                          const currentImages = interest.images || [];
+                          const remainingSlots = 2 - currentImages.length;
+                          if (remainingSlots <= 0) {
+                            toast({
+                              title: "Limit reached",
+                              description: "Maximum 2 images per interest",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          const filesToUpload = files.slice(0, remainingSlots);
+                          const newImages: { url: string; thumbUrl: string }[] = [];
+                          
+                          for (const file of filesToUpload) {
+                            if (!isAllowedImageFile(file)) {
+                              toast({
+                                title: "Invalid image",
+                                description: "Use JPG/PNG/WebP up to 5MB.",
+                                variant: "destructive"
+                              });
+                              continue;
+                            }
+                            
+                            try {
+                              setImageUploading(true);
+                              const res = await uploadImageToCloudinary(file);
+                              newImages.push({ url: res.url, thumbUrl: res.thumbUrl });
+                            } catch (e: any) {
+                              toast({
+                                title: "Upload failed",
+                                description: e?.message || "Could not upload image.",
+                                variant: "destructive"
+                              });
+                            }
+                          }
+                          
+                          if (newImages.length > 0) {
+                            setInterests(prev => {
+                              const copy = [...prev];
+                              copy[idx].images = [...(copy[idx].images || []), ...newImages];
+                              return copy;
+                            });
+                          }
+                          
+                          setImageUploading(false);
+                          // Reset input
+                          e.target.value = '';
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById(`interest-image-${idx}`)?.click()}
+                        disabled={imageUploading || (interest.images?.length || 0) >= 2}
+                        className="w-full"
+                      >
+                        {imageUploading ? "Uploading..." : (interest.images?.length || 0) >= 2 ? "Max 2 images" : "Choose Images"}
+                      </Button>
+                      
+                      {/* Show uploaded images preview */}
+                      {interest.images && interest.images.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          {interest.images.map((img, imgIdx) => (
+                            <div key={imgIdx} className="relative">
+                              <img
+                                src={img.thumbUrl || img.url}
+                                alt={`Product image ${imgIdx + 1}`}
+                                className="w-full h-24 object-cover rounded border"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute top-1 right-1 bg-red-500 text-white hover:bg-red-600 h-6 w-6 p-0"
+                                onClick={() => {
+                                  setInterests(prev => {
+                                    const copy = [...prev];
+                                    copy[idx].images = copy[idx].images?.filter((_, i) => i !== imgIdx) || [];
+                                    return copy;
+                                  });
+                                }}
+                              >
+                                ×
+                              </Button>
+                              {interest.designNumber && (
+                                <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                                  {interest.designNumber}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -2122,60 +2254,6 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 value={formData.summaryNotes}
                 onChange={(e) => handleInputChange('summaryNotes', e.target.value)}
               />
-              <div className="mt-3 flex items-center gap-3 flex-wrap">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="sm:w-auto w-full"
-                >
-                  Take Photo
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => galleryInputRef.current?.click()}
-                  className="sm:w-auto w-full"
-                >
-                  Choose from Gallery
-                </Button>
-                {/* Hidden inputs for camera and gallery */}
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleInterestImageSelect(f);
-                    // reset to allow re-selecting the same file
-                    if (cameraInputRef.current) cameraInputRef.current.value = '';
-                  }}
-                />
-                <input
-                  ref={galleryInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleInterestImageSelect(f);
-                    if (galleryInputRef.current) galleryInputRef.current.value = '';
-                  }}
-                />
-                {imageUploading && <span className="text-sm text-gray-500">Uploading...</span>}
-                {uploadedImage && (
-                  <div className="w-full mt-2">
-                    <div className="text-xs text-blue-600 mb-1">Preview (will save on create)</div>
-                    <img
-                      src={uploadedImage.thumbUrl || uploadedImage.url}
-                      alt="Selected product"
-                      className="w-40 max-w-full h-auto rounded object-cover border shadow pointer-events-none select-none"
-                    />
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
