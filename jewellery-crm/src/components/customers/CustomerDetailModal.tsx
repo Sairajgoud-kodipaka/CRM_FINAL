@@ -45,6 +45,15 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   const isTablet = useIsTablet();
   const [customer, setCustomer] = useState<Client | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [journeyData, setJourneyData] = useState<Array<{
+    type: 'interest' | 'interaction' | 'appointment' | 'pipeline' | 'sale' | 'followup';
+    id: number;
+    date: string | null;
+    title: string;
+    description: string;
+    details: any;
+  }>>([]);
+  const [journeyLoading, setJourneyLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
   
@@ -104,13 +113,36 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   const fetchCustomerDetails = async () => {
     if (!customerId) return;
 
-
-
     try {
       setLoading(true);
-      const response = await apiService.getClient(customerId);
+      // Always try cross-store endpoint first for CustomerDetailModal
+      // This ensures we can view customers from any store within the tenant
+      let response: any = null;
+      
+      try {
+        response = await apiService.getClient(customerId, false, true);
+        console.log('🔍 CustomerDetailModal - Cross-store response:', response);
+      } catch (crossStoreError) {
+        console.log('🔍 CustomerDetailModal - Cross-store error, trying regular endpoint...', crossStoreError);
+        try {
+          response = await apiService.getClient(customerId);
+        } catch (regularError) {
+          console.error('❌ CustomerDetailModal - Both endpoints failed:', regularError);
+          throw regularError;
+        }
+      }
+      
+      // If cross-store fails, try regular endpoint as fallback
+      if (!response || !response.success || !response.data) {
+        console.log('🔍 CustomerDetailModal - Cross-store response invalid, trying regular endpoint...', response);
+        try {
+          response = await apiService.getClient(customerId);
+        } catch (regularError) {
+          console.error('❌ CustomerDetailModal - Regular endpoint also failed:', regularError);
+        }
+      }
 
-      if (response.success && response.data) {
+      if (response && response.success && response.data) {
 
         setCustomer(response.data);
 
@@ -166,12 +198,77 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
     }
   };
 
+  const fetchCustomerJourney = async () => {
+    if (!customerId) return;
+    
+    try {
+      setJourneyLoading(true);
+      const response = await apiService.getCustomerJourney(customerId);
+      
+      console.log('🔍 Journey API Response:', response);
+      
+      if (response.success && response.data) {
+        // Backend returns: { success: true, data: journey_items, customer: {...} }
+        // API service returns it as-is, so response.data = { success: true, data: journey_items, customer: {...} }
+        let journeyItems = [];
+        
+        if (Array.isArray(response.data)) {
+          // If response.data is directly an array (unlikely but handle it)
+          journeyItems = response.data;
+        } else if (response.data && typeof response.data === 'object') {
+          // response.data is the backend response object
+          if (Array.isArray(response.data.data)) {
+            journeyItems = response.data.data;
+          } else if (Array.isArray(response.data.journey_items)) {
+            journeyItems = response.data.journey_items;
+          }
+        }
+        
+        console.log('✅ Journey Items Count:', journeyItems.length);
+        console.log('✅ Journey Items:', journeyItems);
+        setJourneyData(journeyItems);
+      } else {
+        console.warn('⚠️ Journey response not successful:', response);
+        setJourneyData([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching customer journey:', error);
+      setJourneyData([]);
+    } finally {
+      setJourneyLoading(false);
+    }
+  };
+
+  // Fetch journey when journey tab is activated
+  useEffect(() => {
+    if (activeTab === 'journey' && customerId && !journeyLoading) {
+      console.log('🔍 Fetching journey for customer:', customerId);
+      fetchCustomerJourney();
+    }
+  }, [activeTab, customerId]);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const formatDateTime = (dateString: string | null) => {
+    if (!dateString) return 'Date not available';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateString;
+    }
   };
 
   const extractImagesFromNotes = (notes?: string): SummaryImageReference[] => {
@@ -683,9 +780,10 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
     >
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsList className={`grid w-full ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} mb-4`}>
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="interests">Interests</TabsTrigger>
+            <TabsTrigger value="journey">Journey</TabsTrigger>
             <TabsTrigger value="audit">Audit Log</TabsTrigger>
           </TabsList>
 
@@ -784,7 +882,57 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
               <div className="border rounded-lg p-4 mb-4">
                 <div className="font-semibold mb-3 text-lg">💼 Sales Information</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Sales Person</div><div className="text-sm font-medium text-gray-900">{customer.sales_person || 'Not provided'}</div></div>
+                  {/* All Sales Reps from All Stores */}
+                  <div className="p-3 rounded-md bg-gray-50 border md:col-span-2">
+                    <div className="text-xs text-gray-600 mb-2">Sales Representatives</div>
+                    {(() => {
+                      // Get all unique sales reps from journey data (pipeline entries)
+                      const salesRepsMap = new Map<string, { name: string; store: string }>();
+                      
+                      journeyData.forEach((item) => {
+                        if (item.type === 'pipeline' && item.details?.sales_rep && item.details?.store) {
+                          const key = `${item.details.sales_rep}_${item.details.store}`;
+                          if (!salesRepsMap.has(key)) {
+                            salesRepsMap.set(key, {
+                              name: item.details.sales_rep,
+                              store: item.details.store
+                            });
+                          }
+                        }
+                      });
+                      
+                      // Also include the current sales_person if available
+                      if (customer.sales_person && customer.sales_person !== 'Not provided') {
+                        const currentStore = customer.store_name || 'Current Store';
+                        const key = `${customer.sales_person}_${currentStore}`;
+                        if (!salesRepsMap.has(key)) {
+                          salesRepsMap.set(key, {
+                            name: customer.sales_person,
+                            store: currentStore
+                          });
+                        }
+                      }
+                      
+                      const salesReps = Array.from(salesRepsMap.values());
+                      
+                      if (salesReps.length === 0) {
+                        return <div className="text-sm font-medium text-gray-900">{customer.sales_person || 'Not provided'}</div>;
+                      }
+                      
+                      return (
+                        <div className="space-y-2">
+                          {salesReps.map((rep, idx) => (
+                            <div key={idx} className="flex items-center justify-between bg-white p-2 rounded border">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-900">{rep.name}</span>
+                                <span className="text-xs text-gray-500">({rep.store})</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
                   <div className="p-3 rounded-md bg-gray-50 border md:col-span-2">
                     <div className="text-xs text-gray-600 mb-2">Move to Different Stage</div>
                     <Select
@@ -824,6 +972,62 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                 <div className="p-3 rounded-md bg-gray-50 border"><div className="text-xs text-gray-600">Saving Scheme</div><div className="text-sm font-medium text-gray-900">{customer.saving_scheme || 'Not provided'}</div></div>
               </div>
               </div>
+
+              {/* Cross-Store Visits Information */}
+              {journeyData.length > 0 && (
+                <div className="border rounded-lg p-4 mb-4 bg-blue-50 border-blue-200">
+                  <div className="font-semibold mb-3 text-lg">🏪 Store Visits & Sales Representatives</div>
+                  <div className="space-y-2">
+                    {(() => {
+                      // Group activities by store
+                      const storeGroups = new Map<string, Array<{store: string, sales_rep: string, date: string, type: string}>>();
+                      
+                      journeyData.forEach((item) => {
+                        const store = item.details?.store || 'Unknown Store';
+                        const salesRep = item.details?.sales_rep || item.details?.user || 'Unknown';
+                        const date = item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Unknown date';
+                        
+                        if (!storeGroups.has(store)) {
+                          storeGroups.set(store, []);
+                        }
+                        storeGroups.get(store)!.push({
+                          store,
+                          sales_rep: salesRep,
+                          date,
+                          type: item.type
+                        });
+                      });
+                      
+                      return Array.from(storeGroups.entries()).map(([store, activities]) => {
+                        // Get unique sales reps for this store
+                        const uniqueSalesReps = Array.from(new Set(activities.map(a => a.sales_rep))).filter(rep => rep !== 'Unknown');
+                        const firstDate = activities[0]?.date || 'Unknown';
+                        const lastDate = activities[activities.length - 1]?.date || 'Unknown';
+                        
+                        return (
+                          <div key={store} className="p-3 bg-white rounded border border-blue-300">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="font-medium text-base">🏪 {store}</div>
+                              <div className="text-xs text-gray-500">
+                                {firstDate === lastDate ? firstDate : `${firstDate} - ${lastDate}`}
+                              </div>
+                            </div>
+                            {uniqueSalesReps.length > 0 && (
+                              <div className="text-sm text-gray-700">
+                                <span className="font-medium">Sales Reps: </span>
+                                {uniqueSalesReps.join(', ')}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500 mt-1">
+                              {activities.length} {activities.length === 1 ? 'activity' : 'activities'}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              )}
 
               {/* Follow-up & Summary */}
             {(customer.next_follow_up || customer.summary_notes) && (
@@ -1112,6 +1316,24 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                           )}
                         </div>
 
+                        {/* Store Name - Show on interest card */}
+                        {(() => {
+                          // Get store from interest data (now included in serializer)
+                          const storeName = parsedInterest.store || null;
+                          
+                          if (storeName) {
+                            return (
+                              <div className="mb-2">
+                                <div className="bg-blue-50 rounded p-2 border border-blue-200">
+                                  <p className="text-xs text-blue-600 mb-0.5">Store</p>
+                                  <p className="font-semibold text-sm text-blue-800">🏪 {storeName}</p>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+
                         {/* Compact Product Info */}
                         <div className="grid grid-cols-2 gap-2 mb-2">
                           <div className="bg-white rounded p-2 border">
@@ -1246,6 +1468,306 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                 <p className="text-gray-500">No interests recorded</p>
               )}
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="journey" className="space-y-6 mt-0">
+            <div className="border rounded-lg p-4">
+              <div className="font-semibold mb-4 text-lg">📅 Customer Journey</div>
+              
+              {journeyLoading ? (
+                <div className="text-center py-8 text-gray-500">Loading journey...</div>
+              ) : journeyData.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No journey data available</div>
+              ) : (
+                <div className="relative">
+                  {/* Timeline line */}
+                  <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                  
+                  <div className="space-y-6">
+                    {journeyData.map((item, index) => {
+                      const getIcon = () => {
+                        switch (item.type) {
+                          case 'interest':
+                            return '💎';
+                          case 'interaction':
+                            return item.details.interaction_type === 'call' ? '📞' :
+                                   item.details.interaction_type === 'email' ? '📧' :
+                                   item.details.interaction_type === 'visit' ? '🏪' :
+                                   item.details.interaction_type === 'whatsapp' ? '💬' : '📝';
+                          case 'appointment':
+                            return '📅';
+                          case 'pipeline':
+                            return '🚀';
+                          case 'sale':
+                            return '💰';
+                          case 'followup':
+                            return '⏰';
+                          default:
+                            return '📌';
+                        }
+                      };
+
+                      const getColor = () => {
+                        switch (item.type) {
+                          case 'interest':
+                            return 'bg-blue-100 text-blue-600';
+                          case 'interaction':
+                            return 'bg-green-100 text-green-600';
+                          case 'appointment':
+                            return 'bg-purple-100 text-purple-600';
+                          case 'pipeline':
+                            return 'bg-orange-100 text-orange-600';
+                          case 'sale':
+                            return 'bg-yellow-100 text-yellow-600';
+                          case 'followup':
+                            return 'bg-pink-100 text-pink-600';
+                          default:
+                            return 'bg-gray-100 text-gray-600';
+                        }
+                      };
+
+                      return (
+                        <div key={`${item.type}-${item.id}`} className="relative flex gap-4">
+                          {/* Timeline dot */}
+                          <div className={`relative z-10 w-16 h-16 rounded-full ${getColor()} flex items-center justify-center text-xl flex-shrink-0`}>
+                            {getIcon()}
+                          </div>
+                          
+                          {/* Content */}
+                          <div className="flex-1 pb-6">
+                            <div className="bg-white border rounded-lg p-4 shadow-sm">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <h4 className="font-semibold text-base">{item.title}</h4>
+                                  <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                                </div>
+                                <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
+                                  {formatDateTime(item.date)}
+                                </span>
+                              </div>
+                              
+                              {/* Details based on type */}
+                              <div className="mt-3 space-y-2 text-sm">
+                                {item.type === 'interest' && (
+                                  <>
+                                    {item.details.store && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Store:</span>
+                                        <span className="text-gray-700">🏪 {item.details.store}</span>
+                                      </div>
+                                    )}
+                                    {item.details.sales_rep && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Sales Rep:</span>
+                                        <span className="text-gray-700">{item.details.sales_rep}</span>
+                                      </div>
+                                    )}
+                                    {item.details.revenue > 0 && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Revenue:</span>
+                                        <span className="text-gray-700">₹{item.details.revenue.toLocaleString('en-IN')}</span>
+                                      </div>
+                                    )}
+                                    {item.details.design_number && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Design Number:</span>
+                                        <span className="text-gray-700">{item.details.design_number}</span>
+                                      </div>
+                                    )}
+                                    {item.details.images && item.details.images.length > 0 && (
+                                      <div className="mt-2">
+                                        <div className="flex gap-2 flex-wrap">
+                                          {item.details.images.map((img: any, imgIdx: number) => (
+                                            <img
+                                              key={imgIdx}
+                                              src={img.thumbUrl || img.url || img.thumb || img}
+                                              alt={`Product ${imgIdx + 1}`}
+                                              className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80"
+                                              onClick={() => setSelectedImage(img.url || img.thumbUrl || img)}
+                                            />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {(item.details.is_purchased || item.details.is_not_purchased) && (
+                                      <div className="mt-2">
+                                        {item.details.is_purchased && (
+                                          <Badge className="bg-green-100 text-green-800">✓ Purchased</Badge>
+                                        )}
+                                        {item.details.is_not_purchased && (
+                                          <Badge className="bg-red-100 text-red-800">✗ Not Purchased</Badge>
+                                        )}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                                
+                                {item.type === 'interaction' && (
+                                  <>
+                                    {item.details.store && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Store:</span>
+                                        <span className="text-gray-700">🏪 {item.details.store}</span>
+                                      </div>
+                                    )}
+                                    {item.details.user && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">By:</span>
+                                        <span className="text-gray-700">{item.details.user}</span>
+                                      </div>
+                                    )}
+                                    {item.details.outcome && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Outcome:</span>
+                                        <Badge className={
+                                          item.details.outcome === 'positive' ? 'bg-green-100 text-green-800' :
+                                          item.details.outcome === 'negative' ? 'bg-red-100 text-red-800' :
+                                          'bg-gray-100 text-gray-800'
+                                        }>
+                                          {item.details.outcome}
+                                        </Badge>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                                
+                                {item.type === 'appointment' && (
+                                  <>
+                                    {item.details.store && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Store:</span>
+                                        <span className="text-gray-700">🏪 {item.details.store}</span>
+                                      </div>
+                                    )}
+                                    {item.details.assigned_to && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Assigned to:</span>
+                                        <span className="text-gray-700">{item.details.assigned_to}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">Status:</span>
+                                      <Badge className={
+                                        item.details.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                        item.details.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                        'bg-blue-100 text-blue-800'
+                                      }>
+                                        {item.details.status}
+                                      </Badge>
+                                    </div>
+                                  </>
+                                )}
+                                
+                                {item.type === 'pipeline' && (
+                                  <>
+                                    {item.details.store && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Store:</span>
+                                        <span className="text-gray-700">🏪 {item.details.store}</span>
+                                      </div>
+                                    )}
+                                    {item.details.sales_rep && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Sales Rep:</span>
+                                        <span className="text-gray-700">{item.details.sales_rep}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">Stage:</span>
+                                      <Badge>{item.details.stage}</Badge>
+                                    </div>
+                                    {item.details.expected_value > 0 && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Expected Value:</span>
+                                        <span className="text-gray-700">₹{item.details.expected_value.toLocaleString('en-IN')}</span>
+                                      </div>
+                                    )}
+                                    {item.details.probability > 0 && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Probability:</span>
+                                        <span className="text-gray-700">{item.details.probability}%</span>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                                
+                                {item.type === 'sale' && (
+                                  <>
+                                    {item.details.store && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Store:</span>
+                                        <span className="text-gray-700">🏪 {item.details.store}</span>
+                                      </div>
+                                    )}
+                                    {item.details.sales_rep && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Sales Rep:</span>
+                                        <span className="text-gray-700">{item.details.sales_rep}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">Order:</span>
+                                      <span className="text-gray-700">{item.details.order_number}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">Amount:</span>
+                                      <span className="text-gray-700 font-semibold">₹{item.details.total_amount.toLocaleString('en-IN')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">Status:</span>
+                                      <Badge className={
+                                        item.details.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                                        item.details.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                        'bg-blue-100 text-blue-800'
+                                      }>
+                                        {item.details.status}
+                                      </Badge>
+                                    </div>
+                                  </>
+                                )}
+                                
+                                {item.type === 'followup' && (
+                                  <>
+                                    {item.details.store && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Store:</span>
+                                        <span className="text-gray-700">🏪 {item.details.store}</span>
+                                      </div>
+                                    )}
+                                    {item.details.assigned_to && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Assigned to:</span>
+                                        <span className="text-gray-700">{item.details.assigned_to}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">Status:</span>
+                                      <Badge className={
+                                        item.details.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                        item.details.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-gray-100 text-gray-800'
+                                      }>
+                                        {item.details.status}
+                                      </Badge>
+                                    </div>
+                                    {item.details.priority && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Priority:</span>
+                                        <Badge>{item.details.priority}</Badge>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 

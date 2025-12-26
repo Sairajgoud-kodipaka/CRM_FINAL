@@ -317,6 +317,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     is_different_store?: boolean;
   } | null>(null);
   
+  // State to track if we're updating an existing customer
+  const [isUpdatingExistingCustomer, setIsUpdatingExistingCustomer] = useState(false);
+  const [existingCustomerId, setExistingCustomerId] = useState<number | null>(null);
+  const [existingCustomerFullData, setExistingCustomerFullData] = useState<Client | null>(null);
+  
   // State for existing customer check (by email)
   const [existingCustomerInfo, setExistingCustomerInfo] = useState<{
     name: string;
@@ -408,23 +413,156 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     }
   };
   
-  // Use existing customer info to auto-fill form
-  const useExistingCustomer = () => {
-    if (existingPhoneCustomer) {
-      // Extract first and last name
-      const nameParts = existingPhoneCustomer.name.split(' ');
-      setFormData(prev => ({
-        ...prev,
-        firstName: existingPhoneCustomer.name?.split(' ')[0] || existingPhoneCustomer.name || '',
-        lastName: existingPhoneCustomer.name?.split(' ').slice(1).join(' ') || '',
-        email: existingPhoneCustomer.email !== 'No email' ? existingPhoneCustomer.email : prev.email,
-      }));
+  // Use existing customer info - fetch full customer data and load into form
+  const useExistingCustomer = async () => {
+    if (!existingPhoneCustomer) return;
+    
+    try {
+      setLoading(true);
+      // Fetch full customer data - use crossStore=true to bypass store filtering
+      const response = await apiService.getClient(existingPhoneCustomer.id.toString(), false, true);
       
+      console.log('🔍 useExistingCustomer - API Response:', response);
+      
+      if (!response.success) {
+        console.error('❌ useExistingCustomer - Response not successful:', response);
+        throw new Error(response.errors?.message || response.errors || 'Failed to fetch customer data');
+      }
+      
+      if (response.success && response.data) {
+        const customer = response.data;
+        console.log('🔍 useExistingCustomer - Customer Data:', customer);
+        
+        if (!customer || !customer.id) {
+          console.error('❌ useExistingCustomer - Invalid customer data:', customer);
+          throw new Error('Invalid customer data received from server');
+        }
+        
+        setExistingCustomerFullData(customer);
+        setExistingCustomerId(customer.id || null);
+        setIsUpdatingExistingCustomer(true);
+        
+        // Load all customer data into form
+        const formatDateForInput = (dateString?: string | null): string => {
+          if (!dateString) return "";
+          try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return "";
+            return date.toISOString().split("T")[0];
+          } catch {
+            return "";
+          }
+        };
+        
+        // Map customer interests to form interests
+        const mapInterests = (customerInterests: any[]): typeof interests => {
+          if (!Array.isArray(customerInterests) || customerInterests.length === 0) {
+            return [createEmptyInterest()];
+          }
+          
+          // Group interests by category
+          const categoryMap = new Map<string, typeof interests[0]>();
+          
+          customerInterests.forEach((interest: any) => {
+            const categoryName = interest.category?.name || interest.category || "";
+            const productId = interest.product?.id?.toString() || interest.product || "";
+            const revenue = interest.revenue || "0";
+            const designNumber = interest.designNumber || "";
+            const images = interest.images || [];
+            const preferences = interest.preferences || {};
+            
+            if (categoryName && productId) {
+              if (categoryMap.has(categoryName)) {
+                const existing = categoryMap.get(categoryName)!;
+                existing.products.push({ product: productId, revenue: String(revenue) });
+              } else {
+                categoryMap.set(categoryName, {
+                  mainCategory: categoryName,
+                  products: [{ product: productId, revenue: String(revenue) }],
+                  designNumber: designNumber,
+                  images: images,
+                  preferences: preferences,
+                });
+              }
+            }
+          });
+          
+          const mapped = Array.from(categoryMap.values());
+          return mapped.length > 0 ? mapped : [createEmptyInterest()];
+        };
+        
+        setFormData({
+          firstName: customer.first_name || "",
+          lastName: customer.last_name || "",
+          phone: customer.phone || "",
+          email: customer.email || "",
+          birthDate: formatDateForInput(customer.date_of_birth),
+          anniversaryDate: formatDateForInput(customer.anniversary_date),
+          streetAddress: customer.address || "",
+          fullAddress: customer.full_address || "",
+          city: customer.city || "",
+          state: customer.state || "",
+          country: customer.country || "India",
+          catchmentArea: customer.catchment_area || "",
+          pincode: customer.pincode || "",
+          salesPerson: customer.sales_person || "",
+          reasonForVisit: customer.reason_for_visit || "",
+          customerStatus: customer.customer_status || customer.status || "",
+          leadSource: customer.lead_source || "",
+          savingScheme: customer.saving_scheme || "Inactive",
+          customerInterests: Array.isArray((customer as any).customer_interests_simple)
+            ? (customer as any).customer_interests_simple
+            : [],
+          productType: customer.product_type || "",
+          style: customer.style || "",
+          selectedWeight: typeof customer.material_weight === "number" && customer.material_weight > 0
+            ? customer.material_weight
+            : 3.5,
+          weightUnit: (customer as any).material_unit || "g",
+          customerPreference: customer.customer_preference || "",
+          designNumber: customer.design_number || "",
+          addToPipeline: true,
+          nextFollowUpDate: formatDateForInput(customer.next_follow_up),
+          nextFollowUpTime: customer.next_follow_up_time || "10:00",
+          summaryNotes: customer.summary_notes || "",
+          pipelineStage: (customer as any).pipeline_stage || "interested",
+          budgetRange: customer.budget_range || "0-50000",
+          appointmentType: "In-Person",
+          customerType: customer.customer_type || "individual",
+          ageOfEndUser: customer.age_of_end_user || "",
+          productSubtype: customer.product_subtype || "",
+          ageingPercentage: (customer as any).ageing_percentage || "",
+          materialType: customer.material_type || "",
+          materialWeight: typeof customer.material_weight === "number" ? customer.material_weight : 0,
+          materialValue: typeof customer.material_value === "number" ? customer.material_value : 0,
+          materialUnit: (customer as any).material_unit || "g",
+        });
+        
+        // Load existing interests
+        const existingInterests = mapInterests((customer as any).customer_interests || []);
+        setInterests(existingInterests.length > 0 ? existingInterests : [createEmptyInterest()]);
+        
+        console.log('✅ useExistingCustomer - Form data set:', formData);
+        console.log('✅ useExistingCustomer - Interests set:', existingInterests);
+        
+        toast({
+          title: "Existing Customer Loaded",
+          description: `Loaded customer: ${customer.full_name || existingPhoneCustomer.name}. You can add new interests and update information.`,
+          variant: "default",
+        });
+      } else {
+        console.error('❌ useExistingCustomer - No data in response:', response);
+        throw new Error('No customer data received from server');
+      }
+    } catch (error: any) {
+      console.error('❌ useExistingCustomer - Error:', error);
       toast({
-        title: "Customer Info Auto-filled",
-        description: `Using existing customer: ${existingPhoneCustomer.name}. You can modify any fields as needed.`,
-        variant: "default",
+        title: "Error",
+        description: error?.message || "Failed to load customer data. Please try again.",
+        variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -875,8 +1013,17 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
               // Sending customer data to API
 
-      // Call API to create customer
-      const response = await apiService.createClient(cleanedCustomerData);
+      // Check if we're updating an existing customer
+      let response;
+      if (isUpdatingExistingCustomer && existingCustomerId) {
+        // Update existing customer - use crossStore=true to bypass store filtering
+        console.log('🔍 AddCustomerModal - Updating existing customer:', existingCustomerId, 'crossStore: true');
+        response = await apiService.updateClient(existingCustomerId.toString(), cleanedCustomerData, true);
+        console.log('🔍 AddCustomerModal - Update response:', response);
+      } else {
+        // Create new customer
+        response = await apiService.createClient(cleanedCustomerData);
+      }
 
       // Check if API call succeeded AND no business logic errors
       if (response.success && !response.errors && response.data) {
@@ -892,27 +1039,73 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         }
 
         // Auto-create sales pipeline entry
+        // For existing customers, create a NEW pipeline entry for this visit
+        // For new customers, create pipeline entry as usual
         try {
-          await createAutoPipelineEntry(response.data);
+          if (isUpdatingExistingCustomer) {
+            // ALWAYS create new pipeline entry for cross-store visits to track store and sales rep
+            // This ensures proper store association for interests
+            const newInterestsRevenue = interests
+              .filter(i => i.mainCategory && i.products?.[0]?.product)
+              .reduce((sum, i) => {
+                const revenue = parseFloat(i.products[0]?.revenue || "0") || 0;
+                return sum + revenue;
+              }, 0);
+            
+            const newInterestsCount = interests.filter(i => i.mainCategory).length;
+            
+            // Always create pipeline entry for cross-store updates (even if revenue is 0)
+            // This is critical for store tracking
+            await apiService.createSalesPipeline({
+              title: `Store Visit - ${new Date().toLocaleDateString()}`,
+              client_id: existingCustomerId!,
+              stage: formData.pipelineStage || "interested",
+              expected_value: newInterestsRevenue,
+              probability: 20,
+              notes: `New visit - ${newInterestsCount} product interest${newInterestsCount !== 1 ? 's' : ''} added`,
+            } as any); // Type assertion needed because TypeScript interface doesn't include client_id
+          } else {
+            // New customer - create pipeline as usual
+            await createAutoPipelineEntry(response.data);
+          }
         } catch (error) {
-
-          // Don't fail the customer creation if pipeline creation fails
+          // Don't fail the customer creation/update if pipeline creation fails
         }
 
         toast({
           title: "Success!",
-          description: `Customer added successfully! Assigned to ${assignmentAudit.assignedToName}.`,
+          description: isUpdatingExistingCustomer 
+            ? `Customer updated successfully! New interests added. Assigned to ${assignmentAudit.assignedToName}.`
+            : `Customer added successfully! Assigned to ${assignmentAudit.assignedToName}.`,
           variant: "success",
         });
 
         // Call the callback with the created customer data
         if (typeof onCustomerCreated === 'function') {
-
-          onCustomerCreated(response.data);
-        } else {
-
+          // If updating existing customer, fetch full customer data using cross-store endpoint
+          if (isUpdatingExistingCustomer && existingCustomerId) {
+            try {
+              const updatedCustomerResponse = await apiService.getClient(existingCustomerId.toString(), false, true);
+              if (updatedCustomerResponse.success && updatedCustomerResponse.data) {
+                onCustomerCreated(updatedCustomerResponse.data);
+              } else {
+                onCustomerCreated(response.data);
+              }
+            } catch (error) {
+              console.error('Error fetching updated customer:', error);
+              onCustomerCreated(response.data);
+            }
+          } else {
+            onCustomerCreated(response.data);
+          }
         }
 
+        // Reset update mode
+        setIsUpdatingExistingCustomer(false);
+        setExistingCustomerId(null);
+        setExistingCustomerFullData(null);
+        setExistingPhoneCustomer(null);
+        
         onClose();
         // Reset form
         setFormData({
@@ -1115,6 +1308,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
     loadSalesPersonOptions();
   }, [user]);
 
+  // Debug: Log categories when they change
+  useEffect(() => {
+    console.log('🔍 Categories state updated:', categories.length, 'categories:', categories);
+  }, [categories]);
+
   // Monitor salesPersons state changes
   useEffect(() => {
     if (salesPersons.length > 0) {
@@ -1268,16 +1466,41 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
 
   const loadCategories = async () => {
     try {
+      console.log('🔍 loadCategories - Fetching categories...');
       const response = await apiService.getCategories();
-      if (response.success && response.data) {
-        const categoriesData = Array.isArray(response.data)
-          ? response.data
-          : (response.data as any).results || (response.data as any).data || [];
+      console.log('🔍 loadCategories - Full API Response:', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures
+      let categoriesData: any[] = [];
+      
+      // Check if response is successful (even if data is empty array)
+      if (response && (response.success === true || response.success === undefined)) {
+        // Response might be direct array or wrapped
+        if (Array.isArray(response)) {
+          categoriesData = response;
+        } else if (response.data !== undefined && response.data !== null) {
+          // response.data exists (even if it's an empty array)
+          if (Array.isArray(response.data)) {
+            categoriesData = response.data;
+          } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
+            categoriesData = response.data.results;
+          } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+            categoriesData = response.data.data;
+          }
+        }
+      }
+      
+      console.log('🔍 loadCategories - Extracted Categories Data:', categoriesData);
+      console.log('🔍 loadCategories - Categories count:', categoriesData.length);
+      console.log('🔍 loadCategories - Is array?', Array.isArray(categoriesData));
+      
+      // Always set categories (even if empty, we'll use fallback)
+      if (categoriesData.length > 0) {
         setCategories(categoriesData);
-
+        console.log('✅ loadCategories - Categories set successfully:', categoriesData.length, 'categories');
       } else {
-
-        // Fallback to sample categories if API fails
+        console.warn('⚠️ loadCategories - No categories found in response (empty array), using fallback');
+        // Fallback to sample categories if API returns empty
         const fallbackCategories = [
           { id: 1, name: "Necklaces" },
           { id: 2, name: "Rings" },
@@ -1289,10 +1512,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           { id: 8, name: "Anklets" }
         ];
         setCategories(fallbackCategories);
-
+        console.log('✅ loadCategories - Fallback categories set:', fallbackCategories.length, 'categories');
       }
     } catch (error) {
-
+      console.error('❌ loadCategories - Error:', error);
       // Fallback to sample categories if API fails
       const fallbackCategories = [
         { id: 1, name: "Necklaces" },
@@ -1305,7 +1528,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         { id: 8, name: "Anklets" }
       ];
       setCategories(fallbackCategories);
-
+      console.log('✅ loadCategories - Fallback categories set after error');
     }
   };
 
@@ -1402,6 +1625,79 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
       }
     >
         {/* Mode toggle removed for a single streamlined quick-entry experience */}
+        
+        {/* Update Mode Indicator */}
+        {isUpdatingExistingCustomer && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-blue-600 font-semibold">ℹ️ Updating Existing Customer</span>
+              <span className="text-sm text-blue-700">
+                ({existingCustomerFullData?.full_name || existingPhoneCustomer?.name})
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsUpdatingExistingCustomer(false);
+                  setExistingCustomerId(null);
+                  setExistingCustomerFullData(null);
+                  setExistingPhoneCustomer(null);
+                  // Reset form to initial state
+                  setFormData({
+                    firstName: "",
+                    lastName: "",
+                    phone: "",
+                    email: "",
+                    birthDate: "",
+                    anniversaryDate: "",
+                    streetAddress: "",
+                    fullAddress: "",
+                    city: "",
+                    state: "",
+                    country: "India",
+                    catchmentArea: "",
+                    pincode: "",
+                    salesPerson: "",
+                    reasonForVisit: "",
+                    customerStatus: "",
+                    leadSource: "",
+                    savingScheme: "Inactive",
+                    customerInterests: [],
+                    productType: "",
+                    style: "",
+                    selectedWeight: 3.5,
+                    weightUnit: "g",
+                    customerPreference: "",
+                    designNumber: "",
+                    addToPipeline: true,
+                    nextFollowUpDate: "",
+                    nextFollowUpTime: "10:00",
+                    summaryNotes: "",
+                    pipelineStage: "interested",
+                    budgetRange: "0-50000",
+                    appointmentType: "In-Person",
+                    customerType: "individual",
+                    ageOfEndUser: "",
+                    productSubtype: "",
+                    ageingPercentage: "",
+                    materialType: "",
+                    materialWeight: 0,
+                    materialValue: 0,
+                    materialUnit: "g",
+                  });
+                  setInterests([createEmptyInterest()]);
+                }}
+                className="ml-auto text-xs"
+              >
+                Cancel Update
+              </Button>
+            </div>
+            <p className="text-xs text-blue-600 mt-1">
+              You can add new interests and update information. New interests will be added to this customer.
+            </p>
+          </div>
+        )}
 
         {/* Basic Customer Information */}
         <div className={`border rounded-lg ${isMobile ? 'p-3' : 'p-4'} mb-4`}>
@@ -1447,14 +1743,22 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 required
                 value={formData.phone}
                 onChange={(value) => {
-                  handleInputChange('phone', value);
-                  // Clear existing customer info when phone changes
-                  setExistingPhoneCustomer(null);
+                  // Don't allow phone change when updating existing customer
+                  if (!isUpdatingExistingCustomer) {
+                    handleInputChange('phone', value);
+                    // Clear existing customer info when phone changes
+                    setExistingPhoneCustomer(null);
+                  }
                 }}
                 onKeyDown={(e) => handleKeyDown(e, 'phone')}
-                disabled={checkingPhone}
+                disabled={checkingPhone || isUpdatingExistingCustomer}
                 defaultCountry="IN"
               />
+              {isUpdatingExistingCustomer && (
+                <div className="mt-1 text-xs text-blue-600">
+                  ℹ️ Phone number locked - updating existing customer
+                </div>
+              )}
               {checkingPhone && (
                 <div className="mt-1 text-xs text-blue-600">Checking phone number...</div>
               )}
@@ -1477,37 +1781,34 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       <div><strong>Last Visit:</strong> {new Date(existingPhoneCustomer.last_visit).toLocaleDateString()}</div>
                     )}
                   </div>
-                  {existingPhoneCustomer.is_different_store ? (
+                  {existingPhoneCustomer.is_different_store && (
                     <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
-                      ℹ️ This customer belongs to a different store. Please contact <strong>{existingPhoneCustomer.store_name}</strong> for customer information and edits.
+                      ℹ️ This customer belongs to a different store (<strong>{existingPhoneCustomer.store_name}</strong>). You can still add interests to this customer.
                     </div>
-                  ) : (
-                    <>
+                  )}
                   <div className="mt-3 flex gap-2">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={useExistingCustomer}
+                      className="text-xs bg-blue-600 hover:bg-blue-700"
+                    >
+                      ✓ Use Existing Customer & Add Interests
+                    </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={useExistingCustomer}
-                      className="text-xs"
-                    >
-                      ✓ Use Existing Customer
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
                       onClick={() => setExistingPhoneCustomer(null)}
                       className="text-xs"
                     >
-                      Create New Visit Entry
+                      Create New Customer Instead
                     </Button>
                   </div>
                   <div className="mt-2 text-xs text-amber-700">
-                    💡 Tip: Multiple visits can be created for the same customer. Each visit is tracked separately.
+                    💡 Tip: Using existing customer will load their details and allow you to add new interests. A new pipeline entry will be created for this visit.
                   </div>
-                    </>
-                  )}
                 </div>
               )}
             </div>
@@ -1827,9 +2128,13 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                   {/* Category Selection for this interest */}
                   <div className={`${isMobile ? 'mb-3' : 'mb-4'}`}>
                     <label className="block text-sm font-medium mb-2">Category</label>
+                    {categories.length === 0 && (
+                      <div className="text-xs text-gray-500 mb-1">Loading categories...</div>
+                    )}
                     <Select
                       value={interest.mainCategory || ''}
                       onValueChange={(value) => {
+                        console.log('🔍 Category selected:', value);
                         setInterests(prev => {
                           const copy = [...prev];
                           copy[idx].mainCategory = value;
@@ -1848,11 +2153,17 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                         <SelectValue placeholder="Select Category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.name}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
+                        {categories.length === 0 ? (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            Loading categories...
+                          </div>
+                        ) : (
+                          categories.map((category) => (
+                            <SelectItem key={category.id || category.name} value={category.name}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

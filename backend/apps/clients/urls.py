@@ -24,6 +24,9 @@ urlpatterns = [
     path('clients/trash/', ClientViewSet.as_view({'get': 'trash'}), name='client-trash'),
     path('clients/<int:pk>/restore/', ClientViewSet.as_view({'post': 'restore'}), name='client-restore'),
     
+    # Cross-store access URLs
+    path('clients/<int:pk>/cross-store/', ClientViewSet.as_view({'get': 'get_cross_store', 'put': 'update_cross_store', 'patch': 'update_cross_store'}), name='client-cross-store'),
+    
     # Interest management URLs
     path('clients/<int:pk>/interests/<int:interest_id>/mark-purchased/', ClientViewSet.as_view({'post': 'mark_interest_purchased'}), name='client-mark-interest-purchased'),
     path('clients/<int:pk>/interests/<int:interest_id>/mark-not-purchased/', ClientViewSet.as_view({'post': 'mark_interest_not_purchased'}), name='client-mark-interest-not-purchased'),

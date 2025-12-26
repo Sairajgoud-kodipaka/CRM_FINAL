@@ -2036,6 +2036,326 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=True, methods=['get'], url_path='cross-store')
+    def get_cross_store(self, request, pk=None):
+        """
+        Get customer by ID, bypassing store filtering for cross-store access within tenant.
+        This is used when adding interests to existing customers from different stores.
+        """
+        try:
+            # Get customer by ID within tenant (bypass store filtering)
+            customer = Client.objects.filter(
+                id=pk,
+                tenant=request.user.tenant,
+                is_deleted=False
+            ).first()
+            
+            if not customer:
+                return Response(
+                    {'error': 'Customer not found or you do not have access'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Serialize the customer
+            serializer = self.get_serializer(customer)
+            return Response({
+                'success': True,
+                'data': serializer.data
+            })
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['put', 'patch'], url_path='cross-store', url_name='cross-store-update')
+    def update_cross_store(self, request, pk=None):
+        """
+        Update customer by ID, bypassing store filtering for cross-store access within tenant.
+        This is used when updating existing customers from different stores (e.g., adding interests).
+        """
+        try:
+            # Get customer by ID within tenant (bypass store filtering)
+            customer = Client.objects.filter(
+                id=pk,
+                tenant=request.user.tenant,
+                is_deleted=False
+            ).first()
+            
+            if not customer:
+                return Response(
+                    {'error': 'Customer not found or you do not have access'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Use the same serializer and update logic as regular update
+            # For PUT, we need to handle partial updates
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(customer, data=request.data, partial=partial)
+            
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    'success': True,
+                    'data': serializer.data
+                })
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import traceback
+            print(f"Error updating customer cross-store: {e}")
+            print(traceback.format_exc())
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['get'], url_path='journey')
+    def customer_journey(self, request, pk=None):
+        """
+        Get customer journey/history - timeline of all activities
+        Returns: timeline of interests, interactions, appointments, pipeline entries, sales
+        """
+        try:
+            # Use cross-store access to get customer (bypass store filtering)
+            client = Client.objects.filter(
+                id=pk,
+                tenant=request.user.tenant,
+                is_deleted=False
+            ).first()
+            
+            if not client:
+                return Response(
+                    {'error': 'Customer not found or you do not have access'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            from apps.sales.models import SalesPipeline, Sale
+            from django.utils import timezone
+            from datetime import datetime
+            import json
+            import re
+            
+            journey_items = []
+            
+            # Helper function to extract design number from notes
+            def extract_design_number(notes):
+                if not notes:
+                    return None
+                match = re.search(r'Design Number:\s*([^\n.]+)', notes, re.IGNORECASE)
+                return match.group(1).strip() if match else None
+            
+            # Helper function to extract images from notes
+            def extract_images(notes):
+                if not notes:
+                    return []
+                images = []
+                match = re.search(r'Images:\s*(\[.*?\])', notes, re.IGNORECASE | re.DOTALL)
+                if match:
+                    try:
+                        images = json.loads(match.group(1))
+                    except:
+                        pass
+                return images
+            
+            # 1. Customer Interests (with store info from sales rep)
+            interests = client.interests.all().select_related('category', 'product')
+            for interest in interests:
+                # Get store from sales rep who created the interest (if available)
+                store_name = "Unknown Store"
+                sales_rep_name = "Unknown"
+                
+                # Try multiple methods to find store and sales rep:
+                # Method 1: Find pipeline created around the same time as interest
+                # Prioritize pipelines created AFTER the interest (within 1 hour), then before (within 2 hours)
+                related_pipeline = SalesPipeline.objects.filter(
+                    client=client,
+                    created_at__gte=interest.created_at,
+                    created_at__lte=interest.created_at + timezone.timedelta(hours=1)
+                ).order_by('created_at').first()  # Get the first one after interest (closest match)
+                
+                # If no pipeline found after interest, try before (within 2 hours)
+                if not related_pipeline:
+                    related_pipeline = SalesPipeline.objects.filter(
+                        client=client,
+                        created_at__gte=interest.created_at - timezone.timedelta(hours=2),
+                        created_at__lt=interest.created_at
+                    ).order_by('-created_at').first()  # Get the most recent one before interest
+                
+                # If still no pipeline found, try wider window (24 hours)
+                if not related_pipeline:
+                    related_pipeline = SalesPipeline.objects.filter(
+                        client=client,
+                        created_at__gte=interest.created_at - timezone.timedelta(hours=24),
+                        created_at__lte=interest.created_at + timezone.timedelta(hours=24)
+                    ).order_by('-created_at').first()
+                
+                if related_pipeline:
+                    store_name = related_pipeline.sales_representative.store.name if related_pipeline.sales_representative.store else "No Store"
+                    sales_rep_name = related_pipeline.sales_representative.get_full_name() or related_pipeline.sales_representative.username
+                else:
+                    # Method 2: Get store from client's store field (if available)
+                    if client.store:
+                        store_name = client.store.name
+                    # Method 3: Try to find any pipeline for this client and use the most recent one's store
+                    latest_pipeline = SalesPipeline.objects.filter(client=client).order_by('-created_at').first()
+                    if latest_pipeline and latest_pipeline.sales_representative:
+                        if not store_name or store_name == "Unknown Store":
+                            store_name = latest_pipeline.sales_representative.store.name if latest_pipeline.sales_representative.store else "No Store"
+                        sales_rep_name = latest_pipeline.sales_representative.get_full_name() or latest_pipeline.sales_representative.username
+                
+                journey_items.append({
+                    'type': 'interest',
+                    'id': interest.id,
+                    'date': interest.created_at.isoformat() if interest.created_at else None,
+                    'title': f"Product Interest Added",
+                    'description': f"{interest.category.name if interest.category else 'Unknown'} - {interest.product.name if interest.product else 'Unknown'}",
+                    'details': {
+                        'category': interest.category.name if interest.category else None,
+                        'product': interest.product.name if interest.product else None,
+                        'revenue': float(interest.revenue) if interest.revenue else 0,
+                        'store': store_name,
+                        'sales_rep': sales_rep_name,
+                        'design_number': extract_design_number(interest.notes),
+                        'images': extract_images(interest.notes),
+                        'is_purchased': interest.is_purchased,
+                        'is_not_purchased': interest.is_not_purchased,
+                    }
+                })
+            
+            # 2. Client Interactions
+            interactions = client.interactions.all().select_related('user')
+            for interaction in interactions:
+                store_name = interaction.user.store.name if interaction.user.store else "No Store"
+                journey_items.append({
+                    'type': 'interaction',
+                    'id': interaction.id,
+                    'date': interaction.created_at.isoformat() if interaction.created_at else None,
+                    'title': f"{interaction.get_interaction_type_display()} - {interaction.subject}",
+                    'description': interaction.description,
+                    'details': {
+                        'interaction_type': interaction.interaction_type,
+                        'outcome': interaction.outcome,
+                        'user': interaction.user.get_full_name() or interaction.user.username,
+                        'store': store_name,
+                    }
+                })
+            
+            # 3. Appointments
+            appointments = client.appointments.all().select_related('assigned_to', 'created_by', 'tenant')
+            for appointment in appointments:
+                store_name = "No Store"
+                if appointment.assigned_to and appointment.assigned_to.store:
+                    store_name = appointment.assigned_to.store.name
+                elif appointment.created_by and appointment.created_by.store:
+                    store_name = appointment.created_by.store.name
+                
+                appointment_datetime = timezone.make_aware(
+                    timezone.datetime.combine(appointment.date, appointment.time)
+                ) if appointment.date and appointment.time else None
+                
+                journey_items.append({
+                    'type': 'appointment',
+                    'id': appointment.id,
+                    'date': appointment_datetime.isoformat() if appointment_datetime else (appointment.date.isoformat() if appointment.date else None),
+                    'title': f"Appointment - {appointment.get_status_display()}",
+                    'description': appointment.purpose,
+                    'details': {
+                        'status': appointment.status,
+                        'purpose': appointment.purpose,
+                        'location': appointment.location,
+                        'assigned_to': appointment.assigned_to.get_full_name() if appointment.assigned_to else None,
+                        'store': store_name,
+                        'notes': appointment.notes,
+                    }
+                })
+            
+            # 4. Pipeline Entries
+            pipelines = SalesPipeline.objects.filter(client=client).select_related('sales_representative')
+            for pipeline in pipelines:
+                store_name = pipeline.sales_representative.store.name if pipeline.sales_representative.store else "No Store"
+                journey_items.append({
+                    'type': 'pipeline',
+                    'id': pipeline.id,
+                    'date': pipeline.created_at.isoformat() if pipeline.created_at else None,
+                    'title': f"Pipeline Entry - {pipeline.get_stage_display()}",
+                    'description': pipeline.title,
+                    'details': {
+                        'stage': pipeline.stage,
+                        'expected_value': float(pipeline.expected_value) if pipeline.expected_value else 0,
+                        'probability': pipeline.probability,
+                        'sales_rep': pipeline.sales_representative.get_full_name() or pipeline.sales_representative.username,
+                        'store': store_name,
+                        'notes': pipeline.notes,
+                    }
+                })
+            
+            # 5. Sales/Purchases
+            sales = Sale.objects.filter(client=client).select_related('sales_representative')
+            for sale in sales:
+                store_name = sale.sales_representative.store.name if sale.sales_representative.store else "No Store"
+                journey_items.append({
+                    'type': 'sale',
+                    'id': sale.id,
+                    'date': sale.order_date.isoformat() if sale.order_date else (sale.created_at.isoformat() if sale.created_at else None),
+                    'title': f"Purchase - {sale.get_status_display()}",
+                    'description': f"Order #{sale.order_number}",
+                    'details': {
+                        'order_number': sale.order_number,
+                        'total_amount': float(sale.total_amount) if sale.total_amount else 0,
+                        'status': sale.status,
+                        'payment_status': sale.payment_status,
+                        'sales_rep': sale.sales_representative.get_full_name() or sale.sales_representative.username,
+                        'store': store_name,
+                    }
+                })
+            
+            # 6. Follow-ups
+            follow_ups = client.follow_ups.all().select_related('assigned_to', 'created_by')
+            for follow_up in follow_ups:
+                store_name = "No Store"
+                if follow_up.assigned_to and follow_up.assigned_to.store:
+                    store_name = follow_up.assigned_to.store.name
+                elif follow_up.created_by and follow_up.created_by.store:
+                    store_name = follow_up.created_by.store.name
+                
+                journey_items.append({
+                    'type': 'followup',
+                    'id': follow_up.id,
+                    'date': follow_up.created_at.isoformat() if follow_up.created_at else None,
+                    'title': f"Follow-up - {follow_up.get_status_display()}",
+                    'description': follow_up.title,
+                    'details': {
+                        'status': follow_up.status,
+                        'priority': follow_up.priority,
+                        'due_date': follow_up.due_date.isoformat() if follow_up.due_date else None,
+                        'assigned_to': follow_up.assigned_to.get_full_name() if follow_up.assigned_to else None,
+                        'store': store_name,
+                    }
+                })
+            
+            # Sort by date (oldest first for timeline)
+            journey_items.sort(key=lambda x: x['date'] or '1970-01-01', reverse=False)
+            
+            return Response({
+                'success': True,
+                'data': journey_items,
+                'customer': {
+                    'id': client.id,
+                    'name': client.full_name,
+                    'phone': client.phone,
+                }
+            })
+            
+        except Exception as e:
+            import traceback
+            print(f"Error fetching customer journey: {e}")
+            print(traceback.format_exc())
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def mark_interest_purchased(self, request, pk=None, *args, **kwargs):
         """Mark a customer interest as purchased"""
         try:

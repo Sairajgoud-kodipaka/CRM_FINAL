@@ -1082,10 +1082,49 @@ class ApiService {
     return this.request(`/clients/clients/${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getClient(id: string, forceRefresh: boolean = false): Promise<ApiResponse<Client>> {
+  async getClient(id: string, forceRefresh: boolean = false, crossStore: boolean = false): Promise<ApiResponse<Client>> {
     if (forceRefresh) {
       this.invalidateCache(`/clients/clients/${id}/`);
     }
+    
+    // Use cross-store endpoint if needed (for fetching customers from different stores)
+    if (crossStore) {
+      const response = await this.request<{ success: boolean; data: Client }>(`/clients/clients/${id}/cross-store/`);
+      console.log('🔍 getClient (cross-store) - Full response:', JSON.stringify(response, null, 2));
+      
+      // The backend returns { success: True, data: serializer.data }
+      // The request method wraps it, so we get { success: true, data: { success: true, data: Client } }
+      if (response.success && response.data) {
+        const responseData = response.data as any;
+        console.log('🔍 getClient (cross-store) - Response data:', responseData);
+        
+        // Check if response.data itself has a nested structure
+        if (responseData && typeof responseData === 'object') {
+          // If responseData has 'data' property, it's nested: { success: true, data: { success: true, data: Client } }
+          if ('data' in responseData && responseData.data) {
+            console.log('🔍 getClient (cross-store) - Nested data found, extracting:', responseData.data);
+            return {
+              success: true,
+              data: responseData.data as Client,
+              errors: undefined
+            };
+          }
+          // If responseData has 'id' property, it's the Client object directly: { success: true, data: Client }
+          else if ('id' in responseData) {
+            console.log('🔍 getClient (cross-store) - Direct Client object found');
+            return {
+              success: true,
+              data: responseData as Client,
+              errors: undefined
+            };
+          }
+        }
+      }
+      
+      console.error('❌ getClient (cross-store) - Unexpected response structure:', response);
+      return response as any;
+    }
+    
     return this.request(`/clients/clients/${id}/`);
   }
 
@@ -1125,6 +1164,25 @@ class ApiService {
     queryParams.append('phone', phone);
     // DRF default router requires a trailing slash for actions like check_phone/
     return this.request(`/clients/clients/check_phone/?${queryParams.toString()}`.replace('check_phone?', 'check_phone/?'));
+  }
+
+  async getCustomerJourney(customerId: string): Promise<ApiResponse<{
+    success: boolean;
+    data: Array<{
+      type: 'interest' | 'interaction' | 'appointment' | 'pipeline' | 'sale' | 'followup';
+      id: number;
+      date: string | null;
+      title: string;
+      description: string;
+      details: any;
+    }>;
+    customer: {
+      id: number;
+      name: string;
+      phone: string;
+    };
+  }>> {
+    return this.request(`/clients/clients/${customerId}/journey/`);
   }
 
   async getUser(id: string): Promise<ApiResponse<User>> {
@@ -1193,11 +1251,44 @@ class ApiService {
     return response;
   }
 
-  async updateClient(id: string, clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    const response = await this.request<Client>(`/clients/clients/${id}/`, {
+  async updateClient(id: string, clientData: Partial<Client>, crossStore: boolean = false): Promise<ApiResponse<Client>> {
+    // Use cross-store endpoint if needed (for updating customers from different stores)
+    // Use cross-store endpoint if needed (for updating customers from different stores)
+    let endpoint: string;
+    if (crossStore) {
+      endpoint = `/clients/clients/${id}/cross-store/`;
+    } else {
+      endpoint = `/clients/clients/${id}/`;
+    }
+    
+    console.log('🔍 updateClient - ID:', id, 'crossStore:', crossStore, 'Endpoint:', endpoint);
+    
+    const response = await this.request<Client>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(clientData),
     });
+    
+    console.log('🔍 updateClient - Response:', response);
+
+    // Handle cross-store response format
+    if (crossStore && response.success && response.data) {
+      const responseData = response.data as any;
+      if (responseData && responseData.data) {
+        // Response is { success: true, data: { data: Client } }
+        return {
+          success: true,
+          data: responseData.data as Client,
+          errors: undefined
+        };
+      } else if (responseData && typeof responseData === 'object' && 'id' in responseData) {
+        // Response is { success: true, data: Client }
+        return {
+          success: true,
+          data: responseData as Client,
+          errors: undefined
+        };
+      }
+    }
 
     // Invalidate cache and notify listeners on success
     if (response.success) {

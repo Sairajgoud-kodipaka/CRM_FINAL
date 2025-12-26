@@ -244,9 +244,56 @@ class ClientSerializer(serializers.ModelSerializer):
     def get_customer_interests(self, obj):
         """Get customer interests in the format expected by frontend"""
         try:
+            from apps.sales.models import SalesPipeline
+            from django.utils import timezone
+            
             interests = obj.interests.all()
-            return [
-                {
+            result = []
+            
+            for interest in interests:
+                # Get store name for this interest
+                store_name = None
+                
+                # Method 1: Find pipeline created around the same time as interest
+                # Prioritize pipelines created AFTER the interest (within 1 hour), then before (within 2 hours)
+                # This handles cases where pipeline is created after the interest (most common case)
+                related_pipeline = SalesPipeline.objects.filter(
+                    client=obj,
+                    created_at__gte=interest.created_at,
+                    created_at__lte=interest.created_at + timezone.timedelta(hours=1)
+                ).order_by('created_at').first()  # Get the first one after interest (closest match)
+                
+                # If no pipeline found after interest, try before (within 2 hours)
+                if not related_pipeline:
+                    related_pipeline = SalesPipeline.objects.filter(
+                        client=obj,
+                        created_at__gte=interest.created_at - timezone.timedelta(hours=2),
+                        created_at__lt=interest.created_at
+                    ).order_by('-created_at').first()  # Get the most recent one before interest
+                
+                # If still no pipeline found, try wider window (24 hours)
+                if not related_pipeline:
+                    related_pipeline = SalesPipeline.objects.filter(
+                        client=obj,
+                        created_at__gte=interest.created_at - timezone.timedelta(hours=24),
+                        created_at__lte=interest.created_at + timezone.timedelta(hours=24)
+                    ).order_by('-created_at').first()
+                
+                if related_pipeline and related_pipeline.sales_representative:
+                    if related_pipeline.sales_representative.store:
+                        store_name = related_pipeline.sales_representative.store.name
+                
+                # If still no store found, try Method 3: Most recent pipeline (prioritize over client.store)
+                if not store_name:
+                    latest_pipeline = SalesPipeline.objects.filter(client=obj).order_by('-created_at').first()
+                    if latest_pipeline and latest_pipeline.sales_representative and latest_pipeline.sales_representative.store:
+                        store_name = latest_pipeline.sales_representative.store.name
+                
+                # Method 2: Fallback to client's store field (only if no pipeline found)
+                if not store_name and obj.store:
+                    store_name = obj.store.name
+                
+                result.append({
                     'id': interest.id,
                     'category': {
                         'id': interest.category.id if interest.category else None,
@@ -267,10 +314,11 @@ class ClientSerializer(serializers.ModelSerializer):
                     'purchased_at': interest.purchased_at.isoformat() if interest.purchased_at else None,
                     'not_purchased_at': interest.not_purchased_at.isoformat() if interest.not_purchased_at else None,
                     'related_sale_id': interest.related_sale.id if interest.related_sale else None,
-                    'created_at': interest.created_at.isoformat() if interest.created_at else None
-                }
-                for interest in interests
-            ]
+                    'created_at': interest.created_at.isoformat() if interest.created_at else None,
+                    'store': store_name  # Add store name to interest
+                })
+            
+            return result
         except Exception as e:
             print(f"Error getting customer interests: {e}")
             return []
@@ -1238,6 +1286,32 @@ class ClientSerializer(serializers.ModelSerializer):
         
         # Call parent update method for other fields
         result = super().update(instance, validated_data)
+        
+        # Auto-tag customer with "Visited N stores" based on unique stores from pipeline entries
+        try:
+            from apps.sales.models import SalesPipeline
+            unique_stores = set()
+            pipelines = SalesPipeline.objects.filter(client=result).select_related('sales_representative__store')
+            for pipeline in pipelines:
+                if pipeline.sales_representative and pipeline.sales_representative.store:
+                    unique_stores.add(pipeline.sales_representative.store.id)
+            
+            store_count = len(unique_stores)
+            if store_count > 1:
+                from .models import CustomerTag
+                # Create or get the tag
+                tag_slug = f"visited-{store_count}-stores"
+                tag_name = f"Visited {store_count} stores"
+                tag, created = CustomerTag.objects.get_or_create(
+                    slug=tag_slug,
+                    defaults={'name': tag_name, 'category': 'system'}
+                )
+                # Add tag if not already present
+                if tag not in result.tags.all():
+                    result.tags.add(tag)
+                    print(f"✅ Auto-tagged customer {result.id} with '{tag_name}'")
+        except Exception as e:
+            print(f"⚠️ Error auto-tagging customer with store count: {e}")
         
         # Process customer interests after client update
         if customer_interests_data:

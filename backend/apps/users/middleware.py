@@ -92,8 +92,43 @@ class ScopedVisibilityMiddleware(MiddlewareMixin):
         elif user.role == 'manager':
             # Store Manager: Filter by store_id - comprehensive store-based filtering
             if user.store:
-                # Direct store filtering for models with store field
-                if hasattr(model_class, 'store'):
+                # Special case: For Client model, show customers from this store OR customers who visited multiple stores
+                if model_class._meta.model_name == 'client' and model_class._meta.app_label == 'clients':
+                    # Special cross-store visibility logic:
+                    # 1. Show customers from this store (normal behavior)
+                    # 2. Also show customers who have visited multiple stores (including this store)
+                    from apps.sales.models import SalesPipeline
+                    from django.db.models import Count
+                    
+                    # Find customers with pipeline entries from multiple stores
+                    # Using aggregation for better performance
+                    multi_store_from_pipelines = SalesPipeline.objects.filter(
+                        tenant=user.tenant,
+                        sales_representative__store__isnull=False
+                    ).values('client_id').annotate(
+                        store_count=Count('sales_representative__store', distinct=True)
+                    ).filter(store_count__gt=1).values_list('client_id', flat=True)
+                    
+                    # Also check if any of these multi-store customers have pipeline entries in current store
+                    multi_store_customer_ids = set(
+                        SalesPipeline.objects.filter(
+                            client_id__in=multi_store_from_pipelines,
+                            sales_representative__store=user.store,
+                            tenant=user.tenant
+                        ).values_list('client_id', flat=True).distinct()
+                    )
+                    
+                    # Filter: customers from this store OR customers who visited multiple stores (including this store)
+                    if hasattr(model_class, 'store'):
+                        queryset = queryset.filter(
+                            Q(store=user.store) | Q(id__in=multi_store_customer_ids)
+                        )
+                    else:
+                        queryset = queryset.filter(
+                            Q(assigned_to__store=user.store) | Q(id__in=multi_store_customer_ids)
+                        )
+                # Direct store filtering for other models with store field
+                elif hasattr(model_class, 'store'):
                     queryset = queryset.filter(store=user.store)
                 
                 # For models that have assigned_to field, filter by users in the same store
@@ -141,12 +176,41 @@ class ScopedVisibilityMiddleware(MiddlewareMixin):
             if (model_class._meta.app_label == 'clients' and 
                 user.store):
                 if model_class._meta.model_name == 'client':
-                    # For clients, use direct store relationship for better performance
+                    # Special cross-store visibility logic:
+                    # 1. Show customers from this store (normal behavior)
+                    # 2. Also show customers who have visited multiple stores (including this store)
+                    from apps.sales.models import SalesPipeline
+                    from apps.clients.models import CustomerInterest
+                    from django.db.models import Count
+                    
+                    # Find customers with pipeline entries from multiple stores
+                    # Using aggregation for better performance
+                    multi_store_from_pipelines = SalesPipeline.objects.filter(
+                        tenant=user.tenant,
+                        sales_representative__store__isnull=False
+                    ).values('client_id').annotate(
+                        store_count=Count('sales_representative__store', distinct=True)
+                    ).filter(store_count__gt=1).values_list('client_id', flat=True)
+                    
+                    # Also check if any of these multi-store customers have pipeline entries in current store
+                    multi_store_customer_ids = set(
+                        SalesPipeline.objects.filter(
+                            client_id__in=multi_store_from_pipelines,
+                            sales_representative__store=user.store,
+                            tenant=user.tenant
+                        ).values_list('client_id', flat=True).distinct()
+                    )
+                    
+                    # Filter: customers from this store OR customers who visited multiple stores (including this store)
                     if hasattr(model_class, 'store'):
-                        queryset = queryset.filter(store=user.store)
+                        queryset = queryset.filter(
+                            Q(store=user.store) | Q(id__in=multi_store_customer_ids)
+                        )
                     else:
                         # Fallback to assigned_to store filtering
-                        queryset = queryset.filter(assigned_to__store=user.store)
+                        queryset = queryset.filter(
+                            Q(assigned_to__store=user.store) | Q(id__in=multi_store_customer_ids)
+                        )
                 elif model_class._meta.model_name in ['appointment', 'followup']:
                     # For appointments and followups, allow access to those related to clients from the same store
                     if hasattr(model_class, 'client') and hasattr(model_class.client.field.related_model, 'store'):
