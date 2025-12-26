@@ -1830,6 +1830,11 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                         setInterests(prev => {
                           const copy = [...prev];
                           copy[idx].mainCategory = value;
+                          // Clear product when category changes
+                          if (copy[idx].products[0]) {
+                            copy[idx].products[0].product = "";
+                            copy[idx].products[0].revenue = "";
+                          }
                           return copy;
                         });
                         // Also set global product type if not already set
@@ -1876,18 +1881,34 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                           return copy;
                         });
                       }}
+                      disabled={!interest.mainCategory}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Product" />
+                        <SelectValue placeholder={interest.mainCategory ? "Select Product" : "Select Category First"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id.toString()}>
-                            {product.name} - ₹{product.selling_price?.toLocaleString('en-IN') || 'Price N/A'}
-                          </SelectItem>
-                        ))}
+                        {products
+                          .filter((product) => {
+                            // Filter products by selected category
+                            if (!interest.mainCategory) return false;
+                            // Match by category name or ID
+                            const categoryName = product.category_name || product.category?.name || '';
+                            const categoryId = product.category_id || product.category?.id;
+                            return categoryName === interest.mainCategory || 
+                                   (categoryId && categories.find(c => c.id === categoryId)?.name === interest.mainCategory);
+                          })
+                          .map((product) => (
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              {product.name} - ₹{product.selling_price?.toLocaleString('en-IN') || product.price?.toLocaleString('en-IN') || 'Price N/A'}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
+                    {!interest.mainCategory && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        Please select a category first
+                      </div>
+                    )}
                   </div>
 
                   {interestDetailsOpen[idx] && (

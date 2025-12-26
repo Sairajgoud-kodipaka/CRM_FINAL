@@ -1219,26 +1219,30 @@ class ClientSerializer(serializers.ModelSerializer):
                         print(f"Processing {len(products)} products for category '{category}'")
                         for product_info in products:
                             product_name = product_info.get('product')
-                            revenue = product_info.get('revenue')
+                            revenue = product_info.get('revenue', '0')
                             
                             print(f"Product info: name='{product_name}', revenue='{revenue}'")
                             
-                            if product_name and revenue:
+                            if product_name:
                                 try:
                                     # Convert revenue to float, handle empty strings and invalid values
-                                    revenue_str = str(revenue).strip()
-                                    if not revenue_str or revenue_str == '0' or revenue_str == '0.0':
-                                        print(f"Skipping product '{product_name}' with invalid revenue: '{revenue}'")
-                                        continue
+                                    # Allow 0 as a valid revenue value (customer might not know the price yet)
+                                    revenue_str = str(revenue).strip() if revenue else '0'
+                                    if not revenue_str:
+                                        revenue_str = '0'
                                     
                                     try:
                                         revenue_value = float(revenue_str)
-                                        if revenue_value <= 0:
-                                            print(f"Skipping product '{product_name}' with non-positive revenue: {revenue_value}")
+                                        # Allow 0 as valid revenue (can be updated later)
+                                        if revenue_value < 0:
+                                            print(f"Skipping product '{product_name}' with negative revenue: {revenue_value}")
                                             continue
+                                        # Use 0 if revenue is missing or invalid
+                                        if revenue_value == 0:
+                                            print(f"Product '{product_name}' has revenue 0 - this is allowed")
                                     except (ValueError, TypeError):
-                                        print(f"Invalid revenue value '{revenue}' for product '{product_name}'")
-                                        continue
+                                        print(f"Invalid revenue value '{revenue}' for product '{product_name}', defaulting to 0")
+                                        revenue_value = 0.0
                                     
                                     # Create notes from preferences
                                     preference_notes = []

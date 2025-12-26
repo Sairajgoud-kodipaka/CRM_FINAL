@@ -280,17 +280,22 @@ const mapCustomerToInterests = (customer: Client): ProductInterest[] => {
     }
 
     // Extract category - can be object {id, name} or string
-    let categoryId = "";
+    // We need to convert to category name for the frontend
+    let categoryName = "";
     if (parsed.category) {
-      if (typeof parsed.category === "object" && parsed.category.id) {
-        categoryId = String(parsed.category.id);
+      if (typeof parsed.category === "object" && parsed.category.name) {
+        categoryName = parsed.category.name;
+      } else if (typeof parsed.category === "object" && parsed.category.id) {
+        // If we only have ID, try to find the category name
+        // This will be handled by the component when categories are loaded
+        categoryName = String(parsed.category.id);
       } else if (typeof parsed.category === "string") {
-        categoryId = parsed.category;
+        categoryName = parsed.category;
       } else {
-        categoryId = parsed.mainCategory || "";
+        categoryName = parsed.mainCategory || "";
       }
     } else {
-      categoryId = parsed.mainCategory || "";
+      categoryName = parsed.mainCategory || "";
     }
 
     // Extract product - backend returns single product object {id, name}
@@ -315,9 +320,9 @@ const mapCustomerToInterests = (customer: Client): ProductInterest[] => {
 
     // Group by category - if category already exists, add product to it
     // Note: We use the preferences from the first entry in each category group
-    if (categoryId && productId) {
-      if (categoryMap.has(categoryId)) {
-        const existing = categoryMap.get(categoryId)!;
+    if (categoryName && productId) {
+      if (categoryMap.has(categoryName)) {
+        const existing = categoryMap.get(categoryName)!;
         // Add product to existing category
         existing.products.push({
           product: productId,
@@ -335,8 +340,8 @@ const mapCustomerToInterests = (customer: Client): ProductInterest[] => {
         };
       } else {
         // Create new category entry
-        categoryMap.set(categoryId, {
-          mainCategory: categoryId,
+        categoryMap.set(categoryName, {
+          mainCategory: categoryName,
           products: [{
             product: productId,
             revenue: String(revenue),
@@ -544,6 +549,29 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     }
   }, [customer, open, initializeFromCustomer]);
 
+  // Update interests when categories are loaded to convert category IDs to names
+  useEffect(() => {
+    if (categories.length > 0 && interests.length > 0) {
+      setInterests((prev) => {
+        const updated = prev.map((interest) => {
+          // If mainCategory is a number (ID), try to find the category name
+          if (interest.mainCategory && !isNaN(Number(interest.mainCategory))) {
+            const categoryId = Number(interest.mainCategory);
+            const category = categories.find((c) => c.id === categoryId);
+            if (category) {
+              return {
+                ...interest,
+                mainCategory: category.name,
+              };
+            }
+          }
+          return interest;
+        });
+        return updated;
+      });
+    }
+  }, [categories, open]);
+
   const handleInputChange = (field: keyof FormData, value: string | number | string[] | boolean) => {
     setFormData((prev) => ({
       ...prev,
@@ -673,10 +701,13 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
     if (!formData.reasonForVisit.trim()) errors.push("Reason for Visit is required");
     if (!formData.leadSource.trim()) errors.push("Lead Source is required");
 
+    // Allow submission if at least one interest has both category and product
     const hasValidInterest = interests.some(
-      (interest) => interest.mainCategory && interest.products?.[0]?.product
+      (interest) => interest.mainCategory && interest.mainCategory.trim() !== "" && interest.products?.[0]?.product && interest.products[0].product.trim() !== ""
     );
-    if (!hasValidInterest) errors.push("At least one interest with a product is required");
+    if (!hasValidInterest && interests.length > 0) {
+      errors.push("At least one interest must have both a category and product selected");
+    }
 
     return {
       isValid: errors.length === 0,
@@ -1093,10 +1124,14 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                   <div>
                     <label className="block text-sm font-medium mb-1">Category</label>
                     <Select
-                      value={interest.mainCategory}
+                      value={interest.mainCategory || ''}
                       onValueChange={(value) => {
                         const updated = [...interests];
                         updated[index].mainCategory = value;
+                        // Clear product when category changes
+                        if (updated[index].products[0]) {
+                          updated[index].products[0].product = "";
+                        }
                         setInterests(updated);
                       }}
                     >
@@ -1105,7 +1140,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
+                          <SelectItem key={category.id} value={category.name}>
                             {category.name}
                           </SelectItem>
                         ))}
@@ -1116,19 +1151,50 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
                     <label className="block text-sm font-medium mb-1">Product</label>
                     <Select
                       value={interest.products[0]?.product || ""}
-                      onValueChange={(value) => handleProductChange(index, "product", value)}
+                      onValueChange={(value) => {
+                        handleProductChange(index, "product", value);
+                        // Auto-populate revenue if product is selected
+                        const selectedProduct = products.find(p => p.id.toString() === value);
+                        if (selectedProduct) {
+                          const productPrice = selectedProduct.selling_price || selectedProduct.price || 0;
+                          setInterests((prev) => {
+                            const copy = [...prev];
+                            if (!copy[index].products[0]) {
+                              copy[index].products[0] = { product: "", revenue: "" };
+                            }
+                            copy[index].products[0].revenue = productPrice.toString();
+                            return copy;
+                          });
+                        }
+                      }}
+                      disabled={!interest.mainCategory}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Product" />
+                        <SelectValue placeholder={interest.mainCategory ? "Select Product" : "Select Category First"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id.toString()}>
-                            {product.name}
-                          </SelectItem>
-                        ))}
+                        {products
+                          .filter((product) => {
+                            // Filter products by selected category
+                            if (!interest.mainCategory) return false;
+                            // Match by category name or ID
+                            const categoryName = product.category_name || product.category?.name || '';
+                            const categoryId = product.category_id || product.category?.id;
+                            return categoryName === interest.mainCategory || 
+                                   (categoryId && categories.find(c => c.id === categoryId)?.name === interest.mainCategory);
+                          })
+                          .map((product) => (
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              {product.name} - ₹{product.selling_price?.toLocaleString('en-IN') || product.price?.toLocaleString('en-IN') || 'Price N/A'}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
+                    {!interest.mainCategory && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        Please select a category first
+                      </div>
+                    )}
                   </div>
                 </div>
 

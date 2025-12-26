@@ -991,6 +991,9 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 if 'category' not in requested_fields:
                     requested_fields.append('category')
             
+            # Prefetch pipelines to avoid N+1 queries
+            queryset = queryset.prefetch_related('pipelines')
+            
             # Create CSV response
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = f'attachment; filename="customers_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
@@ -1060,6 +1063,24 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         row[field] = ' | '.join(category_info) if category_info else ''
                     elif field == 'tags':
                         row[field] = ', '.join([tag.name for tag in client.tags.all()])
+                    elif field == 'status':
+                        # Get pipeline stage instead of generic status
+                        pipeline_stage = None
+                        try:
+                            # Check if pipelines are already prefetched
+                            if hasattr(client, '_prefetched_objects_cache') and 'pipelines' in client._prefetched_objects_cache:
+                                pipelines = client._prefetched_objects_cache['pipelines']
+                                if pipelines:
+                                    latest_pipeline = max(pipelines, key=lambda p: p.updated_at)
+                                    pipeline_stage = latest_pipeline.stage
+                            else:
+                                latest_pipeline = client.pipelines.order_by('-updated_at').first()
+                                if latest_pipeline:
+                                    pipeline_stage = latest_pipeline.stage
+                        except Exception as e:
+                            print(f"Error getting pipeline stage for export: {e}")
+                        # Use pipeline stage if available, otherwise fall back to status
+                        row[field] = pipeline_stage if pipeline_stage else (client.status or 'general')
                     else:
                         value = getattr(client, field, '')
                         row[field] = str(value) if value is not None else ''
@@ -1135,6 +1156,9 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 if 'category' not in requested_fields:
                     requested_fields.append('category')
             
+            # Prefetch pipelines to avoid N+1 queries
+            queryset = queryset.prefetch_related('pipelines')
+            
             # Serialize data with only requested fields
             data = []
             for client in queryset:
@@ -1199,6 +1223,24 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         client_data[field] = ' | '.join(category_info) if category_info else ''
                     elif field == 'tags':
                         client_data[field] = [tag.name for tag in client.tags.all()]
+                    elif field == 'status':
+                        # Get pipeline stage instead of generic status
+                        pipeline_stage = None
+                        try:
+                            # Check if pipelines are already prefetched
+                            if hasattr(client, '_prefetched_objects_cache') and 'pipelines' in client._prefetched_objects_cache:
+                                pipelines = client._prefetched_objects_cache['pipelines']
+                                if pipelines:
+                                    latest_pipeline = max(pipelines, key=lambda p: p.updated_at)
+                                    pipeline_stage = latest_pipeline.stage
+                            else:
+                                latest_pipeline = client.pipelines.order_by('-updated_at').first()
+                                if latest_pipeline:
+                                    pipeline_stage = latest_pipeline.stage
+                        except Exception as e:
+                            print(f"Error getting pipeline stage for export: {e}")
+                        # Use pipeline stage if available, otherwise fall back to status
+                        client_data[field] = pipeline_stage if pipeline_stage else (client.status or 'general')
                     else:
                         value = getattr(client, field, '')
                         client_data[field] = value if value is not None else ''
