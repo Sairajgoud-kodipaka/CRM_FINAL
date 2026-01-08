@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { NotificationManager } from '@/components/notifications';
 import { ThemeProvider } from './ThemeProvider';
 import { ModalProvider } from '@/contexts/ModalContext';
+import { PushNotificationInitializer } from '@/components/push/PushNotificationInitializer';
+import '@/utils/testPushNotifications'; // Make test function available in console
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -55,6 +57,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
       >
         <ModalProvider>
           <NotificationProvider>
+            <PushNotificationInitializer />
             {children}
             <NotificationManager />
           </NotificationProvider>

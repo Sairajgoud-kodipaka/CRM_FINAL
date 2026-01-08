@@ -27,6 +27,14 @@ GOOGLE_SHEETS_ID = config('GOOGLE_SHEETS_ID', default='1W9JFanGBpl5DpFDcGELl3iLC
 # Multiple Google Sheets Support
 GOOGLE_SHEETS_IDS = config('GOOGLE_SHEETS_IDS', default='16pJPUtjKmCTEntCwP4lzJf849pLiN38y4pmFHjQkefk', cast=Csv())
 
+# VAPID Keys for Web Push Notifications
+# Generate keys using: python generate_vapid_keys.py
+# IMPORTANT: Set these in environment variables (.env file) - DO NOT commit keys to git
+# For development, you can use defaults, but for production, always use environment variables
+VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
+VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default='')
+VAPID_CLAIMS_EMAIL = config('VAPID_CLAIMS_EMAIL', default='mailto:admin@jewellerycrm.com')
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -493,16 +501,3 @@ EXOTEL_CONFIG = {
     'webrtc_sip_password': config('EXOTEL_WEBRTC_SIP_PASSWORD', default=''),
     'webrtc_enabled': config('EXOTEL_WEBRTC_ENABLED', default=False, cast=bool),
 }
-
-# Web Push / VAPID Configuration for Push Notifications
-# Generate keys using: python manage.py generate_vapid_keys
-# Add to .env file: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CLAIMS_EMAIL
-VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default=None)
-VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default=None)
-VAPID_CLAIMS_EMAIL = config('VAPID_CLAIMS_EMAIL', default='mailto:admin@jewelrycrm.com')
-# Web Push / VAPID Configuration for Push Notifications
-# Generate keys using: python manage.py generate_vapid_keys
-# Add to .env file: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CLAIMS_EMAIL
-VAPID_PUBLIC_KEY = config('VAPID_PUBLIC_KEY', default=None)
-VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default=None)
-VAPID_CLAIMS_EMAIL = config('VAPID_CLAIMS_EMAIL', default='mailto:admin@jewelrycrm.com')
