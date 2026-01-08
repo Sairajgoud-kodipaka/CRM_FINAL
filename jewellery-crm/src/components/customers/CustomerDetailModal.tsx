@@ -1785,20 +1785,20 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
 
     {/* Bought Confirmation Dialog */}
     <Dialog open={showBoughtConfirm} onOpenChange={setShowBoughtConfirm}>
-      <DialogContent>
+      <DialogContent className="z-[200] max-w-[calc(100vw-2rem)] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Mark as Bought</DialogTitle>
           <DialogDescription>
             Are you sure you want to mark this customer as Bought? This will update their status to "closed_won".
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowBoughtConfirm(false)} disabled={processing}>
+        <DialogFooter className={`flex-col-reverse gap-2 ${isMobile ? 'sm:flex-row' : 'sm:flex-row'} sm:justify-end`}>
+          <Button variant="outline" onClick={() => setShowBoughtConfirm(false)} disabled={processing} className="w-full sm:w-auto">
             Cancel
           </Button>
           <Button 
             onClick={markBought} 
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto"
             disabled={processing}
           >
             {processing ? 'Processing...' : 'Confirm'}
@@ -1809,7 +1809,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
 
     {/* Lost Reason Dialog */}
     <Dialog open={showLostDialog} onOpenChange={setShowLostDialog}>
-      <DialogContent>
+      <DialogContent className="z-[200] max-w-[calc(100vw-2rem)] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Mark as Lost</DialogTitle>
           <DialogDescription>
@@ -1821,22 +1821,23 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             placeholder="e.g., Wanted more variety/discount, bought from other store, etc. (Required)"
             value={lostReason}
             onChange={(e) => setLostReason(e.target.value)}
-            rows={4}
-            className="w-full"
+            rows={isMobile ? 3 : 4}
+            className="w-full text-sm sm:text-base"
             required
           />
           {lostReason.trim() === '' && (
             <p className="text-sm text-red-500 mt-2">Please provide a reason before marking as Lost.</p>
           )}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowLostDialog(false)} disabled={processing}>
+        <DialogFooter className={`flex-col-reverse gap-2 ${isMobile ? 'sm:flex-row' : 'sm:flex-row'} sm:justify-end`}>
+          <Button variant="outline" onClick={() => setShowLostDialog(false)} disabled={processing} className="w-full sm:w-auto">
             Cancel
           </Button>
           <Button 
             onClick={markLost} 
             variant="destructive"
             disabled={processing || lostReason.trim() === ''}
+            className="w-full sm:w-auto"
           >
             {processing ? 'Processing...' : 'Mark as Lost'}
           </Button>
