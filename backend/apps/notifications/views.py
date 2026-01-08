@@ -98,7 +98,8 @@ class NotificationViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Subscription info required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            PushSubscription.objects.update_or_create(
+            # Use update_or_create to handle duplicates
+            subscription, created = PushSubscription.objects.update_or_create(
                 user=request.user,
                 endpoint=subscription_info['endpoint'],
                 defaults={
@@ -107,6 +108,14 @@ class NotificationViewSet(viewsets.ModelViewSet):
                     'auth': subscription_info['keys']['auth']
                 }
             )
+            
+            # Clean up any other duplicate subscriptions for this user with same endpoint
+            # (shouldn't happen, but just in case)
+            PushSubscription.objects.filter(
+                user=request.user,
+                endpoint=subscription_info['endpoint']
+            ).exclude(id=subscription.id).delete()
+            
             return Response({'status': 'subscribed'})
         except KeyError as e:
             return Response({'error': f'Invalid subscription format: {e}'}, status=status.HTTP_400_BAD_REQUEST)

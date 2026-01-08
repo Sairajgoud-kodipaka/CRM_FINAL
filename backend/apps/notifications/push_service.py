@@ -30,6 +30,18 @@ def send_web_push(user_id: int, title: str, message: str, action_url: str = None
             logger.debug(f"No push subscriptions found for user {user_id}")
             return
         
+        # Deduplicate subscriptions by endpoint (keep only one per endpoint)
+        seen_endpoints = set()
+        unique_subscriptions = []
+        for subscription in subscriptions:
+            if subscription.endpoint not in seen_endpoints:
+                seen_endpoints.add(subscription.endpoint)
+                unique_subscriptions.append(subscription)
+        
+        if not unique_subscriptions:
+            logger.debug(f"No unique push subscriptions found for user {user_id}")
+            return
+        
         # Prepare payload
         payload = json.dumps({
             'title': title,
@@ -43,9 +55,9 @@ def send_web_push(user_id: int, title: str, message: str, action_url: str = None
             "sub": getattr(settings, 'VAPID_CLAIMS_EMAIL', 'mailto:admin@example.com')
         }
         
-        # Send to all user's subscriptions
+        # Send to unique subscriptions only (one per endpoint)
         success_count = 0
-        for subscription in subscriptions:
+        for subscription in unique_subscriptions:
             try:
                 webpush(
                     subscription_info={
@@ -71,7 +83,7 @@ def send_web_push(user_id: int, title: str, message: str, action_url: str = None
                         logger.info(f"Deleting invalid subscription for user {user_id}")
                         subscription.delete()
         
-        logger.info(f"Sent {success_count}/{subscriptions.count()} push notifications to user {user_id}")
+        logger.info(f"Sent {success_count}/{len(unique_subscriptions)} push notifications to user {user_id} (deduplicated from {subscriptions.count()} total subscriptions)")
         
     except Exception as e:
         logger.error(f"Error sending web push to user {user_id}: {e}")
