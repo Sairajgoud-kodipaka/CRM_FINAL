@@ -19,6 +19,9 @@ class NotificationViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter notifications based on user's tenant and store access"""
+        from django.utils import timezone
+        from datetime import timedelta
+        
         user = self.request.user
         
         # Debug statements removed for production
@@ -26,21 +29,31 @@ class NotificationViewSet(viewsets.ModelViewSet):
         if not user.is_authenticated:
             return Notification.objects.none()
         
+        # Get today's date range (start of today to end of today)
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+        
+        # Base queryset with date filter (only today's notifications)
+        base_queryset = Notification.objects.filter(
+            created_at__gte=today_start,
+            created_at__lt=today_end
+        )
+        
         # Business admin can see all notifications in their tenant
         if user.role == 'business_admin':
-            queryset = Notification.objects.filter(tenant=user.tenant)
+            queryset = base_queryset.filter(tenant=user.tenant)
             return queryset
         
         # Store users can see their store's notifications and their own
         if user.store:
-            queryset = Notification.objects.filter(
+            queryset = base_queryset.filter(
                 Q(tenant=user.tenant) &
                 (Q(store=user.store) | Q(user=user))
             )
             return queryset
         
         # Users without store can only see their own notifications
-        queryset = Notification.objects.filter(
+        queryset = base_queryset.filter(
             Q(tenant=user.tenant) & Q(user=user)
         )
         return queryset

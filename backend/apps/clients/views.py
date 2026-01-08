@@ -771,34 +771,47 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             # Use get_or_create to prevent duplicates
             notifications_created = 0
             for user in unique_users:
-                # Check if notification already exists for this user and customer
+                # Check if notification already exists for this user and customer (within last 10 seconds to prevent duplicates)
+                from django.utils import timezone
+                from datetime import timedelta
+                recent_cutoff = timezone.now() - timedelta(seconds=10)
+                
                 existing = Notification.objects.filter(
                     user=user,
                     tenant=client.tenant,
                     type='new_customer',
-                    metadata__customer_id=client.id
+                    metadata__customer_id=client.id,
+                    created_at__gte=recent_cutoff
                 ).first()
                 
                 if existing:
                     print(f"⚠️  Notification already exists (ID: {existing.id}) for user {user.username} and customer {client.id} - skipping")
                     continue
                 
-                notification = Notification.objects.create(
+                # Use get_or_create to prevent race conditions
+                notification, created = Notification.objects.get_or_create(
                     user=user,
                     tenant=client.tenant,
-                    store=client.store,
                     type='new_customer',
-                    title='New customer registered',
-                    message=f'{client.first_name} {client.last_name} has been registered as a new customer by {created_by_user.first_name or created_by_user.username}',
-                    priority='medium',
-                    status='unread',
-                    action_url=f'/customers/{client.id}',
-                    action_text='View Customer',
-                    is_persistent=False,
-                    metadata={'customer_id': client.id, 'created_by_user_id': created_by_user.id}
+                    metadata__customer_id=client.id,
+                    defaults={
+                        'store': client.store,
+                        'title': 'New customer registered',
+                        'message': f'{client.first_name} {client.last_name} has been registered as a new customer by {created_by_user.first_name or created_by_user.username}',
+                        'priority': 'medium',
+                        'status': 'unread',
+                        'action_url': f'/customers/{client.id}',
+                        'action_text': 'View Customer',
+                        'is_persistent': False,
+                        'metadata': {'customer_id': client.id, 'created_by_user_id': created_by_user.id}
+                    }
                 )
-                notifications_created += 1
-                print(f"Created notification {notification.id} for user {user.username} (role: {user.role})")
+                
+                if created:
+                    notifications_created += 1
+                    print(f"Created notification {notification.id} for user {user.username} (role: {user.role})")
+                else:
+                    print(f"Notification already exists (ID: {notification.id}) for user {user.username} and customer {client.id} - skipped")
             
             print(f"Created {notifications_created} notifications for new customer {client.first_name} {client.last_name} (ID: {client.id})")
             print(f"Users notified: {[f'{user.username} ({user.role})' for user in unique_users]}")
