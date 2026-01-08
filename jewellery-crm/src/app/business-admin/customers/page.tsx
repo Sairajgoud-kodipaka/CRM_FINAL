@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Download, Upload, Plus, MoreHorizontal, Eye, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Download, Upload, Plus, MoreHorizontal, Eye, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit } from 'lucide-react';
 import { apiService, Client, Store } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
@@ -19,13 +19,15 @@ import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal'
 import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
-import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 import { DateRange } from 'react-day-picker';
 import { SALES_STAGE_LABELS } from '@/constants';
+import { cn } from '@/lib/utils';
 
 export default function CustomersPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +41,9 @@ export default function CustomersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrevious, setHasPrevious] = useState(false);
+  // Client-side pagination for mobile
+  const [mobilePage, setMobilePage] = useState(1);
+  const [mobilePageSize] = useState(20);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
@@ -784,15 +789,26 @@ export default function CustomersPage() {
     }
   };
 
+  // Client-side pagination for mobile
+  const filteredClients = getFilteredAndSortedClients();
+  const mobileTotal = filteredClients.length;
+  const mobileTotalPages = Math.max(1, Math.ceil(mobileTotal / mobilePageSize));
+  const mobilePagedClients = filteredClients.slice((mobilePage - 1) * mobilePageSize, mobilePage * mobilePageSize);
+
+  // Reset mobile page when filters change
+  useEffect(() => {
+    setMobilePage(1);
+  }, [searchTerm, statusFilter, dateRange, filterType, storeFilter, nameHeaderFilter, contactHeaderFilter, statusHeaderFilter, sourceHeaderFilter, createdByHeaderFilter, createdDateHeaderFilter, storeHeaderFilter]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 sm:pb-0">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary tracking-tight">Customers</h1>
-          <p className="text-text-secondary mt-1">Manage your customer relationships and interactions</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-text-primary tracking-tight">Customers</h1>
+          <p className="text-sm sm:text-base text-text-secondary mt-1">Manage your customer relationships and interactions</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           {isMobile ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -834,8 +850,8 @@ export default function CustomersPage() {
             </>
           )}
           <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            size={isMobile ? "default" : "sm"}
+            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+            size="sm"
             onClick={() => setShowAddModal(true)}
           >
             <Plus className="w-4 h-4 sm:mr-2" />
@@ -914,11 +930,11 @@ export default function CustomersPage() {
 
       {/* Date Filter */}
       <Card className="shadow-sm border-blue-200 bg-blue-50">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-blue-800">Date Range Filter:</span>
-              <span className="text-sm text-blue-600">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+              <span className="text-xs sm:text-sm font-medium text-blue-800">Date Range Filter:</span>
+              <span className="text-xs sm:text-sm text-blue-600">
                 {filterType === 'all_customers' ? 'All Customers' : (dateRange?.from && dateRange?.to ? formatDateRange({ from: dateRange.from, to: dateRange.to }) : 'No date selected')}
               </span>
             </div>
@@ -931,7 +947,7 @@ export default function CustomersPage() {
                 }
               }}
               showAllCustomers={false}
-              className="w-auto"
+              className="w-full sm:w-auto"
             />
           </div>
         </CardContent>
@@ -939,15 +955,15 @@ export default function CustomersPage() {
 
       {/* Search and Filters */}
       <Card className="shadow-sm">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4">
+        <CardContent className="p-3 sm:p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search customers..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 text-sm"
               />
             </div>
             <Button
@@ -964,12 +980,12 @@ export default function CustomersPage() {
                 }
                 setCurrentPage(1); // Reset to page 1 when toggling
               }}
-              className={filterType === 'all_customers' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
+              className={`${filterType === 'all_customers' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''} w-full sm:w-auto`}
             >
               All Customers
             </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-48">
+              <SelectTrigger className="w-full sm:w-48 text-sm">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -981,7 +997,7 @@ export default function CustomersPage() {
               </SelectContent>
             </Select>
             <Select value={storeFilter} onValueChange={setStoreFilter}>
-              <SelectTrigger className="w-full md:w-48">
+              <SelectTrigger className="w-full sm:w-48 text-sm">
                 <SelectValue placeholder="By store" />
               </SelectTrigger>
               <SelectContent>
@@ -1041,23 +1057,164 @@ export default function CustomersPage() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Clear Filters Button */}
-              {hasActiveHeaderFilters && (
-                <div className="flex items-center justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearHeaderFilters}
-                    className="text-xs"
-                  >
-                    Clear Header Filters
-                  </Button>
-                </div>
-              )}
-              
-              {/* Custom Table */}
-              <div className="overflow-x-auto rounded-lg border border-border bg-white">
+            <>
+              {/* Mobile Card View */}
+              {isMobile ? (
+                <>
+                  {/* Clear Filters Button */}
+                  {hasActiveHeaderFilters && (
+                    <div className="flex items-center justify-end mb-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearHeaderFilters}
+                        className="text-xs"
+                      >
+                        Clear Header Filters
+                      </Button>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    {mobilePagedClients.length > 0 ? (
+                      mobilePagedClients.map((client) => {
+                        const isCurrentUserCustomer = client.created_by?.id === user?.id;
+                        return (
+                          <Card
+                            key={client.id}
+                            className={cn(
+                              "p-4 cursor-pointer transition-all hover:shadow-md",
+                              isCurrentUserCustomer ? 'border-l-4 border-l-orange-500 bg-orange-50' : ''
+                            )}
+                            onClick={() => handleViewCustomer(client)}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="font-semibold text-base text-text-primary truncate">
+                                    {formatCustomerName(client)}
+                                  </h3>
+                                  {isCurrentUserCustomer && (
+                                    <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs flex-shrink-0">
+                                      My Customer
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="space-y-1.5 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-text-secondary font-medium">Phone:</span>
+                                    <span className="text-text-primary">{client.phone || '-'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-text-secondary font-medium">Status:</span>
+                                    <Badge variant={getStatusBadgeVariant(client.pipeline_stage || client.status)} className="capitalize text-xs">
+                                      {client.pipeline_stage
+                                        ? (SALES_STAGE_LABELS[client.pipeline_stage as keyof typeof SALES_STAGE_LABELS] || formatPipelineStage(client.pipeline_stage))
+                                        : client.status
+                                          ? client.status.charAt(0).toUpperCase() + client.status.slice(1)
+                                          : 'Unknown'
+                                      }
+                                    </Badge>
+                                  </div>
+                                  {client.lead_source && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-text-secondary font-medium">Source:</span>
+                                      <span className="text-text-primary">{client.lead_source}</span>
+                                    </div>
+                                  )}
+                                  {client.store_name && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-text-secondary font-medium">Store:</span>
+                                      <span className="text-text-primary">{client.store_name}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2 flex-shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewCustomer(client);
+                                  }}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                {canDeleteCustomers && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-800"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteCustomer(client);
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="text-text-secondary text-lg font-medium">
+                          {clients.length === 0 
+                            ? 'No customers found' 
+                            : 'No customers match your filters'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Mobile Pagination - Inside Card, at bottom */}
+                  {mobileTotal > 0 && (
+                    <div className="sticky bottom-16 bg-white border-t pt-3 pb-3 px-3 -mx-3 -mb-3 mt-4 z-10">
+                      <div className="flex flex-col items-center gap-2 text-xs text-text-secondary">
+                        <div className="text-center">
+                          Showing {(mobilePage - 1) * mobilePageSize + 1}-{Math.min(mobilePage * mobilePageSize, mobileTotal)} of {mobileTotal}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="px-3 py-1.5 text-sm border rounded disabled:opacity-50 bg-white"
+                            onClick={() => setMobilePage(p => Math.max(1, p - 1))}
+                            disabled={mobilePage <= 1}
+                          >
+                            Prev
+                          </button>
+                          <span className="px-3 text-sm font-medium">{mobilePage}/{mobileTotalPages}</span>
+                          <button
+                            className="px-3 py-1.5 text-sm border rounded disabled:opacity-50 bg-white"
+                            onClick={() => setMobilePage(p => Math.min(mobileTotalPages, p + 1))}
+                            disabled={mobilePage >= mobileTotalPages}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-4">
+                  {/* Clear Filters Button */}
+                  {hasActiveHeaderFilters && (
+                    <div className="flex items-center justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearHeaderFilters}
+                        className="text-xs"
+                      >
+                        Clear Header Filters
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Custom Table */}
+                  <div className="overflow-x-auto rounded-lg border border-border bg-white">
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
@@ -1340,7 +1497,9 @@ export default function CustomersPage() {
                   Showing {getFilteredAndSortedClients().length} of {clients.length} customers
                 </div>
               )}
-            </div>
+                </div>
+              )}
+            </>
           )}
           
           {/* Pagination Controls - Only show when using date range filter */}

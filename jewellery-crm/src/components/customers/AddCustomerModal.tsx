@@ -544,12 +544,12 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         
         console.log('✅ useExistingCustomer - Form data set:', formData);
         console.log('✅ useExistingCustomer - Interests set:', existingInterests);
-        
-        toast({
+      
+      toast({
           title: "Existing Customer Loaded",
           description: `Loaded customer: ${customer.full_name || existingPhoneCustomer.name}. You can add new interests and update information.`,
-          variant: "default",
-        });
+        variant: "default",
+      });
       } else {
         console.error('❌ useExistingCustomer - No data in response:', response);
         throw new Error('No customer data received from server');
@@ -1066,7 +1066,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
             } as any); // Type assertion needed because TypeScript interface doesn't include client_id
           } else {
             // New customer - create pipeline as usual
-            await createAutoPipelineEntry(response.data);
+          await createAutoPipelineEntry(response.data);
           }
         } catch (error) {
           // Don't fail the customer creation/update if pipeline creation fails
@@ -1089,13 +1089,13 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
               if (updatedCustomerResponse.success && updatedCustomerResponse.data) {
                 onCustomerCreated(updatedCustomerResponse.data);
               } else {
-                onCustomerCreated(response.data);
+          onCustomerCreated(response.data);
               }
             } catch (error) {
               console.error('Error fetching updated customer:', error);
               onCustomerCreated(response.data);
             }
-          } else {
+        } else {
             onCustomerCreated(response.data);
           }
         }
@@ -1105,7 +1105,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
         setExistingCustomerId(null);
         setExistingCustomerFullData(null);
         setExistingPhoneCustomer(null);
-        
+
         onClose();
         // Reset form
         setFormData({
@@ -1547,7 +1547,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           purchased: false,
           other: "",
         },
-      };
+    };
 
     setInterests(prev => {
       const newInterests = [...prev, newInterest];
@@ -1745,9 +1745,9 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 onChange={(value) => {
                   // Don't allow phone change when updating existing customer
                   if (!isUpdatingExistingCustomer) {
-                    handleInputChange('phone', value);
-                    // Clear existing customer info when phone changes
-                    setExistingPhoneCustomer(null);
+                  handleInputChange('phone', value);
+                  // Clear existing customer info when phone changes
+                  setExistingPhoneCustomer(null);
                   }
                 }}
                 onKeyDown={(e) => handleKeyDown(e, 'phone')}
@@ -1860,7 +1860,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 >
                   <SelectValue placeholder="Select Age Range" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[200]">
                   {AGE_RANGES.map((age) => (
                     <SelectItem key={age} value={age}>
                       {age} years
@@ -2005,7 +2005,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                 <SelectTrigger data-field="salesPerson">
                   <SelectValue placeholder="Select Sales Person" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[200]">
                   {salesPersons.map((person, index) => (
                     <SelectItem key={`${person}-${index}`} value={person}>
                       {person}
@@ -2152,7 +2152,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select Category" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[200]">
                         {categories.length === 0 ? (
                           <div className="px-2 py-1.5 text-sm text-muted-foreground">
                             Loading categories...
@@ -2160,8 +2160,8 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                         ) : (
                           categories.map((category) => (
                             <SelectItem key={category.id || category.name} value={category.name}>
-                              {category.name}
-                            </SelectItem>
+                            {category.name}
+                          </SelectItem>
                           ))
                         )}
                       </SelectContent>
@@ -2200,7 +2200,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder={interest.mainCategory ? "Select Product" : "Select Category First"} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[200]">
                         {products
                           .filter((product) => {
                             // Filter products by selected category
@@ -2212,10 +2212,10 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
                                    (categoryId && categories.find(c => c.id === categoryId)?.name === interest.mainCategory);
                           })
                           .map((product) => (
-                            <SelectItem key={product.id} value={product.id.toString()}>
+                          <SelectItem key={product.id} value={product.id.toString()}>
                               {product.name} - ₹{product.selling_price?.toLocaleString('en-IN') || product.price?.toLocaleString('en-IN') || 'Price N/A'}
-                            </SelectItem>
-                          ))}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     {!interest.mainCategory && (

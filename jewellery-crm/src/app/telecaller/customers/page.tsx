@@ -269,24 +269,24 @@ export default function TelecallerCustomersPage() {
   return (
     <div className="min-h-full bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-3 sm:px-6 py-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Assigned Leads</h1>
-            <p className="text-sm text-gray-600">Manage your assigned leads and make calls</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Assigned Leads</h1>
+            <p className="text-xs sm:text-sm text-gray-600">Manage your assigned leads and make calls</p>
           </div>
           <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-gray-500" />
-            <span className="text-sm text-gray-600">{totalLeads} total leads</span>
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+            <span className="text-xs sm:text-sm text-gray-600">{totalLeads} total leads</span>
           </div>
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         {/* Filters */}
         <Card className="mb-6">
-          <div className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -294,12 +294,12 @@ export default function TelecallerCustomersPage() {
                     placeholder="Search by name or phone..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 text-sm"
                   />
                 </div>
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-48">
+                <SelectTrigger className="w-full sm:w-48 text-sm">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -313,7 +313,7 @@ export default function TelecallerCustomersPage() {
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-full sm:w-48">
+                <SelectTrigger className="w-full sm:w-48 text-sm">
                   <SelectValue placeholder="All Priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -325,7 +325,7 @@ export default function TelecallerCustomersPage() {
               </Select>
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-gray-500" />
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs sm:text-sm">
                   {filteredLeads.length} assignments
                 </Badge>
               </div>

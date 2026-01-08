@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { SALES_STAGES, SALES_STAGE_LABELS } from "@/constants";
+import { cn } from "@/lib/utils";
 
 interface CustomerDetailModalProps {
   open: boolean;
@@ -711,6 +712,8 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
       description="View and manage customer information"
       size={isMobile ? "full" : isTablet ? "lg" : "xl"}
       showCloseButton={true}
+      hideMobileNav={true}
+      fullScreen={isMobile}
       className="bg-white"
       actions={
         <div className={`flex items-center gap-2 ${isMobile ? 'flex-wrap' : ''}`}>
@@ -822,25 +825,6 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                         </Badge>
                       ) : 'Not provided'}
                     </div>
-                  </div>
-                  <div className="p-3 rounded-md bg-gray-50 border md:col-span-2">
-                    <div className="text-xs text-gray-600 mb-2">Move to Different Stage</div>
-                    <Select
-                      value={selectedStage}
-                      onValueChange={handleStageChange}
-                      disabled={updatingStage}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={updatingStage ? "Updating..." : "Select stage..."} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(SALES_STAGE_LABELS).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                   <div className="p-3 rounded-md bg-gray-50 border">
                     <div className="text-xs text-gray-600">Customer Type</div>
@@ -1086,9 +1070,12 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
           </TabsContent>
 
           <TabsContent value="interests" className="space-y-6 mt-0">
-            <div className="border rounded-lg p-4 mb-4">
-              <div className="font-semibold mb-3 text-lg">💎 Product Interest</div>
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className={cn("border rounded-lg mb-4", isMobile ? "p-3" : "p-4")}>
+              <div className={cn("font-semibold mb-3", isMobile ? "text-base" : "text-lg")}>💎 Product Interest</div>
+              <div className={cn(
+                "space-y-4 overflow-y-auto",
+                isMobile ? "max-h-[calc(100vh-350px)]" : "max-h-[60vh]"
+              )}>
               {customer.customer_interests && customer.customer_interests.length > 0 ? (
                 <div className="space-y-4">
                   {[...customer.customer_interests]

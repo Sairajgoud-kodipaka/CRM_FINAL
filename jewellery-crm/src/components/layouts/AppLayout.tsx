@@ -70,7 +70,8 @@ export function AppLayout({ children, className }: AppLayoutProps) {
         {/* Main Content */}
         <main className={cn(
           'flex-1 overflow-y-auto overflow-x-hidden',
-          'p-3 sm:p-5 md:p-6 pb-20 sm:pb-6',
+          'p-3 sm:p-5 md:p-6',
+          isMobile ? 'pb-20' : 'pb-6',
           'scrollbar-hide'
         )}>
           {children}

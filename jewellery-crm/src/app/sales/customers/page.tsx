@@ -22,8 +22,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange, toUtcStartOfDay, toUtcEndOfDay } from '@/lib/date-utils';
-import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 import { SALES_STAGE_LABELS } from '@/constants';
+import { cn } from '@/lib/utils';
 
 function SalesCustomersPageContent() {
   const router = useRouter();
@@ -32,6 +33,7 @@ function SalesCustomersPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [customers, setCustomers] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
@@ -472,7 +474,7 @@ function SalesCustomersPageContent() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4 sm:gap-6 md:gap-8">
               <AddCustomerModal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
@@ -502,17 +504,17 @@ function SalesCustomersPageContent() {
         onSuccess={handleExportSuccess}
       />
 
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+              <div className="flex flex-col gap-4 mb-2">
           <div>
-            <h1 className="text-2xl font-semibold text-text-primary">Customers</h1>
-            <p className="text-text-secondary mt-1">Find and manage your assigned customers</p>
+            <h1 className="text-xl sm:text-2xl font-semibold text-text-primary">Customers</h1>
+            <p className="text-sm sm:text-base text-text-secondary mt-1">Find and manage your assigned customers</p>
             <div className="mt-2">
               <ScopeIndicator showDetails={false} />
             </div>
             {/* Summary stats */}
-            <div className="mt-4 flex gap-4 text-sm">
+            <div className="mt-4 flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm">
               <div className="flex items-center gap-2">
-                <span className="text-text-secondary">Total Customers:</span>
+                <span className="text-text-secondary">Total:</span>
                 <span className="font-semibold text-text-primary">{customers.length}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -534,40 +536,42 @@ function SalesCustomersPageContent() {
               </Button>
             </div>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             <DateRangeFilter
               dateRange={dateRange}
               onDateRangeChange={setDateRange}
               placeholder="Filter by date range"
             />
             {/* Sales users do not need Trash */}
-            <Button className="btn-primary" size="sm" onClick={() => setModalOpen(true)}>
+            <Button className="btn-primary w-full sm:w-auto" size="sm" onClick={() => setModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              Add Customer
+              <span className="hidden sm:inline">Add Customer</span>
+              <span className="sm:hidden">Add</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setExportModalOpen(true)}>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setExportModalOpen(true)}>
               <Download className="w-4 h-4 mr-2" />
-              Export CSV
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">Export</span>
             </Button>
           </div>
         </div>
 
       {/* Removed: Date Filter Indicator card */}
 
-      <Card className="p-4 flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+      <Card className="p-3 sm:p-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row gap-2 flex-1">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search by name, email, or phone..."
-                className="pl-10 w-full"
+                className="pl-10 w-full text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <select
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -581,7 +585,127 @@ function SalesCustomersPageContent() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
+        {/* Mobile Card View */}
+        {isMobile ? (
+          <>
+            <div className="space-y-3">
+              {pagedCustomers.length > 0 ? (
+                pagedCustomers.map((customer) => {
+                  const isCurrentUserCustomer = customer.created_by?.id === user?.id;
+                  return (
+                    <Card
+                      key={customer.id}
+                      className={`p-4 cursor-pointer transition-all hover:shadow-md ${
+                        isCurrentUserCustomer ? 'border-l-4 border-l-orange-500 bg-orange-50' : ''
+                      }`}
+                      onClick={() => handleRowClick(customer)}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-base text-text-primary truncate">
+                              {formatCustomerName(customer)}
+                            </h3>
+                            {isCurrentUserCustomer && (
+                              <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs flex-shrink-0">
+                                My Customer
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="space-y-1.5 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-text-secondary font-medium">Phone:</span>
+                              <span className="text-text-primary">{customer.phone || '-'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-text-secondary font-medium">Status:</span>
+                              <Badge variant={getStatusBadgeVariant(customer.pipeline_stage || customer.status)} className="capitalize text-xs">
+                                {customer.pipeline_stage
+                                  ? (SALES_STAGE_LABELS[customer.pipeline_stage as keyof typeof SALES_STAGE_LABELS] || formatPipelineStage(customer.pipeline_stage))
+                                  : customer.status
+                                    ? customer.status.charAt(0).toUpperCase() + customer.status.slice(1)
+                                    : 'Unknown'
+                                }
+                              </Badge>
+                            </div>
+                            {customer.lead_source && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-text-secondary font-medium">Source:</span>
+                                <span className="text-text-primary">{customer.lead_source}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (customer.id) {
+                                handleViewCustomer(customer.id.toString());
+                              }
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditCustomer(customer);
+                            }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-text-secondary text-lg font-medium">
+                    {customers.length === 0 
+                      ? 'No customers found' 
+                      : 'No customers match your filters'}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Mobile Pagination - Inside Card, at bottom */}
+            {total > 0 && (
+              <div className="sticky bottom-16 bg-white border-t pt-3 pb-3 px-3 -mx-3 -mb-3 mt-4 z-10">
+                <div className="flex flex-col items-center gap-2 text-xs text-text-secondary">
+                  <div className="text-center">
+                    Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)} of {total}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="px-3 py-1.5 text-sm border rounded disabled:opacity-50 bg-white"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                    >
+                      Prev
+                    </button>
+                    <span className="px-3 text-sm font-medium">{page}/{totalPages}</span>
+                    <button
+                      className="px-3 py-1.5 text-sm border rounded disabled:opacity-50 bg-white"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
           {!isMobile && selectedIds.size > 0 && (
             <div className="flex items-center justify-between p-3 border-b bg-gray-50">
               <div className="text-sm text-text-secondary">Selected {selectedIds.size} customer(s)</div>
@@ -632,13 +756,17 @@ function SalesCustomersPageContent() {
                     />
                   </th>
                 )}
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Customer</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Phone</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Status</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Lead Source</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Created By</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Created</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Actions</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Customer</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Phone</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Status</th>
+                {!isTablet && (
+                  <>
+                    <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Lead Source</th>
+                    <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Created By</th>
+                    <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Created</th>
+                  </>
+                )}
+                <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -658,7 +786,7 @@ function SalesCustomersPageContent() {
                       }`}
                     >
                       {!isMobile && (
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-3 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={checked}
                             onCheckedChange={(val) => {
@@ -672,18 +800,18 @@ function SalesCustomersPageContent() {
                           />
                         </td>
                       )}
-                      <td className="px-4 py-3 font-medium text-text-primary">
+                      <td className="px-3 sm:px-4 py-3 font-medium text-text-primary text-sm">
                         <div className="flex items-center gap-2">
-                          <span>{formatCustomerName(customer)}</span>
+                          <span className="truncate">{formatCustomerName(customer)}</span>
                           {isCurrentUserCustomer && (
-                            <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs flex-shrink-0">
                               My Customer
                             </Badge>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-text-primary">{customer.phone || '-'}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 sm:px-4 py-3 text-text-primary text-sm">{customer.phone || '-'}</td>
+                      <td className="px-3 sm:px-4 py-3">
                         <Badge variant={getStatusBadgeVariant(customer.pipeline_stage || customer.status)} className="capitalize text-xs">
                           {customer.pipeline_stage
                             ? (SALES_STAGE_LABELS[customer.pipeline_stage as keyof typeof SALES_STAGE_LABELS] || formatPipelineStage(customer.pipeline_stage))
@@ -693,27 +821,31 @@ function SalesCustomersPageContent() {
                           }
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-text-secondary">
-                        {customer.lead_source || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-text-secondary">
-                        {customer.created_by ? (
-                          <span className={isCurrentUserCustomer ? 'font-semibold text-orange-600' : ''}>
-                            {`${customer.created_by.first_name || ''} ${customer.created_by.last_name || ''}`.trim() || customer.created_by.username || 'Unknown'}
-                          </span>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-text-secondary">
-                        {customer.created_at ? formatDate(customer.created_at) : '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
+                      {!isTablet && (
+                        <>
+                          <td className="px-3 sm:px-4 py-3 text-text-secondary text-sm">
+                            {customer.lead_source || '-'}
+                          </td>
+                          <td className="px-3 sm:px-4 py-3 text-text-secondary text-sm">
+                            {customer.created_by ? (
+                              <span className={isCurrentUserCustomer ? 'font-semibold text-orange-600' : ''}>
+                                {`${customer.created_by.first_name || ''} ${customer.created_by.last_name || ''}`.trim() || customer.created_by.username || 'Unknown'}
+                              </span>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td className="px-3 sm:px-4 py-3 text-text-secondary text-sm">
+                            {customer.created_at ? formatDate(customer.created_at) : '-'}
+                          </td>
+                        </>
+                      )}
+                      <td className="px-3 sm:px-4 py-3">
+                        <div className="flex gap-1 sm:gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-blue-600 hover:text-blue-800 h-8 w-8 p-0"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (customer.id) {
@@ -727,7 +859,7 @@ function SalesCustomersPageContent() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-green-600 hover:text-green-800"
+                            className="text-green-600 hover:text-green-800 h-8 w-8 p-0"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditCustomer(customer);
@@ -745,7 +877,7 @@ function SalesCustomersPageContent() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-600 hover:text-red-800"
+                              className="text-red-600 hover:text-red-800 h-8 w-8 p-0"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const customerIdStr = customer.id ? customer.id.toString() : null;
@@ -754,13 +886,13 @@ function SalesCustomersPageContent() {
                                 }
                               }}
                               disabled={deletingCustomer === customer.id?.toString()}
+                              title="Delete"
                             >
                               {deletingCustomer === customer.id?.toString() ? (
-                                <Skeleton className="w-4 h-4 mr-1 rounded" />
+                                <Skeleton className="w-4 h-4 rounded" />
                               ) : (
-                                <Trash2 className="w-4 h-4 mr-1" />
+                                <Trash2 className="w-4 h-4" />
                               )}
-                              {deletingCustomer === customer.id?.toString() ? 'Moving...' : 'Move to Trash'}
                             </Button>
                           )}
                         </div>
@@ -770,7 +902,7 @@ function SalesCustomersPageContent() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={isMobile ? 7 : 8} className="px-4 py-8 text-center">
+                  <td colSpan={isTablet ? 5 : 8} className="px-4 py-8 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="text-text-secondary text-lg font-medium">
                         {customers.length === 0 
@@ -824,34 +956,38 @@ function SalesCustomersPageContent() {
             </tbody>
           </table>
         </div>
+        )}
 
-        {total > 0 && (
-          <div className="flex flex-col md:flex-row items-center justify-between gap-3 py-3 text-sm text-text-secondary">
-            <div>
+        {/* Desktop/Tablet Pagination */}
+        {!isMobile && total > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 text-xs sm:text-sm text-text-secondary">
+            <div className="text-center sm:text-left">
               Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)} of {total} customers
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs">Rows per page</span>
-              <select
-                className="border rounded px-2 py-1 text-sm"
-                value={pageSize}
-                onChange={(e) => { setPageSize(parseInt(e.target.value) || 20); setPage(1); }}
-              >
-                {[10,20,50,100].map(n => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs">Rows per page</span>
+                <select
+                  className="border rounded px-2 py-1 text-xs sm:text-sm"
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(parseInt(e.target.value) || 20); setPage(1); }}
+                >
+                  {[10,20,50,100].map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </div>
               <div className="flex items-center gap-1">
                 <button
-                  className="px-2 py-1 border rounded disabled:opacity-50"
+                  className="px-2 py-1 text-xs sm:text-sm border rounded disabled:opacity-50"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page <= 1}
                 >
                   Prev
                 </button>
-                <span className="px-2">{page}/{totalPages}</span>
+                <span className="px-2 text-xs sm:text-sm">{page}/{totalPages}</span>
                 <button
-                  className="px-2 py-1 border rounded disabled:opacity-50"
+                  className="px-2 py-1 text-xs sm:text-sm border rounded disabled:opacity-50"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                 >
@@ -864,8 +1000,8 @@ function SalesCustomersPageContent() {
       </Card>
 
       {/* Mobile Floating Action Button */}
-      {isMobile && !modalOpen && (
-        <div className="fixed bottom-20 right-4 z-50">
+      {isMobile && !modalOpen && !detailModalOpen && !editModalOpen && (
+        <div className="fixed bottom-20 right-4 z-30">
           <Button
             onClick={() => setModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"

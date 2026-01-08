@@ -20,11 +20,12 @@ import { TableSkeleton } from '@/components/ui/skeleton';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
-import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 
 export default function ManagerCustomersPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   
   // Check if user can delete customers (only business admin)
   const canDeleteCustomers = user?.role === 'business_admin';
@@ -406,12 +407,12 @@ export default function ManagerCustomersPage() {
         onSuccess={handleExportSuccess}
       />
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+      <div className="flex flex-col gap-4 mb-2 pb-20 sm:pb-0">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">Customers</h1>
-          <p className="text-text-secondary mt-1">View and manage your store's customers</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-text-primary">Customers</h1>
+          <p className="text-sm sm:text-base text-text-secondary mt-1">View and manage your store's customers</p>
         </div>
-        <div className="flex gap-2 items-center flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <DateRangeFilter
             dateRange={filterType === 'all_customers' ? undefined : dateRange}
             onDateRangeChange={(newDateRange) => {
@@ -423,40 +424,43 @@ export default function ManagerCustomersPage() {
             showAllCustomers={false}
             placeholder="Filter by date range"
           />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setTrashModalOpen(true)}
-            className="text-orange-600 hover:text-orange-700"
-          >
-            <Archive className="w-4 h-4 mr-2" />
-            Trash
-          </Button>
-          <Button className="btn-primary" size="sm" onClick={() => setModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Customer
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
-            <Upload className="w-4 h-4 mr-2" />
-            Import
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setExportModalOpen(true)}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTrashModalOpen(true)}
+              className="text-orange-600 hover:text-orange-700 flex-1 sm:flex-none"
+            >
+              <Archive className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Trash</span>
+            </Button>
+            <Button className="btn-primary w-full sm:w-auto" size="sm" onClick={() => setModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Add Customer</span>
+              <span className="sm:hidden">Add</span>
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setImportModalOpen(true)}>
+              <Upload className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Import</span>
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setExportModalOpen(true)}>
+              <Download className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Removed: Date Filter Indicator card */}
 
-      <Card className="p-4 flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+      <Card className="p-3 sm:p-4 flex flex-col gap-4 mb-20 sm:mb-0">
+        <div className="flex flex-col gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row gap-2 flex-1">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search by name, email, or phone..."
-                className="pl-10 w-full"
+                className="pl-10 w-full text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -465,12 +469,12 @@ export default function ManagerCustomersPage() {
               variant={filterType === 'all_customers' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilterType('all_customers')}
-              className={filterType === 'all_customers' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
+              className={`${filterType === 'all_customers' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''} w-full sm:w-auto`}
             >
               All Customers
             </Button>
             <select
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -575,15 +579,15 @@ export default function ManagerCustomersPage() {
         </div>
 
         {filteredCustomers.length > 0 && (
-          <div className="text-sm text-text-secondary text-center py-2">
+          <div className="text-sm text-text-secondary text-center py-2 pb-6 sm:pb-2">
             Showing {filteredCustomers.length} of {customers.length} customers
           </div>
         )}
       </Card>
 
       {/* Mobile Floating Action Button */}
-      {isMobile && !modalOpen && (
-        <div className="fixed bottom-20 right-4 z-50">
+      {isMobile && !modalOpen && !detailModalOpen && !editModalOpen && (
+        <div className="fixed bottom-20 right-4 z-30">
           <Button
             onClick={() => setModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"

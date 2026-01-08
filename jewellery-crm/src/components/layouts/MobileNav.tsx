@@ -275,13 +275,14 @@ export function MobileNav({ className }: MobileNavProps) {
   };
 
   // Fully unmount when explicit hide flag is enabled (e.g., Add Customer full-screen modal)
+  // Hide completely if hideMobileNav is true
   if (hideMobileNav) {
     return null;
   }
 
   return (
     <nav className={cn(
-      'fixed bottom-0 left-0 right-0 z-50',
+      'fixed bottom-0 left-0 right-0 z-40',
       'bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border',
       'safe-area-bottom',
       'shadow-lg',

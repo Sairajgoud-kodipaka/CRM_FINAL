@@ -259,7 +259,10 @@ export function ResponsiveDialog({
   const shouldBeFullScreen = fullScreen || (isMobile && size === 'full');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className={cn(
+      "fixed inset-0 z-[100] flex items-center justify-center",
+      shouldBeFullScreen ? "p-0" : "p-4"
+    )}>
       {/* Backdrop */}
       <Backdrop onClick={handleBackdropClick} />
 
@@ -291,8 +294,8 @@ export function ResponsiveDialog({
           {/* Header */}
           {(title || showCloseButton) && (
             <div className={cn(
-              'flex items-center justify-between p-4 border-b border-border',
-              shouldBeFullScreen && 'p-6'
+              'flex items-center justify-between border-b border-border',
+              shouldBeFullScreen ? 'p-4 sm:p-6' : 'p-4'
             )}>
               <div className="flex-1 min-w-0">
                 {title && (
@@ -337,9 +340,10 @@ export function ResponsiveDialog({
           <div
             className={cn(
               'flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide',
-              shouldBeFullScreen ? 'p-6' : 'p-4',
+              shouldBeFullScreen ? 'p-4 sm:p-6' : 'p-4',
               // Add bottom padding to ensure content doesn't hide behind sticky buttons
-              'pb-20',
+              // Only add extra padding if there are action buttons
+              (actions || onConfirm || onCancel) ? 'pb-24' : 'pb-4',
               contentClassName
             )}
             onScroll={(e) => {
@@ -356,10 +360,11 @@ export function ResponsiveDialog({
           {(actions || onConfirm || onCancel) && (
             <div className={cn(
               'sticky bottom-0 bg-background border-t border-border',
-              'flex items-center justify-end gap-3 p-4',
-              shouldBeFullScreen ? 'p-6' : 'p-4',
-              // Ensure buttons are always visible
-              'z-10 shadow-lg'
+              'flex items-center justify-end gap-2 sm:gap-3 p-3 sm:p-4',
+              // Ensure buttons are always visible and above content
+              'z-20 shadow-lg',
+              // Safe area for mobile devices
+              'safe-area-bottom'
             )}>
               {actions || (
                 <>
