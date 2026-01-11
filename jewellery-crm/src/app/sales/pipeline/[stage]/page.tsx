@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, ArrowLeft, Target, Edit, User } from 'lucide-react';
+import { Search, ArrowLeft, Target, Edit, User, Users } from 'lucide-react';
 import { apiService } from '@/lib/api-service';
 import { useRouter, useParams } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -291,11 +291,6 @@ export default function SalesPipelineStagePage() {
     customer.phone?.includes(searchTerm)
   );
 
-  const totalValue = customers.reduce((sum, customer) => {
-    const value = customer.expected_value || 0;
-    return sum + value;
-  }, 0);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -331,32 +326,18 @@ export default function SalesPipelineStagePage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Customers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{customers.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Average Value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {customers.length > 0 ? formatCurrency(totalValue / customers.length) : formatCurrency(0)}
+      <div className="grid grid-cols-1 gap-4 max-w-sm">
+        <Card className="p-6 border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground mb-1">Total Customers</p>
+              <p className="text-3xl font-bold text-foreground">{customers.length}</p>
+              <p className="text-xs text-muted-foreground mt-1">in this pipeline stage</p>
             </div>
-          </CardContent>
+            <div className="p-3 bg-blue-50 rounded-full">
+              <Users className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
         </Card>
       </div>
 
