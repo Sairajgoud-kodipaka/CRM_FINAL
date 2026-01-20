@@ -22,6 +22,14 @@ interface Appointment {
   id: number;
   client: number;
   client_name?: string;
+  client_phone?: string;
+  client_sales_person_name?: string;
+  client_product_interests?: Array<{
+    id: number;
+    category: string;
+    product: string;
+    revenue: number;
+  }>;
   tenant: number;
   date: string;
   time: string;
@@ -582,7 +590,8 @@ export default function SalesAppointmentsPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Customer</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Date/Time</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Purpose</th>
+                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Sales Person</th>
+                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Product Interest</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Status</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Duration</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Actions</th>
@@ -626,8 +635,28 @@ export default function SalesAppointmentsPage() {
                         {formatDateTime(appointment.date, appointment.time)}
                       </td>
                       <td className="px-4 py-3 text-text-primary">
-                        <div className="max-w-xs truncate" title={appointment.purpose}>
-                          {cleanCustomerNameFromText(appointment.purpose)}
+                        <div className="max-w-xs truncate" title={appointment.client_sales_person_name || 'Not assigned'}>
+                          {appointment.client_sales_person_name || 'Not assigned'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-text-primary">
+                        <div className="max-w-xs">
+                          {appointment.client_product_interests && appointment.client_product_interests.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {appointment.client_product_interests.slice(0, 2).map((interest, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {interest.product || interest.category}
+                                </Badge>
+                              ))}
+                              {appointment.client_product_interests.length > 2 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{appointment.client_product_interests.length - 2}
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-sm">No interests</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3">

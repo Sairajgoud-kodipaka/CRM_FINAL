@@ -2767,6 +2767,17 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         """Filter appointments by user scope"""
         queryset = self.get_scoped_queryset(Appointment, is_deleted=False)
         
+        # Optimize queries for serializer fields (client relationships)
+        queryset = queryset.select_related(
+            'client',
+            'client__sales_person_id',
+            'client__assigned_to',
+            'client__created_by',
+            'assigned_to',
+            'created_by',
+            'tenant'
+        ).prefetch_related('client__interests__category', 'client__interests__product')
+        
         # Filter by status
         status_filter = self.request.query_params.get('status')
         if status_filter:

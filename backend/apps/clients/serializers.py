@@ -1795,6 +1795,8 @@ class ClientInteractionSerializer(serializers.ModelSerializer):
 class AppointmentSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
     client_phone = serializers.SerializerMethodField()
+    client_sales_person_name = serializers.SerializerMethodField()
+    client_product_interests = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     assigned_to_name = serializers.CharField(source='assigned_to.get_full_name', read_only=True)
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
@@ -1813,6 +1815,53 @@ class AppointmentSerializer(serializers.ModelSerializer):
         if obj.client and hasattr(obj.client, 'phone'):
             return obj.client.phone or ''
         return ''
+    
+    def get_client_sales_person_name(self, obj):
+        """Get the sales person name for the customer (assigned_to or sales_person_id)"""
+        if not obj.client:
+            return ''
+        
+        # Try sales_person_id first (most specific)
+        if hasattr(obj.client, 'sales_person_id') and obj.client.sales_person_id:
+            if hasattr(obj.client.sales_person_id, 'get_full_name'):
+                return obj.client.sales_person_id.get_full_name()
+            elif hasattr(obj.client.sales_person_id, 'username'):
+                return obj.client.sales_person_id.username
+        
+        # Fallback to assigned_to
+        if hasattr(obj.client, 'assigned_to') and obj.client.assigned_to:
+            if hasattr(obj.client.assigned_to, 'get_full_name'):
+                return obj.client.assigned_to.get_full_name()
+            elif hasattr(obj.client.assigned_to, 'username'):
+                return obj.client.assigned_to.username
+        
+        # Fallback to created_by
+        if hasattr(obj.client, 'created_by') and obj.client.created_by:
+            if hasattr(obj.client.created_by, 'get_full_name'):
+                return obj.client.created_by.get_full_name()
+            elif hasattr(obj.client.created_by, 'username'):
+                return obj.client.created_by.username
+        
+        return ''
+    
+    def get_client_product_interests(self, obj):
+        """Get product interests for the customer"""
+        if not obj.client or not hasattr(obj.client, 'interests'):
+            return []
+        
+        try:
+            interests = obj.client.interests.all()[:5]  # Limit to 5 for display
+            return [
+                {
+                    'id': interest.id,
+                    'category': interest.category.name if interest.category else '',
+                    'product': interest.product.name if interest.product else '',
+                    'revenue': float(interest.revenue) if interest.revenue else 0
+                }
+                for interest in interests
+            ]
+        except Exception:
+            return []
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

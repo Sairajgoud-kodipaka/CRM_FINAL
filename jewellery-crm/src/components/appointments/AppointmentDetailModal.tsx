@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
-import { Calendar, Clock, User, MapPin, FileText, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Calendar, Clock, User, MapPin, FileText, CheckCircle, XCircle, AlertCircle, Eye } from "lucide-react";
 import { Appointment, apiService } from "@/lib/api-service";
+import { CustomerDetailModal } from "@/components/customers/CustomerDetailModal";
 
 interface AppointmentDetailModalProps {
   appointment: Appointment | null;
@@ -28,6 +29,7 @@ export function AppointmentDetailModal({ appointment, open, onClose, openInEditM
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(openInEditMode);
+  const [showCustomerDetailModal, setShowCustomerDetailModal] = useState(false);
   const [outcomeNotes, setOutcomeNotes] = useState('');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
@@ -441,10 +443,21 @@ export function AppointmentDetailModal({ appointment, open, onClose, openInEditM
 
           {/* Customer Information */}
           <Card className="p-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Customer Information
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Customer Information
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCustomerDetailModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                Show Customer Detail
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="text-sm font-medium text-gray-600">Customer Name</label>
@@ -672,9 +685,22 @@ export function AppointmentDetailModal({ appointment, open, onClose, openInEditM
              >
                {loading ? 'Updating...' : 'Update Appointment'}
              </Button>
-           </DialogFooter>
-         </DialogContent>
-       </Dialog>
-     </>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer Detail Modal */}
+      {appointment && (
+        <CustomerDetailModal
+          open={showCustomerDetailModal}
+          onClose={() => setShowCustomerDetailModal(false)}
+          customerId={appointment.client.toString()}
+          onEdit={() => {
+            // Edit functionality - just close the modal
+            setShowCustomerDetailModal(false);
+          }}
+        />
+      )}
+    </>
   );
 }

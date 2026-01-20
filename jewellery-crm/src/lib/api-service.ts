@@ -290,6 +290,13 @@ interface Appointment {
   client: number;
   client_name?: string;
   client_phone?: string;
+  client_sales_person_name?: string;
+  client_product_interests?: Array<{
+    id: number;
+    category: string;
+    product: string;
+    revenue: number;
+  }>;
   tenant: number;
   date: string;
   time: string;
