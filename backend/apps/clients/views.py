@@ -2778,10 +2778,14 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
             'tenant'
         ).prefetch_related('client__interests__category', 'client__interests__product')
         
-        # Filter by status
+        # Exclude rescheduled appointments by default (they are replaced by new appointments)
+        # Only include them if explicitly requested via status filter
         status_filter = self.request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
+        else:
+            # Default: exclude rescheduled appointments
+            queryset = queryset.exclude(status=Appointment.Status.RESCHEDULED)
         
         # Filter by date range
         start_date = self.request.query_params.get('start_date')

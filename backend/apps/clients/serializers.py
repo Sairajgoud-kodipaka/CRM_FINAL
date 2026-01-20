@@ -1818,48 +1818,81 @@ class AppointmentSerializer(serializers.ModelSerializer):
     
     def get_client_sales_person_name(self, obj):
         """Get the sales person name for the customer (assigned_to or sales_person_id)"""
-        if not obj.client:
-            return ''
-        
-        # Try sales_person_id first (most specific)
-        if hasattr(obj.client, 'sales_person_id') and obj.client.sales_person_id:
-            if hasattr(obj.client.sales_person_id, 'get_full_name'):
-                return obj.client.sales_person_id.get_full_name()
-            elif hasattr(obj.client.sales_person_id, 'username'):
-                return obj.client.sales_person_id.username
-        
-        # Fallback to assigned_to
-        if hasattr(obj.client, 'assigned_to') and obj.client.assigned_to:
-            if hasattr(obj.client.assigned_to, 'get_full_name'):
-                return obj.client.assigned_to.get_full_name()
-            elif hasattr(obj.client.assigned_to, 'username'):
-                return obj.client.assigned_to.username
-        
-        # Fallback to created_by
-        if hasattr(obj.client, 'created_by') and obj.client.created_by:
-            if hasattr(obj.client.created_by, 'get_full_name'):
-                return obj.client.created_by.get_full_name()
-            elif hasattr(obj.client.created_by, 'username'):
-                return obj.client.created_by.username
+        try:
+            if not obj.client:
+                return ''
+            
+            # Try sales_person_id first (most specific)
+            if hasattr(obj.client, 'sales_person_id') and obj.client.sales_person_id:
+                try:
+                    if hasattr(obj.client.sales_person_id, 'get_full_name'):
+                        name = obj.client.sales_person_id.get_full_name()
+                        if name:
+                            return name
+                except:
+                    pass
+                try:
+                    if hasattr(obj.client.sales_person_id, 'username'):
+                        return obj.client.sales_person_id.username
+                except:
+                    pass
+            
+            # Fallback to assigned_to
+            if hasattr(obj.client, 'assigned_to') and obj.client.assigned_to:
+                try:
+                    if hasattr(obj.client.assigned_to, 'get_full_name'):
+                        name = obj.client.assigned_to.get_full_name()
+                        if name:
+                            return name
+                except:
+                    pass
+                try:
+                    if hasattr(obj.client.assigned_to, 'username'):
+                        return obj.client.assigned_to.username
+                except:
+                    pass
+            
+            # Fallback to created_by
+            if hasattr(obj.client, 'created_by') and obj.client.created_by:
+                try:
+                    if hasattr(obj.client.created_by, 'get_full_name'):
+                        name = obj.client.created_by.get_full_name()
+                        if name:
+                            return name
+                except:
+                    pass
+                try:
+                    if hasattr(obj.client.created_by, 'username'):
+                        return obj.client.created_by.username
+                except:
+                    pass
+        except Exception:
+            pass
         
         return ''
     
     def get_client_product_interests(self, obj):
         """Get product interests for the customer"""
-        if not obj.client or not hasattr(obj.client, 'interests'):
-            return []
-        
         try:
+            if not obj.client:
+                return []
+            
+            if not hasattr(obj.client, 'interests'):
+                return []
+            
             interests = obj.client.interests.all()[:5]  # Limit to 5 for display
-            return [
-                {
-                    'id': interest.id,
-                    'category': interest.category.name if interest.category else '',
-                    'product': interest.product.name if interest.product else '',
-                    'revenue': float(interest.revenue) if interest.revenue else 0
-                }
-                for interest in interests
-            ]
+            result = []
+            for interest in interests:
+                try:
+                    result.append({
+                        'id': interest.id,
+                        'category': interest.category.name if interest.category and hasattr(interest.category, 'name') else '',
+                        'product': interest.product.name if interest.product and hasattr(interest.product, 'name') else '',
+                        'revenue': float(interest.revenue) if interest.revenue else 0
+                    })
+                except Exception:
+                    continue
+            return result
         except Exception:
             return []
 
