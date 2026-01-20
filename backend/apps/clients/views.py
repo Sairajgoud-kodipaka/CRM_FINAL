@@ -2784,8 +2784,8 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         else:
-            # Default: exclude rescheduled appointments
-            queryset = queryset.exclude(status=Appointment.Status.RESCHEDULED)
+            # Default: exclude rescheduled appointments (use string value to ensure it works)
+            queryset = queryset.exclude(status='rescheduled')
         
         # Filter by date range
         start_date = self.request.query_params.get('start_date')

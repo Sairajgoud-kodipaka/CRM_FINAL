@@ -1805,6 +1805,17 @@ class AppointmentSerializer(serializers.ModelSerializer):
         model = Appointment
         fields = '__all__'
         read_only_fields = ['tenant', 'created_by', 'created_at', 'updated_at', 'is_deleted', 'deleted_at']
+    
+    def get_fields(self):
+        """Ensure SerializerMethodField fields are included in the serializer"""
+        fields = super().get_fields()
+        # Explicitly ensure our custom SerializerMethodField fields are included
+        # This is a safeguard to ensure they're always in the output
+        if 'client_sales_person_name' not in fields:
+            fields['client_sales_person_name'] = serializers.SerializerMethodField()
+        if 'client_product_interests' not in fields:
+            fields['client_product_interests'] = serializers.SerializerMethodField()
+        return fields
 
     def get_client_name(self, obj):
         if hasattr(obj.client, 'full_name'):
