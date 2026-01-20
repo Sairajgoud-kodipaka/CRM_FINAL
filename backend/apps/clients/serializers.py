@@ -1869,6 +1869,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         data['is_upcoming'] = instance.is_upcoming
         data['is_today'] = instance.is_today
         data['is_overdue'] = instance.is_overdue
+        # Explicitly ensure SerializerMethodField fields are included
+        data['client_sales_person_name'] = self.get_client_sales_person_name(instance)
+        data['client_product_interests'] = self.get_client_product_interests(instance)
         return data
 
 
