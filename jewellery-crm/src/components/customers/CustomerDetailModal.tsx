@@ -122,9 +122,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
       
       try {
         response = await apiService.getClient(customerId, false, true);
-        console.log('🔍 CustomerDetailModal - Cross-store response:', response);
       } catch (crossStoreError) {
-        console.log('🔍 CustomerDetailModal - Cross-store error, trying regular endpoint...', crossStoreError);
         try {
           response = await apiService.getClient(customerId);
         } catch (regularError) {
@@ -135,7 +133,6 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
       
       // If cross-store fails, try regular endpoint as fallback
       if (!response || !response.success || !response.data) {
-        console.log('🔍 CustomerDetailModal - Cross-store response invalid, trying regular endpoint...', response);
         try {
           response = await apiService.getClient(customerId);
         } catch (regularError) {
@@ -206,8 +203,6 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
       setJourneyLoading(true);
       const response = await apiService.getCustomerJourney(customerId);
       
-      console.log('🔍 Journey API Response:', response);
-      
       if (response.success && response.data) {
         // Backend returns: { success: true, data: journey_items, customer: {...} }
         // API service returns it as-is, so response.data = { success: true, data: journey_items, customer: {...} }
@@ -225,8 +220,6 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
           }
         }
         
-        console.log('✅ Journey Items Count:', journeyItems.length);
-        console.log('✅ Journey Items:', journeyItems);
         setJourneyData(journeyItems);
       } else {
         console.warn('⚠️ Journey response not successful:', response);
@@ -243,7 +236,6 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   // Fetch journey when journey tab is activated
   useEffect(() => {
     if (activeTab === 'journey' && customerId && !journeyLoading) {
-      console.log('🔍 Fetching journey for customer:', customerId);
       fetchCustomerJourney();
     }
   }, [activeTab, customerId]);
@@ -1137,16 +1129,6 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                     const revenue = parsedInterest.revenue || '0';
                     const designNumber = parsedInterest.designNumber || '';
                     const images = parsedInterest.images || [];
-                    
-                    // Debug: Log to see what we're getting
-                    console.log('Interest data:', {
-                      index,
-                      parsedInterest,
-                      designNumber,
-                      images,
-                      hasDesignNumber: !!designNumber,
-                      notes: parsedInterest.notes
-                    });
 
                     // Handle new backend format (single product per interest)
                     const singleProduct = parsedInterest.product;

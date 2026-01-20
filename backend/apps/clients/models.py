@@ -519,6 +519,8 @@ class Appointment(models.Model):
         self.status = self.Status.RESCHEDULED
         if reason:
             self.notes = f"{self.notes or ''}\n\nReschedule reason: {reason}"
+        # Save the old appointment with RESCHEDULED status
+        self.save(update_fields=['status', 'notes'])
         # Create a new appointment with the new date/time
         new_appointment = Appointment.objects.create(
             client=self.client,

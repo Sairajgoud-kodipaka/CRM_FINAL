@@ -118,11 +118,19 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ onClose })
       return notifications;
     }
 
-    // Manager can see their store's notifications
+    // Manager can see their store's notifications and their own
     if (user.role === 'manager') {
       const filtered = notifications.filter(notification =>
         notification.tenantId === user.tenant?.toString() &&
-        (!notification.storeId || notification.storeId === user.store?.toString())
+        (
+          // Show if it's their own notification
+          notification.userId === user.id.toString() ||
+          // OR if it's for their store (storeId matches or is null)
+          (!notification.storeId || 
+           notification.storeId === user.store?.toString() ||
+           notification.storeId === user.store?.id?.toString() ||
+           String(notification.storeId) === String(user.store?.id))
+        )
       );
 
       return filtered;

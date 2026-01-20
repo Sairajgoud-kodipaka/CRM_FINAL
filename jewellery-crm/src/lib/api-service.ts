@@ -1090,19 +1090,16 @@ class ApiService {
     // Use cross-store endpoint if needed (for fetching customers from different stores)
     if (crossStore) {
       const response = await this.request<{ success: boolean; data: Client }>(`/clients/clients/${id}/cross-store/`);
-      console.log('🔍 getClient (cross-store) - Full response:', JSON.stringify(response, null, 2));
       
       // The backend returns { success: True, data: serializer.data }
       // The request method wraps it, so we get { success: true, data: { success: true, data: Client } }
       if (response.success && response.data) {
         const responseData = response.data as any;
-        console.log('🔍 getClient (cross-store) - Response data:', responseData);
         
         // Check if response.data itself has a nested structure
         if (responseData && typeof responseData === 'object') {
           // If responseData has 'data' property, it's nested: { success: true, data: { success: true, data: Client } }
           if ('data' in responseData && responseData.data) {
-            console.log('🔍 getClient (cross-store) - Nested data found, extracting:', responseData.data);
             return {
               success: true,
               data: responseData.data as Client,
@@ -1111,7 +1108,6 @@ class ApiService {
           }
           // If responseData has 'id' property, it's the Client object directly: { success: true, data: Client }
           else if ('id' in responseData) {
-            console.log('🔍 getClient (cross-store) - Direct Client object found');
             return {
               success: true,
               data: responseData as Client,
@@ -1223,12 +1219,6 @@ class ApiService {
     if (!('customer_interests_input' in cleaned)) {
       cleaned.customer_interests_input = preservedInterests !== undefined ? preservedInterests : [];
     }
-    
-    console.log('🔍 createClient - Request body:', {
-      ...cleaned,
-      customer_interests_input: cleaned.customer_interests_input,
-      customer_interests_input_length: Array.isArray(cleaned.customer_interests_input) ? cleaned.customer_interests_input.length : 0
-    });
 
     const response = await this.request<Client>('/clients/clients/', {
       method: 'POST',
@@ -1261,14 +1251,10 @@ class ApiService {
       endpoint = `/clients/clients/${id}/`;
     }
     
-    console.log('🔍 updateClient - ID:', id, 'crossStore:', crossStore, 'Endpoint:', endpoint);
-    
     const response = await this.request<Client>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(clientData),
     });
-    
-    console.log('🔍 updateClient - Response:', response);
 
     // Handle cross-store response format
     if (crossStore && response.success && response.data) {
@@ -1488,12 +1474,6 @@ class ApiService {
         ? leadData.customer_interests_input 
         : (leadData.customer_interests_input ? [leadData.customer_interests_input] : [])
     };
-    
-    console.log('🔍 createExhibitionLead - Request body:', {
-      ...requestBody,
-      customer_interests_input: requestBody.customer_interests_input,
-      customer_interests_input_length: requestBody.customer_interests_input?.length || 0
-    });
     
     return this.request('/clients/clients/', {
       method: 'POST',
@@ -2400,6 +2380,11 @@ class ApiService {
     end_date?: string;
     status?: string;
     store?: string;
+    lead_source?: string;
+    created_by?: string;
+    search?: string;
+    exhibition?: string;
+    product?: string;
   }): Promise<ApiResponse<any>> {
     // Use the correct endpoint based on format
     // Custom path in urls.py: 'clients/export/csv/' 
@@ -2435,6 +2420,21 @@ class ApiService {
     }
     if (params.store) {
       queryParams.append('store', params.store);
+    }
+    if (params.lead_source) {
+      queryParams.append('lead_source', params.lead_source);
+    }
+    if (params.created_by) {
+      queryParams.append('created_by', params.created_by);
+    }
+    if (params.search) {
+      queryParams.append('search', params.search);
+    }
+    if (params.exhibition) {
+      queryParams.append('exhibition', params.exhibition);
+    }
+    if (params.product) {
+      queryParams.append('product', params.product);
     }
 
     const url = queryParams.toString() ? `${endpoint}?${queryParams}` : endpoint;

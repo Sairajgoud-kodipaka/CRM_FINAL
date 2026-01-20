@@ -137,7 +137,7 @@ export default function BusinessAdminAppointmentsPage() {
       }
 
       // Show past appointments only if they&apos;re incomplete and user wants to see overdue
-      if (showOverdue && appointment.status !== 'completed' && appointment.status !== 'cancelled') {
+      if (showOverdue && appointment.status !== 'completed' && appointment.status !== 'cancelled' && appointment.status !== 'rescheduled') {
         return true;
       }
 
@@ -182,7 +182,7 @@ export default function BusinessAdminAppointmentsPage() {
 
     const overdueAppointments = appointmentsArray.filter(a => {
       const appointmentDate = new Date(a.date);
-      return appointmentDate < today && a.status !== 'completed' && a.status !== 'cancelled';
+      return appointmentDate < today && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'rescheduled';
     }).length;
 
     setStats({
@@ -336,7 +336,7 @@ export default function BusinessAdminAppointmentsPage() {
     const appointmentDate = new Date(appointment.date);
     const appointmentDateTime = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
 
-    return appointmentDateTime < today && appointment.status !== 'completed' && appointment.status !== 'cancelled';
+    return appointmentDateTime < today && appointment.status !== 'completed' && appointment.status !== 'cancelled' && appointment.status !== 'rescheduled';
   };
 
   const isAppointmentToday = (appointment: Appointment) => {

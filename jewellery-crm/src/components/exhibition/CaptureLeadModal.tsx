@@ -517,7 +517,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit, exhibition
               <SelectTrigger>
                 <SelectValue placeholder="Select customer type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[250]">
                 <SelectItem value="individual">Individual</SelectItem>
                 <SelectItem value="business">Business</SelectItem>
                 <SelectItem value="wholesale">Wholesale</SelectItem>
@@ -583,7 +583,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit, exhibition
                       <SelectTrigger>
                         <SelectValue placeholder="Select Category" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[250]">
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.name}>
                             {category.name}
@@ -619,7 +619,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit, exhibition
                       <SelectTrigger>
                         <SelectValue placeholder="Select Product" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[250]">
                         {productsLoading ? (
                           <div className="px-2 py-1.5 text-sm text-gray-500">Loading products...</div>
                         ) : products.length > 0 ? (
@@ -798,7 +798,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit, exhibition
                         : "Select exhibition (optional)"
                     } />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[250]">
                     {exhibitionsLoading ? (
                       <div className="px-2 py-1.5 text-sm text-gray-500">Loading exhibitions...</div>
                     ) : availableExhibitions.length > 0 ? (
@@ -833,7 +833,7 @@ export default function CaptureLeadModal({ isOpen, onClose, onSubmit, exhibition
                 <SelectTrigger>
                   <SelectValue placeholder="Select exhibition tag (optional)" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[250]">
                   {exhibitionTags.length > 0 ? (
                     exhibitionTags.map((tag) => (
                       <SelectItem key={tag.id} value={tag.id.toString()}>

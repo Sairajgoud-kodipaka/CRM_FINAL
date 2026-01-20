@@ -651,9 +651,25 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         
         # Create notifications for new customer using the actual creator
         # Only create if this is a new customer (not an update)
+        # Use a more robust check to prevent multiple calls
         if not hasattr(instance, '_notifications_created'):
-            self.create_customer_notifications(instance, created_by_user)
-            instance._notifications_created = True
+            # Check database first to see if notifications already exist
+            from apps.notifications.models import Notification
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            recent_cutoff = timezone.now() - timedelta(seconds=60)
+            existing = Notification.objects.filter(
+                type='new_customer',
+                metadata__customer_id=instance.id,
+                created_at__gte=recent_cutoff
+            ).exists()
+            
+            if not existing:
+                self.create_customer_notifications(instance, created_by_user)
+                instance._notifications_created = True
+            else:
+                print(f"⚠️  Notifications already exist in DB for customer {instance.id} - skipping create_customer_notifications call")
         
         return instance
     
@@ -664,6 +680,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             from apps.users.models import User
             from django.utils import timezone
             from datetime import timedelta
+            from django.db import transaction
             
             print(f"=== CREATING CUSTOMER NOTIFICATIONS ===")
             print(f"Client: {client.first_name} {client.last_name} (ID: {client.id})")
@@ -673,148 +690,149 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             print(f"Created by user tenant: {created_by_user.tenant}")
             print(f"Created by user store: {created_by_user.store}")
             
-            # Check if notifications already exist for this customer creation (prevent duplicates)
-            # Check for notifications created in the last 5 seconds for this customer
-            recent_cutoff = timezone.now() - timedelta(seconds=5)
-            existing_notifications = Notification.objects.filter(
-                type='new_customer',
-                metadata__customer_id=client.id,
-                created_at__gte=recent_cutoff
-            ).exists()
-            
-            if existing_notifications:
-                print(f"⚠️  Notifications already exist for customer {client.id} - skipping to prevent duplicates")
-                return
-            
-            # Get all users who should receive notifications
-            users_to_notify = []
-            
-            # The user who created the customer should get notified
-            users_to_notify.append(created_by_user)
-            print(f"Added creator: {created_by_user.username}")
-            
-            # Business admin should always get notified
-            if created_by_user.tenant:
-                business_admins = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='business_admin',
-                    is_active=True
-                )
-                print(f"Found {business_admins.count()} business admins: {[f'{admin.username} (active: {admin.is_active})' for admin in business_admins]}")
-                users_to_notify.extend(business_admins)
-            
-            # Store users should get notified if customer is assigned to their store
-            if client.store:
-                print(f"Client has store: {client.store.name}")
-                
-                # Store manager
-                store_managers = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='manager',
-                    store=client.store,
-                    is_active=True
-                )
-                # print(f"Found {store_managers.count()} store managers")
-                users_to_notify.extend(store_managers)
-            
-                # In-house sales users
-                inhouse_sales_users = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='inhouse_sales',
-                    store=client.store,
-                    is_active=True
-                )
-                inhouse_sales_info = [f'{user.username} (store: {user.store.name if user.store else "None"})' for user in inhouse_sales_users]
-                print(f"Found {inhouse_sales_users.count()} inhouse sales users: {inhouse_sales_info}")
-                users_to_notify.extend(inhouse_sales_users)
-                
-                # Tele-calling users
-                telecalling_users = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='tele_calling',
-                    store=client.store,
-                    is_active=True
-                )
-                telecalling_info = [f'{user.username} (store: {user.store.name if user.store else "None"})' for user in telecalling_users]
-                print(f"Found {telecalling_users.count()} telecalling users: {telecalling_info}")
-                users_to_notify.extend(telecalling_users)
-                
-                # Marketing users (they might need to know about new customers for campaigns)
-                marketing_users = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='marketing',
-                    store=client.store,
-                    is_active=True
-                )
-                marketing_info = [f'{user.username} (store: {user.store.name if user.store else "None"})' for user in marketing_users]
-                print(f"Found {marketing_users.count()} marketing users: {marketing_info}")
-                users_to_notify.extend(marketing_users)
-            else:
-                print(f"Client has NO store assigned - store users won't be notified")
-                
-                # If client has no store, notify all managers in the tenant
-                all_managers = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='manager',
-                    is_active=True
-                )
-                managers_info = [f'{manager.username} (store: {manager.store.name if manager.store else "None"})' for manager in all_managers]
-                print(f"Found {all_managers.count()} managers in tenant (no store): {managers_info}")
-                users_to_notify.extend(all_managers)
-            
-            # Remove duplicates (in case created_by_user has multiple roles or is in multiple categories)
-            unique_users = list({user.id: user for user in users_to_notify}.values())
-            print(f"Total users to notify (before deduplication): {len(users_to_notify)}")
-            print(f"Unique users to notify (after deduplication): {len(unique_users)}")
-            
-            # Create notifications for each user
-            # Use get_or_create to prevent duplicates
-            notifications_created = 0
-            for user in unique_users:
-                # Check if notification already exists for this user and customer (within last 10 seconds to prevent duplicates)
-                from django.utils import timezone
-                from datetime import timedelta
-                recent_cutoff = timezone.now() - timedelta(seconds=10)
-                
-                existing = Notification.objects.filter(
-                    user=user,
-                    tenant=client.tenant,
+            # Use database transaction with SELECT FOR UPDATE to prevent race conditions
+            with transaction.atomic():
+                # Use select_for_update to lock the row and prevent concurrent execution
+                # Check if notifications already exist for this customer creation (prevent duplicates)
+                # Check for notifications created in the last 120 seconds for this customer
+                recent_cutoff = timezone.now() - timedelta(seconds=120)
+                existing_notifications = Notification.objects.filter(
                     type='new_customer',
                     metadata__customer_id=client.id,
                     created_at__gte=recent_cutoff
-                ).first()
+                ).select_for_update().count()
                 
-                if existing:
-                    print(f"⚠️  Notification already exists (ID: {existing.id}) for user {user.username} and customer {client.id} - skipping")
-                    continue
+                if existing_notifications > 0:
+                    print(f"⚠️  Notifications already exist ({existing_notifications}) for customer {client.id} - skipping to prevent duplicates")
+                    return
                 
-                # Use get_or_create to prevent race conditions
-                notification, created = Notification.objects.get_or_create(
-                    user=user,
-                    tenant=client.tenant,
-                    type='new_customer',
-                    metadata__customer_id=client.id,
-                    defaults={
-                        'store': client.store,
-                        'title': 'New customer registered',
-                        'message': f'{client.first_name} {client.last_name} has been registered as a new customer by {created_by_user.first_name or created_by_user.username}',
-                        'priority': 'medium',
-                        'status': 'unread',
-                        'action_url': f'/customers/{client.id}',
-                        'action_text': 'View Customer',
-                        'is_persistent': False,
-                        'metadata': {'customer_id': client.id, 'created_by_user_id': created_by_user.id}
-                    }
-                )
+                # Get all users who should receive notifications
+                users_to_notify = []
                 
-                if created:
-                    notifications_created += 1
-                    print(f"Created notification {notification.id} for user {user.username} (role: {user.role})")
+                # The user who created the customer should get notified
+                users_to_notify.append(created_by_user)
+                print(f"Added creator: {created_by_user.username}")
+                
+                # Business admin should always get notified
+                if created_by_user.tenant:
+                    business_admins = User.objects.filter(
+                        tenant=created_by_user.tenant,
+                        role='business_admin',
+                        is_active=True
+                    )
+                    print(f"Found {business_admins.count()} business admins: {[f'{admin.username} (active: {admin.is_active})' for admin in business_admins]}")
+                    users_to_notify.extend(business_admins)
+                
+                # Determine which store to use for notifications
+                # Use customer's store if available, otherwise use the sales person's store
+                notification_store = client.store if client.store else created_by_user.store
+                print(f"🔍 Notification store determination:")
+                print(f"   Client store: {client.store.name if client.store else 'None'}")
+                print(f"   Sales person store: {created_by_user.store.name if created_by_user.store else 'None'}")
+                print(f"   Using store: {notification_store.name if notification_store else 'None'}")
+                
+                # Store users should get notified if customer is assigned to their store OR if sales person has a store
+                if notification_store:
+                    print(f"✅ Using store for notifications: {notification_store.name} (from {'customer' if client.store else 'sales person'})")
+                    
+                    # Store manager - notify manager of the store
+                    # IMPORTANT: Use store_id instead of store object to ensure proper matching
+                    store_managers = User.objects.filter(
+                        tenant=created_by_user.tenant,
+                        role='manager',
+                        store_id=notification_store.id,
+                        is_active=True
+                    ).select_related('store', 'tenant')
+                    
+                    managers_info = [f'{manager.username} (store: {manager.store.name if manager.store else "None"}, store_id: {manager.store.id if manager.store else "None"})' for manager in store_managers]
+                    print(f"🔍 Manager query details:")
+                    print(f"   Tenant: {created_by_user.tenant} (ID: {created_by_user.tenant.id if created_by_user.tenant else 'None'})")
+                    print(f"   Role: manager")
+                    print(f"   Store ID: {notification_store.id}")
+                    print(f"   Store Name: {notification_store.name}")
+                    print(f"   Is Active: True")
+                    print(f"✅ Found {store_managers.count()} store managers: {managers_info}")
+                    
+                    if store_managers.count() == 0:
+                        # Debug: Check if any managers exist for this tenant at all
+                        all_tenant_managers = User.objects.filter(
+                            tenant=created_by_user.tenant,
+                            role='manager',
+                            is_active=True
+                        ).select_related('store')
+                        print(f"⚠️  WARNING: No managers found for store {notification_store.name}!")
+                        print(f"   Total managers in tenant: {all_tenant_managers.count()}")
+                        for mgr in all_tenant_managers:
+                            print(f"   - {mgr.username} (store: {mgr.store.name if mgr.store else 'None'}, store_id: {mgr.store.id if mgr.store else 'None'})")
+                    else:
+                        users_to_notify.extend(store_managers)
+                
+                    # NOTE: We do NOT notify all inhouse_sales, telecalling, or marketing users
+                    # Only the creator, business admin, and manager should be notified
+                    # This prevents spam notifications to all store employees
                 else:
-                    print(f"Notification already exists (ID: {notification.id}) for user {user.username} and customer {client.id} - skipped")
-            
-            print(f"Created {notifications_created} notifications for new customer {client.first_name} {client.last_name} (ID: {client.id})")
-            print(f"Users notified: {[f'{user.username} ({user.role})' for user in unique_users]}")
+                    print(f"⚠️  Neither customer nor sales person has a store assigned - only business admin will be notified")
+                
+                # Remove duplicates (in case created_by_user has multiple roles or is in multiple categories)
+                unique_users = list({user.id: user for user in users_to_notify}.values())
+                print(f"Total users to notify (before deduplication): {len(users_to_notify)}")
+                print(f"Unique users to notify (after deduplication): {len(unique_users)}")
+                
+                # Create notifications for each user
+                # Use atomic transaction to prevent duplicates
+                notifications_created = 0
+                
+                for user in unique_users:
+                    # Check if notification already exists for this user and customer (within last 120 seconds)
+                    recent_cutoff = timezone.now() - timedelta(seconds=120)
+                    
+                    # Use select_for_update to lock and prevent duplicates
+                    existing = Notification.objects.filter(
+                        user=user,
+                        tenant=client.tenant,
+                        type='new_customer',
+                        metadata__customer_id=client.id,
+                        created_at__gte=recent_cutoff
+                    ).select_for_update().first()
+                    
+                    if existing:
+                        print(f"⚠️  Notification already exists (ID: {existing.id}) for user {user.username} and customer {client.id} - skipping")
+                        continue
+                    
+                    # Create notification directly (we're already in a transaction with lock)
+                    try:
+                        # IMPORTANT: Ensure we're using the correct user object, not a stale reference
+                        notification_user = user
+                        print(f"🔔 Creating notification for user: {notification_user.id} ({notification_user.username}, role: {notification_user.role})")
+                        
+                        notification = Notification.objects.create(
+                            user=notification_user,
+                            tenant=client.tenant,
+                            store=notification_store,
+                            type='new_customer',
+                            title='New customer registered',
+                            message=f'{client.first_name} {client.last_name} has been registered as a new customer by {created_by_user.first_name or created_by_user.username}',
+                            priority='medium',
+                            status='unread',
+                            action_url=f'/customers/{client.id}',
+                            action_text='View Customer',
+                            is_persistent=False,
+                            metadata={'customer_id': client.id, 'created_by_user_id': created_by_user.id}
+                        )
+                        
+                        # Verify the notification was created with the correct user
+                        notification.refresh_from_db()
+                        print(f"✅ Created notification {notification.id} for user {notification.user.id} ({notification.user.username}, role: {notification.user.role})")
+                        print(f"   Notification details: user_id={notification.user.id}, tenant_id={notification.tenant.id}, store_id={notification.store.id if notification.store else None}")
+                        
+                        notifications_created += 1
+                    except Exception as create_error:
+                        print(f"❌ Error creating notification for user {user.username}: {create_error}")
+                        # Continue with other users even if one fails
+                        continue
+                
+                print(f"✅ Created {notifications_created} notifications for new customer {client.first_name} {client.last_name} (ID: {client.id})")
+                print(f"Users notified: {[f'{user.username} ({user.role})' for user in unique_users]}")
             
         except Exception as e:
             print(f"Error creating notifications for new customer: {e}")
@@ -946,16 +964,21 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
     def export_csv(self, request):
         """Export customers to CSV - only for business admin and managers"""
         try:
-            queryset = self.get_queryset()
-            
-            # Apply date filters if provided (get_queryset already applies GlobalDateFilterMixin)
-            # But we also check query params directly for export
-            # Use updated_at instead of created_at so updated customers show in current month
+            search = request.query_params.get('search')
+            exhibition_filter_param = request.query_params.get('exhibition')
+            product_filter_param = request.query_params.get('product')
+
+            # If search, exhibition, or product filter is present, use scoped queryset (bypasses default date filtering)
+            if search or (exhibition_filter_param and exhibition_filter_param != 'all') or (product_filter_param and product_filter_param != 'all'):
+                queryset = self.get_scoped_queryset(Client)
+            else:
+                queryset = self.get_queryset()  # Applies global date filtering
+
+            # Apply date filters if provided (only if no search/exhibition, or if explicitly provided)
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
             if start_date and end_date:
                 try:
-                    from datetime import datetime
                     start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
                     end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
                     queryset = queryset.filter(
@@ -964,19 +987,75 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     )
                 except ValueError:
                     pass
-            
-            # Apply status filter if provided
-            status = request.query_params.get('status')
-            if status and status != 'all':
-                queryset = queryset.filter(status=status)
-            
-            # Apply store filter if provided
+
+            # Apply search filter
+            if search:
+                search_terms = search.strip().split()
+                if len(search_terms) >= 2:
+                    first_name_search = search_terms[0]
+                    last_name_search = ' '.join(search_terms[1:])
+                    queryset = queryset.filter(
+                        Q(first_name__icontains=first_name_search) & Q(last_name__icontains=last_name_search) |
+                        Q(first_name__icontains=last_name_search) & Q(last_name__icontains=first_name_search) |
+                        Q(first_name__icontains=search) |
+                        Q(last_name__icontains=search) |
+                        Q(email__icontains=search) |
+                        Q(phone__icontains=search)
+                    )
+                else:
+                    queryset = queryset.filter(
+                        Q(first_name__icontains=search) |
+                        Q(last_name__icontains=search) |
+                        Q(email__icontains=search) |
+                        Q(phone__icontains=search)
+                    )
+
+            # Apply status filter
+            status_filter_value = request.query_params.get('status')
+            if status_filter_value and status_filter_value != 'all':
+                pipeline_filter = Q(pipelines__stage=status_filter_value)
+                status_field_filter = Q(status=status_filter_value)
+                queryset = queryset.filter(pipeline_filter | status_field_filter).distinct()
+
+            # Apply store filter
             store = request.query_params.get('store')
-            if store:
+            if store and store != 'all':
                 try:
                     store_id = int(store)
                     queryset = queryset.filter(store_id=store_id)
-                except ValueError:
+                except (ValueError, TypeError):
+                    pass
+
+            # Apply lead source filter
+            lead_source = request.query_params.get('lead_source')
+            if lead_source and lead_source != 'all':
+                queryset = queryset.filter(lead_source=lead_source)
+
+            # Apply created_by filter
+            created_by = request.query_params.get('created_by')
+            if created_by and created_by != 'all':
+                try:
+                    created_by_id = int(created_by)
+                    queryset = queryset.filter(created_by_id=created_by_id)
+                except (ValueError, TypeError):
+                    pass
+
+            # Apply exhibition filter
+            if exhibition_filter_param and exhibition_filter_param != 'all':
+                try:
+                    exhibition_id = int(exhibition_filter_param)
+                    queryset = queryset.filter(exhibition_id=exhibition_id)
+                except (ValueError, TypeError):
+                    pass
+
+            # Apply product interest filter
+            product_filter_param = request.query_params.get('product')
+            if product_filter_param and product_filter_param != 'all':
+                try:
+                    product_id = int(product_filter_param)
+                    # Filter clients that have at least one interest with this product
+                    queryset = queryset.filter(interests__product_id=product_id).distinct()
+                except (ValueError, TypeError):
                     pass
             
             # Get requested fields from query parameters
@@ -1024,11 +1103,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     elif field in ['created_at', 'updated_at']:
                         row[field] = getattr(client, field).strftime('%d-%m-%Y')
                     elif field == 'phone' and getattr(client, field):
-                        # Remove country code from phone number (e.g., +919849831614 -> 9849831614)
-                        phone = str(getattr(client, field))
-                        # Remove leading + and country codes (1-3 digits after +)
-                        phone_cleaned = re.sub(r'^\+\d{1,3}', '', phone)
-                        row[field] = phone_cleaned
+                        row[field] = str(getattr(client, field))
                     elif field == 'created_by':
                         # Handle created_by field - show creator's name
                         if client.created_by:
@@ -1112,15 +1187,21 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
     def export_json(self, request):
         """Export customers to JSON - only for business admin and managers"""
         try:
-            queryset = self.get_queryset()
-            
-            # Apply date filters if provided
-            # Use updated_at instead of created_at so updated customers show in current month
+            search = request.query_params.get('search')
+            exhibition_filter_param = request.query_params.get('exhibition')
+            product_filter_param = request.query_params.get('product')
+
+            # If search, exhibition, or product filter is present, use scoped queryset (bypasses default date filtering)
+            if search or (exhibition_filter_param and exhibition_filter_param != 'all') or (product_filter_param and product_filter_param != 'all'):
+                queryset = self.get_scoped_queryset(Client)
+            else:
+                queryset = self.get_queryset()  # Applies global date filtering
+
+            # Apply date filters if provided (only if no search/exhibition, or if explicitly provided)
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
             if start_date and end_date:
                 try:
-                    from datetime import datetime
                     start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
                     end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
                     queryset = queryset.filter(
@@ -1129,19 +1210,75 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     )
                 except ValueError:
                     pass
-            
-            # Apply status filter if provided
-            status = request.query_params.get('status')
-            if status and status != 'all':
-                queryset = queryset.filter(status=status)
-            
-            # Apply store filter if provided
+
+            # Apply search filter
+            if search:
+                search_terms = search.strip().split()
+                if len(search_terms) >= 2:
+                    first_name_search = search_terms[0]
+                    last_name_search = ' '.join(search_terms[1:])
+                    queryset = queryset.filter(
+                        Q(first_name__icontains=first_name_search) & Q(last_name__icontains=last_name_search) |
+                        Q(first_name__icontains=last_name_search) & Q(last_name__icontains=first_name_search) |
+                        Q(first_name__icontains=search) |
+                        Q(last_name__icontains=search) |
+                        Q(email__icontains=search) |
+                        Q(phone__icontains=search)
+                    )
+                else:
+                    queryset = queryset.filter(
+                        Q(first_name__icontains=search) |
+                        Q(last_name__icontains=search) |
+                        Q(email__icontains=search) |
+                        Q(phone__icontains=search)
+                    )
+
+            # Apply status filter
+            status_filter_value = request.query_params.get('status')
+            if status_filter_value and status_filter_value != 'all':
+                pipeline_filter = Q(pipelines__stage=status_filter_value)
+                status_field_filter = Q(status=status_filter_value)
+                queryset = queryset.filter(pipeline_filter | status_field_filter).distinct()
+
+            # Apply store filter
             store = request.query_params.get('store')
-            if store:
+            if store and store != 'all':
                 try:
                     store_id = int(store)
                     queryset = queryset.filter(store_id=store_id)
-                except ValueError:
+                except (ValueError, TypeError):
+                    pass
+
+            # Apply lead source filter
+            lead_source = request.query_params.get('lead_source')
+            if lead_source and lead_source != 'all':
+                queryset = queryset.filter(lead_source=lead_source)
+
+            # Apply created_by filter
+            created_by = request.query_params.get('created_by')
+            if created_by and created_by != 'all':
+                try:
+                    created_by_id = int(created_by)
+                    queryset = queryset.filter(created_by_id=created_by_id)
+                except (ValueError, TypeError):
+                    pass
+
+            # Apply exhibition filter
+            if exhibition_filter_param and exhibition_filter_param != 'all':
+                try:
+                    exhibition_id = int(exhibition_filter_param)
+                    queryset = queryset.filter(exhibition_id=exhibition_id)
+                except (ValueError, TypeError):
+                    pass
+
+            # Apply product interest filter
+            product_filter_param = request.query_params.get('product')
+            if product_filter_param and product_filter_param != 'all':
+                try:
+                    product_id = int(product_filter_param)
+                    # Filter clients that have at least one interest with this product
+                    queryset = queryset.filter(interests__product_id=product_id).distinct()
+                except (ValueError, TypeError):
                     pass
             
             # Get requested fields from query parameters
@@ -1184,11 +1321,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     elif field in ['created_at', 'updated_at']:
                         client_data[field] = getattr(client, field).strftime('%d-%m-%Y')
                     elif field == 'phone' and getattr(client, field):
-                        # Remove country code from phone number (e.g., +919849831614 -> 9849831614)
-                        phone = str(getattr(client, field))
-                        # Remove leading + and country codes (1-3 digits after +)
-                        phone_cleaned = re.sub(r'^\+\d{1,3}', '', phone)
-                        client_data[field] = phone_cleaned
+                        client_data[field] = str(getattr(client, field))
                     elif field == 'created_by':
                         # Handle created_by field - show creator's name
                         if client.created_by:

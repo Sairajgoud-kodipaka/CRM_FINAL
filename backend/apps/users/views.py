@@ -2086,6 +2086,7 @@ class AllSalesUsersView(APIView):
     - Platform Admin: Can see all sales users across all tenants
     - Business Admin: Can see all sales users in their tenant
     - Manager: Can see sales users in their store/tenant
+    - Sales Reps (inhouse_sales, tele_calling): Can see sales users in their store/tenant
     - Others: Access denied
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -2093,8 +2094,8 @@ class AllSalesUsersView(APIView):
     def get(self, request):
         current_user = request.user
         
-        # Only platform admins, business admins, and managers can access
-        if current_user.role not in ['platform_admin', 'business_admin', 'manager']:
+        # Allow platform_admin, business_admin, manager, inhouse_sales, tele_calling to access
+        if current_user.role not in ['platform_admin', 'business_admin', 'manager', 'inhouse_sales', 'tele_calling']:
             return Response(
                 {'detail': 'Access denied - insufficient permissions'}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -2103,13 +2104,11 @@ class AllSalesUsersView(APIView):
         try:
             # Get sales users based on role and scope
             if current_user.role == 'platform_admin':
-                # Platform admin can see all sales users
                 sales_users = User.objects.filter(
                     role__in=['inhouse_sales', 'tele_calling', 'manager'],
                     is_active=True
                 )
             elif current_user.role == 'business_admin':
-                # Business admin can see sales users in their tenant
                 if not current_user.tenant:
                     return Response(
                         {'detail': 'No tenant associated'}, 
@@ -2121,14 +2120,12 @@ class AllSalesUsersView(APIView):
                     is_active=True
                 )
             elif current_user.role == 'manager':
-                # Manager can see sales users in their store and tenant
                 if not current_user.tenant:
                     return Response(
                         {'detail': 'No tenant associated'}, 
                         status=status.HTTP_400_BAD_REQUEST
                     )
                 if current_user.store:
-                    # Manager with specific store - see users in that store
                     sales_users = User.objects.filter(
                         tenant=current_user.tenant,
                         store=current_user.store,
@@ -2136,7 +2133,25 @@ class AllSalesUsersView(APIView):
                         is_active=True
                     )
                 else:
-                    # Manager without specific store - see all sales users in tenant
+                    sales_users = User.objects.filter(
+                        tenant=current_user.tenant,
+                        role__in=['inhouse_sales', 'tele_calling'],
+                        is_active=True
+                    )
+            elif current_user.role in ['inhouse_sales', 'tele_calling']:
+                if not current_user.tenant:
+                    return Response(
+                        {'detail': 'No tenant associated'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if current_user.store:
+                    sales_users = User.objects.filter(
+                        tenant=current_user.tenant,
+                        store=current_user.store,
+                        role__in=['inhouse_sales', 'tele_calling'],
+                        is_active=True
+                    )
+                else:
                     sales_users = User.objects.filter(
                         tenant=current_user.tenant,
                         role__in=['inhouse_sales', 'tele_calling'],

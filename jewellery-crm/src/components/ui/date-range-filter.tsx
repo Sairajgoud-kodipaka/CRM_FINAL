@@ -173,13 +173,13 @@ export function DateRangeFilter({
   }
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex flex-col sm:flex-row items-stretch sm:items-center gap-2", className)}>
       {showPresets && (
         <Select value={selectedPreset} onValueChange={handlePresetChange}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-full sm:w-[140px] h-11">
             <SelectValue placeholder="Quick select" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[250]">
             {presets.map((preset) => (
               <SelectItem key={preset.value} value={preset.value}>
                 {preset.label}
@@ -199,15 +199,22 @@ export function DateRangeFilter({
             id="date"
             variant={"outline"}
             className={cn(
-              "w-[280px] justify-start text-left font-normal",
+              "w-full sm:w-[280px] justify-start text-left font-normal h-11",
               !dateRange && "text-muted-foreground"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {formatDateRange()}
+            <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+            <span className="truncate">{formatDateRange()}</span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent 
+          className="w-auto p-0 z-[250] max-w-[calc(100vw-1rem)] sm:max-w-none mx-2 sm:mx-0" 
+          align="start"
+          side="bottom"
+          sideOffset={4}
+          avoidCollisions={true}
+          collisionPadding={8}
+        >
           <Calendar
             initialFocus
             mode="range"

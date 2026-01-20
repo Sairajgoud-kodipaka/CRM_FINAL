@@ -207,20 +207,38 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
       // Call the actual API to get notifications
       const response = await apiService.getNotifications();
-
+      
+      console.log('🔔 Frontend: Notification API response:', {
+        success: response.success,
+        dataType: typeof response.data,
+        isArray: Array.isArray(response.data),
+        dataLength: Array.isArray(response.data) ? response.data.length : (response.data as any)?.results?.length || 0,
+        rawData: response.data
+      });
 
       if (response.success && response.data) {
         // Extract the results array from the paginated response
         const notifications = Array.isArray(response.data) ? response.data : (response.data as any).results || [];
+        
+        console.log('🔔 Frontend: Processed notifications:', {
+          count: notifications.length,
+          notifications: notifications.map((n: any) => ({
+            id: n.id,
+            type: n.type,
+            userId: n.userId,
+            storeId: n.storeId,
+            tenantId: n.tenantId,
+            status: n.status
+          }))
+        });
 
         dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
         setLastFetchTime(Date.now()); // Update last fetch time on success
       } else {
         // If no data or error, set empty array
-
+        console.warn('🔔 Frontend: No notifications in response:', response);
         dispatch({ type: 'SET_NOTIFICATIONS', payload: [] });
         if (!response.success) {
-
           dispatch({ type: 'SET_ERROR', payload: response.message || 'Failed to fetch notifications' });
         }
       }

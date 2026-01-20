@@ -24,38 +24,56 @@ class NotificationViewSet(viewsets.ModelViewSet):
         
         user = self.request.user
         
-        # Debug statements removed for production
-        
         if not user.is_authenticated:
             return Notification.objects.none()
         
-        # Get today's date range (start of today to end of today)
-        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = today_start + timedelta(days=1)
+        # Get last 7 days of notifications (more reasonable than just today)
+        days_back = 7
+        date_start = timezone.now() - timedelta(days=days_back)
         
-        # Base queryset with date filter (only today's notifications)
+        # Base queryset with date filter (last 7 days)
         base_queryset = Notification.objects.filter(
-            created_at__gte=today_start,
-            created_at__lt=today_end
-        )
+            created_at__gte=date_start
+        ).order_by('-created_at')
         
         # Business admin can see all notifications in their tenant
         if user.role == 'business_admin':
             queryset = base_queryset.filter(tenant=user.tenant)
+            print(f"🔔 Notification query for business_admin {user.username}: {queryset.count()} notifications")
             return queryset
         
-        # Store users can see their store's notifications and their own
+        # Store users (managers, inhouse_sales, etc.) can see their store's notifications and their own
         if user.store:
+            # IMPORTANT: Use Q(user=user) to ensure users see notifications created FOR THEM
+            # Also include store notifications for visibility
             queryset = base_queryset.filter(
                 Q(tenant=user.tenant) &
-                (Q(store=user.store) | Q(user=user))
+                (Q(user=user) | Q(store=user.store))
             )
+            print(f"🔔 Notification query for {user.role} {user.username} (store: {user.store.id}): {queryset.count()} notifications")
+            print(f"   Query: tenant={user.tenant.id}, (user={user.id} OR store={user.store.id})")
+            print(f"   Date range: last {days_back} days (from {date_start})")
+            # Debug: show what notifications match
+            matching_notifications = list(queryset.values('id', 'type', 'user__id', 'user__username', 'user__role', 'store__id', 'store__name', 'created_at')[:10])
+            if matching_notifications:
+                print(f"   Matching notifications (first 10): {matching_notifications}")
+                # Show breakdown by user
+                for notif in matching_notifications:
+                    print(f"      - Notification {notif['id']}: user={notif['user__id']} ({notif['user__username']}, {notif['user__role']}), store={notif['store__id']}")
+            else:
+                print(f"   ⚠️  No matching notifications found!")
+                # Debug: check if any notifications exist for this user at all
+                all_user_notifications = Notification.objects.filter(user=user, tenant=user.tenant).count()
+                all_store_notifications = Notification.objects.filter(store=user.store, tenant=user.tenant).count()
+                print(f"   Debug: Total notifications for user {user.id}: {all_user_notifications}")
+                print(f"   Debug: Total notifications for store {user.store.id}: {all_store_notifications}")
             return queryset
         
         # Users without store can only see their own notifications
         queryset = base_queryset.filter(
             Q(tenant=user.tenant) & Q(user=user)
         )
+        print(f"🔔 Notification query for {user.role} {user.username} (no store): {queryset.count()} notifications")
         return queryset
     
     def get_serializer_class(self):

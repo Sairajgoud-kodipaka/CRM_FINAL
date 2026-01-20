@@ -28,11 +28,19 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
       return notifications;
     }
 
-    // Store manager and inhouse sales can only see their store's notifications
+    // Store manager and inhouse sales can see their store's notifications and their own
     if (user.role === 'manager' || user.role === 'inhouse_sales') {
       return notifications.filter(notification =>
         notification.tenantId === user.tenant?.toString() &&
-        (!notification.storeId || notification.storeId === user.store?.toString())
+        (
+          // Show if it's their own notification
+          notification.userId === user.id.toString() ||
+          // OR if it's for their store (storeId matches or is null)
+          (!notification.storeId || 
+           notification.storeId === user.store?.toString() ||
+           notification.storeId === user.store?.id?.toString() ||
+           String(notification.storeId) === String(user.store?.id))
+        )
       );
     }
 
