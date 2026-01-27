@@ -3,7 +3,7 @@ Django==4.2.7
 djangorestframework==3.14.0
 django-cors-headers==4.3.1
 django-filter==23.3
-djangorestframework-simplejwt==5.3.0
+djangorestframework-simplejwt==5.5.1
 
 # Database - Using psycopg2 instead of psycopg2-binary for better 3.13 compatibility
 psycopg2==2.9.9
