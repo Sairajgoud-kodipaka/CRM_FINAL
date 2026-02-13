@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db.models import Q, Count
 from django.contrib.auth import get_user_model
 import logging
-from .models import Client, ClientInteraction, Appointment, FollowUp, Task, Announcement, Purchase, AuditLog, CustomerTag, CustomerInterest
+from .models import Client, ClientInteraction, ClientVisit, Appointment, FollowUp, Task, Announcement, Purchase, AuditLog, CustomerTag, CustomerInterest, CustomerImportAudit
 from .serializers import (
     ClientSerializer, ClientInteractionSerializer, AppointmentSerializer, FollowUpSerializer, 
     TaskSerializer, AnnouncementSerializer, PurchaseSerializer, AuditLogSerializer,
@@ -20,11 +20,12 @@ import csv
 import io
 import json
 from datetime import datetime
-from django.http import HttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 import re
 
 logger = logging.getLogger(__name__)
 from django.db import transaction
+from django.db.utils import IntegrityError
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 # import openpyxl
 # from openpyxl import Workbook
@@ -35,6 +36,76 @@ User = get_user_model()
 class IsAdminOrManager(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and (getattr(request.user, 'role', None) in ['platform_admin', 'business_admin', 'manager'])
+
+MAX_IMPORT_BATCH_SIZE = 10000
+MAX_AUDIT_ERRORS_STORED = 500
+
+
+def _validate_import_row(row_num, row, tenant, get_value):
+    """Validate one import row. Returns ('valid', None) or ('invalid', err) or ('needs_attention', err)."""
+    from shared.validators import normalize_phone_number
+    name = get_value(row, ['Name', 'name', 'NAME', 'Customer Name', 'customer name', 'CUSTOMER NAME'])
+    first_name = get_value(row, ['first_name', 'First Name', 'FIRST_NAME']) or (name.split(' ', 1)[0].strip() if name else '')
+    last_name = get_value(row, ['last_name', 'Last Name', 'LAST_NAME']) or (name.split(' ', 1)[1].strip() if name and ' ' in name else '')
+    if last_name and not first_name:
+        first_name, last_name = last_name, ''
+    phone_raw = get_value(row, ['phone', 'Phone', 'Mobile No', 'mobile no', 'Mobile'])
+    phone = ''
+    if phone_raw:
+        try:
+            if 'E+' in str(phone_raw).upper():
+                phone = str(int(float(phone_raw)))
+            else:
+                phone = str(phone_raw).strip()
+            phone = re.sub(r'\D', '', phone)
+            if len(phone) == 11 and phone.startswith('0'):
+                phone = phone[1:]
+            elif phone.startswith('91') and len(phone) == 12:
+                phone = phone[2:]
+            elif len(phone) > 10:
+                phone = phone[-10:]
+        except (ValueError, TypeError):
+            phone = re.sub(r'\D', '', str(phone_raw))
+    email = get_value(row, ['email', 'Email', 'EMAIL']) or None
+    if email and not email.strip():
+        email = None
+    if not email and not phone:
+        return ('invalid', {'row': row_num, 'message': 'Either email or phone is required.', 'code': 'required_field', 'field': 'email, phone'})
+    if phone:
+        digits = re.sub(r'\D', '', phone)
+        if not str(phone).strip().startswith('+'):
+            if len(digits) == 10:
+                phone = f'+91{digits}'
+            elif len(digits) == 11 and digits.startswith('0'):
+                phone = f'+91{digits[1:]}'
+            elif digits.startswith('91') and len(digits) == 12:
+                phone = f'+{digits}'
+            else:
+                phone = normalize_phone_number(phone) if len(digits) >= 7 else phone
+        else:
+            phone = normalize_phone_number(phone)
+    existing = None
+    if email:
+        existing = Client.objects.filter(email=email, tenant=tenant, is_deleted=False).first()
+    if not existing and phone:
+        existing = Client.objects.filter(phone=phone, tenant=tenant, is_deleted=False).first()
+    if existing:
+        return ('already_exists', {'row': row_num, 'message': f'Customer with {email or phone} already exists.', 'code': 'already_exists', 'field': 'email or phone'})
+    assigned_to_username = get_value(row, ['assigned_to', 'Assigned To', 'ASSIGNED_TO', 'Attended By', 'attended_by', 'Sales Person'])
+    if assigned_to_username and assigned_to_username.strip():
+        assigned_user = User.objects.filter(
+            username=assigned_to_username.strip(),
+            tenant=tenant
+        ).first()
+        if not assigned_user:
+            return ('needs_attention', {
+                'row': row_num,
+                'message': f'Salesperson "{assigned_to_username}" not found. Please add, use "Import with name only", or "Auto-create salesperson".',
+                'code': 'salesperson_not_found',
+                'field': 'assigned_to',
+            })
+    return ('valid', None)
+
 
 class ImportExportPermission(permissions.BasePermission):
     """
@@ -72,7 +143,6 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         # Pass preserved created_at through context if available
         if hasattr(self, '_import_created_at') and self._import_created_at:
             context['import_created_at'] = self._import_created_at
-            print(f"=== VIEW: Passing created_at through context: {self._import_created_at} ===")
         return context
     
     def get_permissions(self):
@@ -98,30 +168,6 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         return queryset
     
     def create(self, request, *args, **kwargs):
-        print("=== DJANGO VIEW - CREATE METHOD START ===")
-        print(f"Request method: {request.method}")
-        print(f"Request URL: {request.path}")
-        print(f"Request user: {request.user}")
-        print(f"Request authenticated: {request.user.is_authenticated}")
-        print(f"Request data keys: {list(request.data.keys())}")
-        print(f"Sales person ID from request: {request.data.get('sales_person_id')}")
-        print(f"Sales person name from request: {request.data.get('sales_person')}")
-        print(f"Request data type: {type(request.data)}")
-        print(f"=== VIEW: Request data received ===")
-        print(f"Request data keys: {list(request.data.keys())}")
-        print(f"Request data: {request.data}")
-        
-        # Log customer_interests_input specifically
-        if 'customer_interests_input' in request.data:
-            print(f"🔍 VIEW: customer_interests_input found in request.data")
-            print(f"🔍 VIEW: Type: {type(request.data.get('customer_interests_input'))}")
-            print(f"🔍 VIEW: Value: {request.data.get('customer_interests_input')}")
-            if isinstance(request.data.get('customer_interests_input'), list):
-                print(f"🔍 VIEW: Length: {len(request.data.get('customer_interests_input'))}")
-        else:
-            print(f"⚠️ VIEW: customer_interests_input NOT found in request.data!")
-            print(f"⚠️ VIEW: Available keys: {list(request.data.keys())}")
-        
         try:
             # Extract created_at BEFORE validation (since serializer will remove it)
             # This is for historical imports - preserve the date
@@ -137,14 +183,11 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             # Validate the data first
             serializer = self.get_serializer(data=request.data)
             if not serializer.is_valid():
-                print("=== SERIALIZER VALIDATION FAILED ===")
-                print(f"Validation errors: {serializer.errors}")
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
             # Preserve created_at from serializer if it was extracted
             if hasattr(serializer, '_import_created_at') and serializer._import_created_at:
                 self._preserved_created_at = serializer._import_created_at
-                print(f"=== VIEW: Preserved created_at from serializer: {self._preserved_created_at} ===")
             
             # Set tenant and store automatically
             if request.user.tenant:
@@ -163,7 +206,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     if hasattr(request.data, '_mutable'):
                         request.data._mutable = False
                 except Exception as e:
-                    print(f"Could not modify request.data directly: {e}")
+                    logger.warning("Could not modify request.data directly when setting created_at: %s", e)
                 # Store in view instance so we can pass it via context
                 self._import_created_at = self._preserved_created_at
                 print(f"=== VIEW: Preserved created_at for second serializer call: {self._preserved_created_at} ===")
@@ -173,13 +216,6 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             selected_salesperson_id = request.data.get('sales_person_id')
             selected_salesperson_name = request.data.get('sales_person')
             assigned_to_value = request.data.get('assigned_to')  # This comes from CSV imports
-            
-            print(f"=== SALESPERSON ASSIGNMENT DEBUG ===")
-            print(f"Selected salesperson ID: {selected_salesperson_id} (type: {type(selected_salesperson_id)})")
-            print(f"Selected salesperson name: {selected_salesperson_name}")
-            print(f"Assigned to value (from CSV): {assigned_to_value}")
-            print(f"Request user tenant: {request.user.tenant}")
-            print(f"Request user store: {request.user.store}")
             
             # Store the selected salesperson for use in perform_create
             self.selected_salesperson = None
@@ -196,13 +232,10 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     
                     if selected_user:
                         self.selected_salesperson = selected_user
-                        print(f"=== ASSIGNED TO SELECTED SALESPERSON BY ID: {selected_user.first_name} {selected_user.last_name} ({selected_user.username}) ===")
                     else:
                         # Fallback to logged-in user if salesperson not found
                         self.selected_salesperson = request.user
-                        print(f"=== SALESPERSON ID NOT FOUND, USING LOGGED-IN USER: {request.user.username} ===")
                 except Exception as e:
-                    print(f"=== ERROR FINDING SALESPERSON BY ID: {e}, USING LOGGED-IN USER ===")
                     self.selected_salesperson = request.user
             elif selected_salesperson_name and selected_salesperson_name.strip() and selected_salesperson_name.lower() != 'not specified':
                 # Try to find user by name (for backward compatibility)
@@ -231,13 +264,10 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     
                     if selected_user:
                         self.selected_salesperson = selected_user
-                        print(f"=== ASSIGNED TO SELECTED SALESPERSON BY NAME: {selected_user.first_name} {selected_user.last_name} ({selected_user.username}) ===")
                     else:
                         # Fallback to logged-in user if salesperson not found
                         self.selected_salesperson = request.user
-                        print(f"=== SALESPERSON NOT FOUND BY NAME, USING LOGGED-IN USER: {request.user.username} ===")
                 except Exception as e:
-                    print(f"=== ERROR FINDING SALESPERSON BY NAME: {e}, USING LOGGED-IN USER ===")
                     self.selected_salesperson = request.user
             elif assigned_to_value and assigned_to_value.strip() and assigned_to_value.lower() != 'not specified':
                 # Check assigned_to field (this is what comes from CSV imports)
@@ -253,16 +283,13 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     
                     if selected_user:
                         self.selected_salesperson = selected_user
-                        print(f"=== ASSIGNED TO USER FROM CSV assigned_to FIELD: {selected_user.first_name} {selected_user.last_name} ({selected_user.username}) ===")
                     else:
                         # Don't fallback to manager - let the serializer handle assigned_to lookup
                         # The serializer will handle the assigned_to field separately
                         # For created_by, we'll use the manager (request.user) since the user from CSV wasn't found
-                        print(f"=== USER '{assigned_to_username}' NOT FOUND FROM assigned_to, USING MANAGER FOR created_by ===")
                         # Set to manager for created_by, but sales_person and assigned_to will still use CSV value
                         self.selected_salesperson = request.user
                 except Exception as e:
-                    print(f"=== ERROR FINDING USER FROM assigned_to: {e}, USING MANAGER ===")
                     self.selected_salesperson = request.user
             else:
                 # No salesperson selected, use logged-in user
@@ -282,11 +309,9 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             
             # If existing customer found, update instead of creating new
             if existing_phone_customer:
-                print(f"=== EXISTING CUSTOMER FOUND: {existing_phone_customer.id} - UPDATING INSTEAD OF CREATING ===")
                 # Update existing customer with new data
                 serializer = self.get_serializer(existing_phone_customer, data=request.data, partial=True)
                 if not serializer.is_valid():
-                    print(f"=== UPDATE VALIDATION FAILED: {serializer.errors} ===")
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
                 
                 # Save the updated customer
@@ -303,7 +328,6 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 pipeline_entries = SalesPipeline.objects.filter(client=client)
                 if pipeline_entries.exists():
                     pipeline_entries.update(updated_at=timezone.now())
-                    print(f"=== UPDATED {pipeline_entries.count()} PIPELINE ENTRIES FOR CUSTOMER {client.id} ===")
                 
                 # Return updated customer data
                 response_data = serializer.data
@@ -313,9 +337,6 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             
             # No existing customer found, create new one
             response = super().create(request, *args, **kwargs)
-            print("=== DJANGO VIEW - CREATE SUCCESS ===")
-            print(f"Response status: {response.status_code}")
-            print(f"Response data: {response.data}")
             
             # Create appointment if follow-up date is provided
             if response.status_code == 201 and response.data:
@@ -446,8 +467,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         """List clients with filtering support"""
         queryset = self.get_queryset()
         
-        # Optimize query by prefetching pipelines to avoid N+1 queries for pipeline_stage
-        queryset = queryset.prefetch_related('pipelines')
+        # Optimize query: prefetch pipelines and select_related for assigned_to/created_by (Assigned To column)
+        queryset = queryset.select_related('assigned_to', 'created_by').prefetch_related('pipelines')
         
         # Apply search filter
         search = request.query_params.get('search')
@@ -506,37 +527,19 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         return Response(serializer.data)
 
     def perform_update(self, serializer):
-        print(f"=== CLIENT VIEW PERFORM UPDATE ===")
-        print(f"Request data: {self.request.data}")
-        print(f"Request method: {self.request.method}")
-        print(f"Request user: {self.request.user}")
-        print(f"Request content type: {self.request.content_type}")
-        print(f"Request headers: {dict(self.request.headers)}")
-        
         instance = self.get_object()
         # Pass user context to serializer for audit logging
         serializer.context['user'] = self.request.user
         instance._auditlog_user = self.request.user
-        result = serializer.save()
-        print(f"=== UPDATE COMPLETED ===")
-        return result
+        return serializer.save()
 
     def perform_create(self, serializer):
         """Override to set the correct created_by user and handle tenant/store assignment"""
-        print(f"=== PERFORM_CREATE DEBUG ===")
-        print(f"Has selected_salesperson attribute: {hasattr(self, 'selected_salesperson')}")
-        if hasattr(self, 'selected_salesperson'):
-            print(f"Selected salesperson value: {self.selected_salesperson}")
-            if self.selected_salesperson:
-                print(f"Selected salesperson details: {self.selected_salesperson.username} (ID: {self.selected_salesperson.id})")
-        
         # Use the selected salesperson if available, otherwise use logged-in user
         if hasattr(self, 'selected_salesperson') and self.selected_salesperson:
             created_by_user = self.selected_salesperson
-            print(f"=== PERFORM_CREATE: Using selected salesperson {created_by_user.first_name} {created_by_user.last_name} ===")
         else:
             created_by_user = self.request.user
-            print(f"=== PERFORM_CREATE: Using logged-in user {created_by_user.username} ===")
         
         # Save the instance with the correct created_by user
         instance = serializer.save(created_by=created_by_user)
@@ -553,7 +556,6 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 created_at_str = self._import_created_at
                 # Strip any leading/trailing quotes (single or double) from date string
                 created_at_str = created_at_str.strip().strip("'").strip('"').strip()
-                print(f"=== PERFORM_CREATE: Setting created_at from preserved value: {created_at_str} ===")
                 
                 # Parse the date - try DD-MM-YYYY FIRST (most common for imports)
                 created_at = None
@@ -562,25 +564,20 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 try:
                     parsed_date = datetime.strptime(created_at_str.strip(), '%d-%m-%Y').date()
                     created_at = datetime.combine(parsed_date, datetime.min.time())
-                    print(f"✅ PERFORM_CREATE: Parsed DD-MM-YYYY: {created_at}")
                 except ValueError:
                     try:
                         # Try DD/MM/YYYY format
                         parsed_date = datetime.strptime(created_at_str.strip(), '%d/%m/%Y').date()
                         created_at = datetime.combine(parsed_date, datetime.min.time())
-                        print(f"✅ PERFORM_CREATE: Parsed DD/MM/YYYY: {created_at}")
                     except ValueError:
                         # Try parse_date (for ISO format)
                         parsed_date = parse_date(created_at_str)
                         if parsed_date:
                             created_at = datetime.combine(parsed_date, datetime.min.time())
-                            print(f"✅ PERFORM_CREATE: Parsed ISO date: {created_at}")
                         else:
                             # Try parse_datetime
                             created_at = parse_datetime(created_at_str)
-                            if created_at:
-                                print(f"✅ PERFORM_CREATE: Parsed datetime: {created_at}")
-                            else:
+                            if not created_at:
                                 # Try other formats
                                 for fmt in [
                                     '%Y-%m-%dT%H:%M:%S', 
@@ -591,9 +588,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                                 ]:
                                     try:
                                         created_at = datetime.strptime(created_at_str.strip(), fmt)
-                                        print(f"✅ PERFORM_CREATE: Parsed using format {fmt}: {created_at}")
                                         break
-                                    except:
+                                    except Exception:
                                         continue
                 
                 if created_at:
@@ -601,13 +597,10 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     if timezone.is_naive(created_at):
                         created_at = timezone.make_aware(created_at)
                     parsed_created_at = created_at
-                    print(f"✅ PERFORM_CREATE: Final parsed created_at: {parsed_created_at}")
                 else:
-                    print(f"❌ PERFORM_CREATE: Could not parse created_at: '{created_at_str}'")
+                    logger.warning("Could not parse created_at from import value '%s'", created_at_str)
             except Exception as e:
-                print(f"⚠️ PERFORM_CREATE: Error parsing created_at: {e}")
-                import traceback
-                print(traceback.format_exc())
+                logger.warning("Error parsing created_at '%s': %s", created_at_str, e)
         
         # Set tenant and store if not already set
         user = self.request.user
@@ -629,7 +622,6 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             needs_save = True
             if 'created_at' not in update_fields_list:
                 update_fields_list.append('created_at')
-            print(f"✅ PERFORM_CREATE: Will save with created_at: {parsed_created_at}")
         
         # Set audit log user for tracking (before any save)
         instance._auditlog_user = created_by_user
@@ -639,15 +631,8 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         if needs_save:
             if update_fields_list:
                 instance.save(update_fields=update_fields_list)
-                print(f"✅ PERFORM_CREATE: Saved instance with update_fields: {update_fields_list}")
-                if 'created_at' in update_fields_list:
-                    print(f"✅ PERFORM_CREATE: Created_at successfully saved as: {instance.created_at}")
-                    # Verify it was actually saved
-                    instance.refresh_from_db()
-                    print(f"✅ PERFORM_CREATE: Verified created_at from DB: {instance.created_at}")
             else:
                 instance.save()
-                print(f"✅ PERFORM_CREATE: Saved instance (no update_fields)")
         
         # Create notifications for new customer using the actual creator
         # Only create if this is a new customer (not an update)
@@ -1469,10 +1454,202 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
     #                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
     #             )
 
+    def _read_import_rows(self, file):
+        """Read CSV or Excel file into list of row dicts. Returns (rows, error_response)."""
+        if not any(file.name.lower().endswith(ext) for ext in ['.csv', '.xlsx', '.xls']):
+            return None, Response({'error': 'Please upload a CSV, XLSX, or XLS file'}, status=status.HTTP_400_BAD_REQUEST)
+        if file.name.lower().endswith('.csv'):
+            try:
+                decoded = file.read().decode('utf-8')
+                rows = list(csv.DictReader(io.StringIO(decoded)))
+            except Exception as e:
+                return None, Response({'error': f'Error reading CSV: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            try:
+                import openpyxl
+                from openpyxl import load_workbook
+                wb = load_workbook(file, data_only=True)
+                ws = wb.active
+                headers = [cell.value or f'column_{i}' for i, cell in enumerate(ws[1])]
+                rows = []
+                for row_num in range(2, ws.max_row + 1):
+                    row_data = {}
+                    for col_num, header in enumerate(headers, 1):
+                        cell_value = ws.cell(row=row_num, column=col_num).value
+                        row_data[header] = str(cell_value) if cell_value is not None else ''
+                    rows.append(row_data)
+            except ImportError:
+                return None, Response({'error': 'Excel support requires openpyxl.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            except Exception as e:
+                return None, Response({'error': f'Error reading Excel: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+        return rows, None
+
+    @action(detail=False, methods=['post'], permission_classes=[ImportExportPermission], parser_classes=[MultiPartParser, FormParser])
+    def validate_import(self, request):
+        """Validate customer import file and return report (no DB insert). Max 10,000 rows per file."""
+        try:
+            # DRF MultiPartParser: access request.data to trigger parsing; file may be in data or FILES
+            data = getattr(request, 'data', None)
+            file = (data.get('file') if data is not None else None) or request.FILES.get('file')
+            if not file or not getattr(file, 'read', None):
+                return Response({
+                    'error': 'No file provided. Upload a CSV or Excel file using the "file" field.',
+                }, status=status.HTTP_400_BAD_REQUEST)
+            rows, err = self._read_import_rows(file)
+            if err is not None:
+                return err
+            if not request.user.tenant:
+                return Response({'error': 'User does not have a tenant assigned.'}, status=status.HTTP_400_BAD_REQUEST)
+            # Business admin and platform admin can import without a store; others need a store
+            if not request.user.store and request.user.role not in ('business_admin', 'platform_admin'):
+                return Response({'error': 'User does not have a store assigned.'}, status=status.HTTP_400_BAD_REQUEST)
+            if len(rows) > MAX_IMPORT_BATCH_SIZE:
+                return Response({
+                    'error': f'Maximum {MAX_IMPORT_BATCH_SIZE} customers per batch. Your file has {len(rows)} rows. If your dataset exceeds this limit, please split it into smaller files so each import contains no more than 10,000 rows.',
+                }, status=status.HTTP_400_BAD_REQUEST)
+            if len(rows) == 0:
+                return Response({'error': 'No data rows found in file.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            stream = request.GET.get('stream') == '1' or request.query_params.get('stream') == '1'
+            total_rows = len(rows)
+            tenant = request.user.tenant
+
+            def get_value(row, key_variations, default=''):
+                for key in key_variations:
+                    if key in row:
+                        return (row[key] or '').strip() or default
+                    for rk in row.keys():
+                        if (rk or '').strip().lower() == key.lower().strip():
+                            return (row[rk] or '').strip() or default
+                return default
+
+            errors = []
+            valid_count = 0
+            needs_attention_count = 0
+            invalid_count = 0
+            already_exists_count = 0
+
+            if stream:
+                def generate():
+                    errs = []
+                    v, i, n, a = 0, 0, 0, 0
+                    yield f"data: {json.dumps({'type': 'progress', 'processed': 0, 'total': total_rows, 'valid_count': 0, 'invalid_count': 0, 'needs_attention_count': 0, 'already_exists_count': 0})}\n\n"
+                    for row_num, row in enumerate(rows, start=2):
+                        outcome, err = _validate_import_row(row_num, row, tenant, get_value)
+                        if outcome == 'valid':
+                            v += 1
+                        elif outcome == 'invalid':
+                            i += 1
+                            errs.append(err)
+                        elif outcome == 'already_exists':
+                            a += 1
+                            errs.append(err)
+                        else:
+                            n += 1
+                            errs.append(err)
+                        processed = row_num - 1
+                        if processed % 100 == 0 or processed == total_rows:
+                            yield f"data: {json.dumps({'type': 'progress', 'processed': processed, 'total': total_rows, 'valid_count': v, 'invalid_count': i, 'needs_attention_count': n, 'already_exists_count': a})}\n\n"
+                    try:
+                        errors_by_code = {}
+                        for e in errs:
+                            c = e.get('code') or 'unknown'
+                            errors_by_code[c] = errors_by_code.get(c, 0) + 1
+                        details = {
+                            'errors_count': len(errs),
+                            'errors_by_code': errors_by_code,
+                            'errors': errs[:MAX_AUDIT_ERRORS_STORED],
+                        }
+                        CustomerImportAudit.objects.create(
+                            user=request.user,
+                            action='validated',
+                            total_rows=total_rows,
+                            valid_count=v,
+                            invalid_count=i,
+                            needs_attention_count=n,
+                            details=details,
+                        )
+                    except Exception as audit_err:
+                        logger.warning('Could not write CustomerImportAudit (run migrations?): %s', audit_err)
+                    yield f"data: {json.dumps({'type': 'done', 'total_rows': total_rows, 'valid_count': v, 'invalid_count': i, 'needs_attention_count': n, 'already_exists_count': a, 'errors': errs, 'max_batch_size': MAX_IMPORT_BATCH_SIZE})}\n\n"
+
+                return StreamingHttpResponse(
+                    generate(),
+                    content_type='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+                )
+
+            for row_num, row in enumerate(rows, start=2):
+                outcome, err = _validate_import_row(row_num, row, tenant, get_value)
+                if outcome == 'valid':
+                    valid_count += 1
+                elif outcome == 'invalid':
+                    invalid_count += 1
+                    errors.append(err)
+                elif outcome == 'already_exists':
+                    already_exists_count += 1
+                    errors.append(err)
+                else:
+                    needs_attention_count += 1
+                    errors.append(err)
+
+            total_rows = len(rows)
+            try:
+                errors_by_code = {}
+                for e in errors:
+                    c = e.get('code') or 'unknown'
+                    errors_by_code[c] = errors_by_code.get(c, 0) + 1
+                details = {
+                    'errors_count': len(errors),
+                    'errors_by_code': errors_by_code,
+                    'errors': errors[:MAX_AUDIT_ERRORS_STORED],
+                }
+                CustomerImportAudit.objects.create(
+                    user=request.user,
+                    action='validated',
+                    total_rows=total_rows,
+                    valid_count=valid_count,
+                    invalid_count=invalid_count,
+                    needs_attention_count=needs_attention_count,
+                    details=details,
+                )
+            except Exception as audit_err:
+                logger.warning('Could not write CustomerImportAudit (run migrations?): %s', audit_err)
+            return Response({
+                'total_rows': total_rows,
+                'valid_count': valid_count,
+                'invalid_count': invalid_count,
+                'needs_attention_count': needs_attention_count,
+                'already_exists_count': already_exists_count,
+                'errors': errors,
+                'max_batch_size': MAX_IMPORT_BATCH_SIZE,
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception('validate_import failed')
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=False, methods=['post'], permission_classes=[ImportExportPermission])
     def import_file(self, request):
-        """Import customers from CSV, XLSX, or XLS files - only for business admin and managers"""
+        """
+        Import customers from CSV, XLSX, or XLS files - only for business admin and managers.
+
+        NOTE: This endpoint now supports an optional `stream=1` query parameter to provide
+        **server-sent event (SSE)** style progress updates while importing. When `stream=1`
+        is present, the response will be a `text/event-stream` StreamingHttpResponse that
+        sends `progress` and `done` events. Without `stream=1`, the original non-streaming
+        JSON response is returned.
+        """
         try:
+            confirm = request.POST.get('confirm') == 'true' or request.data.get('confirm') is True
+            if not confirm:
+                return Response(
+                    {'error': 'Import requires confirmation. Please review the validation report and confirm.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            salesperson_not_found = (request.POST.get('salesperson_not_found') or request.data.get('salesperson_not_found') or 'name_only').strip().lower()
+            if salesperson_not_found not in ('skip', 'name_only', 'auto_create'):
+                salesperson_not_found = 'name_only'
+
             if 'file' not in request.FILES:
                 return Response(
                     {'error': 'No file provided'}, 
@@ -1480,495 +1657,1015 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 )
             
             file = request.FILES['file']
-            
-            # Validate file type
-            valid_extensions = ['.csv', '.xlsx', '.xls']
-            if not any(file.name.lower().endswith(ext) for ext in valid_extensions):
-                return Response(
-                    {'error': 'Please upload a CSV, XLSX, or XLS file'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Process file based on type
-            if file.name.lower().endswith('.csv'):
-                # Read CSV file
-                decoded_file = file.read().decode('utf-8')
-                csv_data = csv.DictReader(io.StringIO(decoded_file))
-                rows = list(csv_data)
-            else:
-                # Read Excel file (XLSX or XLS)
+            rows, read_err = self._read_import_rows(file)
+            if read_err is not None:
+                return read_err
+
+            # Optional: only process specific row numbers (1-based file rows, e.g. [7474] for re-importing failed rows)
+            only_rows_raw = request.POST.get('only_rows') or (request.data.get('only_rows') if hasattr(request, 'data') else None)
+            if only_rows_raw:
                 try:
-                    import openpyxl
-                    from openpyxl import load_workbook
-                    
-                    # Load the workbook
-                    wb = load_workbook(file, data_only=True)
-                    ws = wb.active
-                    
-                    # Get headers from first row
-                    headers = []
-                    for cell in ws[1]:
-                        headers.append(cell.value or f'column_{len(headers)}')
-                    
-                    # Convert Excel data to list of dictionaries
-                    rows = []
-                    for row_num in range(2, ws.max_row + 1):  # Start from row 2 (skip header)
-                        row_data = {}
-                        for col_num, header in enumerate(headers, 1):
-                            cell_value = ws.cell(row=row_num, column=col_num).value
-                            row_data[header] = str(cell_value) if cell_value is not None else ''
-                        rows.append(row_data)
-                        
-                except ImportError:
+                    if isinstance(only_rows_raw, list):
+                        only_rows_set = {int(x) for x in only_rows_raw}
+                    elif isinstance(only_rows_raw, str):
+                        raw = only_rows_raw.strip()
+                        if raw.startswith('['):
+                            only_rows_set = {int(x) for x in json.loads(raw)}
+                        else:
+                            only_rows_set = {int(x.strip()) for x in raw.split(',') if x.strip()}
+                    else:
+                        only_rows_set = set()
+                    if only_rows_set:
+                        # File row 2 = rows[0], so row_num = index + 2
+                        rows = [rows[i] for i in range(len(rows)) if (i + 2) in only_rows_set]
+                        if not rows:
+                            return Response(
+                                {'error': 'No rows in file match the requested row numbers (only_rows).'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     return Response(
-                        {'error': 'Excel file processing not available. Please install openpyxl.'}, 
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
-                except Exception as e:
-                    return Response(
-                        {'error': f'Error reading Excel file: {str(e)}'}, 
+                        {'error': f'Invalid only_rows: {str(e)}. Use a JSON array or comma-separated row numbers (e.g. [7474] or "7474").'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
-            imported_count = 0
-            errors = []
-            
-            print(f"=== IMPORT START ===")
-            print(f"User: {request.user}")
-            print(f"User tenant: {request.user.tenant}")
-            print(f"User store: {request.user.store}")
-            print(f"Total rows to process: {len(rows)}")
-            print(f"First row sample: {rows[0] if rows else 'No rows'}")
-            
+
+            if len(rows) > MAX_IMPORT_BATCH_SIZE:
+                return Response({
+                    'error': f'Maximum {MAX_IMPORT_BATCH_SIZE} customers per batch. Your file has {len(rows)} rows. If your dataset exceeds this limit, please split it into smaller files so each import contains no more than 10,000 rows.',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
             # Check if user has required assignments
             if not request.user.tenant:
                 return Response(
-                    {'error': 'User does not have a tenant assigned. Please contact your administrator.'}, 
+                    {'error': 'User does not have a tenant assigned. Please contact your administrator.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
-            if not request.user.store:
+            # Business admin and platform admin can import without a store; others need a store
+            if not request.user.store and request.user.role not in ('business_admin', 'platform_admin'):
                 return Response(
-                    {'error': 'User does not have a store assigned. Please contact your administrator to assign you to a store.'}, 
+                    {'error': 'User does not have a store assigned. Please contact your administrator to assign you to a store.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            # Fallback store for admins who have no store (e.g. first store in tenant)
+            import_store = request.user.store
+            if not import_store and request.user.tenant:
+                import_store = Store.objects.filter(tenant=request.user.tenant).first()
+
+            # OPTIMIZATION: Pre-fetch existing customers, users, and stores to avoid per-row queries
+            # Get all existing emails and phones in one query
+            existing_emails = set(
+                Client.objects.filter(tenant=request.user.tenant, is_deleted=False)
+                .exclude(email__isnull=True).exclude(email='')
+                .values_list('email', flat=True)
+            )
+            existing_phones = set(
+                Client.objects.filter(tenant=request.user.tenant, is_deleted=False)
+                .exclude(phone__isnull=True).exclude(phone='')
+                .values_list('phone', flat=True)
+            )
+            # Maps for resolving existing customer so we can add ClientVisit instead of skipping
+            email_to_client_id = dict(
+                Client.objects.filter(tenant=request.user.tenant, is_deleted=False)
+                .exclude(email__isnull=True).exclude(email='')
+                .values_list('email', 'id')
+            )
+            phone_to_client_id = dict(
+                Client.objects.filter(tenant=request.user.tenant, is_deleted=False)
+                .exclude(phone__isnull=True).exclude(phone='')
+                .values_list('phone', 'id')
+            )
             
-            with transaction.atomic():
-                for row_num, row in enumerate(rows, start=2):  # Start from 2 to account for header
-                    try:
-                        # Helper function to get value with case-insensitive key matching
-                        def get_value(key_variations, default=''):
-                            for key in key_variations:
-                                # Try exact match first
-                                if key in row:
-                                    return row[key].strip() if row[key] else default
-                                # Try case-insensitive match
-                                for row_key in row.keys():
-                                    if row_key.lower().strip() == key.lower().strip():
-                                        return row[row_key].strip() if row[row_key] else default
-                            return default
-                        
-                        # Handle Name field - split into first_name and last_name
-                        name = get_value(['Name', 'name', 'NAME'])
-                        first_name = ''
-                        last_name = ''
-                        if name:
-                            name_parts = name.split(' ', 1)
-                            first_name = name_parts[0].strip()
-                            last_name = name_parts[1].strip() if len(name_parts) > 1 else ''
-                        else:
-                            # Fallback to separate first_name/last_name fields
-                            first_name = get_value(['first_name', 'First Name', 'FIRST_NAME'])
-                            last_name = get_value(['last_name', 'Last Name', 'LAST_NAME'])
-                        
-                        # Handle phone - support both 'phone' and 'Mobile No'
-                        phone_raw = get_value(['phone', 'Phone', 'PHONE', 'Mobile No', 'mobile no', 'MOBILE NO', 'Mobile'])
-                        phone = ''
-                        if phone_raw:
-                            # Handle scientific notation (e.g., 9.87654E+11)
+            # Pre-fetch all users in tenant for username lookups
+            tenant_users = {u.username.lower(): u for u in User.objects.filter(tenant=request.user.tenant, is_active=True)}
+            
+            # Pre-fetch all stores in tenant
+            tenant_stores = {s.name.lower(): s for s in Store.objects.filter(tenant=request.user.tenant)}
+            # Also create normalized store lookup (remove punctuation)
+            normalized_stores = {}
+            for store_name, store in tenant_stores.items():
+                normalized = re.sub(r'[^a-z0-9]', '', store_name)
+                if normalized not in normalized_stores:
+                    normalized_stores[normalized] = store
+            
+            # Shared import implementation so we can use it for both streaming and non-streaming modes
+            def perform_import(stream_progress=False):
+                # Use mutable dict so generator updates are visible to caller
+                counters = {
+                    'imported_count': 0,
+                    'skipped_count': 0,
+                    'visits_added_count': 0,  # ClientVisit created for existing customers (no row lost)
+                    'errors': []
+                }
+                deferred_visits = []  # (email, phone, store_id, visit_date) for in-file duplicates until we have client_id
+                clients_to_create = []  # Batch for bulk_create
+                BATCH_SIZE = 500  # Process in batches of 500
+
+                def parse_visit_from_row(row, get_value):
+                    """Return (store_id, visit_date_dt) for this row; visit_date_dt is date or None."""
+                    branch_name = get_value(['Branch', 'branch', 'BRANCH', 'Store', 'store', 'STORE'])
+                    store_id = None
+                    if branch_name and str(branch_name).strip():
+                        bn = str(branch_name).strip().lower()
+                        store = tenant_stores.get(bn)
+                        if not store:
+                            bn_normalized = re.sub(r'[^a-z0-9]', '', bn)
+                            store = normalized_stores.get(bn_normalized)
+                        if store:
+                            store_id = store.id
+                        elif import_store:
+                            store_id = import_store.id
+                    else:
+                        store_id = import_store.id if import_store else None
+                    created_at_str = None
+                    for col_name in ['created_at', 'Created At', 'Created_at', 'CREATED_AT', 'Date', 'date', 'created_date', 'Created Date']:
+                        if col_name in row or any(rk.lower().strip() == col_name.lower().strip() for rk in row.keys()):
+                            val = get_value([col_name])
+                            if val and str(val).strip():
+                                created_at_str = str(val).strip()
+                                break
+                    visit_date_dt = None
+                    if created_at_str:
+                        try:
+                            visit_date_dt = datetime.strptime(created_at_str, '%Y-%m-%d %H:%M:%S').date()
+                        except ValueError:
                             try:
-                                if 'E+' in str(phone_raw).upper() or 'e+' in str(phone_raw):
-                                    phone = str(int(float(phone_raw)))
-                                else:
-                                    phone = str(phone_raw).strip()
-                                
-                                # Remove all non-digit characters (keep only digits)
-                                phone = re.sub(r'\D', '', phone)
-                                
-                                # Handle Indian phone numbers (10 digits)
-                                # If it's 10 digits, keep as-is (will be normalized by serializer to +91XXXXXXXXXX)
-                                if len(phone) == 10:
-                                    # Keep the 10-digit number as-is
-                                    pass
-                                # If it starts with 91 and has 12 digits, remove the 91 prefix
-                                elif phone.startswith('91') and len(phone) == 12:
-                                    phone = phone[2:]  # Remove country code, keep 10 digits
-                                # If it has 11 digits and starts with 0, remove the leading 0
-                                elif len(phone) == 11 and phone.startswith('0'):
-                                    phone = phone[1:]  # Remove leading 0, keep 10 digits
-                                # If it's longer than 10 digits, take last 10
-                                elif len(phone) > 10:
-                                    phone = phone[-10:]  # Take last 10 digits
-                                # If it's less than 10 digits, keep as-is (might be incomplete)
-                                
-                            except (ValueError, TypeError):
-                                phone = str(phone_raw).strip()
-                                # Clean to digits only
-                                phone = re.sub(r'\D', '', phone)
-                        
-                        # Get email (optional in new format)
-                        email = get_value(['email', 'Email', 'EMAIL'])
-                        # Clean email - if empty string, set to None
-                        if email and not email.strip():
-                            email = None
-                        
-                        # Require either email or phone
-                        if not email and not phone:
-                            errors.append(f'Row {row_num}: Either email or phone is required')
-                            continue
-                        
-                        # Normalize phone number for imports - default to India (+91)
-                        if phone:
-                            from shared.validators import normalize_phone_number
-                            digits_only = re.sub(r'\D', '', str(phone))
-                            
-                            # For imports, default to India (+91) if no country code
-                            if not str(phone).strip().startswith('+'):
-                                # If it's a 10-digit number, assume it's Indian
-                                if len(digits_only) == 10:
-                                    phone = f'+91{digits_only}'
-                                # If it starts with 91 and has 12 digits, add + prefix
-                                elif digits_only.startswith('91') and len(digits_only) == 12:
-                                    phone = f'+{digits_only}'
-                                # If it has 11 digits and starts with 0, remove 0 and add +91
-                                elif len(digits_only) == 11 and digits_only.startswith('0'):
-                                    phone = f'+91{digits_only[1:]}'
-                                # For any other number without country code, assume Indian
-                                elif len(digits_only) >= 7 and len(digits_only) <= 12:
-                                    phone = f'+91{digits_only}'
-                                else:
-                                    # Use standard normalization as fallback
-                                    phone = normalize_phone_number(phone)
-                            else:
-                                # Already has country code, normalize it
-                                phone = normalize_phone_number(phone)
-                        
-                        # For imports, keep email as None if not provided (don't generate placeholder)
-                        # The serializer will handle None emails correctly
-                        
-                        # Check if customer already exists (by email or phone)
-                        existing_customer = None
-                        if email:
-                            existing_customer = Client.objects.filter(email=email, tenant=request.user.tenant, is_deleted=False).first()
-                        if not existing_customer and phone:
-                            # Phone is already normalized, use it directly for comparison
-                            existing_customer = Client.objects.filter(phone=phone, tenant=request.user.tenant, is_deleted=False).first()
-                        
-                        if existing_customer:
-                            identifier = email if email else phone
-                            errors.append(f'Row {row_num}: Customer with {identifier} already exists')
-                            continue
-                        
-                        # Handle Store/Branch - find store by name
-                        store_id = None
-                        branch_name = get_value(['Branch', 'branch', 'BRANCH', 'Store', 'store', 'STORE'])
-                        if branch_name:
-                            store = Store.objects.filter(
-                                name__icontains=branch_name.strip(),
-                                tenant=request.user.tenant
-                            ).first()
-                            if store:
-                                store_id = store.id
-                            else:
-                                # Fallback to user's store
-                                store_id = request.user.store.id if request.user.store else None
-                        else:
-                            # Use user's store as default
-                            store_id = request.user.store.id if request.user.store else None
-                        
-                        # Handle Status - map Close/Open to status values
-                        status_raw = get_value(['Status', 'status', 'STATUS'], 'general')
-                        status_value = 'general'
-                        if status_raw.lower() in ['close', 'closed', 'closed_won']:
-                            status_value = 'vvip'  # Closed deals = VVIP
-                        elif status_raw.lower() in ['open', 'active']:
-                            status_value = 'general'  # Open deals = General
-                        elif status_raw.lower() in ['vvip', 'vip', 'general']:
-                            status_value = status_raw.lower()
-                        
-                        # Handle Preferred flag
-                        preferred_raw = get_value(['Preferred', 'preferred', 'PREFERRED'], '')
-                        preferred_flag = False
-                        if preferred_raw.lower() in ['yes', 'y', 'true', '1']:
-                            preferred_flag = True
-                            if status_value == 'general':
-                                status_value = 'vip'  # Preferred customers default to VIP
-                        
-                        # Handle assigned_to - find user by username
-                        assigned_to_value = None
-                        assigned_to_username = get_value(['assigned_to', 'Assigned To', 'ASSIGNED_TO', 'assigned_to'])
-                        if assigned_to_username and assigned_to_username.strip():
-                            try:
-                                from apps.users.models import User
-                                assigned_user = User.objects.filter(
-                                    username=assigned_to_username.strip(),
-                                    tenant=request.user.tenant
-                                ).first()
-                                if assigned_user:
-                                    # Pass username as string - serializer will handle lookup
-                                    assigned_to_value = assigned_user.username
-                            except Exception as e:
-                                print(f"Row {row_num}: Could not find user '{assigned_to_username}': {e}")
-                        
-                        # Prepare data for creation
-                        client_data = {
-                            'first_name': first_name,
-                            'last_name': last_name,
-                            'email': email,  # Can be None if not provided
-                            'phone': phone or '',
-                            'assigned_to': assigned_to_value,  # Set assigned_to username if found
-                            'customer_type': get_value(['customer_type', 'Customer Type'], 'individual'),
-                            'address': get_value(['address', 'Address', 'ADDRESS'], ''),
-                            'city': get_value(['City', 'city', 'CITY'], ''),
-                            'state': get_value(['State', 'state', 'STATE'], ''),
-                            'country': get_value(['Country', 'country', 'COUNTRY'], ''),
-                            'postal_code': get_value(['postal_code', 'Postal Code', 'postal_code', 'pincode', 'Pincode'], ''),
-                            'preferred_metal': get_value(['preferred_metal', 'Preferred Metal', 'item_category', 'Item Category'], ''),
-                            'preferred_stone': get_value(['preferred_stone', 'Preferred Stone'], ''),
-                            'ring_size': get_value(['ring_size', 'Ring Size'], ''),
-                            'budget_range': get_value(['budget_range', 'Budget Range'], ''),
-                            'lead_source': get_value(['lead_source', 'Lead Source'], ''),
-                            'notes': get_value(['notes', 'Notes', 'NOTES'], ''),
-                            'community': get_value(['community', 'Community'], ''),
-                            'mother_tongue': get_value(['mother_tongue', 'Mother Tongue'], ''),
-                            'reason_for_visit': get_value(['reason_for_visit', 'Reason for Visit'], ''),
-                            'age_of_end_user': get_value(['age_of_end_user', 'Age of End User'], ''),
-                            'saving_scheme': get_value(['saving_scheme', 'Saving Scheme'], ''),
-                            'catchment_area': get_value(['catchment_area', 'Catchment Area', 'Area', 'area', 'AREA'], ''),
-                            'next_follow_up': get_value(['next_follow_up', 'Next Follow Up'], ''),
-                            'summary_notes': get_value(['summary_notes', 'Summary Notes'], ''),
-                            'status': status_value,
-                            'tenant': request.user.tenant.id if request.user.tenant else None,
-                            'store': store_id,
-                            # New fields from CSV
-                            # 'sr_no': get_value(['SR.NO', 'SR_NO', 'sr_no', 'SR No', 'Reference ID'], ''),  # Temporarily commented - uncomment after running migration 0031
-                            'area': get_value(['Area', 'area', 'AREA'], ''),
-                            'client_category': get_value(['Client Category', 'client_category', 'CLIENT_CATEGORY'], ''),
-                            'preferred_flag': preferred_flag,
-                            'attended_by': get_value(['Attended By', 'attended_by', 'ATTENDED_BY', 'Sales Person'], ''),
-                            'item_category': get_value(['Item Category', 'item_category', 'ITEM_CATEGORY'], ''),
-                            'item_name': get_value(['Item Name', 'item_name', 'ITEM_NAME'], ''),
-                        }
-                        
-                        # Map attended_by to sales_person if not already set
-                        if client_data.get('attended_by') and not client_data.get('sales_person'):
-                            client_data['sales_person'] = client_data['attended_by']
-                        
-                        # Set default values for import to avoid validation errors
-                        # These are optional but we provide defaults for better data quality
-                        if not client_data.get('state') or not str(client_data.get('state', '')).strip():
-                            # Use city as state if available, otherwise leave empty (will be None)
-                            city_val = client_data.get('city', '').strip()
-                            client_data['state'] = city_val if city_val else None
-                        else:
-                            # Clean state value
-                            state_val = str(client_data.get('state', '')).strip()
-                            client_data['state'] = state_val if state_val else None
-                        
-                        if not client_data.get('catchment_area') or not str(client_data.get('catchment_area', '')).strip():
-                            # Use 'area' field if available, otherwise use city
-                            area_val = client_data.get('area', '').strip()
-                            city_val = client_data.get('city', '').strip()
-                            client_data['catchment_area'] = area_val or city_val or None
-                        else:
-                            # Clean catchment_area value
-                            catchment_val = str(client_data.get('catchment_area', '')).strip()
-                            client_data['catchment_area'] = catchment_val if catchment_val else None
-                        
-                        if not client_data.get('lead_source') or not str(client_data.get('lead_source', '')).strip():
-                            # Use client_category or default
-                            category_val = client_data.get('client_category', '').strip()
-                            client_data['lead_source'] = category_val if category_val else None
-                        else:
-                            # Clean lead_source value
-                            lead_val = str(client_data.get('lead_source', '')).strip()
-                            client_data['lead_source'] = lead_val if lead_val else None
-                        
-                        if not client_data.get('reason_for_visit') or not str(client_data.get('reason_for_visit', '')).strip():
-                            # Default reason for imported customers
-                            client_data['reason_for_visit'] = None  # Leave empty for imports
-                        else:
-                            # Clean reason_for_visit value
-                            reason_val = str(client_data.get('reason_for_visit', '')).strip()
-                            client_data['reason_for_visit'] = reason_val if reason_val else None
-                        
-                        if not client_data.get('product_type') or not str(client_data.get('product_type', '')).strip():
-                            # Use item_category or item_name if available
-                            item_cat = client_data.get('item_category', '').strip()
-                            item_name = client_data.get('item_name', '').strip()
-                            client_data['product_type'] = item_cat or item_name or None
-                        else:
-                            # Clean product_type value
-                            product_val = str(client_data.get('product_type', '')).strip()
-                            client_data['product_type'] = product_val if product_val else None
-                        
-                        # Clean all string fields - convert empty strings to None
-                        string_fields = [
-                            'address', 'country', 'postal_code', 'preferred_metal', 'preferred_stone',
-                            'ring_size', 'budget_range', 'notes', 'community', 'mother_tongue',
-                            'age_of_end_user', 'saving_scheme', 'summary_notes', 'sales_person',
-                            'customer_status', 'style', 'material_type', 'product_subtype',
-                            'gold_range', 'diamond_range', 'customer_preferences', 'design_selected',
-                            'wants_more_discount', 'checking_other_jewellers', 'let_him_visit', 'design_number',
-                            # 'sr_no',  # Temporarily commented - uncomment after running migration 0031
-                            'area', 'client_category', 'attended_by', 'item_category', 'item_name'
-                        ]
-                        for field in string_fields:
-                            if field in client_data:
-                                val = client_data[field]
-                                if isinstance(val, str) and not val.strip():
-                                    client_data[field] = None
-                                elif val == '':
-                                    client_data[field] = None
-                        
-                        # Handle date fields - support multiple formats
-                        def parse_date(date_str, formats=['%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y', '%d/%m/%Y']):
-                            """Parse date string with multiple format support"""
-                            if not date_str or date_str.strip() == '':
-                                return None
-                            date_str = date_str.strip()
-                            for fmt in formats:
+                                visit_date_dt = datetime.strptime(created_at_str, '%Y-%m-%d %H:%M').date()
+                            except ValueError:
                                 try:
-                                    return datetime.strptime(date_str, fmt).date()
+                                    visit_date_dt = datetime.strptime(created_at_str, '%Y-%m-%d').date()
                                 except ValueError:
-                                    continue
-                            return None
-                        
-                        # Handle date_of_birth
-                        date_of_birth = get_value(['date_of_birth', 'Date of Birth', 'DOB', 'dob'])
-                        if date_of_birth:
-                            parsed_dob = parse_date(date_of_birth)
-                            if parsed_dob:
-                                client_data['date_of_birth'] = parsed_dob
-                        
-                        # Handle anniversary_date
-                        anniversary_date = get_value(['anniversary_date', 'Anniversary Date', 'Anniversary'])
-                        if anniversary_date:
-                            parsed_anniv = parse_date(anniversary_date)
-                            if parsed_anniv:
-                                client_data['anniversary_date'] = parsed_anniv
-                        
-                        # Handle visit_date (new field from CSV)
-                        visit_date = get_value(['Visit Date', 'visit_date', 'VISIT_DATE', 'Visit'])
-                        if visit_date:
-                            parsed_visit = parse_date(visit_date)
-                            if parsed_visit:
-                                client_data['visit_date'] = parsed_visit
-                        
-                        # Handle next_follow_up
-                        next_follow_up = get_value(['next_follow_up', 'Next Follow Up', 'Next Follow-Up'])
-                        if next_follow_up:
-                            parsed_followup = parse_date(next_follow_up)
-                            if parsed_followup:
-                                client_data['next_follow_up'] = parsed_followup
-                        
-                        # Clean data - remove empty strings and None values
-                        cleaned_data = {}
-                        for key, value in client_data.items():
-                            if value is not None and value != '':
-                                cleaned_data[key] = value
-                            elif value == '':
-                                # Skip empty strings
-                                pass
-                        
-                        # Use cleaned data for serializer
-                        client_data = cleaned_data
-                        
-                        # Final check - ensure no empty strings are passed to serializer
-                        for key, value in client_data.items():
-                            if value == '':
-                                # Debug statements removed for production
-                                del client_data[key]
-                        
-                        # Debug statements removed for production
-                        
-                        # Add request context to serializer for validation
-                        # Mark this as an import operation to skip strict validation
-                        serializer = self.get_serializer(data=client_data, context={'request': request, 'is_import': True})
-                        # Debug statements removed for production
-                        
-                        if serializer.is_valid():
+                                    try:
+                                        visit_date_dt = datetime.strptime(created_at_str, '%d-%m-%Y').date()
+                                    except ValueError:
+                                        try:
+                                            visit_date_dt = datetime.strptime(created_at_str, '%d/%m/%Y').date()
+                                        except ValueError:
+                                            pass
+                    return (store_id, visit_date_dt)
+
+                def row_iterator():
+                    """
+                    Generator that yields per-row import results and optionally progress events.
+                    Each yielded value is a dict with:
+                      - row_num
+                      - imported_count, skipped_count, failed_count
+                      - error (optional string)
+                      - name (optional display name)
+                    """
+                    nonlocal clients_to_create
+
+                    with transaction.atomic():
+                        for row_num, row in enumerate(rows, start=2):  # Start from 2 to account for header
+                            row_error = None
+                            first_name = ''
+                            last_name = ''
                             try:
-                                # Save the client
-                                client = serializer.save()
+                                # Helper function to get value with case-insensitive key matching
+                                def get_value(key_variations, default=''):
+                                    for key in key_variations:
+                                        # Try exact match first
+                                        if key in row:
+                                            return row[key].strip() if row[key] else default
+                                        # Try case-insensitive match
+                                        for row_key in row.keys():
+                                            if row_key.lower().strip() == key.lower().strip():
+                                                return row[row_key].strip() if row[row_key] else default
+                                    return default
                                 
-                                # Ensure tenant and store are set (in case they weren't set by serializer)
-                                if not client.tenant and request.user.tenant:
-                                    client.tenant = request.user.tenant
-                                if not client.store and request.user.store:
-                                    client.store = request.user.store
+                                # Handle Name field - split into first_name and last_name
+                                name = get_value(['Name', 'name', 'NAME', 'Customer Name', 'customer name', 'CUSTOMER NAME'])
+                                first_name = ''
+                                last_name = ''
+                                if name and str(name).strip():
+                                    name_parts = str(name).strip().split(' ', 1)
+                                    first_name = name_parts[0].strip()
+                                    last_name = name_parts[1].strip() if len(name_parts) > 1 else ''
+                                if not first_name or not last_name:
+                                    fn = get_value(['first_name', 'First Name', 'FIRST_NAME'])
+                                    ln = get_value(['last_name', 'Last Name', 'LAST_NAME'])
+                                    if fn or ln:
+                                        first_name = first_name or fn or ''
+                                        last_name = last_name or ln or ''
+                                # If only last_name was provided (e.g. CSV had only "Last Name"), use it as first_name so name column shows the name
+                                if last_name and not first_name:
+                                    first_name = last_name
+                                    last_name = ''
                                 
-                                if client.tenant or client.store:
-                                    client.save()
+                                # Handle phone - support both 'phone' and 'Mobile No'
+                                phone_raw = get_value(['phone', 'Phone', 'PHONE', 'Mobile No', 'mobile no', 'MOBILE NO', 'Mobile'])
+                                phone = ''
+                                if phone_raw:
+                                    # Handle scientific notation (e.g., 9.87654E+11)
+                                    try:
+                                        if 'E+' in str(phone_raw).upper() or 'e+' in str(phone_raw):
+                                            phone = str(int(float(phone_raw)))
+                                        else:
+                                            phone = str(phone_raw).strip()
+                                        
+                                        # Remove all non-digit characters (keep only digits)
+                                        phone = re.sub(r'\D', '', phone)
+                                        
+                                        # Handle Indian phone numbers (10 digits)
+                                        # If it's 10 digits, keep as-is (will be normalized by serializer to +91XXXXXXXXXX)
+                                        if len(phone) == 10:
+                                            # Keep the 10-digit number as-is
+                                            pass
+                                        # If it starts with 91 and has 12 digits, remove the 91 prefix
+                                        elif phone.startswith('91') and len(phone) == 12:
+                                            phone = phone[2:]  # Remove country code, keep 10 digits
+                                        # If it has 11 digits and starts with 0, remove the leading 0
+                                        elif len(phone) == 11 and phone.startswith('0'):
+                                            phone = phone[1:]  # Remove leading 0, keep 10 digits
+                                        # If it's longer than 10 digits, take last 10
+                                        elif len(phone) > 10:
+                                            phone = phone[-10:]  # Take last 10 digits
+                                        # If it's less than 10 digits, keep as-is (might be incomplete)
+                                        
+                                    except (ValueError, TypeError):
+                                        phone = str(phone_raw).strip()
+                                        # Clean to digits only
+                                        phone = re.sub(r'\D', '', phone)
                                 
-                                # Handle tags if present
-                                tags_str = row.get('tags', '').strip()
-                                if tags_str:
-                                    tag_names = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
-                                    for tag_name in tag_names:
-                                        # You might want to create tags if they don't exist
-                                        # For now, we'll skip tag creation
+                                # Get email (optional in new format)
+                                email = get_value(['email', 'Email', 'EMAIL'])
+                                # Clean email - if empty string, set to None
+                                if email and not email.strip():
+                                    email = None
+                                
+                                # Require either email or phone
+                                if not email and not phone:
+                                    msg = 'Either email or phone is required'
+                                    counters['errors'].append(f'Row {row_num}: {msg}')
+                                    row_error = msg
+                                    yield {
+                                        'row_num': row_num,
+                                        'imported': counters['imported_count'],
+                                        'skipped': counters['skipped_count'],
+                                        'failed': len(counters['errors']),
+                                        'name': f'{first_name} {last_name}'.strip(),
+                                        'error': msg,
+                                    }
+                                    continue
+                                
+                                # Normalize phone number for imports - default to India (+91)
+                                if phone:
+                                    from shared.validators import normalize_phone_number
+                                    digits_only = re.sub(r'\D', '', str(phone))
+                                    
+                                    # For imports, default to India (+91) if no country code
+                                    if not str(phone).strip().startswith('+'):
+                                        # If it's a 10-digit number, assume it's Indian
+                                        if len(digits_only) == 10:
+                                            phone = f'+91{digits_only}'
+                                        # If it starts with 91 and has 12 digits, add + prefix
+                                        elif digits_only.startswith('91') and len(digits_only) == 12:
+                                            phone = f'+{digits_only}'
+                                        # If it has 11 digits and starts with 0, remove 0 and add +91
+                                        elif len(digits_only) == 11 and digits_only.startswith('0'):
+                                            phone = f'+91{digits_only[1:]}'
+                                        # For any other number without country code, assume Indian
+                                        elif len(digits_only) >= 7 and len(digits_only) <= 12:
+                                            phone = f'+91{digits_only}'
+                                        else:
+                                            # Use standard normalization as fallback
+                                            phone = normalize_phone_number(phone)
+                                    else:
+                                        # Already has country code, normalize it
+                                        phone = normalize_phone_number(phone)
+                                
+                                # Customer already exists (in DB or in-file): add this row as a visit, never skip.
+                                existing_client_id = None
+                                if email and email in existing_emails:
+                                    existing_client_id = email_to_client_id.get(email)
+                                if existing_client_id is None and phone and phone in existing_phones:
+                                    existing_client_id = phone_to_client_id.get(phone)
+                                if existing_client_id is not None or (email and email in existing_emails) or (phone and phone in existing_phones):
+                                    store_id_v, visit_date_v = parse_visit_from_row(row, get_value)
+                                    if existing_client_id and visit_date_v:
+                                        try:
+                                            # Support adding visits, but don't override: skip if this (client, store, date) already exists
+                                            if not ClientVisit.objects.filter(
+                                                client_id=existing_client_id,
+                                                store_id=store_id_v,
+                                                visit_date=visit_date_v,
+                                            ).exists():
+                                                ClientVisit.objects.create(
+                                                    client_id=existing_client_id,
+                                                    store_id=store_id_v,
+                                                    visit_date=visit_date_v,
+                                                    attended_by=get_value(['Attended By', 'attended_by', 'ATTENDED_BY', 'Sales Person']) or None,
+                                                )
+                                                counters['visits_added_count'] += 1
+                                        except Exception as ev:
+                                            counters['errors'].append(f'Row {row_num}: Could not add visit: {ev}')
+                                            row_error = str(ev)
+                                    elif not existing_client_id and visit_date_v:
+                                        deferred_visits.append((email or None, phone or None, store_id_v, visit_date_v))
+                                    yield {
+                                        'row_num': row_num,
+                                        'imported': counters['imported_count'],
+                                        'skipped': counters['skipped_count'],
+                                        'failed': len(counters['errors']),
+                                        'name': f'{first_name} {last_name}'.strip(),
+                                        'error': row_error,
+                                    }
+                                    continue
+                                
+                                # OPTIMIZED: Handle Store/Branch using pre-fetched stores
+                                store_id = None
+                                branch_name = get_value(['Branch', 'branch', 'BRANCH', 'Store', 'store', 'STORE'])
+                                if branch_name and str(branch_name).strip():
+                                    bn = str(branch_name).strip().lower()
+                                    # Try exact match first
+                                    store = tenant_stores.get(bn)
+                                    if not store:
+                                        # Try normalized match
+                                        bn_normalized = re.sub(r'[^a-z0-9]', '', bn)
+                                        store = normalized_stores.get(bn_normalized)
+                                    if store:
+                                        store_id = store.id
+                                    else:
+                                        store_id = import_store.id if import_store else None
+                                else:
+                                    store_id = import_store.id if import_store else None
+                                
+                                # Handle Status - map Close/Open to status values
+                                status_raw = get_value(['Status', 'status', 'STATUS'], 'general')
+                                status_value = 'general'
+                                if status_raw.lower() in ['close', 'closed', 'closed_won']:
+                                    status_value = 'vvip'  # Closed deals = VVIP
+                                elif status_raw.lower() in ['open', 'active']:
+                                    status_value = 'general'  # Open deals = General
+                                elif status_raw.lower() in ['vvip', 'vip', 'general']:
+                                    status_value = status_raw.lower()
+                                
+                                # Handle Preferred flag
+                                preferred_raw = get_value(['Preferred', 'preferred', 'PREFERRED'], '')
+                                preferred_flag = False
+                                if preferred_raw.lower() in ['yes', 'y', 'true', '1']:
+                                    preferred_flag = True
+                                    if status_value == 'general':
+                                        status_value = 'vip'  # Preferred customers default to VIP
+                                
+                                # OPTIMIZED: Handle assigned_to using pre-fetched users
+                                assigned_to_value = None
+                                assigned_to_user_obj = None
+                                assigned_to_username = get_value(['assigned_to', 'Assigned To', 'ASSIGNED_TO', 'assigned_to', 'Attended By', 'attended_by', 'Sales Person'])
+                                if assigned_to_username and assigned_to_username.strip():
+                                    assigned_to_user_obj = tenant_users.get(assigned_to_username.strip().lower())
+                                    if assigned_to_user_obj:
+                                        assigned_to_value = assigned_to_user_obj
+                                    else:
+                                        if salesperson_not_found == 'skip':
+                                            msg = f'Skipped (salesperson "{assigned_to_username}" not found)'
+                                            counters['errors'].append(f'Row {row_num}: {msg}')
+                                            row_error = msg
+                                            yield {
+                                                'row_num': row_num,
+                                                'imported': counters['imported_count'],
+                                                'skipped': counters['skipped_count'],
+                                                'failed': len(counters['errors']),
+                                                'name': f'{first_name} {last_name}'.strip(),
+                                                'error': msg,
+                                            }
+                                            continue
+                                        if salesperson_not_found == 'name_only':
+                                            assigned_to_value = None
+                                            assigned_to_user_obj = None
+                                            # attended_by is set below from get_value
+                                        elif salesperson_not_found == 'auto_create':
+                                            try:
+                                                new_username = assigned_to_username.strip()
+                                                existing_user = tenant_users.get(new_username.lower())
+                                                if existing_user:
+                                                    assigned_to_value = existing_user
+                                                    assigned_to_user_obj = existing_user
+                                                else:
+                                                    try:
+                                                        new_user = User(
+                                                            username=new_username,
+                                                            first_name=assigned_to_username.strip(),
+                                                            role='inhouse_sales',
+                                                            tenant=request.user.tenant,
+                                                            store=import_store,
+                                                            is_active=True,
+                                                        )
+                                                        new_user.set_unusable_password()
+                                                        new_user.save()
+                                                        # Update cache
+                                                        tenant_users[new_username.lower()] = new_user
+                                                        assigned_to_value = new_user
+                                                        assigned_to_user_obj = new_user
+                                                    except IntegrityError:
+                                                        existing_user = User.objects.filter(username=new_username, tenant=request.user.tenant).first()
+                                                        if existing_user:
+                                                            tenant_users[new_username.lower()] = existing_user
+                                                            assigned_to_value = existing_user
+                                                            assigned_to_user_obj = existing_user
+                                                        else:
+                                                            msg = f'Salesperson "{assigned_to_username}" already exists in another tenant; could not assign.'
+                                                            counters['errors'].append(f'Row {row_num}: {msg}')
+                                                            row_error = msg
+                                                            yield {
+                                                                'row_num': row_num,
+                                                                'imported': counters['imported_count'],
+                                                                'skipped': counters['skipped_count'],
+                                                                'failed': len(counters['errors']),
+                                                                'name': f'{first_name} {last_name}'.strip(),
+                                                                'error': msg,
+                                                            }
+                                                            continue
+                                            except Exception as e:
+                                                msg = f'Could not auto-create salesperson "{assigned_to_username}": {e}'
+                                                counters['errors'].append(f'Row {row_num}: {msg}')
+                                                row_error = msg
+                                                yield {
+                                                    'row_num': row_num,
+                                                    'imported': counters['imported_count'],
+                                                    'skipped': counters['skipped_count'],
+                                                    'failed': len(counters['errors']),
+                                                    'name': f'{first_name} {last_name}'.strip(),
+                                                    'error': msg,
+                                                }
+                                                continue
+                                
+                                # Prepare data for creation
+                                client_data = {
+                                    'first_name': first_name,
+                                    'last_name': last_name,
+                                    'email': email,  # Can be None if not provided
+                                    'phone': phone or '',
+                                    'customer_type': get_value(['customer_type', 'Customer Type'], 'individual'),
+                                    'address': get_value(['address', 'Address', 'ADDRESS'], ''),
+                                    'city': get_value(['City', 'city', 'CITY'], ''),
+                                    'state': get_value(['State', 'state', 'STATE'], ''),
+                                    'country': get_value(['Country', 'country', 'COUNTRY'], ''),
+                                    'postal_code': get_value(['postal_code', 'Postal Code', 'postal_code', 'pincode', 'Pincode'], ''),
+                                    'preferred_metal': get_value(['preferred_metal', 'Preferred Metal', 'item_category', 'Item Category'], ''),
+                                    'preferred_stone': get_value(['preferred_stone', 'Preferred Stone'], ''),
+                                    'ring_size': get_value(['ring_size', 'Ring Size'], ''),
+                                    'budget_range': get_value(['budget_range', 'Budget Range'], ''),
+                                    'lead_source': get_value(['lead_source', 'Lead Source'], ''),
+                                    'notes': get_value(['notes', 'Notes', 'NOTES'], ''),
+                                    'community': get_value(['community', 'Community'], ''),
+                                    'mother_tongue': get_value(['mother_tongue', 'Mother Tongue'], ''),
+                                    'reason_for_visit': get_value(['reason_for_visit', 'Reason for Visit'], ''),
+                                    'age_of_end_user': get_value(['age_of_end_user', 'Age of End User'], ''),
+                                    'saving_scheme': get_value(['saving_scheme', 'Saving Scheme'], ''),
+                                    'catchment_area': get_value(['catchment_area', 'Catchment Area', 'Area', 'area', 'AREA'], ''),
+                                    'next_follow_up': get_value(['next_follow_up', 'Next Follow Up'], ''),
+                                    'summary_notes': get_value(['summary_notes', 'Summary Notes'], ''),
+                                    'status': status_value,
+                                    'tenant': request.user.tenant.id if request.user.tenant else None,
+                                    'store': store_id,
+                                    # New fields from CSV
+                                    # 'sr_no': get_value(['SR.NO', 'SR_NO', 'sr_no', 'SR No', 'Reference ID'], ''),  # Temporarily commented - uncomment after running migration 0031
+                                    'area': get_value(['Area', 'area', 'AREA'], ''),
+                                    'client_category': get_value(['Client Category', 'client_category', 'CLIENT_CATEGORY'], ''),
+                                    'preferred_flag': preferred_flag,
+                                    'attended_by': get_value(['Attended By', 'attended_by', 'ATTENDED_BY', 'Sales Person'], ''),
+                                    'item_category': get_value(['Item Category', 'item_category', 'ITEM_CATEGORY'], ''),
+                                    'item_name': get_value(['Item Name', 'item_name', 'ITEM_NAME'], ''),
+                                }
+                                # Set assigned_to as User object (not username string) for direct creation
+                                assigned_to_user = assigned_to_user_obj if assigned_to_user_obj else None
+                                
+                                if salesperson_not_found == 'name_only' and assigned_to_username and not assigned_to_user:
+                                    client_data['attended_by'] = assigned_to_username.strip()
+                                if client_data.get('attended_by') and not client_data.get('sales_person'):
+                                    client_data['sales_person'] = client_data['attended_by']
+                                
+                                # Set default values for import to avoid validation errors
+                                # These are optional but we provide defaults for better data quality
+                                if not client_data.get('state') or not str(client_data.get('state', '')).strip():
+                                    # Use city as state if available, otherwise leave empty (will be None)
+                                    city_val = client_data.get('city', '').strip()
+                                    client_data['state'] = city_val if city_val else None
+                                else:
+                                    # Clean state value
+                                    state_val = str(client_data.get('state', '')).strip()
+                                    client_data['state'] = state_val if state_val else None
+                                
+                                if not client_data.get('catchment_area') or not str(client_data.get('catchment_area', '')).strip():
+                                    # Use 'area' field if available, otherwise use city
+                                    area_val = client_data.get('area', '').strip()
+                                    city_val = client_data.get('city', '').strip()
+                                    client_data['catchment_area'] = area_val or city_val or None
+                                else:
+                                    # Clean catchment_area value
+                                    catchment_val = str(client_data.get('catchment_area', '')).strip()
+                                    client_data['catchment_area'] = catchment_val if catchment_val else None
+                                
+                                if not client_data.get('lead_source') or not str(client_data.get('lead_source', '')).strip():
+                                    # Use client_category or default
+                                    category_val = client_data.get('client_category', '').strip()
+                                    client_data['lead_source'] = category_val if category_val else None
+                                else:
+                                    # Clean lead_source value
+                                    lead_val = str(client_data.get('lead_source', '')).strip()
+                                    client_data['lead_source'] = lead_val if lead_val else None
+                                
+                                if not client_data.get('reason_for_visit') or not str(client_data.get('reason_for_visit', '')).strip():
+                                    # Default reason for imported customers
+                                    client_data['reason_for_visit'] = None  # Leave empty for imports
+                                else:
+                                    # Clean reason_for_visit value
+                                    reason_val = str(client_data.get('reason_for_visit', '')).strip()
+                                    client_data['reason_for_visit'] = reason_val if reason_val else None
+                                
+                                if not client_data.get('product_type') or not str(client_data.get('product_type', '')).strip():
+                                    # Use item_category or item_name if available
+                                    item_cat = client_data.get('item_category', '').strip()
+                                    item_name = client_data.get('item_name', '').strip()
+                                    client_data['product_type'] = item_cat or item_name or None
+                                else:
+                                    # Clean product_type value
+                                    product_val = str(client_data.get('product_type', '')).strip()
+                                    client_data['product_type'] = product_val if product_val else None
+                                
+                                # Clean all string fields - convert empty strings to None
+                                string_fields = [
+                                    'address', 'country', 'postal_code', 'preferred_metal', 'preferred_stone',
+                                    'ring_size', 'budget_range', 'notes', 'community', 'mother_tongue',
+                                    'age_of_end_user', 'saving_scheme', 'summary_notes', 'sales_person',
+                                    'customer_status', 'style', 'material_type', 'product_subtype',
+                                    'gold_range', 'diamond_range', 'customer_preferences', 'design_selected',
+                                    'wants_more_discount', 'checking_other_jewellers', 'let_him_visit', 'design_number',
+                                    # 'sr_no',  # Temporarily commented - uncomment after running migration 0031
+                                    'area', 'client_category', 'attended_by', 'item_category', 'item_name'
+                                ]
+                                for field in string_fields:
+                                    if field in client_data:
+                                        val = client_data[field]
+                                        if isinstance(val, str) and not val.strip():
+                                            client_data[field] = None
+                                        elif val == '':
+                                            client_data[field] = None
+                                
+                                # Handle date fields - support multiple formats
+                                def parse_date(date_str, formats=['%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y', '%d/%m/%Y']):
+                                    """Parse date string with multiple format support"""
+                                    if not date_str or date_str.strip() == '':
+                                        return None
+                                    date_str = date_str.strip()
+                                    for fmt in formats:
+                                        try:
+                                            return datetime.strptime(date_str, fmt).date()
+                                        except ValueError:
+                                            continue
+                                    return None
+                                
+                                # Handle date_of_birth
+                                date_of_birth = get_value(['date_of_birth', 'Date of Birth', 'DOB', 'dob'])
+                                if date_of_birth:
+                                    parsed_dob = parse_date(date_of_birth)
+                                    if parsed_dob:
+                                        client_data['date_of_birth'] = parsed_dob
+                                
+                                # Handle anniversary_date
+                                anniversary_date = get_value(['anniversary_date', 'Anniversary Date', 'Anniversary'])
+                                if anniversary_date:
+                                    parsed_anniv = parse_date(anniversary_date)
+                                    if parsed_anniv:
+                                        client_data['anniversary_date'] = parsed_anniv
+                                
+                                # Handle visit_date (new field from CSV)
+                                visit_date = get_value(['Visit Date', 'visit_date', 'VISIT_DATE', 'Visit'])
+                                if visit_date:
+                                    parsed_visit = parse_date(visit_date)
+                                    if parsed_visit:
+                                        client_data['visit_date'] = parsed_visit
+                                
+                                # Handle next_follow_up
+                                next_follow_up = get_value(['next_follow_up', 'Next Follow Up', 'Next Follow-Up'])
+                                if next_follow_up:
+                                    parsed_followup = parse_date(next_follow_up)
+                                    if parsed_followup:
+                                        client_data['next_follow_up'] = parsed_followup
+                                
+                                # created_at from CSV: REQUIRED - use only the value from the column, NEVER default to today
+                                # Check if created_at column exists in CSV (check multiple possible column names)
+                                created_at_str = None
+                                created_at_column_found = False
+                                for col_name in ['created_at', 'Created At', 'Created_at', 'CREATED_AT', 'Date', 'date', 'created_date', 'Created Date']:
+                                    if col_name in row or any(rk.lower().strip() == col_name.lower().strip() for rk in row.keys()):
+                                        created_at_column_found = True
+                                        val = get_value([col_name])
+                                        if val and str(val).strip():
+                                            created_at_str = str(val).strip()
+                                            break
+                                
+                                # If column exists but is empty, or column doesn't exist at all, add error
+                                if not created_at_column_found:
+                                    msg = 'created_at column is missing from CSV. This column is required for import.'
+                                    counters['errors'].append(f'Row {row_num}: {msg}')
+                                    row_error = msg
+                                    yield {
+                                        'row_num': row_num,
+                                        'imported': counters['imported_count'],
+                                        'skipped': counters['skipped_count'],
+                                        'failed': len(counters['errors']),
+                                        'name': f'{first_name} {last_name}'.strip(),
+                                        'error': msg,
+                                    }
+                                    continue
+                                
+                                if not created_at_str:
+                                    msg = 'created_at column exists but is empty. A valid date is required for import.'
+                                    counters['errors'].append(f'Row {row_num}: {msg}')
+                                    row_error = msg
+                                    yield {
+                                        'row_num': row_num,
+                                        'imported': counters['imported_count'],
+                                        'skipped': counters['skipped_count'],
+                                        'failed': len(counters['errors']),
+                                        'name': f'{first_name} {last_name}'.strip(),
+                                        'error': msg,
+                                    }
+                                    continue
+                                
+                                # Parse created_at (must be datetime, not date)
+                                created_at_dt = None
+                                try:
+                                    # Try parsing as datetime first (with time)
+                                    created_at_dt = datetime.strptime(created_at_str, '%Y-%m-%d %H:%M:%S')
+                                    created_at_dt = timezone.make_aware(created_at_dt)
+                                except:
+                                    try:
+                                        # Try parsing as datetime with different format
+                                        created_at_dt = datetime.strptime(created_at_str, '%Y-%m-%d %H:%M')
+                                        created_at_dt = timezone.make_aware(created_at_dt)
+                                    except:
+                                        try:
+                                            # Try parsing as date (YYYY-MM-DD) and convert to datetime at midnight
+                                            date_obj = datetime.strptime(created_at_str, '%Y-%m-%d').date()
+                                            created_at_dt = timezone.make_aware(datetime.combine(date_obj, datetime.min.time()))
+                                        except:
+                                            try:
+                                                # Try DD-MM-YYYY format
+                                                date_obj = datetime.strptime(created_at_str, '%d-%m-%Y').date()
+                                                created_at_dt = timezone.make_aware(datetime.combine(date_obj, datetime.min.time()))
+                                            except:
+                                                try:
+                                                    # Try DD/MM/YYYY format
+                                                    date_obj = datetime.strptime(created_at_str, '%d/%m/%Y').date()
+                                                    created_at_dt = timezone.make_aware(datetime.combine(date_obj, datetime.min.time()))
+                                                except:
+                                                    msg = f'created_at value "{created_at_str}" could not be parsed as a valid date. Expected formats: YYYY-MM-DD, DD-MM-YYYY, or DD/MM/YYYY.'
+                                                    counters['errors'].append(f'Row {row_num}: {msg}')
+                                                    row_error = msg
+                                                    yield {
+                                                        'row_num': row_num,
+                                                        'imported': counters['imported_count'],
+                                                        'skipped': counters['skipped_count'],
+                                                        'failed': len(counters['errors']),
+                                                        'name': f'{first_name} {last_name}'.strip(),
+                                                        'error': msg,
+                                                    }
+                                                    continue
+                                
+                                # Clean data - remove empty strings and None values
+                                cleaned_data = {}
+                                for key, value in client_data.items():
+                                    if value is not None and value != '':
+                                        cleaned_data[key] = value
+                                    elif value == '':
+                                        # Skip empty strings
                                         pass
                                 
-                                imported_count += 1
-                            except Exception as save_error:
-                                # Debug statements removed for production
-                                
-                                # Get more detailed error information
-                                if hasattr(save_error, 'detail'):
-                                    error_detail = str(save_error.detail)
-                                elif hasattr(save_error, 'message'):
-                                    error_detail = str(save_error.message)
-                                else:
+                                # OPTIMIZED: Create Client object directly instead of using serializer (much faster)
+                                try:
+                                    # Create Client object directly (skip serializer overhead)
+                                    # Note: bulk_create doesn't call save() so auto_now_add won't work - set manually
+                                    # created_at_dt is already parsed and validated above
+                                    now = timezone.now()
+                                    client = Client(
+                                        first_name=cleaned_data.get('first_name') or '',
+                                        last_name=cleaned_data.get('last_name') or '',
+                                        email=cleaned_data.get('email'),
+                                        phone=cleaned_data.get('phone') or '',
+                                        assigned_to=assigned_to_user,
+                                        created_by=request.user,
+                                        tenant=request.user.tenant,
+                                        store_id=store_id or (import_store.id if import_store else None),
+                                        customer_type=cleaned_data.get('customer_type', 'individual'),
+                                        address=cleaned_data.get('address'),
+                                        city=cleaned_data.get('city'),
+                                        state=cleaned_data.get('state'),
+                                        country=cleaned_data.get('country'),
+                                        postal_code=cleaned_data.get('postal_code'),
+                                        preferred_metal=cleaned_data.get('preferred_metal'),
+                                        preferred_stone=cleaned_data.get('preferred_stone'),
+                                        ring_size=cleaned_data.get('ring_size'),
+                                        budget_range=cleaned_data.get('budget_range'),
+                                        lead_source=cleaned_data.get('lead_source'),
+                                        notes=cleaned_data.get('notes'),
+                                        community=cleaned_data.get('community'),
+                                        mother_tongue=cleaned_data.get('mother_tongue'),
+                                        reason_for_visit=cleaned_data.get('reason_for_visit'),
+                                        age_of_end_user=cleaned_data.get('age_of_end_user'),
+                                        saving_scheme=cleaned_data.get('saving_scheme'),
+                                        catchment_area=cleaned_data.get('catchment_area'),
+                                        next_follow_up=cleaned_data.get('next_follow_up'),
+                                        summary_notes=cleaned_data.get('summary_notes'),
+                                        status=cleaned_data.get('status', 'general'),
+                                        date_of_birth=cleaned_data.get('date_of_birth'),
+                                        anniversary_date=cleaned_data.get('anniversary_date'),
+                                        pincode=cleaned_data.get('pincode'),
+                                        sales_person=cleaned_data.get('sales_person') or cleaned_data.get('attended_by'),
+                                        product_type=cleaned_data.get('product_type'),
+                                        area=cleaned_data.get('area'),
+                                        client_category=cleaned_data.get('client_category'),
+                                        preferred_flag=cleaned_data.get('preferred_flag', False),
+                                        attended_by=cleaned_data.get('attended_by'),
+                                        item_category=cleaned_data.get('item_category'),
+                                        item_name=cleaned_data.get('item_name'),
+                                        created_at=created_at_dt,  # Use ONLY the date from CSV (already validated above)
+                                        updated_at=now,  # bulk_create doesn't set auto_now
+                                    )
+                                    
+                                    # Add to batch for bulk_create
+                                    clients_to_create.append(client)
+                                    
+                                    # Update existing sets to prevent duplicates in same batch
+                                    if email:
+                                        existing_emails.add(email)
+                                    if phone:
+                                        existing_phones.add(phone)
+                                    
+                                    # Bulk create when batch is full
+                                    if len(clients_to_create) >= BATCH_SIZE:
+                                        # CRITICAL: Store CSV created_at values BEFORE bulk_create
+                                        # because bulk_create() might overwrite them with today's date
+                                        csv_created_at_map = {}
+                                        for idx, client in enumerate(clients_to_create):
+                                            if client.created_at:
+                                                csv_created_at_map[idx] = client.created_at
+                                        
+                                        Client.objects.bulk_create(clients_to_create, ignore_conflicts=False)
+                                        
+                                        # Update created_at using queryset.update() which DEFINITELY bypasses auto_now_add
+                                        # Group by created_at value to minimize queries (same date = one update query)
+                                        created_at_groups = {}
+                                        for idx, client in enumerate(clients_to_create):
+                                            if client.pk and idx in csv_created_at_map:
+                                                # Use the ORIGINAL CSV value, not what Django might have set
+                                                csv_created_at = csv_created_at_map[idx]
+                                                if csv_created_at not in created_at_groups:
+                                                    created_at_groups[csv_created_at] = []
+                                                created_at_groups[csv_created_at].append(client.pk)
+                                        
+                                        # Update each group in a single query
+                                        for created_at_dt, pk_list in created_at_groups.items():
+                                            Client.objects.filter(pk__in=pk_list).update(created_at=created_at_dt)
+                                        # Record one ClientVisit per new client (same store/date as row)
+                                        for idx, c in enumerate(clients_to_create):
+                                            if c.pk:
+                                                visit_date_val = csv_created_at_map.get(idx)
+                                                if visit_date_val:
+                                                    vd = visit_date_val.date() if hasattr(visit_date_val, 'date') else visit_date_val
+                                                    try:
+                                                        ClientVisit.objects.create(
+                                                            client_id=c.pk,
+                                                            store_id=c.store_id,
+                                                            visit_date=vd,
+                                                            attended_by=getattr(c, 'attended_by', None),
+                                                        )
+                                                    except Exception:
+                                                        pass
+                                                if c.email:
+                                                    email_to_client_id[c.email] = c.pk
+                                                    existing_emails.add(c.email)
+                                                if c.phone:
+                                                    phone_to_client_id[c.phone] = c.pk
+                                                    existing_phones.add(c.phone)
+                                        counters['imported_count'] += len(clients_to_create)
+                                        clients_to_create = []
+                                    
+                                except Exception as save_error:
                                     error_detail = str(save_error)
-                                
-                                errors.append(f'Row {row_num}: Failed to save customer: {error_detail}')
-                                continue
-                        else:
-                            # Format serializer errors in a more user-friendly way
-                            # Debug statements removed for production
+                                    msg = f'Failed to create customer: {error_detail}'
+                                    counters['errors'].append(f'Row {row_num}: {msg}')
+                                    row_error = msg
                             
-                            error_messages = []
-                            for field, field_errors in serializer.errors.items():
-                                if isinstance(field_errors, list):
-                                    for error in field_errors:
-                                        if hasattr(error, 'code'):
-                                            error_messages.append(f"{field}: {error}")
-                                        else:
-                                            error_messages.append(f"{field}: {error}")
-                                else:
-                                    error_messages.append(f"{field}: {field_errors}")
-                            
-                            if error_messages:
-                                errors.append(f'Row {row_num}: {"; ".join(error_messages)}')
-                            else:
-                                errors.append(f'Row {row_num}: Validation failed')
+                            except Exception as e:
+                                err_msg = str(e) if e else 'Unknown error'
+                                if hasattr(e, 'detail'):
+                                    err_msg = str(e.detail)
+                                counters['errors'].append(f'Row {row_num}: {err_msg}')
+                                row_error = err_msg
+
+                            # Yield per-row status for streaming callers
+                            yield {
+                                'row_num': row_num,
+                                'imported': counters['imported_count'] + len(clients_to_create),  # Include pending batch
+                                'skipped': counters['skipped_count'],
+                                'failed': len(counters['errors']),
+                                'name': f'{first_name} {last_name}'.strip(),
+                                'error': row_error,
+                            }
                     
-                    except Exception as e:
-                        errors.append(f'Row {row_num}: An error occurred while creating the customer. Please try again.')
-            
+                    # Final bulk_create for remaining clients
+                    if clients_to_create:
+                        # CRITICAL: Store CSV created_at values BEFORE bulk_create
+                        # because bulk_create() might overwrite them with today's date
+                        csv_created_at_map = {}
+                        for idx, client in enumerate(clients_to_create):
+                            if client.created_at:
+                                csv_created_at_map[idx] = client.created_at
+                        
+                        Client.objects.bulk_create(clients_to_create, ignore_conflicts=False)
+                        
+                        # Update created_at using queryset.update() which DEFINITELY bypasses auto_now_add
+                        # Group by created_at value to minimize queries (same date = one update query)
+                        created_at_groups = {}
+                        for idx, client in enumerate(clients_to_create):
+                            if client.pk and idx in csv_created_at_map:
+                                # Use the ORIGINAL CSV value, not what Django might have set
+                                csv_created_at = csv_created_at_map[idx]
+                                if csv_created_at not in created_at_groups:
+                                    created_at_groups[csv_created_at] = []
+                                created_at_groups[csv_created_at].append(client.pk)
+                        
+                        # Update each group in a single query
+                        for created_at_dt, pk_list in created_at_groups.items():
+                            Client.objects.filter(pk__in=pk_list).update(created_at=created_at_dt)
+                        # Record one ClientVisit per new client and update maps
+                        for idx, c in enumerate(clients_to_create):
+                            if c.pk:
+                                visit_date_val = csv_created_at_map.get(idx)
+                                if visit_date_val:
+                                    vd = visit_date_val.date() if hasattr(visit_date_val, 'date') else visit_date_val
+                                    try:
+                                        ClientVisit.objects.create(
+                                            client_id=c.pk,
+                                            store_id=c.store_id,
+                                            visit_date=vd,
+                                            attended_by=getattr(c, 'attended_by', None),
+                                        )
+                                    except Exception:
+                                        pass
+                                if c.email:
+                                    email_to_client_id[c.email] = c.pk
+                                    existing_emails.add(c.email)
+                                if c.phone:
+                                    phone_to_client_id[c.phone] = c.pk
+                                    existing_phones.add(c.phone)
+                        counters['imported_count'] += len(clients_to_create)
+                        clients_to_create = []
+
+                    # Process deferred visits (in-file duplicates: we now have client_id from flushed batches)
+                    for def_email, def_phone, def_store_id, def_visit_date in deferred_visits:
+                        cid = None
+                        if def_email:
+                            cid = email_to_client_id.get(def_email)
+                        if cid is None and def_phone:
+                            cid = phone_to_client_id.get(def_phone)
+                        if cid and def_visit_date:
+                            try:
+                                # Support adding visits, but don't override: skip if this (client, store, date) already exists
+                                if not ClientVisit.objects.filter(
+                                    client_id=cid,
+                                    store_id=def_store_id,
+                                    visit_date=def_visit_date,
+                                ).exists():
+                                    ClientVisit.objects.create(
+                                        client_id=cid,
+                                        store_id=def_store_id,
+                                        visit_date=def_visit_date,
+                                    )
+                                    counters['visits_added_count'] += 1
+                            except Exception:
+                                pass
+
+                return counters, row_iterator()
+
+            stream = request.GET.get('stream') == '1' or request.query_params.get('stream') == '1'
+            total_rows = len(rows)
+
+            # Streaming mode using text/event-stream so the frontend can show true progress
+            if stream:
+                counters, row_gen = perform_import(stream_progress=True)
+
+                def generate():
+                    # Initial event
+                    yield f"data: {json.dumps({'type': 'progress', 'processed': 0, 'total': total_rows, 'imported': 0, 'skipped': 0, 'failed': 0})}\n\n"
+                    for row_result in row_gen:
+                        processed = row_result.get('row_num', 0) - 1
+                        payload = {
+                            'type': 'progress',
+                            'processed': processed,
+                            'total': total_rows,
+                            'imported': row_result.get('imported', 0),
+                            'skipped': row_result.get('skipped', 0),
+                            'failed': row_result.get('failed', 0),
+                            'row_num': row_result.get('row_num'),
+                            'name': row_result.get('name') or '',
+                            'error': row_result.get('error'),
+                        }
+                        yield f"data: {json.dumps(payload)}\n\n"
+
+                    # After generator completes, write audit and final "done" event
+                    try:
+                        details = {
+                            'salesperson_not_found': salesperson_not_found,
+                            'errors_sample': counters['errors'][:20],
+                            'errors': counters['errors'][:MAX_AUDIT_ERRORS_STORED],
+                        }
+                        CustomerImportAudit.objects.create(
+                            user=request.user,
+                            action='imported',
+                            total_rows=total_rows,
+                            valid_count=counters['imported_count'] + len(counters['errors']),
+                            invalid_count=0,
+                            needs_attention_count=0,
+                            imported_count=counters['imported_count'],
+                            failed_count=len(counters['errors']),
+                            details=details,
+                        )
+                    except Exception as audit_err:
+                        logger.warning('Could not write CustomerImportAudit (run migrations?): %s', audit_err)
+
+                    done_payload = {
+                        'type': 'done',
+                        'total_rows': total_rows,
+                        'imported': counters['imported_count'],
+                        'skipped': counters['skipped_count'],
+                        'visits_added': counters.get('visits_added_count', 0),
+                        'failed': len(counters['errors']),
+                        'errors': counters['errors'],
+                    }
+                    yield f"data: {json.dumps(done_payload)}\n\n"
+
+                return StreamingHttpResponse(
+                    generate(),
+                    content_type='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+                )
+
+            # Non-streaming (original) behaviour
+            counters, row_gen = perform_import(stream_progress=False)
+            # Exhaust generator to perform the import side-effects
+            for _ in row_gen:
+                pass
+
+            try:
+                details = {
+                    'salesperson_not_found': salesperson_not_found,
+                    'errors_sample': counters['errors'][:20],
+                    'errors': counters['errors'][:MAX_AUDIT_ERRORS_STORED],
+                }
+                CustomerImportAudit.objects.create(
+                    user=request.user,
+                    action='imported',
+                    total_rows=len(rows),
+                    valid_count=counters['imported_count'] + len(counters['errors']),
+                    invalid_count=0,
+                    needs_attention_count=0,
+                    imported_count=counters['imported_count'],
+                    failed_count=len(counters['errors']),
+                    details=details,
+                )
+            except Exception as audit_err:
+                logger.warning('Could not write CustomerImportAudit (run migrations?): %s', audit_err)
             return Response({
-                'message': f'Import completed. {imported_count} customers imported successfully.',
-                'imported': imported_count,
-                'failed': len(errors),
-                'errors': errors
+                'message': f'Import completed. {counters["imported_count"]} customers imported successfully.',
+                'imported': counters['imported_count'],
+                'skipped': counters['skipped_count'],
+                'visits_added': counters.get('visits_added_count', 0),
+                'failed': len(counters['errors']),
+                'errors': counters['errors']
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
+            logger.exception('import_file failed')
             return Response(
                 {'error': f'Import failed: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=['get'], permission_classes=[ImportExportPermission])
+    def import_audits(self, request):
+        """Return recent customer import/validation audits for the current user."""
+        limit = min(int(request.query_params.get('limit', 10)), 50)
+        audits = CustomerImportAudit.objects.filter(user=request.user).order_by('-created_at')[:limit]
+        return Response({
+            'results': [
+                {
+                    'id': a.id,
+                    'action': a.action,
+                    'total_rows': a.total_rows,
+                    'valid_count': a.valid_count,
+                    'invalid_count': a.invalid_count,
+                    'needs_attention_count': a.needs_attention_count,
+                    'imported_count': a.imported_count,
+                    'failed_count': a.failed_count,
+                    'created_at': a.created_at.isoformat() if a.created_at else None,
+                }
+                for a in audits
+            ],
+            'max_batch_size': MAX_IMPORT_BATCH_SIZE,
+        }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], permission_classes=[ImportExportPermission])
     def import_json(self, request):
@@ -2366,6 +3063,21 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         'images': extract_images(interest.notes),
                         'is_purchased': interest.is_purchased,
                         'is_not_purchased': interest.is_not_purchased,
+                    }
+                })
+            
+            # 1.5 Store Visits (from import: same customer, different stores/dates - never miss an entry)
+            for visit in client.visits.all().select_related('store').order_by('visit_date'):
+                visit_date_iso = visit.visit_date.isoformat() if visit.visit_date else None
+                journey_items.append({
+                    'type': 'store_visit',
+                    'id': visit.id,
+                    'date': visit_date_iso,
+                    'title': 'Store Visit',
+                    'description': visit.store.name if visit.store else 'Store visit',
+                    'details': {
+                        'store': visit.store.name if visit.store else None,
+                        'attended_by': visit.attended_by,
                     }
                 })
             

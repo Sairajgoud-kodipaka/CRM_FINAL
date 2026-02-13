@@ -36,6 +36,10 @@ interface DateRangeFilterProps {
   onAllCustomersSelect?: () => void
   selectedPreset?: string
   onPresetChange?: (preset: string) => void
+  /** Optional: first selectable month (e.g. new Date(2021, 0) for Jan 2021). Omit for no limit. */
+  startMonth?: Date
+  /** Optional: last selectable month (e.g. new Date(2026, 11) for Dec 2026). Omit for no limit. */
+  endMonth?: Date
 }
 
 const defaultPresets = [
@@ -119,10 +123,21 @@ export function DateRangeFilter({
   showAllCustomers = false,
   onAllCustomersSelect,
   selectedPreset: controlledSelectedPreset,
-  onPresetChange
+  onPresetChange,
+  startMonth,
+  endMonth,
 }: DateRangeFilterProps) {
   const [isOpen, setIsOpen] = React.useState(false)
   const [internalSelectedPreset, setInternalSelectedPreset] = React.useState<string>("")
+  const [numberOfMonths, setNumberOfMonths] = React.useState(2)
+
+  React.useEffect(() => {
+    const mql = window.matchMedia("(min-width: 768px)")
+    const update = () => setNumberOfMonths(mql.matches ? 2 : 1)
+    update()
+    mql.addEventListener("change", update)
+    return () => mql.removeEventListener("change", update)
+  }, [])
   
   // Use controlled preset if provided, otherwise use internal state
   const selectedPreset = controlledSelectedPreset !== undefined ? controlledSelectedPreset : internalSelectedPreset
@@ -221,7 +236,9 @@ export function DateRangeFilter({
             defaultMonth={dateRange?.from}
             selected={dateRange}
             onSelect={handleDateRangeChange}
-            numberOfMonths={typeof window !== 'undefined' && window.innerWidth < 768 ? 1 : 2}
+            numberOfMonths={numberOfMonths}
+            startMonth={startMonth}
+            endMonth={endMonth}
             className="rounded-md border"
           />
         </PopoverContent>

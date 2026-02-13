@@ -391,6 +391,45 @@ class ClientInteraction(models.Model):
         return f"{self.client.full_name} - {self.interaction_type} - {self.subject}"
 
 
+class ClientVisit(models.Model):
+    """
+    One record per (customer, store, visit_date) from import or manual entry.
+    Same customer can have multiple visits at different stores on different dates;
+    import must create a ClientVisit for every row (never skip as "duplicate").
+    """
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='visits'
+    )
+    store = models.ForeignKey(
+        'stores.Store',
+        on_delete=models.CASCADE,
+        related_name='client_visits',
+        null=True,
+        blank=True,
+        help_text=_('Store where this visit occurred')
+    )
+    visit_date = models.DateField(help_text=_('Date of this visit'))
+    attended_by = models.CharField(max_length=100, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('Client Visit')
+        verbose_name_plural = _('Client Visits')
+        ordering = ['-visit_date', '-created_at']
+        indexes = [
+            models.Index(fields=['client']),
+            models.Index(fields=['visit_date']),
+            models.Index(fields=['store']),
+        ]
+
+    def __str__(self):
+        store_name = self.store.name if self.store else 'No store'
+        return f"{self.client.full_name} - {store_name} - {self.visit_date}"
+
+
 class Appointment(models.Model):
     class Status(models.TextChoices):
         SCHEDULED = 'scheduled', _('Scheduled')
@@ -727,6 +766,32 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.get_action_display()} by {self.user} on {self.timestamp}"
+
+
+class CustomerImportAudit(models.Model):
+    """Audit log for bulk customer import validation and import actions."""
+    ACTION_CHOICES = [
+        ('validated', 'Validated'),
+        ('imported', 'Imported'),
+    ]
+    user = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_import_audits')
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    total_rows = models.PositiveIntegerField(default=0)
+    valid_count = models.PositiveIntegerField(default=0)
+    invalid_count = models.PositiveIntegerField(default=0)
+    needs_attention_count = models.PositiveIntegerField(default=0, help_text=_('Rows with e.g. salesperson not found'))
+    imported_count = models.PositiveIntegerField(default=0, null=True, blank=True)
+    failed_count = models.PositiveIntegerField(default=0, null=True, blank=True)
+    details = models.JSONField(null=True, blank=True, help_text=_('Options used, error summary, etc.'))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = _('Customer import audit')
+        verbose_name_plural = _('Customer import audits')
+
+    def __str__(self):
+        return f"{self.get_action_display()} by {self.user} on {self.created_at} ({self.total_rows} rows)"
 
 
 @receiver(pre_save, sender=Client)

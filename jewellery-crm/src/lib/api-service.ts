@@ -47,6 +47,8 @@ interface Client {
   id: number;
   first_name: string;
   last_name: string;
+  /** Full display name from API (first + last); use for Name column */
+  name?: string;
   full_name?: string;
   email: string;
   phone?: string;
@@ -68,6 +70,13 @@ interface Client {
   budget_range?: string;
   lead_source?: string;
   assigned_to?: number;
+  /** Assigned salesperson (same as "created by" for salesperson-created entries). Use for "Assigned To" column. */
+  assigned_to_user?: {
+    id: number;
+    username: string;
+    first_name: string;
+    last_name: string;
+  };
   created_by?: {
     id: number;
     username: string;
@@ -107,6 +116,8 @@ interface Client {
   }>;
   // Add simple product preferences fields to match AddCustomerModal
   customer_interests_simple?: string[]; // Simple array of interest strings
+  // Input field for creating/updating customer interests (used in forms)
+  customer_interests_input?: string[];
   product_type?: string;
   style?: string;
   weight_range?: string;
@@ -566,7 +577,9 @@ class ApiService {
   }
 
   // Timeout and retry configuration
-  private readonly REQUEST_TIMEOUT = 30000; // 30 seconds
+  // Increased to support long-running operations like large customer imports.
+  // 1 hour = 60 * 60 * 1000 ms. Adjust via redeploy if needed.
+  private readonly REQUEST_TIMEOUT = 60 * 60 * 1000; // 1 hour
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_DELAY_BASE = 1000; // 1 second base delay
 
@@ -1444,7 +1457,7 @@ class ApiService {
             exhibitionId = existing.id;
           } else {
             // Create new exhibition
-            const createExhibitionResponse = await this.request('/exhibition/exhibitions/', {
+            const createExhibitionResponse = await this.request<{ id: number }>('/exhibition/exhibitions/', {
               method: 'POST',
               body: JSON.stringify({
                 name: leadData.exhibition_name,
@@ -1454,7 +1467,7 @@ class ApiService {
               }),
             });
             
-            if (createExhibitionResponse.success) {
+            if (createExhibitionResponse.success && createExhibitionResponse.data) {
               exhibitionId = createExhibitionResponse.data.id;
             }
           }
@@ -2370,14 +2383,286 @@ class ApiService {
   }
 
   // Customer Import/Export
-  async importCustomers(formData: FormData): Promise<ApiResponse<any>> {
-    return this.request('/clients/import/', {
+  async validateImport(file: File): Promise<ApiResponse<{
+    total_rows: number;
+    valid_count: number;
+    invalid_count: number;
+    needs_attention_count: number;
+    errors: Array<{ row: number; message: string; code: string; field?: string }>;
+  }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.request('/clients/import/validate/', {
       method: 'POST',
       body: formData,
       headers: {
-        // Don't set Content-Type for FormData, let the browser set it with boundary
+        // Do not set Content-Type; let the browser set multipart/form-data with boundary
       },
     });
+  }
+
+  /** Stream validation progress; onProgress receives live counts; resolves with final report. */
+  async validateImportStreaming(
+    file: File,
+    onProgress: (data: {
+      processed: number;
+      total: number;
+      valid_count: number;
+      invalid_count: number;
+      needs_attention_count: number;
+      already_exists_count?: number;
+    }) => void
+  ): Promise<{
+    total_rows: number;
+    valid_count: number;
+    invalid_count: number;
+    needs_attention_count: number;
+    already_exists_count?: number;
+    errors: Array<{ row: number; message: string; code: string; field?: string }>;
+  } & { max_batch_size?: number }> {
+    const url = getApiUrl('/clients/import/validate/?stream=1');
+    const token = this.getAuthToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      let msg = `Validation failed: ${response.status}`;
+      try {
+        const t = await response.text();
+        const j = JSON.parse(t);
+        if (j?.error) msg = j.error;
+        else if (j?.message) msg = j.message;
+      } catch {}
+      throw new Error(msg);
+    }
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalReport: {
+      total_rows: number;
+      valid_count: number;
+      invalid_count: number;
+      needs_attention_count: number;
+      already_exists_count?: number;
+      errors: Array<{ row: number; message: string; code: string; field?: string }>;
+      max_batch_size?: number;
+    } | null = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const payload = JSON.parse(line.slice(6).trim()) as {
+              type: string;
+              processed?: number;
+              total?: number;
+              valid_count?: number;
+              invalid_count?: number;
+              needs_attention_count?: number;
+              already_exists_count?: number;
+              total_rows?: number;
+              max_batch_size?: number;
+              errors?: Array<{ row: number; message: string; code: string; field?: string }>;
+            };
+            if (payload.type === 'progress' && typeof payload.processed === 'number') {
+              onProgress({
+                processed: payload.processed,
+                total: payload.total ?? 0,
+                valid_count: payload.valid_count ?? 0,
+                invalid_count: payload.invalid_count ?? 0,
+                needs_attention_count: payload.needs_attention_count ?? 0,
+                already_exists_count: payload.already_exists_count ?? 0,
+              });
+            } else if (payload.type === 'done') {
+              finalReport = {
+                total_rows: payload.total_rows ?? 0,
+                valid_count: payload.valid_count ?? 0,
+                invalid_count: payload.invalid_count ?? 0,
+                needs_attention_count: payload.needs_attention_count ?? 0,
+                already_exists_count: payload.already_exists_count ?? 0,
+                errors: payload.errors ?? [],
+                max_batch_size: payload.max_batch_size ?? 10000,
+              };
+            }
+          } catch (_) {}
+        }
+      }
+    }
+    if (!finalReport) throw new Error('Validation did not return a result.');
+    return finalReport;
+  }
+
+  async getImportAudits(limit = 10): Promise<
+    ApiResponse<{
+      results: Array<{
+        id: number;
+        action: string;
+        total_rows: number;
+        valid_count: number;
+        invalid_count: number;
+        needs_attention_count: number;
+        imported_count: number | null;
+        failed_count: number | null;
+        created_at: string | null;
+      }>;
+      max_batch_size: number;
+    }>
+  > {
+    return this.request(`/clients/import/audits/?limit=${Math.min(limit, 50)}`, { method: 'GET' });
+  }
+
+  async importCustomers(
+    formData: FormData,
+    options?: {
+      confirm: boolean;
+      salesperson_not_found?: 'skip' | 'name_only' | 'auto_create';
+      /** Only import these file row numbers (1-based). Used to re-import failed rows only. */
+      only_rows?: number[];
+    }
+  ): Promise<ApiResponse<{ message: string; imported: number; failed: number; errors: string[] }>> {
+    if (options?.confirm) {
+      formData.append('confirm', 'true');
+      if (options.salesperson_not_found) {
+        formData.append('salesperson_not_found', options.salesperson_not_found);
+      }
+      if (options?.only_rows?.length) {
+        formData.append('only_rows', JSON.stringify(options.only_rows));
+      }
+    }
+    return this.request('/clients/import/', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  /** Stream import progress; onProgress receives live per-row counts; resolves with final summary. */
+  async importCustomersStreaming(
+    formData: FormData,
+    options: {
+      confirm: boolean;
+      salesperson_not_found?: 'skip' | 'name_only' | 'auto_create';
+      /** Only import these file row numbers (1-based). Used to re-import failed rows only. */
+      only_rows?: number[];
+    },
+    onProgress: (data: {
+      processed: number;
+      total: number;
+      imported: number;
+      skipped: number;
+      failed: number;
+      row_num?: number;
+      name?: string;
+      error?: string | null;
+    }) => void
+  ): Promise<{ total_rows: number; imported: number; skipped: number; visits_added?: number; failed: number; errors: string[] }> {
+    if (options?.confirm) {
+      formData.append('confirm', 'true');
+      if (options.salesperson_not_found) {
+        formData.append('salesperson_not_found', options.salesperson_not_found);
+      }
+      if (options?.only_rows?.length) {
+        formData.append('only_rows', JSON.stringify(options.only_rows));
+      }
+    }
+
+    const url = getApiUrl('/clients/import/?stream=1');
+    const token = this.getAuthToken();
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!response.ok) {
+      let msg = `Import failed: ${response.status}`;
+      try {
+        const t = await response.text();
+        const j = JSON.parse(t);
+        if (j?.error) msg = j.error;
+        else if (j?.message) msg = j.message;
+      } catch {}
+      throw new Error(msg);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalSummary:
+      | {
+          total_rows: number;
+          imported: number;
+          skipped: number;
+          visits_added?: number;
+          failed: number;
+          errors: string[];
+        }
+      | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const payload = JSON.parse(line.slice(6).trim()) as {
+            type: string;
+            processed?: number;
+            total?: number;
+            imported?: number;
+            skipped?: number;
+            failed?: number;
+            row_num?: number;
+            name?: string;
+            error?: string | null;
+            total_rows?: number;
+            errors?: string[];
+          };
+          if (payload.type === 'progress') {
+            onProgress({
+              processed: payload.processed ?? 0,
+              total: payload.total ?? payload.total_rows ?? 0,
+              imported: payload.imported ?? 0,
+              skipped: payload.skipped ?? 0,
+              failed: payload.failed ?? 0,
+              row_num: payload.row_num,
+              name: payload.name,
+              error: payload.error ?? null,
+            });
+          } else if (payload.type === 'done') {
+            finalSummary = {
+              total_rows: payload.total_rows ?? payload.total ?? 0,
+              imported: payload.imported ?? 0,
+              skipped: payload.skipped ?? 0,
+              visits_added: (payload as { visits_added?: number }).visits_added ?? 0,
+              failed: payload.failed ?? 0,
+              errors: payload.errors ?? [],
+            };
+          }
+        } catch {
+          // Ignore malformed lines
+        }
+      }
+    }
+
+    if (!finalSummary) {
+      throw new Error('Import did not return a result.');
+    }
+
+    return finalSummary;
   }
 
   async exportCustomers(params: {

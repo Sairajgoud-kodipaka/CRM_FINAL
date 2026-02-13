@@ -1,9 +1,12 @@
+# Must be first: setuptools provides pkg_resources (required by rest_framework_simplejwt on python:3.12-slim)
+setuptools>=65.0.0
+
 # Django and REST Framework
 Django==4.2.7
 djangorestframework==3.14.0
 django-cors-headers==4.3.1
 django-filter==23.3
-djangorestframework-simplejwt==5.3.0
+djangorestframework-simplejwt>=5.4.0
 
 # Database - Using psycopg2-binary for easier deployment (no compilation needed)
 psycopg2-binary==2.9.9

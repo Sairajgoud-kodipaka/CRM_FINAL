@@ -39,7 +39,6 @@ class NotificationViewSet(viewsets.ModelViewSet):
         # Business admin can see all notifications in their tenant
         if user.role == 'business_admin':
             queryset = base_queryset.filter(tenant=user.tenant)
-            print(f"🔔 Notification query for business_admin {user.username}: {queryset.count()} notifications")
             return queryset
         
         # Store users (managers, inhouse_sales, etc.) can see their store's notifications and their own
@@ -50,30 +49,12 @@ class NotificationViewSet(viewsets.ModelViewSet):
                 Q(tenant=user.tenant) &
                 (Q(user=user) | Q(store=user.store))
             )
-            print(f"🔔 Notification query for {user.role} {user.username} (store: {user.store.id}): {queryset.count()} notifications")
-            print(f"   Query: tenant={user.tenant.id}, (user={user.id} OR store={user.store.id})")
-            print(f"   Date range: last {days_back} days (from {date_start})")
-            # Debug: show what notifications match
-            matching_notifications = list(queryset.values('id', 'type', 'user__id', 'user__username', 'user__role', 'store__id', 'store__name', 'created_at')[:10])
-            if matching_notifications:
-                print(f"   Matching notifications (first 10): {matching_notifications}")
-                # Show breakdown by user
-                for notif in matching_notifications:
-                    print(f"      - Notification {notif['id']}: user={notif['user__id']} ({notif['user__username']}, {notif['user__role']}), store={notif['store__id']}")
-            else:
-                print(f"   ⚠️  No matching notifications found!")
-                # Debug: check if any notifications exist for this user at all
-                all_user_notifications = Notification.objects.filter(user=user, tenant=user.tenant).count()
-                all_store_notifications = Notification.objects.filter(store=user.store, tenant=user.tenant).count()
-                print(f"   Debug: Total notifications for user {user.id}: {all_user_notifications}")
-                print(f"   Debug: Total notifications for store {user.store.id}: {all_store_notifications}")
             return queryset
         
         # Users without store can only see their own notifications
         queryset = base_queryset.filter(
             Q(tenant=user.tenant) & Q(user=user)
         )
-        print(f"🔔 Notification query for {user.role} {user.username} (no store): {queryset.count()} notifications")
         return queryset
     
     def get_serializer_class(self):
@@ -163,15 +144,20 @@ class NotificationViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def vapid_public_key(self, request):
-        """Get VAPID public key for push subscription"""
-        public_key = getattr(settings, 'VAPID_PUBLIC_KEY', None)
-        
-        if not public_key:
+        """Get VAPID public key for push subscription (base64url, sanitized for browser)."""
+        raw = getattr(settings, 'VAPID_PUBLIC_KEY', None) or ''
+        if not raw:
             return Response(
                 {'error': 'VAPID public key not configured'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
-        
+        # Sanitize: strip whitespace/newlines and trailing artifacts (e.g. copy-paste ">")
+        public_key = raw.strip().replace('\n', '').replace('\r', '').rstrip('>')
+        if not public_key:
+            return Response(
+                {'error': 'VAPID public key is empty after sanitization'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
         return Response({'public_key': public_key})
 
 
@@ -214,4 +200,5 @@ class NotificationSettingsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+ 
  

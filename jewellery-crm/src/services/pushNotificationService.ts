@@ -79,21 +79,32 @@ class PushNotificationService {
   }
 
   /**
-   * Convert VAPID key to Uint8Array
+   * Convert VAPID key (base64url) to Uint8Array. Handles invalid/empty keys safely.
    */
   urlBase64ToUint8Array(base64String: string): Uint8Array {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding)
+    if (!base64String || typeof base64String !== 'string') {
+      throw new Error('VAPID public key is missing or invalid (empty). Configure VAPID keys on the server.');
+    }
+    const trimmed = base64String.trim().replace(/\s/g, '').replace(/>/g, '');
+    if (!trimmed) {
+      throw new Error('VAPID public key is empty. Configure VAPID keys on the server.');
+    }
+    const padding = '='.repeat((4 - (trimmed.length % 4)) % 4);
+    const base64 = (trimmed + padding)
       .replace(/-/g, '+')
       .replace(/_/g, '/');
-
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
+    try {
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    } catch (e) {
+      throw new Error(
+        'VAPID public key from server is not valid base64url. Check backend VAPID key configuration.'
+      );
     }
-    return outputArray;
   }
 
   /**
@@ -151,10 +162,10 @@ class PushNotificationService {
       const vapidPublicKey = await this.getVapidPublicKey();
       const applicationServerKey = this.urlBase64ToUint8Array(vapidPublicKey);
 
-      // Subscribe to push
+      // Subscribe to push (cast: DOM BufferSource expects ArrayBuffer; TS types use ArrayBufferLike)
       this.subscription = await this.registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: applicationServerKey,
+        applicationServerKey: applicationServerKey as BufferSource,
       });
 
       // Extract subscription data

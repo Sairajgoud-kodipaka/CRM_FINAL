@@ -47,7 +47,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
   const [customer, setCustomer] = useState<Client | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [journeyData, setJourneyData] = useState<Array<{
-    type: 'interest' | 'interaction' | 'appointment' | 'pipeline' | 'sale' | 'followup';
+    type: 'interest' | 'interaction' | 'appointment' | 'pipeline' | 'sale' | 'followup' | 'store_visit';
     id: number;
     date: string | null;
     title: string;
@@ -204,20 +204,14 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
       const response = await apiService.getCustomerJourney(customerId);
       
       if (response.success && response.data) {
-        // Backend returns: { success: true, data: journey_items, customer: {...} }
-        // API service returns it as-is, so response.data = { success: true, data: journey_items, customer: {...} }
-        let journeyItems = [];
-        
+        // Backend may return: { data: journey_items } or { journey_items } or direct array
+        const raw = response.data as { data?: typeof journeyData; journey_items?: typeof journeyData };
+        let journeyItems: typeof journeyData = [];
         if (Array.isArray(response.data)) {
-          // If response.data is directly an array (unlikely but handle it)
-          journeyItems = response.data;
-        } else if (response.data && typeof response.data === 'object') {
-          // response.data is the backend response object
-          if (Array.isArray(response.data.data)) {
-            journeyItems = response.data.data;
-          } else if (Array.isArray(response.data.journey_items)) {
-            journeyItems = response.data.journey_items;
-          }
+          journeyItems = response.data as typeof journeyData;
+        } else if (raw && typeof raw === 'object') {
+          if (Array.isArray(raw.data)) journeyItems = raw.data;
+          else if (Array.isArray(raw.journey_items)) journeyItems = raw.journey_items;
         }
         
         setJourneyData(journeyItems);
@@ -370,7 +364,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             probability: 100,
             expected_value: 0,
             sales_representative: user.id,
-          });
+          } as unknown as Parameters<typeof apiService.createSalesPipeline>[0]);
           
           if (createResponse.success) {
             await fetchCustomerDetails();
@@ -495,7 +489,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             expected_value: 0,
             sales_representative: user.id,
             notes: formattedReason,
-          });
+          } as unknown as Parameters<typeof apiService.createSalesPipeline>[0]);
           
           if (createResponse.success) {
             // Update customer summary_notes with the lost reason
@@ -603,7 +597,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             probability: 0,
             expected_value: 0,
             sales_representative: user.id,
-          });
+          } as unknown as Parameters<typeof apiService.createSalesPipeline>[0]);
           
           if (createResponse.success) {
             // Dispatch event to refresh parent components immediately
@@ -1212,7 +1206,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                                         variant: "default",
                                       });
                                     } else {
-                                      const errorMsg = response?.message || response?.error || "Failed to mark interest as purchased";
+                                      const errorMsg = response?.message || (response?.errors && Object.values(response.errors).flat().join(', ')) || "Failed to mark interest as purchased";
                                       toast({
                                         title: "Error",
                                         description: errorMsg,
@@ -1259,7 +1253,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                                         variant: "default",
                                       });
                                     } else {
-                                      const errorMsg = response?.message || response?.error || "Failed to mark interest as not purchased";
+                                      const errorMsg = response?.message || (response?.errors && Object.values(response.errors).flat().join(', ')) || "Failed to mark interest as not purchased";
                                       toast({
                                         title: "Error",
                                         description: errorMsg,
@@ -1459,11 +1453,13 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                         switch (item.type) {
                           case 'interest':
                             return '💎';
+                          case 'store_visit':
+                            return '🏪';
                           case 'interaction':
-                            return item.details.interaction_type === 'call' ? '📞' :
-                                   item.details.interaction_type === 'email' ? '📧' :
-                                   item.details.interaction_type === 'visit' ? '🏪' :
-                                   item.details.interaction_type === 'whatsapp' ? '💬' : '📝';
+                            return item.details?.interaction_type === 'call' ? '📞' :
+                                   item.details?.interaction_type === 'email' ? '📧' :
+                                   item.details?.interaction_type === 'visit' ? '🏪' :
+                                   item.details?.interaction_type === 'whatsapp' ? '💬' : '📝';
                           case 'appointment':
                             return '📅';
                           case 'pipeline':
@@ -1481,6 +1477,8 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                         switch (item.type) {
                           case 'interest':
                             return 'bg-blue-100 text-blue-600';
+                          case 'store_visit':
+                            return 'bg-teal-100 text-teal-600';
                           case 'interaction':
                             return 'bg-green-100 text-green-600';
                           case 'appointment':
@@ -1567,6 +1565,23 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                                         {item.details.is_not_purchased && (
                                           <Badge className="bg-red-100 text-red-800">✗ Not Purchased</Badge>
                                         )}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+
+                                {item.type === 'store_visit' && (
+                                  <>
+                                    {item.details?.store && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Store:</span>
+                                        <span className="text-gray-700">🏪 {item.details.store}</span>
+                                      </div>
+                                    )}
+                                    {item.details?.attended_by && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Attended by:</span>
+                                        <span className="text-gray-700">{item.details.attended_by}</span>
                                       </div>
                                     )}
                                   </>

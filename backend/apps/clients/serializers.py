@@ -89,6 +89,9 @@ class ClientSerializer(serializers.ModelSerializer):
     # Created by field to show who created the customer
     created_by = serializers.SerializerMethodField()
     
+    # Assigned to (salesperson) for display – same as "created" for salesperson-created entries
+    assigned_to_user = serializers.SerializerMethodField()
+    
     # Store name field for display
     store_name = serializers.SerializerMethodField()
     
@@ -102,6 +105,16 @@ class ClientSerializer(serializers.ModelSerializer):
                 'first_name': obj.created_by.first_name,
                 'last_name': obj.created_by.last_name,
                 'username': obj.created_by.username
+            }
+        return None
+    
+    def get_assigned_to_user(self, obj):
+        if obj.assigned_to:
+            return {
+                'id': obj.assigned_to.id,
+                'first_name': obj.assigned_to.first_name,
+                'last_name': obj.assigned_to.last_name,
+                'username': obj.assigned_to.username
             }
         return None
     
@@ -446,8 +459,6 @@ class ClientSerializer(serializers.ModelSerializer):
         """
         Check that the email is unique per tenant.
         """
-        print(f"=== VALIDATING EMAIL: {value} ===")
-        
         # Handle empty strings and None
         if not value or value == "" or value.strip() == "":
             return None
@@ -455,12 +466,10 @@ class ClientSerializer(serializers.ModelSerializer):
         # Get the current request context to check tenant
         request = self.context.get('request')
         if not request or not hasattr(request, 'user') or not request.user.is_authenticated:
-            print("No authenticated user, skipping email validation")
             return value
             
         tenant = request.user.tenant
         if not tenant:
-            print("User has no tenant, skipping email validation")
             return value
             
         # Check if email already exists for this tenant
@@ -474,13 +483,10 @@ class ClientSerializer(serializers.ModelSerializer):
         if existing_client:
             # If this is an update operation, allow the same email for the same client
             if hasattr(self, 'instance') and self.instance and self.instance.id == existing_client.id:
-                print(f"Email validation passed for update operation")
                 return value
             # For create with duplicate email, coerce to None instead of erroring
-            print(f"Duplicate email '{value}' for tenant {tenant} detected – coercing to None (treat as no email)")
             return None
         
-        print(f"Email validation passed: '{value}' is unique for tenant {tenant}")
         return value
     
     class Meta:
@@ -507,6 +513,8 @@ class ClientSerializer(serializers.ModelSerializer):
             'store', 'store_name',
             # User who created the customer
             'created_by',
+            # Assigned salesperson (read-only for list/detail)
+            'assigned_to_user',
             # Exhibition relationship
             'exhibition',
             # Customer interests
@@ -524,19 +532,6 @@ class ClientSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'tags', 'is_deleted', 'deleted_at', 'created_by']
     
     def create(self, validated_data):
-        print("=== BACKEND SERIALIZER - CREATE METHOD START ===")
-        print(f"Initial validated_data keys: {list(validated_data.keys())}")
-        print(f"Initial validated_data: {validated_data}")
-        print(f"Fields being processed:")
-        print(f"  - sales_person: {validated_data.get('sales_person')}")
-        print(f"  - product_type: {validated_data.get('product_type')}")
-        print(f"  - let_him_visit: {validated_data.get('let_him_visit')}")
-        print(f"  - design_number: {validated_data.get('design_number')}")
-        print(f"  - customer_interests_input in validated_data: {'customer_interests_input' in validated_data}")
-        if 'customer_interests_input' in validated_data:
-            print(f"  - customer_interests_input value: {validated_data.get('customer_interests_input')}")
-            print(f"  - customer_interests_input type: {type(validated_data.get('customer_interests_input'))}")
-        
         # Handle created_at for imports - get from context (extracted in to_internal_value)
         # Also check context in case it was passed from view
         created_at = None
@@ -545,8 +540,6 @@ class ClientSerializer(serializers.ModelSerializer):
             # Try to get from context (passed from view)
             context = getattr(self, 'context', {})
             created_at_str = context.get('import_created_at')
-            if created_at_str:
-                print(f"Got created_at from context: {created_at_str}")
         if created_at_str:
             try:
                 from django.utils.dateparse import parse_datetime, parse_date
@@ -555,35 +548,26 @@ class ClientSerializer(serializers.ModelSerializer):
                 
                 # Strip any leading/trailing quotes (single or double) from date string
                 created_at_str = created_at_str.strip().strip("'").strip('"').strip()
-                print(f"🔍 SERIALIZER: Attempting to parse created_at: '{created_at_str}'")
-                
                 created_at = None
                 parsed_date = None
                 
                 # PRIORITY 1: Try DD-MM-YYYY format FIRST (most common for CSV imports like '28-08-2025)
                 try:
                     parsed_date = datetime.strptime(created_at_str, '%d-%m-%Y').date()
-                    print(f"✅ SERIALIZER: Parsed DD-MM-YYYY date: {parsed_date}")
                 except ValueError:
                     try:
                         # Try DD/MM/YYYY format
                         parsed_date = datetime.strptime(created_at_str, '%d/%m/%Y').date()
-                        print(f"✅ SERIALIZER: Parsed DD/MM/YYYY date: {parsed_date}")
                     except ValueError:
                         # PRIORITY 2: Try parse_date (for ISO format YYYY-MM-DD)
                         parsed_date = parse_date(created_at_str)
-                        if parsed_date:
-                            print(f"✅ SERIALIZER: Parsed ISO date: {parsed_date}")
-                        else:
+                        if not parsed_date:
                             # PRIORITY 3: Try parse_datetime (for datetime strings)
                             created_at = parse_datetime(created_at_str)
-                            if created_at:
-                                print(f"✅ SERIALIZER: Parsed datetime: {created_at}")
-                            else:
+                            if not created_at:
                                 # PRIORITY 4: Try other formats
                                 try:
                                     created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                                    print(f"✅ SERIALIZER: Parsed using fromisoformat: {created_at}")
                                 except:
                                     # Try other formats
                                     for fmt in [
@@ -595,7 +579,6 @@ class ClientSerializer(serializers.ModelSerializer):
                                     ]:
                                         try:
                                             created_at = datetime.strptime(created_at_str, fmt)
-                                            print(f"✅ SERIALIZER: Parsed using format {fmt}: {created_at}")
                                             break
                                         except:
                                             continue
@@ -603,20 +586,15 @@ class ClientSerializer(serializers.ModelSerializer):
                 # Convert parsed_date to datetime if we got a date
                 if parsed_date and not created_at:
                     created_at = datetime.combine(parsed_date, datetime.min.time())
-                    print(f"✅ SERIALIZER: Converted date to datetime: {created_at}")
                 
                 if created_at:
                     # Make timezone-aware if naive
                     if timezone.is_naive(created_at):
                         # Use the default timezone (usually UTC or server timezone)
                         created_at = timezone.make_aware(created_at)
-                    print(f"Final created_at (timezone-aware): {created_at}")
                 else:
-                    print(f"WARNING: Could not parse created_at string: '{created_at_str}'")
-            except Exception as e:
-                import traceback
-                print(f"ERROR parsing created_at '{created_at_str}': {e}")
-                print(traceback.format_exc())
+                    created_at = None
+            except Exception:
                 created_at = None
         
         # Email optional: allow None/blank
@@ -626,71 +604,50 @@ class ClientSerializer(serializers.ModelSerializer):
         # Handle name field mapping
         if 'name' in validated_data:
             name = validated_data.pop('name')
-            print(f"Processing name field: '{name}'")
             # Split name into first and last name
             name_parts = name.strip().split(' ', 1)
             validated_data['first_name'] = name_parts[0]
             validated_data['last_name'] = name_parts[1] if len(name_parts) > 1 else ''
-            print(f"Split name - first_name: '{validated_data['first_name']}', last_name: '{validated_data['last_name']}'")
         
         # Handle customer interests
         customer_interests_data = []
         if 'customer_interests_input' in validated_data:
             interests_value = validated_data.pop('customer_interests_input')
-            print(f"🔍 Customer interests found in validated_data: {interests_value}")
-            print(f"🔍 Type: {type(interests_value)}")
-            print(f"🔍 Is None: {interests_value is None}")
-            print(f"🔍 Is empty list: {interests_value == []}")
-            print(f"🔍 Length (if list): {len(interests_value) if isinstance(interests_value, list) else 'N/A'}")
             
             # Handle both list and single value - even if empty list, we want to process it
             if interests_value is not None:
                 if isinstance(interests_value, list):
                     customer_interests_data = interests_value
-                    print(f"✅ Stored {len(customer_interests_data)} customer interests (list) for later processing")
                 elif isinstance(interests_value, str):
                     # Single JSON string
                     customer_interests_data = [interests_value]
-                    print(f"✅ Stored 1 customer interest (string) for later processing")
                 else:
                     customer_interests_data = [interests_value] if interests_value else []
-                    print(f"✅ Stored {len(customer_interests_data)} customer interests (other type) for later processing")
             else:
-                print(f"⚠️ customer_interests_input is None - will skip processing")
                 customer_interests_data = []
         elif 'customer_interests' in validated_data:
-            print(f"Customer interests found (legacy field): {validated_data['customer_interests']}")
             customer_interests_data = validated_data.pop('customer_interests')
             if not isinstance(customer_interests_data, list):
                 customer_interests_data = [customer_interests_data] if customer_interests_data else []
-            print(f"Stored customer interests for later processing: {customer_interests_data}")
-        else:
-            print(f"⚠️ No customer_interests_input field found in validated_data")
-            print(f"Available fields: {list(validated_data.keys())}")
         
         # Also check for interests field (frontend might send it differently)
         if 'interests' in validated_data:
-            print(f"Interests field found: {validated_data['interests']}")
             customer_interests_data = validated_data.pop('interests')
             if not isinstance(customer_interests_data, list):
                 customer_interests_data = [customer_interests_data] if customer_interests_data else []
-            print(f"Stored interests for later processing: {customer_interests_data}")
         
         # Handle assigned_to field
         if 'assigned_to' in validated_data:
             assigned_to_value = validated_data['assigned_to']
             if assigned_to_value is None or assigned_to_value == '':
                 validated_data.pop('assigned_to')
-                print("Removed empty assigned_to field")
             elif assigned_to_value == 'current_user':
                 # Assign to the current user
                 request = self.context.get('request')
                 if request and hasattr(request, 'user') and request.user.is_authenticated:
                     validated_data['assigned_to'] = request.user
-                    print(f"Assigned customer to current user: {request.user}")
                 else:
                     validated_data.pop('assigned_to')
-                    print("No authenticated user, removed assigned_to field")
             else:
                 # Try to find user by username or ID (scoped to tenant)
                 try:
@@ -710,10 +667,10 @@ class ClientSerializer(serializers.ModelSerializer):
                         else:
                             user = User.objects.get(username=assigned_to_value)
                     validated_data['assigned_to'] = user
-                    print(f"Assigned customer to user: {user.username} ({user.get_full_name() or user.username})")
+                    # For imports and API creates: treat "created" as "this salesperson created the entry"
+                    validated_data['created_by'] = user
                 except User.DoesNotExist:
                     validated_data.pop('assigned_to')
-                    print(f"User '{assigned_to_value}' not found in tenant, removed assigned_to field")
         
         # ALWAYS assign tenant in create method
         request = self.context.get('request')
@@ -721,54 +678,40 @@ class ClientSerializer(serializers.ModelSerializer):
             tenant = request.user.tenant
             if tenant:
                 validated_data['tenant'] = tenant
-                print(f"Assigned user's tenant in create: {tenant}")
             else:
-                print("User has no tenant, creating default in create")
                 from apps.tenants.models import Tenant
                 tenant, created = Tenant.objects.get_or_create(
                     name='Default Tenant',
                     defaults={'slug': 'default-tenant', 'is_active': True}
                 )
                 validated_data['tenant'] = tenant
-                print(f"Created default tenant in create: {tenant}")
             
             # ALWAYS assign store in create method
             store = request.user.store
             if store:
                 validated_data['store'] = store
-                print(f"Assigned user's store in create: {store}")
-            else:
-                print("User has no store, store will be null")
             
-            # Don't assign created_by here - let the view's perform_create handle it
-            # This allows the view to set the correct salesperson
-            print(f"Not setting created_by in serializer - will be handled by view's perform_create")
+            # If created_by was not set from assigned_to, use current user (e.g. import with name_only)
+            if 'created_by' not in validated_data:
+                validated_data['created_by'] = request.user
         else:
-            print("No authenticated user, creating default tenant in create")
             from apps.tenants.models import Tenant
             tenant, created = Tenant.objects.get_or_create(
                 name='Default Tenant',
                 defaults={'slug': 'default-tenant', 'is_active': True}
             )
             validated_data['tenant'] = tenant
-            print(f"Created default tenant for unauthenticated user in create: {tenant}")
             # Store will be null for unauthenticated users
         
         # Ensure preferred_flag is always set to False if not provided or None
         # This is critical because the database column has a NOT NULL constraint
         if 'preferred_flag' not in validated_data:
             validated_data['preferred_flag'] = False
-            print(f"Set preferred_flag to False (field was missing)")
         elif validated_data.get('preferred_flag') is None:
             validated_data['preferred_flag'] = False
-            print(f"Set preferred_flag to False (was None)")
         # Ensure it's a boolean, not a string or other type
         if not isinstance(validated_data.get('preferred_flag'), bool):
             validated_data['preferred_flag'] = bool(validated_data.get('preferred_flag', False))
-            print(f"Converted preferred_flag to boolean: {validated_data['preferred_flag']}")
-        
-        print(f"Final validated data before save: {validated_data}")
-        print(f"preferred_flag value: {validated_data.get('preferred_flag')} (type: {type(validated_data.get('preferred_flag'))})")
         
         try:
             result = super().create(validated_data)
@@ -778,10 +721,8 @@ class ClientSerializer(serializers.ModelSerializer):
             if created_at:
                 result.created_at = created_at
                 result.save(update_fields=['created_at'])
-                print(f"✅ SERIALIZER: Set created_at to: {created_at}")
                 # Verify it was saved
                 result.refresh_from_db()
-                print(f"✅ SERIALIZER: Verified created_at from DB: {result.created_at}")
             else:
                 # Fallback: check if it was preserved in context
                 preserved_date = getattr(self, '_import_created_at', None)
@@ -793,24 +734,17 @@ class ClientSerializer(serializers.ModelSerializer):
                         
                         # Strip quotes from preserved_date (handles '28-08-2025 format)
                         preserved_date = str(preserved_date).strip().strip("'").strip('"').strip()
-                        print(f"🔍 SERIALIZER FALLBACK: Processing preserved_date: '{preserved_date}'")
                         
                         # Try DD-MM-YYYY format FIRST (most common for CSV imports)
                         parsed_date = None
                         try:
                             parsed_date = datetime.strptime(preserved_date, '%d-%m-%Y').date()
-                            print(f"✅ SERIALIZER FALLBACK: Parsed DD-MM-YYYY date: {parsed_date}")
                         except ValueError:
                             try:
                                 parsed_date = datetime.strptime(preserved_date, '%d/%m/%Y').date()
-                                print(f"✅ SERIALIZER FALLBACK: Parsed DD/MM/YYYY date: {parsed_date}")
                             except ValueError:
                                 # Try parse_date (for ISO format)
                                 parsed_date = parse_date(preserved_date)
-                                if parsed_date:
-                                    print(f"✅ SERIALIZER FALLBACK: Parsed ISO date: {parsed_date}")
-                                else:
-                                    print(f"⚠️ SERIALIZER FALLBACK: Could not parse preserved date: '{preserved_date}'")
                         
                         if parsed_date:
                             created_at_dt = datetime.combine(parsed_date, datetime.min.time())
@@ -818,17 +752,10 @@ class ClientSerializer(serializers.ModelSerializer):
                                 created_at_dt = timezone.make_aware(created_at_dt)
                             result.created_at = created_at_dt
                             result.save(update_fields=['created_at'])
-                            print(f"✅ SERIALIZER: Set created_at from preserved value: {created_at_dt}")
                             # Verify it was saved
                             result.refresh_from_db()
-                            print(f"✅ SERIALIZER: Verified created_at from DB: {result.created_at}")
-                    except Exception as e:
-                        print(f"⚠️ Could not set created_at from preserved value: {e}")
-                        import traceback
-                        print(traceback.format_exc())
-            
-            print(f"=== BACKEND SERIALIZER - CREATE SUCCESS ===")
-            print(f"Created client: {result}")
+                    except Exception:
+                        pass
             
             # Process customer interests after client creation
             # Check if customer_interests_data exists and is not empty

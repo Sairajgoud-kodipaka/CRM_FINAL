@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Download, Upload, Plus, MoreHorizontal, Eye, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit } from 'lucide-react';
+import { Search, Download, Upload, Plus, MoreHorizontal, Eye, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit, Archive } from 'lucide-react';
 import { apiService, Client, Store } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
@@ -16,6 +16,8 @@ import { AddCustomerModal } from '@/components/customers/AddCustomerModal';
 import { ImportModal } from '@/components/customers/ImportModal';
 import { ExportModal } from '@/components/customers/ExportModal';
 import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal';
+import { EditCustomerModal } from '@/components/customers/EditCustomerModal';
+import { TrashModal } from '@/components/customers/TrashModal';
 import { ResponsiveTable, ResponsiveColumn } from '@/components/ui/ResponsiveTable';
 import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
@@ -46,6 +48,9 @@ export default function CustomersPage() {
   const [mobilePageSize] = useState(20);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [trashModalOpen, setTrashModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Client | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
   const [filterType, setFilterType] = useState<'date_range' | 'all_customers'>('date_range');
   const [storeFilter, setStoreFilter] = useState<string>('all');
@@ -461,19 +466,26 @@ export default function CustomersPage() {
     return Array.from(sources).sort();
   };
 
-  const getUniqueCreatedBy = () => {
-    const creators = new Set<string>();
-    clients.forEach(client => {
-      if (client.created_by) {
-        const name = `${client.created_by.first_name || ''} ${client.created_by.last_name || ''}`.trim() || client.created_by.username || 'Unknown';
-        creators.add(name);
-      } else if (client.assigned_to) {
-        creators.add(`User ID: ${client.assigned_to}`);
-      } else {
-        creators.add('System');
-      }
+  /** Display name for "Assigned To" column: assigned salesperson, else creator, else System */
+  const getAssignedToDisplayName = (client: Client): string => {
+    const u = client.assigned_to_user || client.created_by;
+    if (u) return `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || 'Unknown';
+    return 'System';
+  };
+
+  /** Unique users for Assigned To filter: one entry per user id (no duplicates, no comma-separated pairs) */
+  const getUniqueAssignedTo = (): { id: number; displayName: string }[] => {
+    const byId = new Map<number, string>();
+    const SYSTEM_ID = 0;
+    clients.forEach((client) => {
+      const u = client.assigned_to_user || client.created_by;
+      const displayName = getAssignedToDisplayName(client);
+      const id = u?.id ?? SYSTEM_ID;
+      if (!byId.has(id)) byId.set(id, displayName);
     });
-    return Array.from(creators).sort();
+    return Array.from(byId.entries())
+      .map(([id, displayName]) => ({ id, displayName }))
+      .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || '', undefined, { sensitivity: 'base' }));
   };
 
   const getUniqueCreatedDates = () => {
@@ -546,16 +558,9 @@ export default function CustomersPage() {
       filtered = filtered.filter(client => client.lead_source === sourceHeaderFilter);
     }
 
-    // Apply created by filter
+    // Apply assigned to filter
     if (createdByHeaderFilter !== 'all') {
-      filtered = filtered.filter(client => {
-        const createdBy = client.created_by
-          ? `${client.created_by.first_name || ''} ${client.created_by.last_name || ''}`.trim() || client.created_by.username || 'Unknown'
-          : client.assigned_to
-            ? `User ID: ${client.assigned_to}`
-            : 'System';
-        return createdBy === createdByHeaderFilter;
-      });
+      filtered = filtered.filter(client => getAssignedToDisplayName(client) === createdByHeaderFilter);
     }
 
     // Apply created date filter
@@ -601,18 +606,8 @@ export default function CustomersPage() {
             bValue = (b.lead_source || '').toLowerCase();
             break;
           case 'created_by':
-            const aCreatedBy = a.created_by
-              ? `${a.created_by.first_name || ''} ${a.created_by.last_name || ''}`.trim() || a.created_by.username || 'Unknown'
-              : a.assigned_to
-                ? `User ID: ${a.assigned_to}`
-                : 'System';
-            const bCreatedBy = b.created_by
-              ? `${b.created_by.first_name || ''} ${b.created_by.last_name || ''}`.trim() || b.created_by.username || 'Unknown'
-              : b.assigned_to
-                ? `User ID: ${b.assigned_to}`
-                : 'System';
-            aValue = aCreatedBy.toLowerCase();
-            bValue = bCreatedBy.toLowerCase();
+            aValue = getAssignedToDisplayName(a).toLowerCase();
+            bValue = getAssignedToDisplayName(b).toLowerCase();
             break;
           case 'created':
             aValue = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -718,18 +713,12 @@ export default function CustomersPage() {
     },
     {
       key: 'created_by',
-      title: 'Created By',
+      title: 'Assigned To',
       priority: 'medium',
-      mobileLabel: 'Created By',
-      render: (value, row) => {
-        const client = row as Client;
-        const createdBy = client.created_by
-          ? `${client.created_by.first_name || ''} ${client.created_by.last_name || ''}`.trim() || client.created_by.username || 'Unknown'
-          : client.assigned_to
-            ? `User ID: ${client.assigned_to}`
-            : 'System';
-        return <span className="text-text-secondary">{createdBy}</span>;
-      },
+      mobileLabel: 'Assigned To',
+      render: (value, row) => (
+        <span className="text-text-secondary">{getAssignedToDisplayName(row as Client)}</span>
+      ),
     },
     {
       key: 'created_at',
@@ -767,6 +756,22 @@ export default function CustomersPage() {
     // Open customer detail modal
     setSelectedCustomerId(client.id.toString());
     setShowDetailModal(true);
+  };
+
+  const handleEditCustomer = (client: Client) => {
+    setSelectedCustomer(client);
+    setShowDetailModal(false);
+    setEditModalOpen(true);
+  };
+
+  const handleCustomerUpdated = () => {
+    setEditModalOpen(false);
+    setSelectedCustomer(null);
+    fetchClients();
+  };
+
+  const handleCustomerRestored = () => {
+    fetchClients();
   };
 
   const handleDeleteCustomer = async (client: Client) => {
@@ -817,6 +822,10 @@ export default function CustomersPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setTrashModalOpen(true)} className="text-orange-600">
+                  <Archive className="w-4 h-4 mr-2" />
+                  Trash
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setIsImportModalOpen(true)}>
                   <Upload className="w-4 h-4 mr-2" />
                   Import
@@ -829,6 +838,15 @@ export default function CustomersPage() {
             </DropdownMenu>
           ) : (
             <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 text-orange-600 hover:text-orange-700"
+                onClick={() => setTrashModalOpen(true)}
+              >
+                <Archive className="w-4 h-4" />
+                <span className="hidden sm:inline">Trash</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -1077,7 +1095,7 @@ export default function CustomersPage() {
                   <div className="space-y-3">
                     {mobilePagedClients.length > 0 ? (
                       mobilePagedClients.map((client) => {
-                        const isCurrentUserCustomer = client.created_by?.id === user?.id;
+                        const isCurrentUserCustomer = (client.assigned_to_user?.id ?? client.created_by?.id) === user?.id;
                         return (
                           <Card
                             key={client.id}
@@ -1320,7 +1338,7 @@ export default function CustomersPage() {
                             onClick={() => handleSort('created_by')}
                             className="flex items-center hover:text-foreground transition-colors"
                           >
-                            CREATED BY
+                            ASSIGNED TO
                             {getSortIcon('created_by')}
                           </button>
                           <Select value={createdByHeaderFilter} onValueChange={setCreatedByHeaderFilter}>
@@ -1329,9 +1347,9 @@ export default function CustomersPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="all">All Users</SelectItem>
-                              {getUniqueCreatedBy().map((creator) => (
-                                <SelectItem key={creator} value={creator}>
-                                  {creator}
+                              {getUniqueAssignedTo().map(({ id, displayName }) => (
+                                <SelectItem key={id} value={displayName}>
+                                  {displayName}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1440,11 +1458,7 @@ export default function CustomersPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="text-text-secondary">
-                              {client.created_by
-                                ? `${client.created_by.first_name || ''} ${client.created_by.last_name || ''}`.trim() || client.created_by.username || 'Unknown'
-                                : client.assigned_to
-                                  ? `User ID: ${client.assigned_to}`
-                                  : 'System'}
+                              {getAssignedToDisplayName(client)}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -1468,6 +1482,10 @@ export default function CustomersPage() {
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewCustomer(client); }}>
                                   <Eye className="w-4 h-4 mr-2" />
                                   View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditCustomer(client); }}>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit
                                 </DropdownMenuItem>
                                 {canDeleteCustomers && (
                                   <DropdownMenuItem
@@ -1577,16 +1595,29 @@ export default function CustomersPage() {
           setSelectedCustomerId(null);
         }}
         customerId={selectedCustomerId}
-        onEdit={(customer) => {
-          // Edit functionality removed - just close the detail modal
-          setShowDetailModal(false);
-        }}
+        onEdit={handleEditCustomer}
         onDelete={(customerId) => {
           const customerToDelete = clients.find(c => c.id.toString() === customerId);
           if (customerToDelete) {
             handleDeleteCustomer(customerToDelete);
           }
         }}
+      />
+
+      <EditCustomerModal
+        open={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedCustomer(null);
+        }}
+        customer={selectedCustomer}
+        onCustomerUpdated={handleCustomerUpdated}
+      />
+
+      <TrashModal
+        open={trashModalOpen}
+        onClose={() => setTrashModalOpen(false)}
+        onCustomerRestored={handleCustomerRestored}
       />
 
       {/* Mobile Floating Action Button */}

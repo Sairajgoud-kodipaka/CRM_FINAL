@@ -76,6 +76,7 @@ class CustomerInterestInline(admin.TabularInline):
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
+    list_max_show_all = 10000  # Allow "Select all" to include up to 10000 for bulk delete
     list_display = [
         'full_name', 'email', 'phone', 'customer_status_display', 'lead_source', 'catchment_area', 
         'assigned_to', 'store', 'tenant', 'created_at', 'customer_interests_summary'
