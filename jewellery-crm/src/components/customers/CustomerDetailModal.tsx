@@ -343,11 +343,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
           if (updateResponse.success) {
             await fetchCustomerDetails();
             setShowBoughtConfirm(false);
-            toast({
-              title: "Success",
-              description: "Customer marked as Bought successfully.",
-              variant: "default",
-            });
+            // Success via push only (no toast)
           } else {
             toast({
               title: "Error",
@@ -369,11 +365,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
           if (createResponse.success) {
             await fetchCustomerDetails();
             setShowBoughtConfirm(false);
-            toast({
-              title: "Success",
-              description: "Customer marked as Bought successfully.",
-              variant: "default",
-            });
+            // Success via push only (no toast)
           } else {
             toast({
               title: "Error",
@@ -467,11 +459,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             await fetchCustomerDetails();
             setShowLostDialog(false);
             setLostReason("");
-            toast({
-              title: "Success",
-              description: "Customer marked as Lost successfully. Reason saved in notes.",
-              variant: "default",
-            });
+            // Success via push only (no toast)
           } else {
             toast({
               title: "Error",
@@ -504,11 +492,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             await fetchCustomerDetails();
             setShowLostDialog(false);
             setLostReason("");
-            toast({
-              title: "Success",
-              description: "Customer marked as Lost successfully. Reason saved in notes.",
-              variant: "default",
-            });
+            // Success via push only (no toast)
           } else {
             toast({
               title: "Error",
@@ -570,11 +554,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             // Refresh customer details to get updated status
             await fetchCustomerDetails();
             
-            toast({
-              title: "Success",
-              description: `Customer moved to ${SALES_STAGE_LABELS[newStage as keyof typeof SALES_STAGE_LABELS] || newStage} stage successfully.`,
-              variant: "default",
-            });
+            // Success via push only (no toast)
             
             // Close modal after successful update
             setTimeout(() => {
@@ -611,11 +591,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
             // Refresh customer details
             await fetchCustomerDetails();
             
-            toast({
-              title: "Success",
-              description: `Customer moved to ${SALES_STAGE_LABELS[newStage as keyof typeof SALES_STAGE_LABELS] || newStage} stage successfully.`,
-              variant: "default",
-            });
+            // Success via push only (no toast)
             
             // Close modal after successful update
             setTimeout(() => {
@@ -1200,11 +1176,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                                       if (freshResponse.success && freshResponse.data) {
                                         setCustomer(freshResponse.data);
                                       }
-                                      toast({
-                                        title: "Success",
-                                        description: "Interest marked as purchased",
-                                        variant: "default",
-                                      });
+                                      // Success via push only (no toast)
                                     } else {
                                       const errorMsg = response?.message || (response?.errors && Object.values(response.errors).flat().join(', ')) || "Failed to mark interest as purchased";
                                       toast({
@@ -1247,11 +1219,7 @@ export function CustomerDetailModal({ open, onClose, customerId, onEdit, onDelet
                                       if (freshResponse.success && freshResponse.data) {
                                         setCustomer(freshResponse.data);
                                       }
-                                      toast({
-                                        title: "Success",
-                                        description: "Interest marked as not purchased",
-                                        variant: "default",
-                                      });
+                                      // Success via push only (no toast)
                                     } else {
                                       const errorMsg = response?.message || (response?.errors && Object.values(response.errors).flat().join(', ')) || "Failed to mark interest as not purchased";
                                       toast({

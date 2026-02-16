@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,8 @@ import { DateRange } from 'react-day-picker';
 import { SALES_STAGE_LABELS } from '@/constants';
 import { cn } from '@/lib/utils';
 
-export default function CustomersPage() {
+function CustomersPageContent() {
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
@@ -107,6 +109,15 @@ export default function CustomersPage() {
   useEffect(() => {
     fetchStores();
   }, []);
+
+  // Open customer detail modal from notification link (?open=customerId)
+  useEffect(() => {
+    const openId = searchParams?.get('open');
+    if (openId && openId.trim()) {
+      setSelectedCustomerId(openId.trim());
+      setShowDetailModal(true);
+    }
+  }, [searchParams]);
 
   const fetchStores = async () => {
     try {
@@ -1593,6 +1604,11 @@ export default function CustomersPage() {
         onClose={() => {
           setShowDetailModal(false);
           setSelectedCustomerId(null);
+          const params = new URLSearchParams(searchParams?.toString() ?? '');
+          if (params.has('open')) {
+            params.delete('open');
+            window.history.replaceState({}, '', `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`);
+          }
         }}
         customerId={selectedCustomerId}
         onEdit={handleEditCustomer}
@@ -1633,5 +1649,15 @@ export default function CustomersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-16 text-text-secondary">Loading...</div>
+    }>
+      <CustomersPageContent />
+    </Suspense>
   );
 }

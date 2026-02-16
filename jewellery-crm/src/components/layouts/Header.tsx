@@ -37,7 +37,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
-import { NotificationBell } from '@/components/notifications';
 
 interface HeaderProps {
   onSidebarToggle?: () => void;
@@ -173,9 +172,6 @@ export function Header({
 
         {/* Right Section - Responsive controls with proper spacing */}
         <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-          {/* Notifications */}
-          <NotificationBell />
-
           {/* Theme Toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

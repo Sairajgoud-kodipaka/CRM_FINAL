@@ -12,7 +12,6 @@ import { useScopedVisibility } from '@/lib/scoped-visibility';
 import { apiService } from '@/lib/api-service';
 import { Users, TrendingUp, Calendar as CalendarIcon, Store, Award, CheckCircle, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { NotificationBell } from '@/components/notifications';
 import ScopeIndicator from '@/components/ui/ScopeIndicator';
 
 interface ManagerDashboardData {

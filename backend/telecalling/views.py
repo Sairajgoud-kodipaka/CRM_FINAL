@@ -84,13 +84,23 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         customer_visit.assigned_to_telecaller = True
         customer_visit.save()
         
-        # Create notification for telecaller
+        # Create notification for telecaller (in-app)
         Notification.objects.create(
             recipient=serializer.instance.telecaller,
             title="New Assignment",
             message=f"You have been assigned to call {customer_visit.customer_name}",
             notification_type='assignment',
             related_assignment=serializer.instance
+        )
+        # Bridge to main notifications for push on all devices
+        from apps.notifications.services import create_push_notification
+        create_push_notification(
+            serializer.instance.telecaller,
+            "New Assignment",
+            f"You're assigned to call {customer_visit.customer_name}. Tap to start.",
+            action_url="/telecalling",
+            notif_type="announcement",
+            priority="medium",
         )
 
     @action(detail=False, methods=['post'])
@@ -124,13 +134,23 @@ class AssignmentViewSet(viewsets.ModelViewSet):
                     customer_visit.assigned_to_telecaller = True
                     customer_visit.save()
                     
-                    # Create notification
+                    # Create notification (in-app)
                     Notification.objects.create(
                         recipient_id=telecaller_id,
                         title="New Assignment",
                         message=f"You have been assigned to call {customer_visit.customer_name}",
                         notification_type='assignment',
                         related_assignment=assignment
+                    )
+                    # Bridge to main notifications for push on all devices
+                    from apps.notifications.services import create_push_notification
+                    create_push_notification(
+                        assignment.telecaller,
+                        "New Assignment",
+                        f"You're assigned to call {customer_visit.customer_name}. Tap to start.",
+                        action_url="/telecalling",
+                        notif_type="announcement",
+                        priority="medium",
                     )
                 except Exception as e:
                     return Response({'error': f'Failed to create assignment: {str(e)}'}, 
@@ -210,13 +230,22 @@ class CallLogViewSet(viewsets.ModelViewSet):
             assignment.status = 'completed'
         assignment.save()
 
-        # Create notification for manager
+        # Create notification for manager (in-app)
         Notification.objects.create(
             recipient=assignment.assigned_by,
             title="Call Feedback Received",
             message=f"Feedback received for {assignment.customer_visit.customer_name}",
             notification_type='feedback',
             related_assignment=assignment
+        )
+        from apps.notifications.services import create_push_notification
+        create_push_notification(
+            assignment.assigned_by,
+            "Call Feedback Received",
+            f"Feedback received for {assignment.customer_visit.customer_name}. Tap to view.",
+            action_url="/telecalling",
+            notif_type="announcement",
+            priority="medium",
         )
         
         # Update customer profile
@@ -297,7 +326,7 @@ class FollowUpViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
         
-        # Create notification for telecaller
+        # Create notification for telecaller (in-app)
         follow_up = serializer.instance
         Notification.objects.create(
             recipient=follow_up.assignment.telecaller,
@@ -305,6 +334,15 @@ class FollowUpViewSet(viewsets.ModelViewSet):
             message=f"Follow-up scheduled for {follow_up.assignment.customer_visit.customer_name}",
             notification_type='follow_up',
             related_assignment=follow_up.assignment
+        )
+        from apps.notifications.services import create_push_notification
+        create_push_notification(
+            follow_up.assignment.telecaller,
+            "Follow-up Scheduled",
+            f"Follow-up scheduled for {follow_up.assignment.customer_visit.customer_name}. Tap for details.",
+            action_url="/telecalling",
+            notif_type="announcement",
+            priority="medium",
         )
 
     @action(detail=False, methods=['get'])
@@ -779,13 +817,23 @@ class LeadTransferViewSet(viewsets.ModelViewSet):
         transfer.status = 'accepted'
         transfer.save()
         
-        # Create notification for the sender
+        # Create notification for the sender (in-app)
         Notification.objects.create(
             recipient=transfer.from_user,
             title="Transfer Accepted",
             message=f"Your transfer of {transfer.lead.name} has been accepted",
             notification_type='transfer_accepted',
             related_transfer=transfer
+        )
+        from apps.notifications.services import create_push_notification
+        first_name = getattr(transfer.lead, 'name', transfer.lead.__str__())[:50] if transfer.lead else 'Lead'
+        create_push_notification(
+            transfer.from_user,
+            "Transfer Accepted",
+            f"Your transfer of {first_name} was accepted.",
+            action_url="/telecalling",
+            notif_type="announcement",
+            priority="low",
         )
         
         return Response({'message': 'Transfer accepted successfully'})
@@ -816,13 +864,23 @@ class LeadTransferViewSet(viewsets.ModelViewSet):
         lead.status = 'contacted'  # Revert to contacted status
         lead.save()
         
-        # Create notification for the sender
+        # Create notification for the sender (in-app)
         Notification.objects.create(
             recipient=transfer.from_user,
             title="Transfer Rejected",
             message=f"Your transfer of {transfer.lead.name} has been rejected",
             notification_type='transfer_rejected',
             related_transfer=transfer
+        )
+        from apps.notifications.services import create_push_notification
+        first_name = getattr(transfer.lead, 'name', transfer.lead.__str__())[:50] if transfer.lead else 'Lead'
+        create_push_notification(
+            transfer.from_user,
+            "Transfer Rejected",
+            f"Your transfer of {first_name} was rejected. Tap to see reason.",
+            action_url="/telecalling",
+            notif_type="announcement",
+            priority="medium",
         )
         
         return Response({'message': 'Transfer rejected successfully'})

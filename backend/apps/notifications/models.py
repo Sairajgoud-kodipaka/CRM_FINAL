@@ -9,9 +9,16 @@ User = get_user_model()
 class Notification(models.Model):
     NOTIFICATION_TYPES = [
         ('appointment_reminder', 'Appointment Reminder'),
+        ('appointment_updated', 'Appointment Updated'),
+        ('appointment_cancelled', 'Appointment Cancelled'),
+        ('appointment_rescheduled', 'Appointment Rescheduled'),
+        ('appointment_confirmed', 'Appointment Confirmed'),
+        ('appointment_completed', 'Appointment Completed'),
         ('order_status', 'Order Status'),
         ('inventory_alert', 'Inventory Alert'),
         ('new_customer', 'New Customer'),
+        ('customer_updated', 'Customer Updated'),
+        ('customer_deleted', 'Customer Deleted'),
         ('deal_update', 'Deal Update'),
         ('payment_received', 'Payment Received'),
         ('task_reminder', 'Task Reminder'),

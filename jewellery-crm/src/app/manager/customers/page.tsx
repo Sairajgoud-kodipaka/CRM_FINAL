@@ -1,5 +1,6 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,32 @@ import { DateRange } from 'react-day-picker';
 import { getCurrentMonthDateRange, formatDateRange } from '@/lib/date-utils';
 import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 
-export default function ManagerCustomersPage() {
+function ManagerCustomersPageSkeleton() {
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="mb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <div className="h-8 w-32 bg-muted animate-pulse rounded mb-2" />
+          <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+        </div>
+        <div className="flex gap-2">
+          <div className="h-10 w-24 bg-muted animate-pulse rounded" />
+          <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+        </div>
+      </div>
+      <Card className="p-4">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="h-10 w-80 bg-muted animate-pulse rounded" />
+          <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+        </div>
+        <TableSkeleton rows={8} columns={6} />
+      </Card>
+    </div>
+  );
+}
+
+function ManagerCustomersContent() {
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
@@ -72,6 +98,15 @@ export default function ManagerCustomersPage() {
 
     setFilteredCustomers(filtered);
   }, [customers, searchTerm, statusFilter]);
+
+  // Open customer detail modal from notification link (?open=customerId)
+  useEffect(() => {
+    const openId = searchParams?.get('open');
+    if (openId?.trim()) {
+      setSelectedCustomerId(openId.trim());
+      setDetailModalOpen(true);
+    }
+  }, [searchParams]);
 
   const fetchCustomers = async () => {
     try {
@@ -336,27 +371,7 @@ export default function ManagerCustomersPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col gap-8">
-        <div className="mb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="h-8 w-32 bg-muted animate-pulse rounded mb-2" />
-            <div className="h-4 w-64 bg-muted animate-pulse rounded" />
-          </div>
-          <div className="flex gap-2">
-            <div className="h-10 w-24 bg-muted animate-pulse rounded" />
-            <div className="h-10 w-32 bg-muted animate-pulse rounded" />
-          </div>
-        </div>
-        <Card className="p-4">
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <div className="h-10 w-80 bg-muted animate-pulse rounded" />
-            <div className="h-10 w-32 bg-muted animate-pulse rounded" />
-          </div>
-          <TableSkeleton rows={8} columns={6} />
-        </Card>
-      </div>
-    );
+    return <ManagerCustomersPageSkeleton />;
   }
   return (
     <div className="flex flex-col gap-8">
@@ -380,7 +395,18 @@ export default function ManagerCustomersPage() {
       />
       <CustomerDetailModal
         open={detailModalOpen}
-        onClose={() => setDetailModalOpen(false)}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setSelectedCustomerId(null);
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(searchParams?.toString() ?? '');
+            if (params.has('open')) {
+              params.delete('open');
+              const qs = params.toString();
+              window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+            }
+          }
+        }}
         customerId={selectedCustomerId}
         onEdit={handleEditCustomer}
         onDelete={canDeleteCustomers ? handleDeleteCustomer : undefined}
@@ -598,5 +624,13 @@ export default function ManagerCustomersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ManagerCustomersPage() {
+  return (
+    <Suspense fallback={<ManagerCustomersPageSkeleton />}>
+      <ManagerCustomersContent />
+    </Suspense>
   );
 }

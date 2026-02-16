@@ -1,0 +1,6 @@
+# CRM appointment reminders - run every 15 minutes (alternative to systemd timer)
+# Install: sudo cp backend/deploy/utho/cron.d/crm-appointment-reminders /etc/cron.d/
+#          sudo chmod 644 /etc/cron.d/crm-appointment-reminders
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+*/15 * * * * root cd /var/www/CRM_FINAL/backend && /var/www/CRM_FINAL/backend/venv/bin/python manage.py send_appointment_reminders >> /var/log/crm-reminders.log 2>&1

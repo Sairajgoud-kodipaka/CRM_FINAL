@@ -129,6 +129,65 @@ sudo systemctl restart crm-backend.service
 - [ ] Test pasting formatted phone numbers
 - [ ] Verify phone number validation works
 
+## ⏰ Appointment reminder cron (production)
+
+Appointment reminders (“1 hour before”) run automatically via a **systemd timer** (recommended) or **cron**.
+
+### Option A: Systemd timer (implemented in deploy script)
+
+**No manual setup needed.** When you run `sudo bash utho-deploy.sh`, the script automatically installs and enables the timer (Step 9b). Every deploy keeps it running.
+
+- Runs every **15 minutes** (first run 2 minutes after boot).
+- Logs: `sudo journalctl -u crm-appointment-reminders.service -f`
+- Status: `sudo systemctl list-timers crm-appointment-reminders.timer`
+
+**Manual one-time setup** (only if you are not using the deploy script):
+
+```bash
+# From project root (e.g. /var/www/CRM_FINAL)
+sudo cp backend/deploy/utho/crm-appointment-reminders.service /etc/systemd/system/
+sudo cp backend/deploy/utho/crm-appointment-reminders.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable crm-appointment-reminders.timer --now
+```
+
+### Option B: Cron
+
+```bash
+sudo cp backend/deploy/utho/cron.d/crm-appointment-reminders /etc/cron.d/
+sudo chmod 644 /etc/cron.d/crm-appointment-reminders
+```
+
+- Log file: `/var/log/crm-reminders.log` (create with `sudo touch /var/log/crm-reminders.log` if needed).
+
+### Manual test
+
+```bash
+cd /var/www/CRM_FINAL/backend
+./venv/bin/python manage.py send_appointment_reminders
+```
+
+### Why this does not spam users
+
+- The **timer** runs every 15 minutes (it only *checks*).
+- The **command** only sends a reminder for appointments that are **~1 hour away** (default window: 50–70 minutes from now) and have **not** had a reminder yet (`reminder_sent=False`).
+- After sending, it sets `reminder_sent=True` on that appointment, so the next run skips it.
+- **Result:** each appointment generates **at most one** reminder to the assignee/creator.
+
+### Example scenario
+
+| Time (today) | Timer runs? | Appointment: Priya at **10:00 AM** |
+|--------------|-------------|-------------------------------------|
+| 8:00         | Yes         | 10:00 is 2 hours away → not in 50–70 min window → **no notification** |
+| 8:15         | Yes         | Still outside window → **no notification** |
+| 8:50         | Yes         | 10:00 is 70 min away → in window, `reminder_sent=False` → **one notification**: “Reminder: Priya in 1 hour”. Then `reminder_sent=True`. |
+| 9:05         | Yes         | 10:00 is 55 min away but `reminder_sent=True` → **no new notification** |
+| 9:20, 9:35…  | Yes         | Same appointment skipped every time → **no spam** |
+
+So the user gets **one** reminder per appointment, about 1 hour before.
+
+---
+
 ## 📝 Quick Commands Reference
 
 ```bash
@@ -146,6 +205,10 @@ sudo systemctl status crm-backend.service
 
 # Check all services status
 sudo systemctl status crm-backend.service nginx.service postgresql.service redis.service
+
+# Appointment reminder timer (if enabled)
+sudo systemctl status crm-appointment-reminders.timer
+sudo journalctl -u crm-appointment-reminders.service -n 20
 
 # Test API
 curl http://localhost:8000/api/health/

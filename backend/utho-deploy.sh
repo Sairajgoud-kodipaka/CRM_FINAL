@@ -226,6 +226,20 @@ restart_service "postgresql" "PostgreSQL"
 restart_service "redis-server" "Redis"
 restart_service "crm-backend.service" "CRM Backend"
 
+# Step 9b: Install and enable appointment reminder timer (Option A)
+# Safe: job runs every 15 min but only sends ONE reminder per appointment (~1 hr before); reminder_sent flag prevents repeat.
+log "Step 9b: Installing appointment reminder timer (runs every 15 min)..."
+DEPLOY_UTHO="$PROJECT_ROOT/backend/deploy/utho"
+if [[ -f "$DEPLOY_UTHO/crm-appointment-reminders.service" && -f "$DEPLOY_UTHO/crm-appointment-reminders.timer" ]]; then
+    sudo cp "$DEPLOY_UTHO/crm-appointment-reminders.service" /etc/systemd/system/
+    sudo cp "$DEPLOY_UTHO/crm-appointment-reminders.timer" /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable crm-appointment-reminders.timer --now
+    success "Appointment reminder timer enabled (runs every 15 min)"
+else
+    warning "Appointment reminder unit files not found at $DEPLOY_UTHO (optional)"
+fi
+
 # Restart Nginx
 if systemctl list-unit-files | grep -q nginx; then
     info "Restarting Nginx..."
@@ -279,6 +293,7 @@ echo "  ✅ Dependencies installed/verified"
 echo "  ✅ Database migrated"
 echo "  ✅ Static files collected"
 echo "  ✅ Services restarted"
+echo "  ✅ Appointment reminder timer (every 15 min)"
 echo "  ✅ Health checks completed"
 echo ""
 echo "=================================="
@@ -326,11 +341,12 @@ esac
 
 echo ""
 info "📝 Quick log commands for future use:"
-echo "  - All logs:     sudo journalctl -f"
-echo "  - Backend:      sudo journalctl -u crm-backend.service -f"
-echo "  - PostgreSQL:   sudo journalctl -u postgresql -f"
-echo "  - Redis:        sudo journalctl -u redis-server -f"
-echo "  - Nginx access: sudo tail -f /var/log/nginx/access.log"
-echo "  - Nginx error:  sudo tail -f /var/log/nginx/error.log"
+echo "  - All logs:       sudo journalctl -f"
+echo "  - Backend:        sudo journalctl -u crm-backend.service -f"
+echo "  - Reminder timer: sudo journalctl -u crm-appointment-reminders.service -f"
+echo "  - PostgreSQL:     sudo journalctl -u postgresql -f"
+echo "  - Redis:          sudo journalctl -u redis-server -f"
+echo "  - Nginx access:   sudo tail -f /var/log/nginx/access.log"
+echo "  - Nginx error:    sudo tail -f /var/log/nginx/error.log"
 echo ""
 success "Your application is ready! 🚀"

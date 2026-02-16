@@ -171,6 +171,15 @@ function SalesCustomersPageContent() {
     }
   }, [searchParams]);
 
+  // Open customer detail modal from notification link (?open=customerId)
+  useEffect(() => {
+    const openId = searchParams?.get('open');
+    if (openId?.trim()) {
+      setSelectedCustomerId(openId.trim());
+      setDetailModalOpen(true);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     // Filter customers based on search term, status, and my data filter
     let filtered = customers || [];
@@ -224,11 +233,7 @@ function SalesCustomersPageContent() {
       return updated;
     });
 
-    toast({
-      title: "Success!",
-      description: "Customer created successfully!",
-      variant: "success",
-    });
+    // Success feedback via push notification only (no toast)
 
     // Don't call fetchCustomers() immediately - it hits cache and overwrites optimistic update
     // The optimistic update should be sufficient for immediate UI update
@@ -245,11 +250,7 @@ function SalesCustomersPageContent() {
       customer.id?.toString() === updatedCustomer.id?.toString() ? updatedCustomer : customer
     ));
 
-    toast({
-      title: "Success!",
-      description: "Customer updated successfully!",
-      variant: "success",
-    });
+    // Success feedback via push notification only (no toast)
 
     // Refresh data in background to ensure consistency
     fetchCustomers();
@@ -266,12 +267,7 @@ function SalesCustomersPageContent() {
       const response = await apiService.deleteClient(customerId);
 
       if (response.success) {
-
-        toast({
-          title: "Success!",
-          description: "Customer permanently deleted from database!",
-          variant: "success",
-        });
+        // Success feedback via push only (no toast)
       } else {
 
 
@@ -482,7 +478,18 @@ function SalesCustomersPageContent() {
         />
       <CustomerDetailModal
         open={detailModalOpen}
-        onClose={() => setDetailModalOpen(false)}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setSelectedCustomerId(null);
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(searchParams?.toString() ?? '');
+            if (params.has('open')) {
+              params.delete('open');
+              const qs = params.toString();
+              window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+            }
+          }
+        }}
         customerId={selectedCustomerId}
         onEdit={handleEditCustomer}
         onDelete={canDeleteCustomers ? handleDeleteCustomer : undefined}
@@ -728,7 +735,7 @@ function SalesCustomersPageContent() {
                       }
                       setSelectedIds(new Set());
                       fetchCustomers();
-                      toast({ title: 'Deleted', description: 'Selected customers deleted', variant: 'success' });
+                      // Success via push only (no toast)
                     }}
                   >
                     <Trash2 className="w-4 h-4 mr-1" /> Bulk Delete

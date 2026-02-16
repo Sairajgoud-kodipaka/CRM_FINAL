@@ -1072,13 +1072,7 @@ export function AddCustomerModal({ open, onClose, onCustomerCreated }: AddCustom
           // Don't fail the customer creation/update if pipeline creation fails
         }
 
-        toast({
-          title: "Success!",
-          description: isUpdatingExistingCustomer 
-            ? `Customer updated successfully! New interests added. Assigned to ${assignmentAudit.assignedToName}.`
-            : `Customer added successfully! Assigned to ${assignmentAudit.assignedToName}.`,
-          variant: "success",
-        });
+        // Success feedback via push notification only (no toast)
 
         // Call the callback with the created customer data
         if (typeof onCustomerCreated === 'function') {

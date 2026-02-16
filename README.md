@@ -43,8 +43,8 @@ From the project root (`K:\CRM_FINAL`):
 ### What runs in Docker
 
 - `backend-dev` – Django (Python 3.12) at `http://localhost:8001` (container port 8000)
-- `frontend-dev` – Next.js dev server at `http://localhost:3001` (container port 3000)
-- `db-dev` – Postgres 15 on host port `5433`
+- `backend-cron` – Appointment reminder job (runs every 15 min; no manual run needed)
+- `db-dev` – Postgres 15 on host port `5434`
 - `redis-dev` – Redis 7 on host port `6380`
 
 Source directories (`backend/`, `jewellery-crm/`) are bind mounted into the containers, so saving code locally triggers hot reload in both backend and frontend.

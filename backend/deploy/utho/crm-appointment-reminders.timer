@@ -1,0 +1,12 @@
+[Unit]
+Description=Run CRM appointment reminders every 15 minutes
+Requires=crm-appointment-reminders.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

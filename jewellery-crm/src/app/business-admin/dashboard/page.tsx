@@ -9,8 +9,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/lib/api-service';
 import { Users, TrendingUp, Calendar as CalendarIcon, Store, Award, CheckCircle, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { NotificationBell } from '@/components/notifications';
-
 interface DashboardData {
   // Monthly KPI Metrics
   monthly_sales: {

@@ -1,6 +1,55 @@
 import type { Notification } from '@/types';
 
 /**
+ * App uses role-prefixed routes (e.g. /sales/customers, /manager/customers).
+ * Backend sends logical paths like /customers/123 — resolve to the correct app route.
+ */
+function getRolePrefix(role: string): string {
+  const map: Record<string, string> = {
+    business_admin: 'business-admin',
+    manager: 'manager',
+    inhouse_sales: 'sales',
+    tele_calling: 'telecaller',
+    marketing: 'marketing',
+    platform_admin: 'platform',
+  };
+  return map[role] || 'sales';
+}
+
+/**
+ * Resolve backend action_url to a route that exists in the app (role-prefixed).
+ */
+export function resolveActionUrlToAppRoute(actionUrl: string, userRole: string): string {
+  if (!actionUrl || typeof actionUrl !== 'string') return '/';
+  const path = actionUrl.replace(/^\//, '').trim();
+  const prefix = getRolePrefix(userRole);
+
+  // /customers or /customers/123 → list with detail modal open when id present
+  if (path === 'customers' || path.startsWith('customers/')) {
+    const id = path === 'customers' ? '' : path.slice('customers/'.length);
+    return id ? `/${prefix}/customers?open=${id}` : `/${prefix}/customers`;
+  }
+  // /appointments or /appointments/123
+  if (path === 'appointments' || path.startsWith('appointments/')) {
+    const id = path.startsWith('appointments/') ? path.slice('appointments/'.length) : '';
+    const base = `/${prefix}/appointments`;
+    return id ? `${base}?open=${id}` : base;
+  }
+  // /products/transfers/123
+  if (path.startsWith('products/transfers/')) {
+    const id = path.slice('products/transfers/'.length);
+    const base = prefix === 'business-admin' ? '/business-admin/inventory' : prefix === 'manager' ? '/manager/inventory' : `/${prefix}/products`;
+    return id ? `${base}?transfer=${id}` : base;
+  }
+  // /products/transfers (list)
+  if (path === 'products/transfers') {
+    return prefix === 'business-admin' ? '/business-admin/inventory' : prefix === 'manager' ? '/manager/inventory' : `/${prefix}/products`;
+  }
+
+  return actionUrl.startsWith('/') ? actionUrl : `/${actionUrl}`;
+}
+
+/**
  * Extract ID from notification message or metadata
  */
 function extractIdFromNotification(notification: Notification, key: string): string {
@@ -24,101 +73,86 @@ function extractIdFromNotification(notification: Notification, key: string): str
 }
 
 /**
- * Get notification route based on type and user role
+ * Get notification route based on type and user role.
+ * Backend actionUrl is resolved to role-prefixed app routes so navigation does not 404.
  */
 export function getNotificationRoute(
   notification: Notification,
   userRole: string
 ): string {
-  // Use action_url if explicitly set
+  // Resolve backend action_url to app route (e.g. /customers/123 → /sales/customers/123)
   if (notification.actionUrl) {
-    return notification.actionUrl;
+    return resolveActionUrlToAppRoute(notification.actionUrl, userRole);
   }
 
-  // Dynamic routing based on notification type
+  // Dynamic routing based on notification type (all role-prefixed)
+  const prefix = getRolePrefix(userRole);
   switch (notification.type) {
     case 'new_customer':
-      // Extract customer ID from metadata or message
       const customerId = extractIdFromNotification(notification, 'customer_id');
       if (customerId) {
-        return userRole === 'business_admin'
-          ? `/business-admin/customers/${customerId}`
-          : `/customers/${customerId}`;
+        return `/${prefix}/customers?open=${customerId}`;
       }
-      return userRole === 'business_admin'
-        ? '/business-admin/customers'
-        : '/customers';
+      return `/${prefix}/customers`;
 
     case 'appointment_reminder':
-      // Extract appointment ID from metadata or message
       const appointmentId = extractIdFromNotification(notification, 'appointment_id');
       if (appointmentId) {
-        return `/appointments?id=${appointmentId}`;
+        return `/${prefix}/appointments?open=${appointmentId}`;
       }
-      return '/appointments';
+      return `/${prefix}/appointments`;
 
     case 'deal_update':
-      // Extract customer ID for deal update
       const dealCustomerId = extractIdFromNotification(notification, 'customer_id');
       if (dealCustomerId) {
-        return `/customers/${dealCustomerId}`;
+        return `/${prefix}/customers?open=${dealCustomerId}`;
       }
-      return '/sales';
+      return `/${prefix}/pipeline`;
 
     case 'payment_received':
-      // Extract customer ID
       const paymentCustomerId = extractIdFromNotification(notification, 'customer_id');
       if (paymentCustomerId) {
-        return `/customers/${paymentCustomerId}`;
+        return `/${prefix}/customers?open=${paymentCustomerId}`;
       }
-      return '/sales';
+      return `/${prefix}/dashboard`;
 
     case 'order_status':
-      // Extract order ID
       const orderId = extractIdFromNotification(notification, 'order_id');
       if (orderId) {
-        return `/orders/${orderId}`;
+        return `/${prefix}/orders`;
       }
-      return '/orders';
+      return `/${prefix}/orders`;
 
     case 'inventory_alert':
-      // Extract product ID
       const productId = extractIdFromNotification(notification, 'product_id');
       if (productId) {
-        return `/products/${productId}`;
+        return prefix === 'business-admin' ? '/business-admin/inventory' : prefix === 'manager' ? '/manager/inventory' : `/${prefix}/products`;
       }
-      return '/products';
+      return prefix === 'business-admin' ? '/business-admin/inventory' : prefix === 'manager' ? '/manager/inventory' : `/${prefix}/products`;
 
     case 'task_reminder':
-      // Extract task ID
       const taskId = extractIdFromNotification(notification, 'task_id');
       if (taskId) {
-        return `/tasks/${taskId}`;
+        return `/${prefix}/dashboard`;
       }
-      return '/tasks';
+      return `/${prefix}/dashboard`;
 
     case 'escalation':
-      // Go to support/escalations
-      return '/support/escalations';
+      return prefix === 'manager' ? '/manager/support' : `/${prefix}/dashboard`;
 
     case 'announcement':
-      // Go to announcements page
-      return '/announcements';
+      return `/${prefix}/dashboard`;
 
     case 'stock_transfer_request':
     case 'stock_transfer_approved':
     case 'stock_transfer_completed':
     case 'stock_transfer_cancelled':
     case 'stock_transfer_rejected':
-      // Extract transfer ID
       const transferId = extractIdFromNotification(notification, 'transfer_id');
-      if (transferId) {
-        return `/inventory/transfers/${transferId}`;
-      }
-      return '/inventory/transfers';
+      const invBase = prefix === 'business-admin' ? '/business-admin/inventory' : prefix === 'manager' ? '/manager/inventory' : `/${prefix}/products`;
+      return transferId ? `${invBase}?transfer=${transferId}` : invBase;
 
     case 'marketing_campaign':
-      // Go to marketing campaigns
       return '/marketing/campaigns';
 
     default:

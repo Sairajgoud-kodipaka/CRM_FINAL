@@ -1,33 +1,36 @@
+import logging
 from apps.notifications.models import Notification
+from apps.notifications.services import get_role_based_recipients
 from apps.users.models import User
+
+logger = logging.getLogger(__name__)
+
 
 class StockTransferNotificationService:
     @staticmethod
     def notify_transfer_request(transfer):
-        """Notify when a transfer is requested"""
-        users_to_notify = []
-        
-        # Notify business admin
-        business_admins = User.objects.filter(
-            tenant=transfer.from_store.tenant,
-            role='business_admin',
-            is_active=True
-        )
-        users_to_notify.extend(business_admins)
-        
-        # Notify receiving store users
-        receiving_store_users = User.objects.filter(
-            tenant=transfer.from_store.tenant,
+        """Notify when a transfer is requested. Role-based, same tenant only."""
+        if not getattr(transfer, 'from_store', None):
+            logger.warning("Transfer %s has no from_store; skipping notifications", getattr(transfer, 'id', None))
+            return
+        tenant = transfer.from_store.tenant
+        if not tenant:
+            logger.warning("Transfer %s from_store has no tenant; skipping notifications", getattr(transfer, 'id', None))
+            return
+        # Creator (requested_by), manager of creator, business admin, receiving store (to_store) users
+        users_to_notify = get_role_based_recipients(
+            tenant,
+            creator=transfer.requested_by,
             store=transfer.to_store,
-            is_active=True
-        ).filter(
-            role__in=['manager', 'inhouse_sales', 'tele_calling']
+            include_creator=True,
+            include_manager_of_creator=True,
+            include_manager_of_assignee=False,
+            include_business_admin=True,
+            include_store_manager=True,
+            include_store_sales_and_telecalling=True,
         )
-        users_to_notify.extend(receiving_store_users)
-        
-        # Remove duplicates
         unique_users = list({user.id: user for user in users_to_notify}.values())
-        
+
         for user in unique_users:
             Notification.objects.create(
                 user=user,
@@ -43,33 +46,27 @@ class StockTransferNotificationService:
     
     @staticmethod
     def notify_transfer_approved(transfer):
-        """Notify when a transfer is approved"""
-        users_to_notify = []
-        
-        # Notify requesting user
-        users_to_notify.append(transfer.requested_by)
-        
-        # Notify business admin
-        business_admins = User.objects.filter(
-            tenant=transfer.from_store.tenant,
-            role='business_admin',
-            is_active=True
-        )
-        users_to_notify.extend(business_admins)
-        
-        # Notify sending store users
-        sending_store_users = User.objects.filter(
-            tenant=transfer.from_store.tenant,
+        """Notify when a transfer is approved. Role-based, same tenant; when manager approves, business admin gets push."""
+        if not getattr(transfer, 'from_store', None) or not getattr(transfer.from_store, 'tenant', None):
+            return
+        tenant = transfer.from_store.tenant
+        # requested_by, manager of requested_by, business admin (so business admin sees manager's approval), store users
+        users_to_notify = get_role_based_recipients(
+            tenant,
+            creator=transfer.requested_by,
             store=transfer.from_store,
-            is_active=True
-        ).filter(
-            role__in=['manager', 'inhouse_sales', 'tele_calling']
+            include_creator=True,
+            include_manager_of_creator=True,
+            include_manager_of_assignee=False,
+            include_business_admin=True,
+            include_store_manager=True,
+            include_store_sales_and_telecalling=True,
         )
-        users_to_notify.extend(sending_store_users)
-        
-        # Remove duplicates
+        if transfer.approved_by and transfer.approved_by.id not in {u.id for u in users_to_notify}:
+            if getattr(transfer.approved_by, 'tenant_id', None) == tenant.id:
+                users_to_notify.append(transfer.approved_by)
         unique_users = list({user.id: user for user in users_to_notify}.values())
-        
+
         for user in unique_users:
             Notification.objects.create(
                 user=user,
@@ -85,37 +82,27 @@ class StockTransferNotificationService:
     
     @staticmethod
     def notify_transfer_completed(transfer):
-        """Notify when a transfer is completed"""
-        users_to_notify = []
-        
-        # Notify requesting user
-        users_to_notify.append(transfer.requested_by)
-        
-        # Notify approving user
-        if transfer.approved_by:
+        """Notify when a transfer is completed. Role-based, same tenant only."""
+        if not getattr(transfer, 'from_store', None) or not getattr(transfer.from_store, 'tenant', None):
+            return
+        tenant = transfer.from_store.tenant
+        users_to_notify = get_role_based_recipients(
+            tenant,
+            creator=transfer.requested_by,
+            store=transfer.from_store,
+            include_creator=True,
+            include_manager_of_creator=True,
+            include_business_admin=True,
+            include_store_manager=True,
+            include_store_sales_and_telecalling=True,
+        )
+        if transfer.approved_by and transfer.approved_by.id not in {u.id for u in users_to_notify} and getattr(transfer.approved_by, 'tenant_id', None) == tenant.id:
             users_to_notify.append(transfer.approved_by)
-        
-        # Notify business admin
-        business_admins = User.objects.filter(
-            tenant=transfer.from_store.tenant,
-            role='business_admin',
-            is_active=True
-        )
-        users_to_notify.extend(business_admins)
-        
-        # Notify both store users
-        store_users = User.objects.filter(
-            tenant=transfer.from_store.tenant,
-            store__in=[transfer.from_store, transfer.to_store],
-            is_active=True
-        ).filter(
-            role__in=['manager', 'inhouse_sales', 'tele_calling']
-        )
-        users_to_notify.extend(store_users)
-        
-        # Remove duplicates
+        for u in User.objects.filter(tenant=tenant, store=transfer.to_store, role__in=['manager', 'inhouse_sales', 'tele_calling'], is_active=True):
+            if u.id not in {x.id for x in users_to_notify}:
+                users_to_notify.append(u)
         unique_users = list({user.id: user for user in users_to_notify}.values())
-        
+
         for user in unique_users:
             Notification.objects.create(
                 user=user,
@@ -131,33 +118,25 @@ class StockTransferNotificationService:
     
     @staticmethod
     def notify_transfer_cancelled(transfer):
-        """Notify when a transfer is cancelled"""
-        users_to_notify = []
-        
-        # Notify requesting user
-        users_to_notify.append(transfer.requested_by)
-        
-        # Notify business admin
-        business_admins = User.objects.filter(
-            tenant=transfer.from_store.tenant,
-            role='business_admin',
-            is_active=True
+        """Notify when a transfer is cancelled. Role-based, same tenant only."""
+        if not getattr(transfer, 'from_store', None) or not getattr(transfer.from_store, 'tenant', None):
+            return
+        tenant = transfer.from_store.tenant
+        users_to_notify = get_role_based_recipients(
+            tenant,
+            creator=transfer.requested_by,
+            store=transfer.from_store,
+            include_creator=True,
+            include_manager_of_creator=True,
+            include_business_admin=True,
+            include_store_manager=True,
+            include_store_sales_and_telecalling=True,
         )
-        users_to_notify.extend(business_admins)
-        
-        # Notify both store users
-        store_users = User.objects.filter(
-            tenant=transfer.from_store.tenant,
-            store__in=[transfer.from_store, transfer.to_store],
-            is_active=True
-        ).filter(
-            role__in=['manager', 'inhouse_sales', 'tele_calling']
-        )
-        users_to_notify.extend(store_users)
-        
-        # Remove duplicates
+        for u in User.objects.filter(tenant=tenant, store=transfer.to_store, role__in=['manager', 'inhouse_sales', 'tele_calling'], is_active=True):
+            if u.id not in {x.id for x in users_to_notify}:
+                users_to_notify.append(u)
         unique_users = list({user.id: user for user in users_to_notify}.values())
-        
+
         for user in unique_users:
             Notification.objects.create(
                 user=user,

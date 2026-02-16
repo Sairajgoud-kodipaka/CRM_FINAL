@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ToastNotification } from './ToastNotification';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
+import { getNotificationRoute } from '@/lib/notification-router';
 import type { Notification } from '@/types';
 
 interface NotificationManagerProps {
@@ -15,6 +17,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
   maxToasts = 3,
   position = 'top-right'
 }) => {
+  const router = useRouter();
   const { state, actions } = useNotifications();
   const { user, isAuthenticated } = useAuth();
   const [activeToasts, setActiveToasts] = useState<Notification[]>([]);
@@ -167,9 +170,10 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({
     // Remove from active toasts
     setActiveToasts(prev => prev.filter(toast => toast.id !== notification.id));
 
-    // Navigate to action URL if available
-    if (notification.actionUrl) {
-      window.location.href = notification.actionUrl;
+    // Navigate using role-based route (e.g. /customers/123 → /sales/customers/123) so we don't 404
+    const route = getNotificationRoute(notification, user?.role || '');
+    if (route && route !== '/') {
+      router.push(route);
     }
   };
 

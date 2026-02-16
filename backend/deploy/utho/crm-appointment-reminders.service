@@ -1,0 +1,17 @@
+[Unit]
+Description=CRM appointment reminder notifications (1 hour before)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/var/www/CRM_FINAL/backend
+Environment="PATH=/var/www/CRM_FINAL/backend/venv/bin"
+Environment="DJANGO_SETTINGS_MODULE=core.settings"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/var/www/CRM_FINAL/backend/venv/bin/python manage.py send_appointment_reminders
+
+[Install]
+WantedBy=multi-user.target

@@ -16,6 +16,8 @@ VAPID_PUBLIC_KEY=def789uvw012...
 VAPID_CLAIMS_EMAIL=mailto:admin@yourdomain.com
 ```
 
+**Important:** Paste the **entire** line for `VAPID_PUBLIC_KEY` into your `.env` (it is long, ~120+ characters). If only part is pasted, push will fail with "key conversion failed" or "truncated". Use `python manage.py generate_vapid_keys` to get single-line keys.
+
 ## Step 2: Provide the Keys
 
 Copy the three values and send them to me:

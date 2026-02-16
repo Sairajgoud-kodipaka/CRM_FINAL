@@ -16,9 +16,37 @@ services:
       - /app/venv  # Exclude venv from volume
     env_file:
       - ./backend/.env
+    environment:
+      - REDIS_HOST=redis-dev
+      - REDIS_PORT=6379
     depends_on:
       - db-dev
       - redis-dev
+
+  # Appointment reminders (every 15 min) - uses same backend image and env
+  backend-cron:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend:/app
+      - /app/venv
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_HOST=redis-dev
+      - REDIS_PORT=6379
+      - DB_HOST=db-dev
+      - DB_PORT=5432
+    depends_on:
+      - db-dev
+      - redis-dev
+    command: >
+      sh -c "sleep 30 && while true; do
+        python manage.py send_appointment_reminders || true;
+        sleep 900;
+      done"
+    restart: unless-stopped
 
   # Development Database
   db-dev:

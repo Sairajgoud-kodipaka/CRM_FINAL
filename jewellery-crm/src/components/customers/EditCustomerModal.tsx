@@ -802,7 +802,7 @@ export function EditCustomerModal({ open, onClose, customer, onCustomerUpdated }
       );
 
       if (response.success && response.data) {
-        toast({ title: "Success", description: "Customer updated successfully", variant: "success" });
+        // Success feedback via push notification only (no toast)
         onCustomerUpdated(response.data);
         onClose();
       } else {

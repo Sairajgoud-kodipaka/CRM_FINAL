@@ -531,7 +531,9 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         # Pass user context to serializer for audit logging
         serializer.context['user'] = self.request.user
         instance._auditlog_user = self.request.user
-        return serializer.save()
+        instance = serializer.save()
+        self.create_customer_updated_notifications(instance, self.request.user)
+        return instance
 
     def perform_create(self, serializer):
         """Override to set the correct created_by user and handle tenant/store assignment"""
@@ -691,77 +693,24 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     print(f"⚠️  Notifications already exist ({existing_notifications}) for customer {client.id} - skipping to prevent duplicates")
                     return
                 
-                # Get all users who should receive notifications
-                users_to_notify = []
-                
-                # The user who created the customer should get notified
-                users_to_notify.append(created_by_user)
-                print(f"Added creator: {created_by_user.username}")
-                
-                # Business admin should always get notified
-                if created_by_user.tenant:
-                    business_admins = User.objects.filter(
-                        tenant=created_by_user.tenant,
-                        role='business_admin',
-                        is_active=True
-                    )
-                    print(f"Found {business_admins.count()} business admins: {[f'{admin.username} (active: {admin.is_active})' for admin in business_admins]}")
-                    users_to_notify.extend(business_admins)
-                
-                # Determine which store to use for notifications
-                # Use customer's store if available, otherwise use the sales person's store
+                # Role-based recipients (same tenant only): creator, manager of creator, business admin, store manager
+                # See NOTIFICATION_TEMPLATES.md — no cross-tenant; manager = manager of the sales rep (creator)
+                from apps.notifications.services import get_role_based_recipients
+                tenant = client.tenant or created_by_user.tenant
                 notification_store = client.store if client.store else created_by_user.store
-                print(f"🔍 Notification store determination:")
-                print(f"   Client store: {client.store.name if client.store else 'None'}")
-                print(f"   Sales person store: {created_by_user.store.name if created_by_user.store else 'None'}")
-                print(f"   Using store: {notification_store.name if notification_store else 'None'}")
-                
-                # Store users should get notified if customer is assigned to their store OR if sales person has a store
-                if notification_store:
-                    print(f"✅ Using store for notifications: {notification_store.name} (from {'customer' if client.store else 'sales person'})")
-                    
-                    # Store manager - notify manager of the store
-                    # IMPORTANT: Use store_id instead of store object to ensure proper matching
-                    store_managers = User.objects.filter(
-                        tenant=created_by_user.tenant,
-                        role='manager',
-                        store_id=notification_store.id,
-                        is_active=True
-                    ).select_related('store', 'tenant')
-                    
-                    managers_info = [f'{manager.username} (store: {manager.store.name if manager.store else "None"}, store_id: {manager.store.id if manager.store else "None"})' for manager in store_managers]
-                    print(f"🔍 Manager query details:")
-                    print(f"   Tenant: {created_by_user.tenant} (ID: {created_by_user.tenant.id if created_by_user.tenant else 'None'})")
-                    print(f"   Role: manager")
-                    print(f"   Store ID: {notification_store.id}")
-                    print(f"   Store Name: {notification_store.name}")
-                    print(f"   Is Active: True")
-                    print(f"✅ Found {store_managers.count()} store managers: {managers_info}")
-                    
-                    if store_managers.count() == 0:
-                        # Debug: Check if any managers exist for this tenant at all
-                        all_tenant_managers = User.objects.filter(
-                            tenant=created_by_user.tenant,
-                            role='manager',
-                            is_active=True
-                        ).select_related('store')
-                        print(f"⚠️  WARNING: No managers found for store {notification_store.name}!")
-                        print(f"   Total managers in tenant: {all_tenant_managers.count()}")
-                        for mgr in all_tenant_managers:
-                            print(f"   - {mgr.username} (store: {mgr.store.name if mgr.store else 'None'}, store_id: {mgr.store.id if mgr.store else 'None'})")
-                    else:
-                        users_to_notify.extend(store_managers)
-                
-                    # NOTE: We do NOT notify all inhouse_sales, telecalling, or marketing users
-                    # Only the creator, business admin, and manager should be notified
-                    # This prevents spam notifications to all store employees
-                else:
-                    print(f"⚠️  Neither customer nor sales person has a store assigned - only business admin will be notified")
-                
-                # Remove duplicates (in case created_by_user has multiple roles or is in multiple categories)
-                unique_users = list({user.id: user for user in users_to_notify}.values())
-                print(f"Total users to notify (before deduplication): {len(users_to_notify)}")
-                print(f"Unique users to notify (after deduplication): {len(unique_users)}")
+                unique_users = get_role_based_recipients(
+                    tenant,
+                    creator=created_by_user,
+                    store=notification_store,
+                    include_creator=True,
+                    include_manager_of_creator=True,
+                    include_manager_of_assignee=False,
+                    include_business_admin=True,
+                    include_store_manager=bool(notification_store),
+                    include_store_sales_and_telecalling=False,
+                )
+                print(f"Role-based recipients (same tenant only): {[f'{u.username} ({u.role})' for u in unique_users]}")
+                print(f"Unique users to notify: {len(unique_users)}")
                 
                 # Create notifications for each user
                 # Use atomic transaction to prevent duplicates
@@ -774,7 +723,7 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     # Use select_for_update to lock and prevent duplicates
                     existing = Notification.objects.filter(
                         user=user,
-                        tenant=client.tenant,
+                        tenant=tenant,
                         type='new_customer',
                         metadata__customer_id=client.id,
                         created_at__gte=recent_cutoff
@@ -792,11 +741,11 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                         
                         notification = Notification.objects.create(
                             user=notification_user,
-                            tenant=client.tenant,
+                            tenant=tenant,
                             store=notification_store,
                             type='new_customer',
-                            title='New customer registered',
-                            message=f'{client.first_name} {client.last_name} has been registered as a new customer by {created_by_user.first_name or created_by_user.username}',
+                            title=f'New customer: {client.first_name}',
+                            message=f'{client.first_name} was just added by {created_by_user.first_name or created_by_user.username}. Open their profile to add notes or schedule a visit.',
                             priority='medium',
                             status='unread',
                             action_url=f'/customers/{client.id}',
@@ -824,6 +773,84 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             import traceback
             print(f"Traceback: {traceback.format_exc()}")
             # Don't fail the customer creation if notification creation fails
+
+    def _get_customer_notification_recipients(self, client, actor_user):
+        """Return (unique_users list, notification_store) for customer-related notifications. Same-tenant only."""
+        from apps.users.models import User
+        subject_tenant_id = getattr(client, 'tenant_id', None) or (client.tenant.id if client.tenant else None)
+        if not subject_tenant_id:
+            return [], (client.store if client.store else getattr(actor_user, 'store', None))
+        users_to_notify = [actor_user] if (getattr(actor_user, 'tenant_id', None) == subject_tenant_id) else []
+        tenant = client.tenant
+        if tenant:
+            users_to_notify.extend(
+                User.objects.filter(tenant=tenant, role='business_admin', is_active=True)
+            )
+        notification_store = client.store if client.store else getattr(actor_user, 'store', None)
+        if notification_store:
+            store_managers = User.objects.filter(
+                tenant_id=subject_tenant_id, role='manager', store_id=notification_store.id, is_active=True
+            )
+            users_to_notify.extend(store_managers)
+        # Enforce tenant isolation: only users belonging to the client's tenant
+        unique_users = [u for u in list({u.id: u for u in users_to_notify}.values()) if getattr(u, 'tenant_id', None) == subject_tenant_id]
+        return unique_users, notification_store
+
+    def create_customer_updated_notifications(self, client, updated_by_user):
+        """Create notifications when a customer is updated (for store manager / business admins)."""
+        if not getattr(client, 'tenant_id', None) and not getattr(client, 'tenant', None):
+            logger.warning("Customer %s has no tenant; skipping updated notifications", getattr(client, 'id', None))
+            return
+        try:
+            from apps.notifications.models import Notification
+            unique_users, notification_store = self._get_customer_notification_recipients(client, updated_by_user)
+            who = updated_by_user.first_name or updated_by_user.username
+            first_name = client.first_name or 'Customer'
+            for user in unique_users:
+                Notification.objects.create(
+                    user=user,
+                    tenant=client.tenant,
+                    store=notification_store,
+                    type='customer_updated',
+                    title=f'Customer updated: {first_name}',
+                    message=f'{who} updated {first_name}\'s details (e.g. phone, address). Tap to see changes.',
+                    priority='low',
+                    status='unread',
+                    action_url=f'/customers/{client.id}',
+                    action_text='View Customer',
+                    is_persistent=False,
+                    metadata={'customer_id': client.id, 'updated_by_user_id': updated_by_user.id}
+                )
+        except Exception as e:
+            logger.warning(f"Error creating customer updated notifications: {e}")
+
+    def create_customer_deleted_notifications(self, client, deleted_by_user):
+        """Create notifications when a customer is deleted (before client is removed from DB)."""
+        if not getattr(client, 'tenant_id', None) and not getattr(client, 'tenant', None):
+            logger.warning("Customer %s has no tenant; skipping deleted notifications", getattr(client, 'id', None))
+            return
+        try:
+            from apps.notifications.models import Notification
+            unique_users, notification_store = self._get_customer_notification_recipients(client, deleted_by_user)
+            first_name = client.first_name or 'Customer'
+            who = deleted_by_user.first_name or deleted_by_user.username
+            for user in unique_users:
+                Notification.objects.create(
+                    user=user,
+                    tenant=client.tenant,
+                    store=notification_store,
+                    type='customer_deleted',
+                    title='Customer record removed',
+                    message=f'{first_name} was removed from the customer list by {who}.',
+                    priority='low',
+                    status='unread',
+                    action_url='/customers',
+                    action_text='View Customers',
+                    is_persistent=False,
+                    metadata={'customer_id': client.id, 'deleted_by_user_id': deleted_by_user.id}
+                )
+        except Exception as e:
+            logger.warning(f"Error creating customer deleted notifications: {e}")
 
     def update(self, request, *args, **kwargs):
         print(f"=== CLIENT VIEW UPDATE METHOD ===")
@@ -864,6 +891,9 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             
             # Log the deletion before performing it
             logger.info(f"Deleting client: {instance.id} ({instance.first_name} {instance.last_name}) by user: {request.user.username}")
+            
+            # Notify relevant users before deletion (notification stores tenant/store from client)
+            self.create_customer_deleted_notifications(instance, request.user)
             
             # Create audit log before deletion
             instance._auditlog_user = request.user
@@ -3545,96 +3575,42 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
             print(f"Created by user: {created_by_user.username} (role: {created_by_user.role})")
             print(f"Created by user tenant: {created_by_user.tenant}")
             
-            # Get users to notify
-            users_to_notify = []
-            
-            # The user who created the appointment should get notified
-            users_to_notify.append(created_by_user)
-            print(f"Added creator: {created_by_user.username}")
-            
-            # Notify the assigned user (if different from creator)
-            if appointment.assigned_to and appointment.assigned_to != created_by_user:
-                users_to_notify.append(appointment.assigned_to)
-                print(f"Added assigned user: {appointment.assigned_to.username}")
-            
-            # Notify business admin
-            if created_by_user.tenant:
-                business_admins = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='business_admin',
-                    is_active=True
-                )
-                print(f"Found {business_admins.count()} business admins: {[f'{admin.username} (active: {admin.is_active})' for admin in business_admins]}")
-                users_to_notify.extend(business_admins)
-            
-            # Notify store users if appointment is for their store
-            if appointment.client and appointment.client.store:
-                print(f"Appointment has client with store: {appointment.client.store.name}")
-                
-                # Store manager
-                store_managers = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='manager',
-                    store=appointment.client.store,
-                    is_active=True
-                )
-                store_managers_info = [f'{manager.username} (store: {manager.store.name if manager.store else "None"})' for manager in store_managers]
-                print(f"Found {store_managers.count()} store managers: {store_managers_info}")
-                users_to_notify.extend(store_managers)
-                
-                # In-house sales users
-                inhouse_sales_users = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='inhouse_sales',
-                    store=appointment.client.store,
-                    is_active=True
-                )
-                inhouse_sales_info = [f'{user.username} (store: {user.store.name if user.store else "None"})' for user in inhouse_sales_users]
-                print(f"Found {inhouse_sales_users.count()} inhouse sales users: {inhouse_sales_info}")
-                users_to_notify.extend(inhouse_sales_users)
-                
-                # Tele-calling users
-                telecalling_users = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='tele_calling',
-                    store=appointment.client.store,
-                    is_active=True
-                )
-                telecalling_info = [f'{user.username} (store: {user.store.name if user.store else "None"})' for user in telecalling_users]
-                print(f"Found {telecalling_users.count()} telecalling users: {telecalling_info}")
-                users_to_notify.extend(telecalling_users)
-            else:
-                print(f"Appointment has NO client or store - store users won't be notified")
-                
-                # If appointment has no client/store, notify all managers in the tenant
-                all_managers = User.objects.filter(
-                    tenant=created_by_user.tenant,
-                    role='manager',
-                    is_active=True
-                )
-                managers_info = [f'{manager.username} (store: {manager.store.name if manager.store else "None"})' for manager in all_managers]
-                print(f"Found {all_managers.count()} managers in tenant (no store): {managers_info}")
-                users_to_notify.extend(all_managers)
-            
-            # Remove duplicates
-            unique_users = list({user.id: user for user in users_to_notify}.values())
-            print(f"Total users to notify (before deduplication): {len(users_to_notify)}")
-            print(f"Unique users to notify (after deduplication): {len(unique_users)}")
+            # Role-based recipients (same tenant only): creator, assignee, manager of creator/assignee, business admin, store manager, store sales/telecalling
+            from apps.notifications.services import get_role_based_recipients
+            tenant = appointment.tenant or created_by_user.tenant
+            store = appointment.client.store if (appointment.client and appointment.client.store) else None
+            unique_users = get_role_based_recipients(
+                tenant,
+                creator=created_by_user,
+                assigned_to=appointment.assigned_to,
+                store=store,
+                include_creator=True,
+                include_manager_of_creator=True,
+                include_manager_of_assignee=True,
+                include_business_admin=True,
+                include_store_manager=True,
+                include_store_sales_and_telecalling=True,
+            )
+            print(f"Role-based recipients (same tenant only): {[f'{u.username} ({u.role})' for u in unique_users]}")
+            print(f"Unique users to notify: {len(unique_users)}")
             
             # Create notifications
             for user in unique_users:
+                first_name = (appointment.client.first_name if appointment.client else None) or 'Customer'
+                purpose = (appointment.purpose or '')[:50]
                 notification = Notification.objects.create(
                     user=user,
                     tenant=appointment.tenant,
                     store=appointment.client.store if appointment.client else None,
                     type='appointment_reminder',
-                    title='New appointment scheduled',
-                    message=f'Appointment scheduled for {appointment.client.first_name} {appointment.client.last_name if appointment.client else "Customer"} on {appointment.date} at {appointment.time}',
+                    title=f'New appointment: {first_name}',
+                    message=f'{first_name} — {appointment.date} at {appointment.time}. {purpose}. Tap to view or add notes.',
                     priority='medium',
                     status='unread',
                     action_url=f'/appointments/{appointment.id}',
                     action_text='View Appointment',
-                    is_persistent=False
+                    is_persistent=False,
+                    metadata={'appointment_id': appointment.id, 'customer_id': appointment.client_id}
                 )
                 print(f"Created notification {notification.id} for user {user.username} (role: {user.role})")
             
@@ -3646,9 +3622,160 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
             import traceback
             print(f"Traceback: {traceback.format_exc()}")
 
+    def _get_appointment_notification_recipients(self, appointment, actor_user):
+        """Return unique_users list for appointment-related notifications. Same-tenant only."""
+        from apps.users.models import User
+        subject_tenant_id = getattr(appointment, 'tenant_id', None) or (appointment.tenant.id if getattr(appointment, 'tenant', None) else None)
+        if not subject_tenant_id:
+            return []
+        tenant = appointment.tenant
+        users_to_notify = [actor_user] if (getattr(actor_user, 'tenant_id', None) == subject_tenant_id) else []
+        if appointment.assigned_to and appointment.assigned_to != actor_user and getattr(appointment.assigned_to, 'tenant_id', None) == subject_tenant_id:
+            users_to_notify.append(appointment.assigned_to)
+        if tenant:
+            users_to_notify.extend(
+                User.objects.filter(tenant=tenant, role='business_admin', is_active=True)
+            )
+        if appointment.client and appointment.client.store:
+            users_to_notify.extend(
+                User.objects.filter(tenant=tenant, role='manager', store=appointment.client.store, is_active=True)
+            )
+            users_to_notify.extend(
+                User.objects.filter(tenant=tenant, role='inhouse_sales', store=appointment.client.store, is_active=True)
+            )
+            users_to_notify.extend(
+                User.objects.filter(tenant=tenant, role='tele_calling', store=appointment.client.store, is_active=True)
+            )
+        else:
+            users_to_notify.extend(
+                User.objects.filter(tenant=tenant, role='manager', is_active=True)
+            )
+        return [u for u in list({u.id: u for u in users_to_notify}.values()) if getattr(u, 'tenant_id', None) == subject_tenant_id]
+
+    def _appointment_client_name(self, appointment):
+        return (appointment.client.first_name if appointment.client else None) or 'Customer'
+
+    def create_appointment_updated_notification(self, appointment, updated_by_user):
+        """Notify when appointment time/date/assignee is updated."""
+        try:
+            from apps.notifications.models import Notification
+            first_name = self._appointment_client_name(appointment)
+            for user in self._get_appointment_notification_recipients(appointment, updated_by_user):
+                Notification.objects.create(
+                    user=user,
+                    tenant=appointment.tenant,
+                    store=appointment.client.store if appointment.client else None,
+                    type='appointment_updated',
+                    title=f'Appointment changed: {first_name}',
+                    message=f'The appointment with {first_name} was updated (e.g. new time or assignee). Tap to see details.',
+                    priority='medium',
+                    status='unread',
+                    action_url=f'/appointments/{appointment.id}',
+                    action_text='View Appointment',
+                    is_persistent=False,
+                    metadata={'appointment_id': appointment.id}
+                )
+        except Exception as e:
+            logger.warning(f"Error creating appointment updated notifications: {e}")
+
+    def create_appointment_cancelled_notification(self, appointment, reason, cancelled_by_user):
+        """Notify when an appointment is cancelled."""
+        try:
+            from apps.notifications.models import Notification
+            first_name = self._appointment_client_name(appointment)
+            reason_short = (reason or '')[:80]
+            for user in self._get_appointment_notification_recipients(appointment, cancelled_by_user):
+                Notification.objects.create(
+                    user=user,
+                    tenant=appointment.tenant,
+                    store=appointment.client.store if appointment.client else None,
+                    type='appointment_cancelled',
+                    title=f'Appointment cancelled: {first_name}',
+                    message=f'The appointment with {first_name} on {appointment.date} at {appointment.time} was cancelled. {reason_short}.',
+                    priority='medium',
+                    status='unread',
+                    action_url='/appointments',
+                    action_text='View Appointments',
+                    is_persistent=False,
+                    metadata={'appointment_id': appointment.id}
+                )
+        except Exception as e:
+            logger.warning(f"Error creating appointment cancelled notifications: {e}")
+
+    def create_appointment_rescheduled_notification(self, new_appointment, reason, rescheduled_by_user):
+        """Notify about the new appointment after reschedule."""
+        try:
+            from apps.notifications.models import Notification
+            first_name = self._appointment_client_name(new_appointment)
+            for user in self._get_appointment_notification_recipients(new_appointment, rescheduled_by_user):
+                Notification.objects.create(
+                    user=user,
+                    tenant=new_appointment.tenant,
+                    store=new_appointment.client.store if new_appointment.client else None,
+                    type='appointment_rescheduled',
+                    title=f'Appointment rescheduled: {first_name}',
+                    message=f'Moved to {new_appointment.date} at {new_appointment.time}. Tap to confirm and add notes.',
+                    priority='medium',
+                    status='unread',
+                    action_url=f'/appointments/{new_appointment.id}',
+                    action_text='View Appointment',
+                    is_persistent=False,
+                    metadata={'appointment_id': new_appointment.id}
+                )
+        except Exception as e:
+            logger.warning(f"Error creating appointment rescheduled notifications: {e}")
+
+    def create_appointment_confirmed_notification(self, appointment, confirmed_by_user):
+        """Notify when appointment is confirmed."""
+        try:
+            from apps.notifications.models import Notification
+            first_name = self._appointment_client_name(appointment)
+            for user in self._get_appointment_notification_recipients(appointment, confirmed_by_user):
+                Notification.objects.create(
+                    user=user,
+                    tenant=appointment.tenant,
+                    store=appointment.client.store if appointment.client else None,
+                    type='appointment_confirmed',
+                    title='Appointment confirmed',
+                    message=f'{first_name} — marked as confirmed. Tap to add outcome notes.',
+                    priority='low',
+                    status='unread',
+                    action_url=f'/appointments/{appointment.id}',
+                    action_text='View Appointment',
+                    is_persistent=False,
+                    metadata={'appointment_id': appointment.id}
+                )
+        except Exception as e:
+            logger.warning(f"Error creating appointment confirmed notifications: {e}")
+
+    def create_appointment_completed_notification(self, appointment, completed_by_user):
+        """Notify when appointment is marked completed."""
+        try:
+            from apps.notifications.models import Notification
+            first_name = self._appointment_client_name(appointment)
+            for user in self._get_appointment_notification_recipients(appointment, completed_by_user):
+                Notification.objects.create(
+                    user=user,
+                    tenant=appointment.tenant,
+                    store=appointment.client.store if appointment.client else None,
+                    type='appointment_completed',
+                    title='Appointment completed',
+                    message=f'{first_name} — marked as completed. Tap to add outcome notes.',
+                    priority='low',
+                    status='unread',
+                    action_url=f'/appointments/{appointment.id}',
+                    action_text='View Appointment',
+                    is_persistent=False,
+                    metadata={'appointment_id': appointment.id}
+                )
+        except Exception as e:
+            logger.warning(f"Error creating appointment completed notifications: {e}")
+
     def perform_update(self, serializer):
         user = self.request.user
-        serializer.save(updated_by=user)
+        instance = serializer.save(updated_by=user)
+        self.create_appointment_updated_notification(instance, user)
+        return instance
 
     def perform_destroy(self, instance):
         # Soft delete
@@ -3662,6 +3789,7 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         appointment = self.get_object()
         appointment.status = Appointment.Status.CONFIRMED
         appointment.save()
+        self.create_appointment_confirmed_notification(appointment, request.user)
         return Response({'status': 'confirmed'})
 
     @action(detail=True, methods=['post'])
@@ -3670,6 +3798,7 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         appointment = self.get_object()
         outcome_notes = request.data.get('outcome_notes')
         appointment.mark_completed(outcome_notes)
+        self.create_appointment_completed_notification(appointment, request.user)
         return Response({'status': 'completed'})
 
     @action(detail=True, methods=['post'])
@@ -3678,6 +3807,7 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
         appointment = self.get_object()
         reason = request.data.get('reason')
         appointment.cancel_appointment(reason)
+        self.create_appointment_cancelled_notification(appointment, reason, request.user)
         return Response({'status': 'cancelled'})
 
     @action(detail=True, methods=['post'])
@@ -3695,6 +3825,7 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
             )
         
         new_appointment = appointment.reschedule_appointment(new_date, new_time, reason)
+        self.create_appointment_rescheduled_notification(new_appointment, reason, request.user)
         return Response({
             'status': 'rescheduled',
             'new_appointment_id': new_appointment.id
@@ -3949,11 +4080,78 @@ class TaskViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
     def get_queryset(self):
         return self.get_scoped_queryset(Task)
 
+    def _create_task_assigned_notification(self, task, assigned_to, assigned_by):
+        """Notify assignee when a task is assigned to them."""
+        if not assigned_to or not assigned_to.is_active:
+            return
+        try:
+            from apps.notifications.models import Notification
+            who = (assigned_by.first_name or assigned_by.username) if assigned_by else 'Someone'
+            due = f'Due {task.due_date}' if task.due_date else 'No due date'
+            Notification.objects.create(
+                user=assigned_to,
+                tenant=task.tenant,
+                store=getattr(assigned_to, 'store', None),
+                type='task_reminder',
+                title=f'New task: {task.title}',
+                message=f'{who} assigned you a task. {due}. Tap to open.',
+                priority='medium',
+                status='unread',
+                action_url=f'/customers/{task.client_id}' if task.client_id else '/dashboard',
+                action_text='Open Task',
+                is_persistent=False,
+                metadata={'task_id': task.id, 'client_id': task.client_id}
+            )
+        except Exception as e:
+            logger.warning(f"Error creating task assigned notification: {e}")
+
+    def _create_task_completed_notification(self, task, completed_by):
+        """Notify task creator when task is marked completed."""
+        if not task.created_by or not task.created_by.is_active:
+            return
+        if task.created_by_id == completed_by.id:
+            return  # no self-notify
+        try:
+            from apps.notifications.models import Notification
+            who = (completed_by.first_name or completed_by.username) if completed_by else 'Someone'
+            Notification.objects.create(
+                user=task.created_by,
+                tenant=task.tenant,
+                store=getattr(task.created_by, 'store', None),
+                type='task_reminder',
+                title=f'Task completed: {task.title}',
+                message=f'{who} marked "{task.title}" as done.',
+                priority='low',
+                status='unread',
+                action_url=f'/customers/{task.client_id}' if task.client_id else '/dashboard',
+                action_text='View',
+                is_persistent=False,
+                metadata={'task_id': task.id, 'client_id': task.client_id}
+            )
+        except Exception as e:
+            logger.warning(f"Error creating task completed notification: {e}")
+
     def perform_create(self, serializer):
         user = self.request.user
-        # Debug statements removed for production
         tenant = user.tenant
-        serializer.save(tenant=tenant, created_by=user, assigned_to=user)
+        task = serializer.save(tenant=tenant, created_by=user, assigned_to=user)
+        self._create_task_assigned_notification(task, task.assigned_to, user)
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        old_assigned_to_id = instance.assigned_to_id if instance.pk else None
+        old_status = instance.status if instance.pk else None
+        task = serializer.save()
+        user = self.request.user
+        if task.assigned_to_id and task.assigned_to_id != old_assigned_to_id:
+            self._create_task_assigned_notification(task, task.assigned_to, user)
+        if task.status != old_status and (task.status or '').lower() in ('done', 'completed', 'closed'):
+            self._create_task_completed_notification(task, user)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.setdefault('request', self.request)
+        return context
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all()

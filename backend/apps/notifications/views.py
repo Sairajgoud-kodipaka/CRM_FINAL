@@ -1,3 +1,6 @@
+import base64
+import re
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,6 +14,70 @@ from .serializers import (
     NotificationSerializer, NotificationSettingsSerializer,
     NotificationCreateSerializer, NotificationUpdateSerializer
 )
+
+
+def _vapid_public_key_to_base64url(key_value: str) -> str:
+    """Convert VAPID public key from PEM/SPKI or raw base64 to raw 65-byte base64url for browser PushManager.
+    Returns a string safe to pass as applicationServerKey (unpadded base64url)."""
+    key_value = key_value.strip().replace("\n", "").replace("\r", "").rstrip(">")
+    if not key_value:
+        raise ValueError("VAPID public key is empty")
+    # Decode base64 once to detect format (standard base64: +/; base64url: -_)
+    padding = 4 - (len(key_value) % 4)
+    if padding != 4:
+        key_value_b64 = key_value + ("=" * padding)
+    else:
+        key_value_b64 = key_value
+    decoded = base64.b64decode(key_value_b64.replace("-", "+").replace("_", "/"), validate=False)
+    # Already raw 65-byte P-256 key (0x04 || x || y)
+    if len(decoded) == 65 and decoded[0] == 0x04:
+        return base64.urlsafe_b64encode(decoded).decode("ascii").rstrip("=")
+    # 66 bytes: some envs store raw key with one extra byte; use first 65 if leading byte is 0x04
+    if len(decoded) == 66 and decoded[0] == 0x04:
+        return base64.urlsafe_b64encode(decoded[:65]).decode("ascii").rstrip("=")
+    # Full SPKI (91 bytes for P-256) or PEM
+    if "BEGIN" in key_value.upper():
+        from cryptography.hazmat.primitives.serialization import (
+            load_pem_public_key,
+            Encoding,
+            PublicFormat,
+        )
+        from cryptography.hazmat.backends import default_backend
+        if "-----" in key_value and "\n" not in key_value:
+            parts = re.split(r"-{5}", key_value)
+            if len(parts) >= 3:
+                key_value = f"-----BEGIN PUBLIC KEY-----\n{parts[2].strip()}\n-----END PUBLIC KEY-----"
+            else:
+                key_value = key_value.replace("-----BEGIN PUBLIC KEY-----", "-----BEGIN PUBLIC KEY-----\n").replace("-----END PUBLIC KEY-----", "\n-----END PUBLIC KEY-----")
+        elif "-----" not in key_value:
+            key_value = f"-----BEGIN PUBLIC KEY-----\n{key_value}\n-----END PUBLIC KEY-----"
+        key = load_pem_public_key(key_value.encode(), default_backend())
+        raw_bytes = key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+        if len(raw_bytes) != 65:
+            raise ValueError(f"Expected 65-byte raw key from PEM, got {len(raw_bytes)}")
+        return base64.urlsafe_b64encode(raw_bytes).decode("ascii").rstrip("=")
+    # Truncated SPKI (e.g. only first line of PEM pasted): decoded is 66 bytes, starts with 0x30
+    if len(decoded) == 66 and decoded[0] == 0x30:
+        raise ValueError(
+            "VAPID public key is truncated (only first line was pasted). "
+            "Run: python manage.py generate_vapid_keys and paste the FULL single line for VAPID_PUBLIC_KEY into .env, then restart the backend."
+        )
+    try:
+        from cryptography.hazmat.primitives.serialization import load_der_public_key, Encoding, PublicFormat
+        from cryptography.hazmat.backends import default_backend
+        key = load_der_public_key(decoded, default_backend())
+        raw_bytes = key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+        if len(raw_bytes) != 65:
+            raise ValueError(f"Expected 65-byte raw key from DER, got {len(raw_bytes)}")
+        return base64.urlsafe_b64encode(raw_bytes).decode("ascii").rstrip("=")
+    except ValueError:
+        raise
+    except Exception as e:
+        raise ValueError(
+            f"VAPID public key invalid or truncated (decoded {len(decoded)} bytes). "
+            "Regenerate with: python manage.py generate_vapid_keys and paste the full VAPID_PUBLIC_KEY into .env. "
+            f"Error: {e}"
+        )
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -65,6 +132,9 @@ class NotificationViewSet(viewsets.ModelViewSet):
         return NotificationSerializer
     
     def perform_create(self, serializer):
+        if not getattr(self.request.user, 'tenant_id', None) or not getattr(self.request.user, 'tenant', None):
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError('User must have a tenant to create notifications.')
         serializer.save(
             user=self.request.user,
             tenant=self.request.user.tenant
@@ -105,10 +175,15 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def subscribe_push(self, request):
         """Subscribe to push notifications"""
         subscription_info = request.data.get('subscription')
-        
+
         if not subscription_info:
             return Response({'error': 'Subscription info required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+        if not getattr(request.user, 'tenant_id', None) or not getattr(request.user, 'tenant', None):
+            return Response(
+                {'error': 'User must have a tenant to subscribe to push notifications.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
             # Use update_or_create to handle duplicates
             subscription, created = PushSubscription.objects.update_or_create(
@@ -144,7 +219,8 @@ class NotificationViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def vapid_public_key(self, request):
-        """Get VAPID public key for push subscription (base64url, sanitized for browser)."""
+        """Get VAPID public key for push subscription in browser format: raw 65-byte key, base64url (unpadded).
+        PushManager.subscribe(applicationServerKey) requires this format; PEM/SPKI from env is converted here."""
         raw = getattr(settings, 'VAPID_PUBLIC_KEY', None) or ''
         if not raw:
             return Response(
@@ -156,6 +232,14 @@ class NotificationViewSet(viewsets.ModelViewSet):
         if not public_key:
             return Response(
                 {'error': 'VAPID public key is empty after sanitization'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        # Convert PEM/SPKI to raw 65-byte base64url if needed (browser expects raw key, not SPKI)
+        try:
+            public_key = _vapid_public_key_to_base64url(public_key)
+        except Exception as e:
+            return Response(
+                {'error': f'VAPID public key conversion failed: {e}'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
         return Response({'public_key': public_key})

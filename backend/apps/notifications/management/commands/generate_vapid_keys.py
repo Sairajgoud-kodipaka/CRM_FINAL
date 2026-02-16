@@ -18,26 +18,23 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('\n✓ VAPID Keys Generated Successfully!\n'))
             self.stdout.write(self.style.WARNING('Add these to your .env file (backend):\n'))
             
-            # Convert keys to base64 strings
-            # Public key (PEM format, base64)
+            # Public key: output as single line so .env gets the full key (no truncation)
             public_key_pem = vapid.public_key.public_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PublicFormat.SubjectPublicKeyInfo
             ).decode('utf-8').strip()
+            public_key_one_line = public_key_pem.replace('-----BEGIN PUBLIC KEY-----', '').replace('-----END PUBLIC KEY-----', '').replace('\n', '').strip()
             
-            # Private key (PEM format, base64)
+            # Private key: single line for .env
             private_key_pem = vapid.private_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.PKCS8,
                 encryption_algorithm=serialization.NoEncryption()
             ).decode('utf-8').strip()
+            private_key_one_line = private_key_pem.replace('-----BEGIN PRIVATE KEY-----', '').replace('-----END PRIVATE KEY-----', '').replace('\n', '').strip()
             
-            self.stdout.write(
-                self.style.SUCCESS(f'VAPID_PUBLIC_KEY={public_key_pem}')
-            )
-            self.stdout.write(
-                self.style.SUCCESS(f'VAPID_PRIVATE_KEY={private_key_pem}')
-            )
+            self.stdout.write(self.style.SUCCESS('VAPID_PUBLIC_KEY=' + public_key_one_line))
+            self.stdout.write(self.style.SUCCESS('VAPID_PRIVATE_KEY=' + private_key_one_line))
             self.stdout.write(
                 self.style.SUCCESS('VAPID_CLAIMS_EMAIL=mailto:admin@jewelrycrm.com')
             )

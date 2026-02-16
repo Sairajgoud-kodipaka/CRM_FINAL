@@ -27,7 +27,11 @@ def send_web_push(user_id: int, title: str, message: str, action_url: str = None
         subscriptions = PushSubscription.objects.filter(user_id=user_id)
         
         if not subscriptions.exists():
-            logger.debug(f"No push subscriptions found for user {user_id}")
+            logger.warning(
+                "Web Push skipped: no push subscription for user_id=%s. "
+                "User must allow notifications in the browser and reload the app so the subscription is saved.",
+                user_id,
+            )
             return
         
         # Deduplicate subscriptions by endpoint (keep only one per endpoint)
@@ -39,7 +43,7 @@ def send_web_push(user_id: int, title: str, message: str, action_url: str = None
                 unique_subscriptions.append(subscription)
         
         if not unique_subscriptions:
-            logger.debug(f"No unique push subscriptions found for user {user_id}")
+            logger.warning("Web Push skipped: no unique push subscriptions for user_id=%s", user_id)
             return
         
         # Prepare payload

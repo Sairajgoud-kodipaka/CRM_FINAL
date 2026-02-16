@@ -290,10 +290,23 @@ class PushNotificationService {
       // Register service worker (always do this)
       await this.registerServiceWorker();
 
-      // Check if already subscribed
+      // Check if already subscribed (browser has a subscription)
       const existingSubscription = await this.getSubscription();
       if (existingSubscription) {
         console.log('[Push Service] Already subscribed to push notifications');
+        // Always sync subscription to backend so backend has it (e.g. after backend restart or if first POST failed)
+        try {
+          const subscriptionData: PushSubscriptionData = {
+            endpoint: existingSubscription.endpoint,
+            keys: {
+              p256dh: this.arrayBufferToBase64(existingSubscription.getKey('p256dh')!),
+              auth: this.arrayBufferToBase64(existingSubscription.getKey('auth')!),
+            },
+          };
+          await this.sendSubscriptionToBackend(subscriptionData);
+        } catch (e) {
+          console.warn('[Push Service] Failed to sync existing subscription to backend:', e);
+        }
         return true;
       }
 
