@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { PWAInstallButton } from '@/components/pwa/PWAInstallButton';
+import { NotificationPermissionPrompt } from '@/components/push/NotificationPermissionPrompt';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Lock, User, Building2, Sun, Moon, Settings } from 'lucide-react';
@@ -158,6 +159,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted to-background flex items-center justify-center p-4">
+      <NotificationPermissionPrompt />
       <div className="w-full max-w-md">
         {/* Theme Toggle - Top Right */}
         <div className="flex justify-end mb-4">
