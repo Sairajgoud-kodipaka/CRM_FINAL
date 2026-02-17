@@ -52,7 +52,9 @@ class ExotelVoiceService:
             
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"TTS conversion successful for text: {text[:50]}...")
+                logger.info(
+                    "backend telecalling.tts.convert.success note=tts conversion successful",
+                )
                 return {
                     'success': True,
                     'audio_url': data.get('AudioUrl'),
@@ -61,7 +63,10 @@ class ExotelVoiceService:
                     'voice_type': voice_type
                 }
             else:
-                logger.error(f"TTS API error: {response.status_code} - {response.text}")
+                logger.error(
+                    "backend telecalling.tts.api_error status=%s note=tts api returned non-200 status",
+                    response.status_code,
+                )
                 return {
                     'success': False,
                     'error': f'TTS API error: {response.status_code}',

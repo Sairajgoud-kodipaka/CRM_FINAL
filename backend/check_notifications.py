@@ -16,14 +16,7 @@ import logging
 
 logger = logging.getLogger('crm')
 
-logger.info(
-    'service.start',
-    extra={
-        'service': 'notification_checker',
-        'event': 'service.start',
-        'user': 'system',
-    },
-)
+logger.info('backend service.start notification_checker user=system')
 
 # VAPID Config
 print("\n1. VAPID Configuration:")

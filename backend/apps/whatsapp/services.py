@@ -85,7 +85,10 @@ class WhatsAppBusinessService:
                 
                 return session
             else:
-                logger.error(f"Failed to create WAHA session: {response.status_code} - {response.text}")
+                logger.error(
+                    "backend whatsapp.session.create_failed status=%s",
+                    response.status_code,
+                )
                 return None
                 
         except Exception as e:
@@ -237,7 +240,10 @@ class WhatsAppBusinessService:
                 
                 return True
             else:
-                logger.error(f"Failed to send message: {response.status_code} - {response.text}")
+                logger.error(
+                    "backend whatsapp.message.send_failed status=%s",
+                    response.status_code,
+                )
                 return False
                 
         except Exception as e:

@@ -34,7 +34,11 @@ def whatsapp_webhook(request, session_name: str):
     try:
         # Parse the webhook payload
         payload = json.loads(request.body)
-        logger.info(f"Received webhook for session {session_name}: {payload}")
+        logger.info(
+            "backend whatsapp.webhook.received session=%s type=%s note=whatsapp webhook received",
+            session_name,
+            payload.get("type", "message"),
+        )
         
         # Extract message data
         message_data = payload.get('data', {})

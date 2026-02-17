@@ -953,7 +953,10 @@ class CallRequestViewSet(ModelViewSet):
                 timeout=30
             )
 
-            logger.info(f"Exotel API response - Status: {response.status_code}, Body: {response.text}")
+            logger.info(
+                "backend telecalling.exotel.response status=%s note=received response from exotel",
+                response.status_code,
+            )
 
             if response.status_code == 200:
                 data = response.json()
@@ -969,7 +972,10 @@ class CallRequestViewSet(ModelViewSet):
                     'exotel_response': data
                 }
             else:
-                logger.error(f"Exotel API error: {response.status_code} - {response.text}")
+                logger.error(
+                    "backend telecalling.exotel.api_error status=%s note=exotel api returned non-200 status",
+                    response.status_code,
+                )
                 return {
                     'success': False,
                     'error': f'Exotel API error: {response.status_code} - {response.text}'
@@ -1007,7 +1013,10 @@ class CallRequestViewSet(ModelViewSet):
             if response.status_code == 200:
                 return {'success': True}
             else:
-                logger.error(f"Exotel API error: {response.status_code} - {response.text}")
+                logger.error(
+                    "backend telecalling.exotel.api_error status=%s note=failed to end exotel call",
+                    response.status_code,
+                )
                 return {
                     'success': False,
                     'error': f'Exotel API error: {response.status_code}'

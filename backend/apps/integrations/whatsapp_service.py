@@ -65,14 +65,25 @@ class WhatsAppService:
                 timeout=30
             )
             
-            logger.info(f"WAHA Response - Status: {response.status_code}, Content: {response.text}")
+            logger.info(
+                "backend whatsapp.send_text.response status=%s note=waha sendText response received",
+                response.status_code,
+            )
             
             # WAHA typically returns 200 or 201 for successful sends
             if response.status_code in [200, 201]:
-                logger.info(f"WhatsApp message sent successfully to {phone}")
+                logger.info(
+                    "backend whatsapp.send_text.success phone=%s status=%s note=whatsapp text sent successfully",
+                    phone,
+                    response.status_code,
+                )
                 return True
             else:
-                logger.error(f"Failed to send WhatsApp message: {response.status_code} - {response.text}")
+                logger.error(
+                    "backend whatsapp.send_text.failed phone=%s status=%s note=whatsapp text send failed",
+                    phone,
+                    response.status_code,
+                )
                 return False
                 
         except Exception as e:
@@ -113,10 +124,17 @@ class WhatsAppService:
             )
             
             if response.status_code == 200:
-                logger.info(f"WhatsApp image sent successfully to {phone}")
+                logger.info(
+                    "backend whatsapp.send_image.success phone=%s note=whatsapp image sent successfully",
+                    phone,
+                )
                 return True
             else:
-                logger.error(f"Failed to send WhatsApp image: {response.status_code} - {response.text}")
+                logger.error(
+                    "backend whatsapp.send_image.failed phone=%s status=%s note=whatsapp image send failed",
+                    phone,
+                    response.status_code,
+                )
                 return False
                 
         except Exception as e:
@@ -132,13 +150,20 @@ class WhatsAppService:
                 timeout=10
             )
             
-            logger.info(f"WAHA sessions response: {response.status_code} - {response.text}")
+            logger.info(
+                "backend whatsapp.sessions.response status=%s note=waha sessions api response",
+                response.status_code,
+            )
             
             if response.status_code == 200:
                 sessions = response.json()
                 for session in sessions:
                     if session.get('name') == self.session:
-                        logger.info(f"Found session: {session}")
+                        logger.info(
+                            "backend whatsapp.sessions.found name=%s status=%s note=active whatsapp session found",
+                            session.get("name"),
+                            session.get("status"),
+                        )
                         
                         # If session is working, get the user profile information
                         if session.get('status') == 'WORKING':
@@ -153,7 +178,10 @@ class WhatsAppService:
                                 profile_data = None
                                 for endpoint in profile_endpoints:
                                     try:
-                                        logger.info(f"Trying profile endpoint: {endpoint}")
+                                        logger.info(
+                                            "backend whatsapp.sessions.profile_try endpoint=%s note=trying profile endpoint",
+                                            endpoint,
+                                        )
                                         profile_response = requests.get(
                                             endpoint,
                                             headers=self._get_headers(),
@@ -162,7 +190,10 @@ class WhatsAppService:
                                         
                                         if profile_response.status_code == 200:
                                             profile_data = profile_response.json()
-                                            logger.info(f"Profile data from {endpoint}: {profile_data}")
+                                            logger.info(
+                                                "backend whatsapp.sessions.profile_ok endpoint=%s note=profile endpoint succeeded",
+                                                endpoint,
+                                            )
                                             break
                                         else:
                                             logger.warning(f"Profile endpoint {endpoint} returned {profile_response.status_code}")
@@ -194,7 +225,7 @@ class WhatsAppService:
                         return session
                 return {'status': 'NOT_FOUND'}
             else:
-                return {'status': 'ERROR', 'message': response.text}
+                return {'status': 'ERROR', 'message': 'WAHA sessions error'}
                 
         except Exception as e:
             logger.error(f"Error getting session status: {str(e)}")

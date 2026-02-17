@@ -760,69 +760,73 @@ class ClientSerializer(serializers.ModelSerializer):
             # Process customer interests after client creation
             # Check if customer_interests_data exists and is not empty
             if customer_interests_data is not None and len(customer_interests_data) > 0:
-                print(f"=== PROCESSING CUSTOMER INTERESTS ===")
-                print(f"Processing {len(customer_interests_data)} customer interests for client {result.id}")
-                print(f"Raw customer_interests_data: {customer_interests_data}")
-                print(f"Type of customer_interests_data: {type(customer_interests_data)}")
-                print(f"Length of customer_interests_data: {len(customer_interests_data)}")
+                logger = logging.getLogger(__name__)
+                logger.info(
+                    "backend clients.customer_interests.process_start client_id=%s count=%s",
+                    getattr(result, "id", None),
+                    len(customer_interests_data),
+                )
                 
                 # Ensure we have a list
                 if not isinstance(customer_interests_data, list):
-                    print(f"WARNING: customer_interests_data is not a list: {type(customer_interests_data)}")
+                    logger.warning(
+                        "backend clients.customer_interests.not_list client_id=%s type=%s",
+                        getattr(result, "id", None),
+                        type(customer_interests_data),
+                    )
                     customer_interests_data = [customer_interests_data] if customer_interests_data else []
                 
                 from .models import CustomerInterest
                 
                 # For new customers, check existing interests to avoid duplicates
                 existing_interests = CustomerInterest.objects.filter(client=result)
-                existing_identifiers = set()
-                for existing in existing_interests:
-                    identifier = f"{existing.category.name}_{existing.product.name}_{existing.revenue}"
-                    existing_identifiers.add(identifier)
-                    print(f"   Existing interest: {existing.category.name} - {existing.product.name} (₹{existing.revenue})")
+                existing_identifiers = set(
+                    f"{existing.category.name}_{existing.product.name}_{existing.revenue}"
+                    for existing in existing_interests
+                )
                 
                 new_interests_created = 0
                 for i, interest_data in enumerate(customer_interests_data):
                     try:
-                        print(f"\n--- Processing interest {i+1}/{len(customer_interests_data)} ---")
                         # Parse the JSON string if it's a string
                         if isinstance(interest_data, str):
                             import json
                             interest_data = json.loads(interest_data)
-                            print(f"Parsed JSON string to: {interest_data}")
-                        
-                        print(f"Processing interest data: {interest_data}")
                         
                         # Map frontend field names to backend model fields
                         category = interest_data.get('category') or interest_data.get('mainCategory')
                         products = interest_data.get('products', [])
                         preferences = interest_data.get('preferences', {})
                         
-                        print(f"Processing category: '{category}' with {len(products)} products")
-                        print(f"Products data: {products}")
-                        
                         # Validate that we have both category and products
                         if not category or not str(category).strip():
-                            print(f"⚠️ Skipping interest: category is empty")
+                            logger.warning(
+                                "backend clients.customer_interests.skip_no_category client_id=%s index=%s",
+                                getattr(result, "id", None),
+                                i,
+                            )
                             continue
                         
                         if not products or len(products) == 0:
-                            print(f"⚠️ Skipping interest: no products found")
+                            logger.warning(
+                                "backend clients.customer_interests.skip_no_products client_id=%s index=%s",
+                                getattr(result, "id", None),
+                                i,
+                            )
                             continue
                         
                         if category and products:
-                            print(f"✅ Processing {len(products)} products for category '{category}'")
                             products_processed = 0
                             for product_info in products:
                                 product_name = product_info.get('product')
                                 revenue = product_info.get('revenue')
-                                
-                                print(f"Product info: name='{product_name}', revenue='{revenue}'")
-                                print(f"Product info type: {type(product_name)}, revenue type: {type(revenue)}")
-                                
                                 # Skip if product name is empty
                                 if not product_name or not str(product_name).strip():
-                                    print(f"⚠️ Skipping product: product name is empty")
+                                    logger.warning(
+                                        "backend clients.customer_interests.skip_product_no_name client_id=%s index=%s",
+                                        getattr(result, "id", None),
+                                        i,
+                                    )
                                     continue
                                 
                                 if product_name and (revenue is not None):
@@ -839,7 +843,12 @@ class ClientSerializer(serializers.ModelSerializer):
                                                 # Clamp negative to 0
                                                 revenue_value = 0.0
                                         except (ValueError, TypeError):
-                                            print(f"Invalid revenue value '{revenue}' for product '{product_name}'")
+                                            logger.warning(
+                                                "backend clients.customer_interests.invalid_revenue client_id=%s product=%s revenue=%s",
+                                                getattr(result, "id", None),
+                                                product_name,
+                                                revenue,
+                                            )
                                             continue
                                         
                                         # Extract design number and images from interest data
@@ -875,17 +884,7 @@ class ClientSerializer(serializers.ModelSerializer):
                                         
                                         notes = '. '.join(notes_parts) if notes_parts else 'None'
                                         
-                                        print(f"Creating CustomerInterest: category={category}, product={product_name}, revenue={revenue_value}, notes={notes}")
-                                        
                                         # Create CustomerInterest with proper field mapping
-                                        print(f"About to create CustomerInterest: {interest_data}")
-                                        print(f"  - client: {result.id}")
-                                        print(f"  - category: {category}")
-                                        print(f"  - product: {product_name}")
-                                        print(f"  - revenue: {revenue_value}")
-                                        print(f"  - tenant: {result.tenant.id if result.tenant else 'None'}")
-                                        print(f"  - notes: {notes}")
-                                        
                                         try:
                                             # Find the actual Category and Product objects by name
                                             from apps.products.models import Category, Product
@@ -899,7 +898,6 @@ class ClientSerializer(serializers.ModelSerializer):
                                                         id=int(category),
                                                         tenant=result.tenant
                                                     )
-                                                    print(f"SUCCESS: Found category by ID: {category_obj}")
                                                 except Category.DoesNotExist:
                                                     print(f"WARNING: Category ID {category} not found, will create by name")
                                                     category_obj = None
@@ -911,27 +909,34 @@ class ClientSerializer(serializers.ModelSerializer):
                                                     tenant=result.tenant
                                                 ).first()
                                                 if category_obj:
-                                                    print(f"SUCCESS: Found category by name: {category_obj}")
                                             
                                             if not category_obj:
-                                                print(f"WARNING: Category '{category}' not found for tenant {result.tenant}, creating it")
+                                                logger.warning(
+                                                    "backend clients.customer_interests.category_create client_id=%s name=%s",
+                                                    getattr(result, "id", None),
+                                                    category,
+                                                )
                                                 try:
                                                     category_obj = Category.objects.create(
                                                         name=category,
                                                         tenant=result.tenant,
                                                         scope='store' if result.store else 'global'
                                                     )
-                                                    print(f"SUCCESS: Created new category: {category_obj}")
                                                 except Exception as cat_error:
-                                                    print(f"ERROR: Error creating category '{category}': {cat_error}")
-                                                    import traceback
-                                                    print(f"Category creation traceback: {traceback.format_exc()}")
+                                                    logger.error(
+                                                        "backend clients.customer_interests.category_error client_id=%s name=%s error=%s",
+                                                        getattr(result, "id", None),
+                                                        category,
+                                                        cat_error,
+                                                    )
                                                     # Try to find any existing category as fallback
                                                     category_obj = Category.objects.filter(tenant=result.tenant).first()
                                                     if not category_obj:
-                                                        print(f"ERROR: No fallback category available, skipping this interest")
+                                                        logger.error(
+                                                            "backend clients.customer_interests.category_fallback_missing client_id=%s",
+                                                            getattr(result, "id", None),
+                                                        )
                                                         continue
-                                                    print(f"WARNING: Using fallback category: {category_obj}")
                                             
                                             # Handle product - could be ID or name
                                             product_obj = None
@@ -942,7 +947,6 @@ class ClientSerializer(serializers.ModelSerializer):
                                                         id=int(product_name),
                                                         tenant=result.tenant
                                                     )
-                                                    print(f"SUCCESS: Found product by ID: {product_obj}")
                                                 except Product.DoesNotExist:
                                                     print(f"WARNING: Product ID {product_name} not found, will create by name")
                                                     product_obj = None
@@ -954,10 +958,13 @@ class ClientSerializer(serializers.ModelSerializer):
                                                     tenant=result.tenant
                                                 ).first()
                                                 if product_obj:
-                                                    print(f"SUCCESS: Found product by name: {product_obj}")
                                             
                                             if not product_obj:
-                                                print(f"WARNING: Product '{product_name}' not found for tenant {result.tenant}, creating it")
+                                                logger.warning(
+                                                    "backend clients.customer_interests.product_create client_id=%s name=%s",
+                                                    getattr(result, "id", None),
+                                                    product_name,
+                                                )
                                                 try:
                                                     # Generate unique SKU
                                                     base_sku = f"{category[:3].upper()}-{product_name[:3].upper()}"
@@ -986,17 +993,21 @@ class ClientSerializer(serializers.ModelSerializer):
                                                         store=result.store,
                                                         scope='store' if result.store else 'global'
                                                     )
-                                                    print(f"SUCCESS: Created new product: {product_obj}")
                                                 except Exception as prod_error:
-                                                    print(f"ERROR: Error creating product '{product_name}': {prod_error}")
-                                                    import traceback
-                                                    print(f"Product creation traceback: {traceback.format_exc()}")
+                                                    logger.error(
+                                                        "backend clients.customer_interests.product_error client_id=%s name=%s error=%s",
+                                                        getattr(result, "id", None),
+                                                        product_name,
+                                                        prod_error,
+                                                    )
                                                     # Try to find any existing product as fallback
                                                     product_obj = Product.objects.filter(tenant=result.tenant).first()
                                                     if not product_obj:
-                                                        print(f"ERROR: No fallback product available, skipping this interest")
+                                                        logger.error(
+                                                            "backend clients.customer_interests.product_fallback_missing client_id=%s",
+                                                            getattr(result, "id", None),
+                                                        )
                                                         continue
-                                                    print(f"WARNING: Using fallback product: {product_obj}")
                                             
                                             # Create the customer interest
                                             try:
@@ -1013,73 +1024,87 @@ class ClientSerializer(serializers.ModelSerializer):
                                                     }
                                                 )
                                                 if created:
-                                                    print(f"SUCCESS: Successfully created new customer interest: {interest}")
-                                                    print(f"  - ID: {interest.id}")
-                                                    print(f"  - Client: {interest.client.full_name}")
-                                                    print(f"  - Category: {interest.category.name if interest.category else 'No Category'}")
-                                                    print(f"  - Product: {interest.product.name if interest.product else 'No Product'}")
-                                                    print(f"  - Revenue: {interest.revenue}")
-                                                else:
-                                                    print(f"INFO: Customer interest already exists: {interest}")
+                                                    logger.info(
+                                                        "backend clients.customer_interests.created client_id=%s interest_id=%s",
+                                                        getattr(result, "id", None),
+                                                        getattr(interest, "id", None),
+                                                    )
                                             except Exception as interest_error:
-                                                print(f"ERROR: Error creating customer interest: {interest_error}")
-                                                import traceback
-                                                print(f"CustomerInterest creation traceback: {traceback.format_exc()}")
+                                                logger.error(
+                                                    "backend clients.customer_interests.error client_id=%s error=%s",
+                                                    getattr(result, "id", None),
+                                                    interest_error,
+                                                )
                                                 continue
                                         except Exception as e:
-                                            print(f"ERROR: Error in main processing: {e}")
-                                            import traceback
-                                            print(f"Main processing traceback: {traceback.format_exc()}")
+                                            logger.error(
+                                                "backend clients.customer_interests.main_error client_id=%s error=%s",
+                                                getattr(result, "id", None),
+                                                e,
+                                            )
                                             continue
                                     except (ValueError, TypeError) as e:
-                                        print(f"Invalid revenue value '{revenue}' for product '{product_name}': {e}")
+                                        logger.warning(
+                                            "backend clients.customer_interests.invalid_revenue_value client_id=%s product=%s revenue=%s error=%s",
+                                            getattr(result, "id", None),
+                                            product_name,
+                                            revenue,
+                                            e,
+                                        )
                                     except Exception as e:
-                                        print(f"ERROR: Error creating CustomerInterest: {e}")
-                                        import traceback
-                                        print(f"Traceback: {traceback.format_exc()}")
+                                        logger.error(
+                                            "backend clients.customer_interests.create_error client_id=%s error=%s",
+                                            getattr(result, "id", None),
+                                            e,
+                                        )
                                         continue
                                 else:
-                                    print(f"ERROR: Skipping product with missing name or revenue: {product_info}")
-                                    print(f"  - product_name: '{product_name}' (truthy: {bool(product_name)})")
-                                    print(f"  - revenue: '{revenue}' (truthy: {bool(revenue)})")
+                                    logger.warning(
+                                        "backend clients.customer_interests.skip_product_missing_fields client_id=%s",
+                                        getattr(result, "id", None),
+                                    )
                         else:
-                            print(f"ERROR: Skipping interest with missing category or products: {interest_data}")
-                            print(f"  - category: '{category}' (truthy: {bool(category)})")
-                            print(f"  - products: {products} (length: {len(products) if products else 0})")
+                            logger.warning(
+                                "backend clients.customer_interests.skip_interest_missing_fields client_id=%s",
+                                getattr(result, "id", None),
+                            )
                     except Exception as e:
-                        print(f"ERROR: Error processing customer interest {interest_data}: {e}")
-                        import traceback
-                        print(f"Traceback: {traceback.format_exc()}")
+                        logger.error(
+                            "backend clients.customer_interests.process_error client_id=%s error=%s",
+                            getattr(result, "id", None),
+                            e,
+                        )
                         continue
                 
                 # Log summary of interest processing
                 final_interests = CustomerInterest.objects.filter(client=result)
-                print(f"✅ Interest processing complete:")
-                print(f"   - New interests created in this session: {new_interests_created}")
-                print(f"   - Total interests for this client: {final_interests.count()}")
-                if final_interests.count() > 0:
-                    for interest in final_interests:
-                        print(f"     • {interest.category.name if interest.category else 'No Category'}: {interest.product.name if interest.product else 'No Product'} (₹{interest.revenue})")
-                else:
-                    print(f"   ⚠️ WARNING: No interests were created! Check logs above for errors.")
+                logger.info(
+                    "backend clients.customer_interests.summary client_id=%s new=%s total=%s",
+                    getattr(result, "id", None),
+                    new_interests_created,
+                    final_interests.count(),
+                )
             else:
-                print(f"=== NO CUSTOMER INTERESTS TO PROCESS ===")
-                print(f"customer_interests_data is empty or None: {customer_interests_data}")
-                print(f"Type: {type(customer_interests_data)}")
-                if customer_interests_data is not None:
-                    print(f"Length: {len(customer_interests_data) if hasattr(customer_interests_data, '__len__') else 'N/A'}")
+                logger = logging.getLogger(__name__)
+                logger.info(
+                    "backend clients.customer_interests.none client_id=%s",
+                    getattr(result, "id", None),
+                )
             
             return result
         except serializers.ValidationError as e:
-            print(f"=== BACKEND SERIALIZER - VALIDATION ERROR ===")
-            print(f"Validation error: {e}")
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "backend clients.create.validation_error error=%s",
+                e,
+            )
             raise e
         except Exception as e:
-            print(f"=== BACKEND SERIALIZER - CREATE ERROR ===")
-            print(f"Error creating client: {e}")
-            print(f"Error type: {type(e)}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
+            logger = logging.getLogger(__name__)
+            logger.error(
+                "backend clients.create.error error=%s",
+                e,
+            )
             
             # Check if it's a database constraint error
             if "duplicate key value violates unique constraint" in str(e):

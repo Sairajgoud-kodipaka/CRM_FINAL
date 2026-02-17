@@ -518,19 +518,14 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             except ValueError:
                 # If date parsing fails, ignore the filter
                 pass
+
+        # Use DRF's built-in pagination so Next/Previous work correctly
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         
-        # Apply pagination if needed
-        page = request.query_params.get('page')
-        if page:
-            try:
-                page_num = int(page)
-                page_size = 50  # Default page size
-                start = (page_num - 1) * page_size
-                end = start + page_size
-                queryset = queryset[start:end]
-            except ValueError:
-                pass
-        
+        # Fallback (no pagination)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -663,8 +658,6 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             if not existing:
                 self.create_customer_notifications(instance, created_by_user)
                 instance._notifications_created = True
-            else:
-                print(f"⚠️  Notifications already exist in DB for customer {instance.id} - skipping create_customer_notifications call")
         
         return instance
     
@@ -677,13 +670,11 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             from datetime import timedelta
             from django.db import transaction
             
-            print(f"=== CREATING CUSTOMER NOTIFICATIONS ===")
-            print(f"Client: {client.first_name} {client.last_name} (ID: {client.id})")
-            print(f"Client store: {client.store}")
-            print(f"Client tenant: {client.tenant}")
-            print(f"Created by user: {created_by_user.username} (role: {created_by_user.role})")
-            print(f"Created by user tenant: {created_by_user.tenant}")
-            print(f"Created by user store: {created_by_user.store}")
+            logger.info(
+                "backend notifications.new_customer.start client_id=%s created_by=%s",
+                getattr(client, "id", None),
+                getattr(created_by_user, "username", None),
+            )
             
             # Use database transaction with SELECT FOR UPDATE to prevent race conditions
             with transaction.atomic():
@@ -698,7 +689,11 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                 ).select_for_update().count()
                 
                 if existing_notifications > 0:
-                    print(f"⚠️  Notifications already exist ({existing_notifications}) for customer {client.id} - skipping to prevent duplicates")
+                    logger.info(
+                        "backend notifications.new_customer.skip_duplicates client_id=%s existing=%s",
+                        getattr(client, "id", None),
+                        existing_notifications,
+                    )
                     return
                 
                 # Role-based recipients (same tenant only): creator, manager of creator, business admin, store manager
@@ -717,8 +712,11 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     include_store_manager=bool(notification_store),
                     include_store_sales_and_telecalling=False,
                 )
-                print(f"Role-based recipients (same tenant only): {[f'{u.username} ({u.role})' for u in unique_users]}")
-                print(f"Unique users to notify: {len(unique_users)}")
+                logger.info(
+                    "backend notifications.new_customer.recipients client_id=%s recipients=%s",
+                    getattr(client, "id", None),
+                    len(unique_users),
+                )
                 
                 # Create notifications for each user
                 # Use atomic transaction to prevent duplicates
@@ -738,17 +736,18 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     ).select_for_update().first()
                     
                     if existing:
-                        print(f"⚠️  Notification already exists (ID: {existing.id}) for user {user.username} and customer {client.id} - skipping")
+                        logger.debug(
+                            "backend notifications.new_customer.already_exists client_id=%s user_id=%s notif_id=%s",
+                            getattr(client, "id", None),
+                            getattr(user, "id", None),
+                            getattr(existing, "id", None),
+                        )
                         continue
                     
                     # Create notification directly (we're already in a transaction with lock)
                     try:
-                        # IMPORTANT: Ensure we're using the correct user object, not a stale reference
-                        notification_user = user
-                        print(f"🔔 Creating notification for user: {notification_user.id} ({notification_user.username}, role: {notification_user.role})")
-                        
                         notification = Notification.objects.create(
-                            user=notification_user,
+                            user=user,
                             tenant=tenant,
                             store=notification_store,
                             type='new_customer',
@@ -762,24 +761,35 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                             metadata={'customer_id': client.id, 'created_by_user_id': created_by_user.id}
                         )
                         
-                        # Verify the notification was created with the correct user
-                        notification.refresh_from_db()
-                        print(f"✅ Created notification {notification.id} for user {notification.user.id} ({notification.user.username}, role: {notification.user.role})")
-                        print(f"   Notification details: user_id={notification.user.id}, tenant_id={notification.tenant.id}, store_id={notification.store.id if notification.store else None}")
+                        logger.info(
+                            "backend notifications.new_customer.created notif_id=%s user_id=%s client_id=%s",
+                            getattr(notification, "id", None),
+                            getattr(user, "id", None),
+                            getattr(client, "id", None),
+                        )
                         
                         notifications_created += 1
                     except Exception as create_error:
-                        print(f"❌ Error creating notification for user {user.username}: {create_error}")
-                        # Continue with other users even if one fails
+                        logger.error(
+                            "backend notifications.new_customer.error user_id=%s client_id=%s error=%s",
+                            getattr(user, "id", None),
+                            getattr(client, "id", None),
+                            create_error,
+                        )
                         continue
                 
-                print(f"✅ Created {notifications_created} notifications for new customer {client.first_name} {client.last_name} (ID: {client.id})")
-                print(f"Users notified: {[f'{user.username} ({user.role})' for user in unique_users]}")
+                logger.info(
+                    "backend notifications.new_customer.summary client_id=%s created=%s",
+                    getattr(client, "id", None),
+                    notifications_created,
+                )
             
         except Exception as e:
-            print(f"Error creating notifications for new customer: {e}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
+            logger.error(
+                "backend notifications.new_customer.fatal client_id=%s error=%s",
+                getattr(client, "id", None),
+                e,
+            )
             # Don't fail the customer creation if notification creation fails
 
     def _get_customer_notification_recipients(self, client, actor_user):

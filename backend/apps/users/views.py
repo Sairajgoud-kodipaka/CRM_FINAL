@@ -2281,17 +2281,12 @@ class AssignmentOverrideAuditView(APIView):
                 'system_version': '1.0.0'  # Add your system version here
             }
             
-            # Log the assignment override with comprehensive details
-            # Structured audit log: WHEN | LEVEL | SERVICE | EVENT | DETAILS
+            # Log the assignment override in a single, structured line
             logger = logging.getLogger('crm')
             logger.info(
-                'client.assignment.override',
-                extra={
-                    'service': SERVICE_NAME,
-                    'event': 'client.assignment.override',
-                    'user': getattr(request.user, 'username', 'anonymous'),
-                    'ip': audit_log.get('ip_address'),
-                },
+                'backend client.assignment.override user=%s ip=%s',
+                getattr(request.user, 'username', 'anonymous'),
+                audit_log.get('ip_address'),
             )
             
             # In a production environment, save this to an audit log table

@@ -280,6 +280,10 @@ class CustomerSegmentationService:
             # Apply occasion segments (additive)
             occasion_segments = self._get_occasion_segments(customer)
             segments.extend(occasion_segments)
+
+            # Global segment so UI \"All Customers\" can work without special-casing
+            if "All Customers" not in segments:
+                segments.append("All Customers")
             
             customer['segments'] = segments
         
@@ -296,6 +300,10 @@ class CustomerSegmentationService:
             for segment_name, rule in self.SEGMENTATION_RULES.items():
                 if self._evaluate_segment_rule(customer, rule):
                     segments.append(segment_name)
+
+            # Global segment for \"All Customers\" views
+            if "All Customers" not in segments:
+                segments.append("All Customers")
             
             customer['segments'] = segments
         

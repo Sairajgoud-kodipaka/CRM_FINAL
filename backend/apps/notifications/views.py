@@ -1,5 +1,6 @@
 import base64
 import re
+import logging
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -212,15 +213,11 @@ class NotificationViewSet(viewsets.ModelViewSet):
             except PushSubscription.DoesNotExist:
                 return Response({'error': 'Could not register push subscription'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Minimal, structured log for subscription event
+        # Minimal log for subscription event
         logger = logging.getLogger('crm')
         logger.info(
-            'push.subscribe',
-            extra={
-                'service': SERVICE_NAME,
-                'event': 'notifications.subscribe_push',
-                'user': getattr(request.user, 'username', 'anonymous'),
-            },
+            'push.subscribe notifications.subscribe_push user=%s',
+            getattr(request.user, 'username', 'anonymous'),
         )
         return Response({'status': 'subscribed'})
     

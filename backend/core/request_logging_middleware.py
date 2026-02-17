@@ -10,6 +10,8 @@ import uuid
 import logging
 from django.utils.deprecation import MiddlewareMixin
 from django.http import HttpRequest, HttpResponse
+
+from core.logging_utils import log_event_info, log_event_warning, log_event_error
 from core.logging_utils import get_logger
 
 logger = get_logger('request_logging')
@@ -51,9 +53,13 @@ class RequestLoggingMiddleware(MiddlewareMixin):
         
         # Log request start for important operations
         if request.method in self.DETAILED_METHODS and request.path.startswith('/api/'):
-            logger.info(
-                f"API Request started: {request.method} {request.path}",
-                request=request
+            log_event_info(
+                logger,
+                service="api",
+                event="request.start",
+                method=request.method,
+                path=request.path,
+                request_id=request.request_id,
             )
         
         return None
@@ -80,39 +86,55 @@ class RequestLoggingMiddleware(MiddlewareMixin):
         # Log based on status code and method
         if status_code >= 500:
             # Server errors - always log
-            logger.error(
-                f"API Request failed with server error: {request.method} {request.path} - "
-                f"Status {status_code} - Duration {duration_ms:.2f}ms",
-                request=request,
-                status_code=status_code,
-                duration_ms=duration_ms
+            log_event_error(
+                logger,
+                service="api",
+                event="request.error_5xx",
+                method=request.method,
+                path=request.path,
+                status=status_code,
+                duration_ms=f"{duration_ms:.2f}",
+                request_id=getattr(request, "request_id", None),
+                note="unexpected server error – check traceback",
             )
         elif status_code >= 400:
             # Client errors - log as warning
-            logger.warning(
-                f"API Request failed with client error: {request.method} {request.path} - "
-                f"Status {status_code} - Duration {duration_ms:.2f}ms",
-                request=request,
-                status_code=status_code,
-                duration_ms=duration_ms
+            log_event_warning(
+                logger,
+                service="api",
+                event="request.error_4xx",
+                method=request.method,
+                path=request.path,
+                status=status_code,
+                duration_ms=f"{duration_ms:.2f}",
+                request_id=getattr(request, "request_id", None),
+                note="client error – check request/permissions",
             )
         elif request.method in self.DETAILED_METHODS:
             # Successful important operations - log as info
-            logger.info(
-                f"API Request completed successfully: {request.method} {request.path} - "
-                f"Status {status_code} - Duration {duration_ms:.2f}ms",
-                request=request,
-                status_code=status_code,
-                duration_ms=duration_ms
+            log_event_info(
+                logger,
+                service="api",
+                event="request.success",
+                method=request.method,
+                path=request.path,
+                status=status_code,
+                duration_ms=f"{duration_ms:.2f}",
+                request_id=getattr(request, "request_id", None),
+                note="api request completed successfully",
             )
         elif duration_ms > 1000:
             # Slow requests (>1 second) - log as warning
-            logger.warning(
-                f"Slow API Request detected: {request.method} {request.path} - "
-                f"Status {status_code} - Duration {duration_ms:.2f}ms",
-                request=request,
-                status_code=status_code,
-                duration_ms=duration_ms
+            log_event_warning(
+                logger,
+                service="api",
+                event="request.slow",
+                method=request.method,
+                path=request.path,
+                status=status_code,
+                duration_ms=f"{duration_ms:.2f}",
+                request_id=getattr(request, "request_id", None),
+                note="slow api request",
             )
         
         return response
@@ -130,13 +152,16 @@ class RequestLoggingMiddleware(MiddlewareMixin):
             duration_ms = 0
         
         # Log exception with full context
-        logger.error(
-            f"Unhandled exception in API request: {request.method} {request.path} - "
-            f"Exception: {type(exception).__name__} - Duration {duration_ms:.2f}ms",
-            request=request,
-            exception=exception,
-            exc_info=True,
-            duration_ms=duration_ms
+        log_event_error(
+            logger,
+            service="api",
+            event="request.exception",
+            method=request.method,
+            path=request.path,
+            exception=type(exception).__name__,
+            duration_ms=f"{duration_ms:.2f}",
+            request_id=getattr(request, "request_id", None),
+            note="unhandled exception in api request",
         )
         
         return None

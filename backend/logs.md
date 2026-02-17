@@ -54,28 +54,63 @@ If a log contains more than this, it is probably bloated.
 
 ---
 
-# 🧱 Production Log Format (Terminal Friendly)
+# 🧱 Production Log Protocol (Terminal Friendly)
 
-All logs must follow this:
-
-```
-TIME | LEVEL | SERVICE | EVENT | DETAILS
-```
-
-Example:
+All backend logs must follow a **single protocol**:
 
 ```
-08:21:33 | INFO  | backend | auth.login.success | user=sales@liberty
-08:21:34 | INFO  | backend | appointments.fetch | count=6
-08:21:35 | INFO  | nginx   | http.request       | GET /api/clients 200
-08:21:45 | ERROR | postgres| db.timeout         | req=abc123
+TIME | LEVEL | LOGGER | MESSAGE
 ```
+
+Where:
+
+- `TIME`   → `%(asctime)s` (IST)
+- `LEVEL`  → `INFO` / `WARNING` / `ERROR`
+- `LOGGER` → logger name (`crm`, `django.request`, `api_requests`, etc.)
+- `MESSAGE` → **event-style string**:
+
+```text
+backend <domain>.<event> key=value ... note=<one-line summary>
+```
+
+Examples:
+
+```text
+08:21:33 | INFO  | crm | backend auth.login.success user_id=21 note=login ok
+08:21:34 | INFO  | crm | backend appointments.fetch count=6 note=list fetched
+08:21:35 | WARNING | crm | backend api.request.slow method=GET path=/api/clients/ status=200 duration_ms=1234.50 request_id=abcd1234 note=slow api request
+08:21:45 | ERROR | crm | backend db.timeout request_id=abc123 note=database timeout
+```
+How to read issues from logs
+Look at LEVEL first
+ERROR: something failed and probably returned 5xx or a hard failure.
+WARNING: something worked but is degraded (4xx, slow, retry, missing optional config).
+INFO: normal operations; only look here when debugging a specific flow.
+Then look at EVENT name
+backend api.request.error_5xx → server bug / exception.
+backend api.request.error_4xx → client/input problem.
+backend telecalling.exotel.api_error / ...sms.api_error / ...tts.api_error → external provider issue.
+backend whatsapp.send_text.failed / ...session.create_failed → WAHA/WhatsApp integration issue.
+backend notifications.*.error → notification pipeline problem.
+Use HTTP status codes to classify
+status=4xx in api.request.error_4xx → fix the request (frontend/input/permissions).
+status=5xx or event ends with .error / api_error → fix the backend or external service.
+Use the extra fields to locate
+method + path → which endpoint.
+request_id → grep or filter all logs for that ID to see full flow.
+client_id, user, phone, etc. → which CRM object / user was involved.
+So when you see a problem:
+Find the ERROR/WARNING line.
+Read event (backend ...) + status=....
+Use method, path, request_id, and IDs to know what failed where and whether it’s a client-side, backend, or external‑service issue.
 
 Rules:
 
-* one log = one line
-* no multiline logs
-* readable within 2 seconds
+* One log = one line
+* No multiline logs
+* MESSAGE must always start with `backend` and an event name (`<domain>.<event>`)
+* Use `key=value` pairs for extra context (`user_id=`, `client_id=`, `status=`, `request_id=`, etc.)
+* End with a short **`note=...`** field for human summary where helpful
 
 ---
 

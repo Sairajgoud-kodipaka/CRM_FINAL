@@ -192,7 +192,11 @@ def whatsapp_webhook(request):
         else:
             payload = request.POST.dict()
         
-        logger.info(f"WhatsApp webhook received: {payload}")
+        logger.info(
+            "backend integrations.whatsapp.webhook.received event=%s session=%s note=whatsapp integration webhook received",
+            payload.get("event"),
+            payload.get("session"),
+        )
         
         event_type = payload.get('event')
         session = payload.get('session')
@@ -201,9 +205,10 @@ def whatsapp_webhook(request):
             # Handle incoming message
             message_data = payload.get('payload', {})
             from_number = message_data.get('from')
-            message_text = message_data.get('body')
-            
-            logger.info(f"Received WhatsApp message from {from_number}: {message_text}")
+            logger.info(
+                "backend integrations.whatsapp.message.from from=%s note=inbound whatsapp message",
+                from_number,
+            )
             
             # You can add logic here to:
             # - Store the message in database
@@ -214,7 +219,10 @@ def whatsapp_webhook(request):
         elif event_type == 'session.status':
             # Handle session status changes
             session_status = payload.get('payload', {})
-            logger.info(f"WhatsApp session status changed: {session_status}")
+            logger.info(
+                "backend integrations.whatsapp.session_status status=%s note=whatsapp session status update",
+                session_status.get("status") if isinstance(session_status, dict) else None,
+            )
             
         return JsonResponse({
             'success': True,

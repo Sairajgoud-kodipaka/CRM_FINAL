@@ -47,7 +47,10 @@ class ExotelSMSService:
             
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"SMS sent successfully to {to}")
+                logger.info(
+                    "backend telecalling.sms.sent to=%s note=sms sent successfully",
+                    to,
+                )
                 return {
                     'success': True,
                     'sms_sid': data.get('SmsMessage', {}).get('Sid'),
@@ -55,7 +58,10 @@ class ExotelSMSService:
                     'data': data
                 }
             else:
-                logger.error(f"SMS API error: {response.status_code} - {response.text}")
+                logger.error(
+                    "backend telecalling.sms.api_error status=%s note=sms api returned non-200 status",
+                    response.status_code,
+                )
                 return {
                     'success': False,
                     'error': f'SMS API error: {response.status_code}',

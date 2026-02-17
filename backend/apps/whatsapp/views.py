@@ -661,7 +661,11 @@ def whatsapp_webhook(request, session_name):
         else:
             payload = request.POST.dict()
         
-        logger.info(f"WhatsApp webhook received for session {session_name}: {payload}")
+        logger.info(
+            "backend whatsapp.webhook.received session=%s event=%s",
+            session_name,
+            payload.get("event"),
+        )
         
         # Get session by name
         try:
@@ -693,7 +697,11 @@ def whatsapp_webhook(request, session_name):
         elif event_type == 'session.status':
             # Handle session status changes
             session_status = payload.get('payload', {})
-            logger.info(f"Session {session_name} status changed: {session_status}")
+            logger.info(
+                "backend whatsapp.webhook.session_status session=%s status=%s",
+                session_name,
+                session_status.get("status") if isinstance(session_status, dict) else None,
+            )
             
             # Update session status in database
             if 'status' in session_status:

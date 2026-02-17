@@ -40,13 +40,19 @@ class ExotelVoiceWebhookView(View):
             # Parse JSON payload from Exotel
             webhook_data = json.loads(request.body)
             
-            logger.info(f"Exotel webhook received: {webhook_data}")
-            
             # Extract key information from webhook
             call_sid = webhook_data.get('CallSid')
             event_type = webhook_data.get('EventType')
             status = webhook_data.get('Status')
             custom_field = webhook_data.get('CustomField')
+
+            logger.info(
+                "backend telecalling.exotel.webhook_received call_sid=%s event_type=%s status=%s custom_field=%s",
+                call_sid,
+                event_type,
+                status,
+                custom_field,
+            )
             
             if not call_sid:
                 logger.error("No CallSid in webhook payload")

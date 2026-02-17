@@ -165,7 +165,46 @@ def get_logger(name: str) -> StructuredLogger:
     return StructuredLogger(name)
 
 
-# Convenience functions for common logging scenarios
+def format_event_message(service: str, event: str, note: Optional[str] = None, **fields) -> str:
+    """
+    Build a protocol-compliant log message:
+    backend <service>.<event> key=value ... note=...
+    """
+    parts: list[str] = []
+    # service and event
+    parts.append("backend")
+    parts.append(f"{service}.{event}")
+    # structured fields
+    for key, value in fields.items():
+        if value is None:
+            continue
+        parts.append(f"{key}={value}")
+    # note (auto-generate if not provided)
+    if note is None:
+        note = f"{service}.{event}"
+    parts.append(f"note={note}")
+    return " ".join(parts)
+
+
+def log_event_info(logger: logging.Logger, service: str, event: str, note: Optional[str] = None, **fields) -> None:
+    """Log an INFO event using the standard protocol."""
+    message = format_event_message(service, event, note=note, **fields)
+    logger.info(message)
+
+
+def log_event_warning(logger: logging.Logger, service: str, event: str, note: Optional[str] = None, **fields) -> None:
+    """Log a WARNING event using the standard protocol."""
+    message = format_event_message(service, event, note=note, **fields)
+    logger.warning(message)
+
+
+def log_event_error(logger: logging.Logger, service: str, event: str, note: Optional[str] = None, **fields) -> None:
+    """Log an ERROR event using the standard protocol."""
+    message = format_event_message(service, event, note=note, **fields)
+    logger.error(message)
+
+
+# Convenience functions for common logging scenarios (legacy / structured logger)
 def log_user_action(action: str, request: HttpRequest, **kwargs):
     """Log a user action with full context."""
     logger_instance = get_logger('user_actions')
