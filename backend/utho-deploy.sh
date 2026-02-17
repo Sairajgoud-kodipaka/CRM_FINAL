@@ -136,7 +136,7 @@ if [[ ! -f ".env" ]]; then
     cat > .env << 'EOF'
 DEBUG=False
 SECRET_KEY=your-secret-key-here
-ALLOWED_HOSTS=150.241.246.110,localhost,127.0.0.1,jewel-crm.vercel.app
+ALLOWED_HOSTS=150.241.246.110,api.150.241.246.110.sslip.io,localhost,127.0.0.1,jewel-crm.vercel.app
 DB_ENGINE=django.db.backends.postgresql
 DB_NAME=jewellery_crm
 DB_USER=crm_user
@@ -152,9 +152,9 @@ REDIS_PORT=6379
 PORT=8000
 PYTHONUNBUFFERED=1
 DJANGO_SETTINGS_MODULE=core.settings
-CORS_ALLOWED_ORIGINS=https://150.241.246.110,http://localhost:3000,https://jewel-crm.vercel.app
-CSRF_TRUSTED_ORIGINS=https://150.241.246.110,http://localhost:3000,https://jewel-crm.vercel.app
-SITE_URL=https://150.241.246.110
+CORS_ALLOWED_ORIGINS=https://150.241.246.110,https://api.150.241.246.110.sslip.io,http://localhost:3000,https://jewel-crm.vercel.app
+CSRF_TRUSTED_ORIGINS=https://150.241.246.110,https://api.150.241.246.110.sslip.io,http://localhost:3000,https://jewel-crm.vercel.app
+SITE_URL=https://api.150.241.246.110.sslip.io
 EOF
     warning "Update .env with your actual values!"
 fi

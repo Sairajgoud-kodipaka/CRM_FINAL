@@ -270,7 +270,7 @@ SALES_PIN_CODE = config('SALES_PIN_CODE', default='1234')
 SALES_PIN_ALLOWED_ROLES = [r.strip() for r in config('SALES_PIN_ALLOWED_ROLES', default='inhouse_sales,sales_team').split(',') if r.strip()]
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app').split(',') if origin.strip()]
+CORS_ALLOWED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://api.150.241.246.110.sslip.io,https://150.241.246.110,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app').split(',') if origin.strip()]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)  # Secure by default
 
@@ -310,7 +310,7 @@ CORS_EXPOSE_HEADERS = [
 ]
 
 # CSRF Settings
-CSRF_TRUSTED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app').split(',') if origin.strip()]
+CSRF_TRUSTED_ORIGINS = [origin.strip().rstrip('/') for origin in config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://jewel-crm.vercel.app,https://api.150.241.246.110.sslip.io,https://150.241.246.110,https://crm-final-mfe4.onrender.com,https://crm-final-tj4n.onrender.com,https://jewellery-crm-frontend.vercel.app').split(',') if origin.strip()]
 
 # Cross-site cookie configuration for frontend on a different domain (e.g., Vercel)
 # Defaults are production-safe; can be overridden via environment if needed
