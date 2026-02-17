@@ -909,7 +909,11 @@ class ClientSerializer(serializers.ModelSerializer):
                                                     tenant=result.tenant
                                                 ).first()
                                                 if category_obj:
-                                            
+                                                    logger.info(
+                                                        "backend clients.customer_interests.category_found_by_name client_id=%s name=%s",
+                                                        getattr(result, "id", None),
+                                                        category,
+                                                    )
                                             if not category_obj:
                                                 logger.warning(
                                                     "backend clients.customer_interests.category_create client_id=%s name=%s",
