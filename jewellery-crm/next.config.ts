@@ -84,13 +84,17 @@ const baseConfig: NextConfig = {
   // Bundle analysis removed for stability
 };
 
+// Full PWA: next-pwa generates sw.js with precache + push. Exclude app-build-manifest.json so it doesn't 404 and block SW activation.
 const nextConfig = withPWA({
   dest: "public",
   register: true,
   skipWaiting: true,
   sw: "sw.js",
-  // Make sure we only enable PWA in production builds by default
   disable: process.env.NODE_ENV !== "production",
+  buildExcludes: [
+    ({ asset }: { asset?: { name?: string } }) =>
+      asset?.name != null && String(asset.name).includes("app-build-manifest"),
+  ],
 })(baseConfig);
 
 export default nextConfig;
