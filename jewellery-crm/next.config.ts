@@ -92,8 +92,10 @@ const nextConfig = withPWA({
   sw: "sw.js",
   disable: process.env.NODE_ENV !== "production",
   buildExcludes: [
-    ({ asset }: { asset?: { name?: string } }) =>
-      asset?.name != null && String(asset.name).includes("app-build-manifest"),
+    ({ asset }: { asset?: { name?: string } }) => {
+      const name = asset?.name != null ? String(asset.name) : "";
+      return name.includes("app-build-manifest") || name.includes("build-manifest.json");
+    },
   ],
 })(baseConfig);
 

@@ -260,7 +260,7 @@ echo "=================================="
 
 # Test database (skip - already tested in Step 7)
 info "Testing database connection..."
-if python manage.py check --database default --quiet 2>&1; then
+if python manage.py check --database default 2>&1; then
     success "Database: Connected"
 else
     warning "Database: Using cached result from migration step (app is working)"
