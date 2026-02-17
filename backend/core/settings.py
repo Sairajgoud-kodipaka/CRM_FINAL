@@ -196,10 +196,12 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
+# Internationalization / Timezone
+# India uses a single timezone: IST (Asia/Kolkata), UTC+05:30, no DST.
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
+# Keep Django timezone support enabled for correct offset handling in DB and APIs
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
@@ -378,94 +380,56 @@ INTERNAL_IPS = [
 ]
 
 # Logging Configuration - Production Mode
-if DEBUG:
-    # Development logging
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-                'style': '{',
-            },
-            'simple': {
-                'format': '{levelname} {message}',
-                'style': '{',
-            },
+SERVICE_NAME = 'backend'
+
+# Logging Configuration
+# Format: TIME | LEVEL | SERVICE | EVENT | DETAILS
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'terminal': {
+            'format': '%(asctime)s | %(levelname)-5s | %(service)s | %(event)s | %(message)s',
+            'datefmt': '%H:%M:%S',
         },
-        'handlers': {
-            'console': {
-                'level': 'INFO',
-                'class': 'logging.StreamHandler',
-                'formatter': 'simple',
-            },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO' if DEBUG else 'WARNING',
+            'class': 'logging.StreamHandler',
+            'formatter': 'terminal',
         },
-        'root': {
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO' if DEBUG else 'WARNING',
+    },
+    'filters': {},
+    'loggers': {
+        # Keep Django noise low in production
+        'django': {
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': 'INFO' if DEBUG else 'WARNING',
+            'propagate': False,
         },
-        'loggers': {
-            'django': {
-                'handlers': ['console'],
-                'level': 'INFO',
-                'propagate': False,
-            },
-            'django.utils.autoreload': {
-                'handlers': ['console'],
-                'level': 'WARNING',
-                'propagate': False,
-            },
-            'django.db.backends': {
-                'handlers': ['console'],
-                'level': 'WARNING',
-                'propagate': False,
-            },
-        },
-    }
-else:
-    # Production logging
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-                'style': '{',
-            },
-            'simple': {
-                'format': '{levelname} {message}',
-                'style': '{',
-            },
-        },
-        'handlers': {
-            'console': {
-                'level': 'WARNING',  # Only warnings and errors in production
-                'class': 'logging.StreamHandler',
-                'formatter': 'simple',
-            },
-        },
-        'root': {
+        'django.request': {
             'handlers': ['console'],
-            'level': 'WARNING',
+            'level': 'ERROR',
+            'propagate': False,
         },
-        'loggers': {
-            'django': {
-                'handlers': ['console'],
-                'level': 'WARNING',
-                'propagate': False,
-            },
-            'django.utils.autoreload': {
-                'handlers': ['console'],
-                'level': 'ERROR',
-                'propagate': False,
-            },
-            'django.db.backends': {
-                'handlers': ['console'],
-                'level': 'ERROR',
-                'propagate': False,
-            },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
         },
-    }
+        # Application logger for business events: WHEN | WHERE | WHO | WHAT
+        'crm': {
+            'handlers': ['console'],
+            'level': 'INFO' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+    },
+}
 
 
 # Channels Configuration

@@ -12,9 +12,18 @@ from django.conf import settings
 from apps.notifications.models import PushSubscription, Notification
 from apps.users.models import User
 
-print("=" * 80)
-print("NOTIFICATION STATUS CHECK")
-print("=" * 80)
+import logging
+
+logger = logging.getLogger('crm')
+
+logger.info(
+    'service.start',
+    extra={
+        'service': 'notification_checker',
+        'event': 'service.start',
+        'user': 'system',
+    },
+)
 
 # VAPID Config
 print("\n1. VAPID Configuration:")

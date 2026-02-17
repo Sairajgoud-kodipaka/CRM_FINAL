@@ -1072,77 +1072,121 @@ def login_view(request):
     """
     Login view that works with existing users.
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
+    from core.logging_utils import log_user_action
+
     username = request.data.get('username')
     password = request.data.get('password')
-    
-    logger.info(f"Login attempt - Username: {username}")
-    
+
+    # Business-style auth event
+    log_user_action(
+        "auth.login.attempt",
+        request,
+        username=username,
+    )
+
     if not username or not password:
-        return Response({
-            'error': 'Username and password are required'
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
+        return Response(
+            {"error": "Username and password are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     # Try to authenticate with Django's built-in authentication
     user = authenticate(username=username, password=password)
-    logger.info(f"Authenticate result: {user is not None}")
-    
+
     if user is None:
         # If authentication fails, check if user exists and provide helpful error
         try:
             user = User.objects.get(username=username)
-            logger.warning(f"User exists but password is incorrect: {user.username}")
-            return Response({
-                'error': 'Invalid password. Please check your password and try again.'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            log_user_action(
+                "auth.login.failed",
+                request,
+                reason="invalid_password",
+                username=username,
+            )
+            return Response(
+                {
+                    "error": "Invalid password. Please check your password and try again."
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
         except User.DoesNotExist:
-            logger.warning(f"User not found: {username}")
-            return Response({
-                'error': 'User not found. Please check your username and try again.'
-            }, status=status.HTTP_401_UNAUTHORIZED)
-    
+            log_user_action(
+                "auth.login.failed",
+                request,
+                reason="user_not_found",
+                username=username,
+            )
+            return Response(
+                {
+                    "error": "User not found. Please check your username and try again."
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
     if not user.is_active:
-        logger.warning(f"User is inactive: {user.username}")
-        return Response({
-            'error': 'User account is disabled'
-        }, status=status.HTTP_401_UNAUTHORIZED)
-    
+        log_user_action(
+            "auth.login.failed",
+            request,
+            reason="user_inactive",
+            username=username,
+        )
+        return Response(
+            {"error": "User account is disabled"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
     # Check if tenant is active (for non-platform admin users)
-    if user.role != 'platform_admin' and user.tenant:
-        if user.tenant.subscription_status != 'active':
-            logger.warning(f"Tenant is inactive: {user.tenant.name} (status: {user.tenant.subscription_status})")
-            return Response({
-                'error': 'Your organization account is currently inactive. Please contact your administrator.'
-            }, status=status.HTTP_401_UNAUTHORIZED)
-    
-    logger.info(f"Login successful for user: {user.username}")
+    if user.role != "platform_admin" and user.tenant:
+        if user.tenant.subscription_status != "active":
+            log_user_action(
+                "auth.login.failed",
+                request,
+                reason="tenant_inactive",
+                username=username,
+                tenant_id=user.tenant.id,
+            )
+            return Response(
+                {
+                    "error": "Your organization account is currently inactive. Please contact your administrator."
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+    log_user_action(
+        "auth.login.success",
+        request,
+        user_id=user.id,
+        username=user.username,
+        role=user.role,
+    )
+
     # Generate tokens
     refresh = RefreshToken.for_user(user)
-    
-    return Response({
-        'success': True,
-        'message': 'Login successful',
-        'token': str(refresh.access_token),
-        'refresh': str(refresh),
-        'user': {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'role': user.role,
-            'name': user.get_full_name() or user.username,
-            'phone': user.phone,
-            'address': user.address,
-            'is_active': user.is_active,
-            'tenant': user.tenant.id if user.tenant else None,
-            'store': user.store.id if user.store else None,
-            'tenant_name': user.tenant.name if user.tenant else None,
-            'store_name': user.store.name if user.store else None,
+
+    return Response(
+        {
+            "success": True,
+            "message": "Login successful",
+            "token": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+                "name": user.get_full_name() or user.username,
+                "phone": user.phone,
+                "address": user.address,
+                "is_active": user.is_active,
+                "tenant": user.tenant.id if user.tenant else None,
+                "store": user.store.id if user.store else None,
+                "tenant_name": user.tenant.name if user.tenant else None,
+                "store_name": user.store.name if user.store else None,
+            },
         }
-    })
+    )
 
 
 @api_view(['POST'])
@@ -2238,16 +2282,17 @@ class AssignmentOverrideAuditView(APIView):
             }
             
             # Log the assignment override with comprehensive details
-            print(f"🔐 ASSIGNMENT OVERRIDE AUDIT LOG:")
-            print(f"   📅 Timestamp: {audit_log['audit_timestamp']}")
-            print(f"   👤 Assigned By: {audit_log['assignedByUserId']} ({audit_log['assignedByRole']})")
-            print(f"   🎯 Assigned To: {audit_log['assignedToUserId']} ({audit_log['assignedToName']})")
-            print(f"   🔄 Type: {audit_log['assignmentType']}")
-            print(f"   🌍 Scope: {audit_log['assignmentScope']}")
-            print(f"   🏢 Tenant: {audit_log['tenant_id']}")
-            print(f"   🏪 Store: {audit_log['store_id']}")
-            print(f"   💻 IP: {audit_log['ip_address']}")
-            print(f"   📱 User Agent: {audit_log['user_agent']}")
+            # Structured audit log: WHEN | LEVEL | SERVICE | EVENT | DETAILS
+            logger = logging.getLogger('crm')
+            logger.info(
+                'client.assignment.override',
+                extra={
+                    'service': SERVICE_NAME,
+                    'event': 'client.assignment.override',
+                    'user': getattr(request.user, 'username', 'anonymous'),
+                    'ip': audit_log.get('ip_address'),
+                },
+            )
             
             # In a production environment, save this to an audit log table
             # For now, we'll just log it to console and return success

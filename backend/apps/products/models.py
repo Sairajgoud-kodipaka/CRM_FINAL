@@ -163,6 +163,17 @@ class Product(models.Model):
         verbose_name_plural = _('Products')
         ordering = ['-created_at']
         unique_together = ['sku', 'tenant', 'store']
+        indexes = [
+            models.Index(fields=['tenant']),
+            models.Index(fields=['store']),
+            models.Index(fields=['scope']),
+            models.Index(fields=['status']),
+            models.Index(fields=['category']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['quantity']),
+            models.Index(fields=['min_quantity']),
+            models.Index(fields=['sku']),
+        ]
 
     def __str__(self):
         store_info = f" ({self.store.name})" if self.store else ""

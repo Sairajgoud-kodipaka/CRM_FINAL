@@ -110,16 +110,34 @@ fi
 # Activate virtual environment
 source venv/bin/activate
 
-# Upgrade pip
-pip install --upgrade pip --quiet
+# Upgrade pip (handle broken pipe gracefully - common when output is redirected)
+log "Upgrading pip..."
+python -m pip install --upgrade pip > /tmp/pip_upgrade.log 2>&1 || {
+    error "Failed to upgrade pip. Check /tmp/pip_upgrade.log for details."
+    exit 1
+}
 
 # Install dependencies
 log "Installing Python dependencies..."
-pip install -r requirements.txt --quiet
+if [[ ! -f "requirements.txt" ]]; then
+    error "requirements.txt not found!"
+    exit 1
+fi
+
+# Install dependencies (redirect to file to avoid broken pipe issues)
+python -m pip install -r requirements.txt > /tmp/pip_install.log 2>&1 || {
+    error "Failed to install dependencies. Last 20 lines of error log:"
+    tail -20 /tmp/pip_install.log
+    exit 1
+}
+success "Dependencies installed successfully"
 
 # Install missing runtime dependencies
-if ! pip list | grep -q gunicorn; then 
-    pip install gunicorn uvicorn[standard] --quiet
+if ! python -m pip list 2>/dev/null | grep -q "^gunicorn "; then 
+    log "Installing runtime dependencies (gunicorn, uvicorn)..."
+    python -m pip install gunicorn uvicorn[standard] > /tmp/pip_runtime.log 2>&1 || {
+        warning "Failed to install gunicorn/uvicorn. Check /tmp/pip_runtime.log"
+    }
 fi
 
 # Step 5: Create required directories

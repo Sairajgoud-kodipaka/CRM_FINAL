@@ -76,6 +76,8 @@ class CustomerInterestInline(admin.TabularInline):
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
+    # Keep admin pages responsive by limiting rows per page
+    list_per_page = 50
     list_max_show_all = 10000  # Allow "Select all" to include up to 10000 for bulk delete
     list_display = [
         'full_name', 'email', 'phone', 'customer_status_display', 'lead_source', 'catchment_area', 
@@ -125,6 +127,17 @@ class ClientAdmin(admin.ModelAdmin):
         'mark_as_vvip', 'mark_as_vip', 'mark_as_general',
         'update_status_automatically'
     ]
+
+    def get_queryset(self, request):
+        """
+        Optimize queryset for admin list view:
+        - scope by tenant to avoid loading all tenants' data
+        - use select_related to avoid N+1 queries when showing related fields
+        """
+        qs = super().get_queryset(request)
+        if hasattr(request.user, 'tenant') and request.user.tenant:
+            qs = qs.filter(tenant=request.user.tenant)
+        return qs.select_related('tenant', 'store', 'assigned_to', 'created_by')
     
     def mark_as_vvip(self, request, queryset):
         updated = queryset.update(status='vvip')
@@ -173,43 +186,29 @@ class ClientAdmin(admin.ModelAdmin):
                     interest.save()
     
     def customer_interests_display(self, obj):
-        """Display customer interests in a readable format"""
-        print(f"=== ADMIN: customer_interests_display called for client {obj.id} ===")
+        """Short, human-readable summary of customer interests."""
         interests = obj.interests.all()
-        print(f"Found {interests.count()} interests for client {obj.id}")
-        print(f"Interests: {list(interests.values())}")
-        
         if not interests:
-            return "No product interests specified"
-        
+            return "No product interests"
+
         interest_list = []
         for interest in interests:
-            category_name = interest.category.name if interest.category else 'No Category'
-            product_name = interest.product.name if interest.product else 'No Product'
-            interest_list.append(
-                f"• {category_name} - {product_name} "
-                f"(₹{interest.revenue})"
-            )
-        
-        result = format_html('<br>'.join(interest_list))
-        print(f"Returning: {result}")
-        return result
+            category_name = getattr(interest.category, 'name', 'No Category')
+            product_name = getattr(interest.product, 'name', 'No Product')
+            interest_list.append(f"• {category_name} - {product_name} (₹{interest.revenue})")
+
+        return format_html('<br>'.join(interest_list))
     customer_interests_display.short_description = "Product Interests"
     
     def customer_interests_summary(self, obj):
-        """Display a summary of customer interests for list view"""
-        print(f"=== ADMIN: customer_interests_summary called for client {obj.id} ===")
+        """Compact summary for list view: count and total revenue."""
         interests = obj.interests.all()
-        print(f"Found {interests.count()} interests for client {obj.id}")
-        
         if not interests:
             return "-"
-        
+
         count = interests.count()
         total_value = sum(interest.revenue for interest in interests)
-        result = f"{count} interest(s) - ₹{total_value:,.0f}"
-        print(f"Returning summary: {result}")
-        return result
+        return f"{count} interest(s) - ₹{total_value:,.0f}"
     customer_interests_summary.short_description = "Interests"
 
     def customer_status_display(self, obj):

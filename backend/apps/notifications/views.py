@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
+from django.db import IntegrityError
 from django.db.models import Q
 from django.conf import settings
 from apps.users.middleware import ScopedVisibilityMiddleware
@@ -184,28 +185,44 @@ class NotificationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Validate expected keys
         try:
-            # Use update_or_create to handle duplicates
-            subscription, created = PushSubscription.objects.update_or_create(
-                user=request.user,
-                endpoint=subscription_info['endpoint'],
-                defaults={
-                    'tenant': request.user.tenant,
-                    'p256dh': subscription_info['keys']['p256dh'],
-                    'auth': subscription_info['keys']['auth']
-                }
-            )
-            
-            # Clean up any other duplicate subscriptions for this user with same endpoint
-            # (shouldn't happen, but just in case)
-            PushSubscription.objects.filter(
-                user=request.user,
-                endpoint=subscription_info['endpoint']
-            ).exclude(id=subscription.id).delete()
-            
-            return Response({'status': 'subscribed'})
+            endpoint = subscription_info['endpoint']
+            keys = subscription_info['keys']
+            p256dh = keys['p256dh']
+            auth = keys['auth']
         except KeyError as e:
-            return Response({'error': f'Invalid subscription format: {e}'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'Invalid subscription format: missing {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Because endpoint is globally unique, always upsert by endpoint and update user/tenant
+        try:
+            subscription, created = PushSubscription.objects.update_or_create(
+                endpoint=endpoint,
+                defaults={
+                    'user': request.user,
+                    'tenant': request.user.tenant,
+                    'p256dh': p256dh,
+                    'auth': auth,
+                },
+            )
+        except IntegrityError:
+            # If another process created the same endpoint concurrently, treat as success
+            try:
+                subscription = PushSubscription.objects.get(endpoint=endpoint)
+            except PushSubscription.DoesNotExist:
+                return Response({'error': 'Could not register push subscription'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Minimal, structured log for subscription event
+        logger = logging.getLogger('crm')
+        logger.info(
+            'push.subscribe',
+            extra={
+                'service': SERVICE_NAME,
+                'event': 'notifications.subscribe_push',
+                'user': getattr(request.user, 'username', 'anonymous'),
+            },
+        )
+        return Response({'status': 'subscribed'})
     
     @action(detail=False, methods=['post'])
     def unsubscribe_push(self, request):

@@ -164,6 +164,14 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
         
         # Apply global date filtering
         queryset = self.get_date_filtered_queryset(queryset, 'created_at')
+
+        # Optimize related-object loading to avoid N+1 queries in list views
+        queryset = queryset.select_related(
+            'tenant',
+            'store',
+            'assigned_to',
+            'created_by',
+        )
         
         return queryset
     
@@ -889,8 +897,14 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
                     'detail': 'Only business admins can delete customers.'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Log the deletion before performing it
-            logger.info(f"Deleting client: {instance.id} ({instance.first_name} {instance.last_name}) by user: {request.user.username}")
+            from core.logging_utils import log_user_action
+
+            # Log the deletion before performing it (CRM-style event)
+            log_user_action(
+                "client.deleted",
+                request,
+                client_id=instance.id,
+            )
             
             # Notify relevant users before deletion (notification stores tenant/store from client)
             self.create_customer_deleted_notifications(instance, request.user)
@@ -910,7 +924,11 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             # Perform hard delete
             instance.delete()
             
-            logger.info(f"Successfully deleted client: {instance.id}")
+            log_user_action(
+                "client.deleted.success",
+                request,
+                client_id=instance.id,
+            )
             
             return Response({
                 'success': True,
@@ -918,7 +936,14 @@ class ClientViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin, GlobalDateFilt
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.error(f"Error deleting client: {e}")
+            from core.logging_utils import log_error_with_context
+
+            log_error_with_context(
+                "client.deleted.error",
+                request=request,
+                exception=e,
+                client_id=getattr(instance, "id", None),
+            )
             return Response({
                 'error': 'Failed to delete customer',
                 'detail': str(e)
@@ -3488,22 +3513,10 @@ class AppointmentViewSet(viewsets.ModelViewSet, ScopedVisibilityMixin):
     permission_classes = [IsRoleAllowed.for_roles(['inhouse_sales', 'business_admin', 'manager'])]
 
     def list(self, request, *args, **kwargs):
-        """List appointments with debugging"""
-        print(f"=== APPOINTMENT LIST METHOD ===")
-        print(f"Request user: {request.user}")
-        print(f"Request method: {request.method}")
-        print(f"Request URL: {request.path}")
-        
+        """List appointments."""
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
-        response_data = serializer.data
-        
-        print(f"Serialized data count: {len(response_data)}")
-        print(f"Serialized data: {response_data}")
-        
-        response = Response(response_data)
-        print(f"=== APPOINTMENT LIST METHOD END ===")
-        return response
+        return Response(serializer.data)
 
     def get_queryset(self):
         """Filter appointments by user scope"""
