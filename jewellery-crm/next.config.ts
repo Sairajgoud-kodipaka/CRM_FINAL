@@ -97,7 +97,10 @@ const nextConfig = withPWA({
       return (
         name.includes("app-build-manifest") ||
         name.includes("build-manifest.json") ||
-        name.includes("react-loadable-manifest")
+        name.includes("react-loadable-manifest") ||
+        name.includes("server/middleware-build-manifest") ||
+        name.includes("server/next-font-manifest") ||
+        name.includes("/server/")
       );
     },
   ],
