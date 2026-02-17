@@ -94,7 +94,11 @@ const nextConfig = withPWA({
   buildExcludes: [
     ({ asset }: { asset?: { name?: string } }) => {
       const name = asset?.name != null ? String(asset.name) : "";
-      return name.includes("app-build-manifest") || name.includes("build-manifest.json");
+      return (
+        name.includes("app-build-manifest") ||
+        name.includes("build-manifest.json") ||
+        name.includes("react-loadable-manifest")
+      );
     },
   ],
 })(baseConfig);
