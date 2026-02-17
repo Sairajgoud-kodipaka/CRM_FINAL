@@ -180,13 +180,12 @@ fi
 # Step 7: Database operations
 log "Step 7: Running database operations..."
 
-# Test database connection
-log "Testing database connection..."
-if python manage.py check --database default > /dev/null 2>&1; then
-    success "Database connection successful"
+# Test Django + database connectivity (show real errors, no fake messages)
+log "Testing database connection (manage.py check --database default)..."
+if python manage.py check --database default; then
+    success "Django checks passed and database is reachable"
 else
-    error "Database connection failed!"
-    error "Please check your .env file and database settings"
+    error "manage.py check failed – see error above for real reason (could be DB, URLs, or code)."
     exit 1
 fi
 
