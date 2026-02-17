@@ -383,13 +383,14 @@ INTERNAL_IPS = [
 SERVICE_NAME = 'backend'
 
 # Logging Configuration
-# Format: TIME | LEVEL | SERVICE | EVENT | DETAILS
+# Format: TIME | LEVEL | LOGGER | MESSAGE
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'terminal': {
-            'format': '%(asctime)s | %(levelname)-5s | %(service)s | %(event)s | %(message)s',
+            # Use standard logging fields to avoid KeyError when custom fields are missing
+            'format': '%(asctime)s | %(levelname)-5s | %(name)s | %(message)s',
             'datefmt': '%H:%M:%S',
         },
     },
