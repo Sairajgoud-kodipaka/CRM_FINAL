@@ -87,11 +87,10 @@ MIDDLEWARE = [
     'apps.core.middleware.GlobalDateFilterMiddleware',  # Global date filtering
 ]
 
-# Debug toolbar configuration for development
-# Temporarily disabled due to duplicate entry issue
-# if DEBUG:
-#     INSTALLED_APPS += ['debug_toolbar']
-#     MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
+# Debug toolbar: only load when DEBUG so manage.py check works when toolbar not installed
+if DEBUG:
+    INSTALLED_APPS += ['debug_toolbar']
+    MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
 
 ROOT_URLCONF = 'core.urls'
 

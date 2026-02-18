@@ -17,8 +17,8 @@ urlpatterns = [
 
     
     # API Routes
-    path('api/', include('apps.users.urls')),  # Combined users and auth endpoints
-    path('api/team-members/', include('apps.users.urls')),  # Direct team-members access
+    path('api/', include('apps.users.urls')),  # Users, auth, team-members at api/users/...
+    path('api/team-members/', include('apps.users.urls_team_members')),  # Direct team-members access
     path('api/tenants/', include('apps.tenants.urls')),
     path('api/clients/', include('apps.clients.urls')),  # Enable clients module
     path('api/', include('apps.stores.urls')),  # Fixed: removed duplicate 'stores/'
@@ -42,9 +42,10 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    import debug_toolbar
-    urlpatterns = [
-        path('__debug__/', include(debug_toolbar.urls)),
-    ] + urlpatterns
+    if 'debug_toolbar' in settings.INSTALLED_APPS:
+        import debug_toolbar
+        urlpatterns = [
+            path('__debug__/', include(debug_toolbar.urls)),
+        ] + urlpatterns
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

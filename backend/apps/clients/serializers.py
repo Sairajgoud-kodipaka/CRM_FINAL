@@ -962,56 +962,60 @@ class ClientSerializer(serializers.ModelSerializer):
                                                     tenant=result.tenant
                                                 ).first()
                                                 if product_obj:
-                                            
-                                            if not product_obj:
-                                                logger.warning(
-                                                    "backend clients.customer_interests.product_create client_id=%s name=%s",
-                                                    getattr(result, "id", None),
-                                                    product_name,
-                                                )
-                                                try:
-                                                    # Generate unique SKU
-                                                    base_sku = f"{category[:3].upper()}-{product_name[:3].upper()}"
-                                                    counter = 1
-                                                    sku = f"{base_sku}-{result.tenant.id}"
-                                                    while Product.objects.filter(sku=sku, tenant=result.tenant).exists():
-                                                        sku = f"{base_sku}-{result.tenant.id}-{counter}"
-                                                        counter += 1
-                                                    
-                                                    product_obj = Product.objects.create(
-                                                        name=product_name,
-                                                        sku=sku,
-                                                        description=f"Auto-created product for customer interest",
-                                                        category=category_obj,
-                                                        cost_price=0.00,
-                                                        selling_price=float(revenue_value),
-                                                        quantity=0,
-                                                        min_quantity=0,
-                                                        max_quantity=1000,
-                                                        status='active',
-                                                        is_featured=False,
-                                                        is_bestseller=False,
-                                                        additional_images=[],
-                                                        tags=[],
-                                                        tenant=result.tenant,
-                                                        store=result.store,
-                                                        scope='store' if result.store else 'global'
-                                                    )
-                                                except Exception as prod_error:
-                                                    logger.error(
-                                                        "backend clients.customer_interests.product_error client_id=%s name=%s error=%s",
+                                                    logger.info(
+                                                        "backend clients.customer_interests.product_found_by_name client_id=%s name=%s",
                                                         getattr(result, "id", None),
                                                         product_name,
-                                                        prod_error,
                                                     )
-                                                    # Try to find any existing product as fallback
-                                                    product_obj = Product.objects.filter(tenant=result.tenant).first()
-                                                    if not product_obj:
-                                                        logger.error(
-                                                            "backend clients.customer_interests.product_fallback_missing client_id=%s",
-                                                            getattr(result, "id", None),
+                                                if not product_obj:
+                                                    logger.warning(
+                                                        "backend clients.customer_interests.product_create client_id=%s name=%s",
+                                                        getattr(result, "id", None),
+                                                        product_name,
+                                                    )
+                                                    try:
+                                                        # Generate unique SKU
+                                                        base_sku = f"{category[:3].upper()}-{product_name[:3].upper()}"
+                                                        counter = 1
+                                                        sku = f"{base_sku}-{result.tenant.id}"
+                                                        while Product.objects.filter(sku=sku, tenant=result.tenant).exists():
+                                                            sku = f"{base_sku}-{result.tenant.id}-{counter}"
+                                                            counter += 1
+                                                        
+                                                        product_obj = Product.objects.create(
+                                                            name=product_name,
+                                                            sku=sku,
+                                                            description=f"Auto-created product for customer interest",
+                                                            category=category_obj,
+                                                            cost_price=0.00,
+                                                            selling_price=float(revenue_value),
+                                                            quantity=0,
+                                                            min_quantity=0,
+                                                            max_quantity=1000,
+                                                            status='active',
+                                                            is_featured=False,
+                                                            is_bestseller=False,
+                                                            additional_images=[],
+                                                            tags=[],
+                                                            tenant=result.tenant,
+                                                            store=result.store,
+                                                            scope='store' if result.store else 'global'
                                                         )
-                                                        continue
+                                                    except Exception as prod_error:
+                                                        logger.error(
+                                                            "backend clients.customer_interests.product_error client_id=%s name=%s error=%s",
+                                                            getattr(result, "id", None),
+                                                            product_name,
+                                                            prod_error,
+                                                        )
+                                                        # Try to find any existing product as fallback
+                                                        product_obj = Product.objects.filter(tenant=result.tenant).first()
+                                                        if not product_obj:
+                                                            logger.error(
+                                                                "backend clients.customer_interests.product_fallback_missing client_id=%s",
+                                                                getattr(result, "id", None),
+                                                            )
+                                                            continue
                                             
                                             # Create the customer interest
                                             try:
