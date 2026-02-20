@@ -52,10 +52,10 @@ function ManagerCustomersContent() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
-  
+
   // Check if user can delete customers (only business admin)
   const canDeleteCustomers = user?.role === 'business_admin';
-  
+
   const [modalOpen, setModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -126,11 +126,16 @@ function ManagerCustomersContent() {
 
 
 
-      if (response.success && response.data && Array.isArray(response.data)) {
-
-        setCustomers(response.data);
+      if (response.success) {
+        const raw = response.data as any;
+        let customersData: Client[] = [];
+        if (Array.isArray(raw)) {
+          customersData = raw;
+        } else if (raw && typeof raw === 'object' && Array.isArray(raw.results)) {
+          customersData = raw.results;
+        }
+        setCustomers(customersData);
       } else {
-
         setCustomers([]);
       }
     } catch (error) {
@@ -192,7 +197,7 @@ function ManagerCustomersContent() {
 
   const formatPipelineStage = (stage: string | undefined) => {
     if (!stage) return 'Unknown';
-    
+
     // Convert snake_case to Title Case
     return stage
       .split('_')
@@ -216,7 +221,7 @@ function ManagerCustomersContent() {
     if (!status) return 'outline';
 
     const statusLower = status.toLowerCase();
-    
+
     // Handle pipeline stages
     switch (statusLower) {
       case 'exhibition':
@@ -253,9 +258,9 @@ function ManagerCustomersContent() {
 
   const getStatusBadgeClasses = (status: string | undefined) => {
     if (!status) return '';
-    
+
     const statusLower = status.toLowerCase();
-    
+
     // Handle pipeline stages
     switch (statusLower) {
       case 'exhibition':
@@ -553,33 +558,33 @@ function ManagerCustomersContent() {
             mobileCardActions={(customer) => {
               const client = customer as unknown as Client;
               return (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleViewCustomer(client.id.toString());
                     }}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
+                    className="text-blue-600 hover:text-blue-800"
+                  >
                     <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleEditCustomer(client);
                     }}
-                          className="text-green-600 hover:text-green-800"
-                        >
+                    className="text-green-600 hover:text-green-800"
+                  >
                     <Edit className="w-4 h-4" />
-                        </Button>
-                        {canDeleteCustomers && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                  </Button>
+                  {canDeleteCustomers && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (window.confirm(`Are you sure you want to move ${client.first_name} ${client.last_name} to trash? You can restore them later from the Trash section.`)) {
@@ -589,15 +594,15 @@ function ManagerCustomersContent() {
                       className="text-red-600 hover:text-red-800"
                     >
                       <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
+                    </Button>
+                  )}
+                </div>
               );
             }}
             emptyState={
               <div className="text-center py-8">
                 <p className="text-text-secondary">
-                    {customers.length === 0 ? 'No customers found' : 'No customers match your search criteria'}
+                  {customers.length === 0 ? 'No customers found' : 'No customers match your search criteria'}
                 </p>
               </div>
             }

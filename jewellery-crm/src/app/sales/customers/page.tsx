@@ -64,22 +64,27 @@ function SalesCustomersPageContent() {
     try {
       setLoading(true);
 
-
       const response = await apiService.getClients({
         start_date: toUtcStartOfDay(dateRange?.from),
         end_date: toUtcEndOfDay(dateRange?.to),
       });
 
-
-      const customersData = Array.isArray(response.data) ? response.data : [];
+      // The backend uses DRF PageNumberPagination, so response.data may be
+      // a paginated envelope { count, next, previous, results: [...] }
+      // OR a plain array (fallback). Handle both cases.
+      let customersData: Client[] = [];
+      if (response.success) {
+        const raw = response.data as any;
+        if (Array.isArray(raw)) {
+          customersData = raw;
+        } else if (raw && typeof raw === 'object' && Array.isArray(raw.results)) {
+          customersData = raw.results;
+        }
+      }
 
       setCustomers(customersData);
       setSelectedIds(new Set());
-       
-       
     } catch (error) {
-
-
       toast({
         title: "Error",
         description: "Failed to fetch customers. Please try again.",
@@ -100,27 +105,27 @@ function SalesCustomersPageContent() {
     const handleRefresh = async (event: CustomEvent) => {
       if (event.detail?.customerId) {
         const { customerId, newStage } = event.detail;
-        
+
         // Optimistically update the customer in the list immediately
         if (customerId && newStage) {
-          setCustomers(prevCustomers => 
-            prevCustomers.map(customer => 
+          setCustomers(prevCustomers =>
+            prevCustomers.map(customer =>
               customer.id?.toString() === customerId.toString()
                 ? { ...customer, pipeline_stage: newStage, status: newStage }
                 : customer
             )
           );
-          
+
           // Also update filtered customers if they exist
-          setFilteredCustomers(prevFiltered => 
-            prevFiltered.map(customer => 
+          setFilteredCustomers(prevFiltered =>
+            prevFiltered.map(customer =>
               customer.id?.toString() === customerId.toString()
                 ? { ...customer, pipeline_stage: newStage, status: newStage }
                 : customer
             )
           );
         }
-        
+
         // Refresh the customer list from server to ensure we have the latest data
         // Use a small delay to ensure the backend has processed the update
         // Add timestamp to bypass cache
@@ -129,13 +134,17 @@ function SalesCustomersPageContent() {
             const response = await apiService.getClients({
               start_date: toUtcStartOfDay(dateRange?.from),
               end_date: toUtcEndOfDay(dateRange?.to),
-              // Add timestamp to force fresh fetch
             } as any);
-            
+
             if (response.success) {
-              const customersData = Array.isArray(response.data) ? response.data : [];
+              const raw = response.data as any;
+              let customersData: Client[] = [];
+              if (Array.isArray(raw)) {
+                customersData = raw;
+              } else if (raw && typeof raw === 'object' && Array.isArray(raw.results)) {
+                customersData = raw.results;
+              }
               setCustomers(customersData);
-              // Reset selected IDs after refresh
               setSelectedIds(new Set());
             }
           } catch (error) {
@@ -342,7 +351,7 @@ function SalesCustomersPageContent() {
 
   const formatPipelineStage = (stage: string | undefined) => {
     if (!stage) return 'Unknown';
-    
+
     // Convert snake_case to Title Case
     return stage
       .split('_')
@@ -366,7 +375,7 @@ function SalesCustomersPageContent() {
     if (!status) return 'outline';
 
     const statusLower = status.toLowerCase();
-    
+
     // Handle pipeline stages
     switch (statusLower) {
       case 'exhibition':
@@ -471,11 +480,11 @@ function SalesCustomersPageContent() {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 md:gap-8">
-              <AddCustomerModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          onCustomerCreated={handleCustomerCreated}
-        />
+      <AddCustomerModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCustomerCreated={handleCustomerCreated}
+      />
       <CustomerDetailModal
         open={detailModalOpen}
         onClose={() => {
@@ -511,57 +520,57 @@ function SalesCustomersPageContent() {
         onSuccess={handleExportSuccess}
       />
 
-              <div className="flex flex-col gap-4 mb-2">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-semibold text-text-primary">Customers</h1>
-            <p className="text-sm sm:text-base text-text-secondary mt-1">Find and manage your assigned customers</p>
-            <div className="mt-2">
-              <ScopeIndicator showDetails={false} />
+      <div className="flex flex-col gap-4 mb-2">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold text-text-primary">Customers</h1>
+          <p className="text-sm sm:text-base text-text-secondary mt-1">Find and manage your assigned customers</p>
+          <div className="mt-2">
+            <ScopeIndicator showDetails={false} />
+          </div>
+          {/* Summary stats */}
+          <div className="mt-4 flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-text-secondary">Total:</span>
+              <span className="font-semibold text-text-primary">{customers.length}</span>
             </div>
-            {/* Summary stats */}
-            <div className="mt-4 flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-text-secondary">Total:</span>
-                <span className="font-semibold text-text-primary">{customers.length}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-text-secondary">My Customers:</span>
-                <span className="font-semibold text-orange-600">
-                  {customers.filter(customer => customer.created_by?.id === user?.id).length}
-                </span>
-              </div>
-            </div>
-            {/* My Data Filter Button */}
-            <div className="mt-3">
-              <Button
-                variant={showMyDataOnly ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowMyDataOnly(!showMyDataOnly)}
-                className={showMyDataOnly ? "bg-orange-600 hover:bg-orange-700" : "border-orange-600 text-orange-600 hover:bg-orange-50"}
-              >
-                {showMyDataOnly ? "Show All Customers" : "My Data"}
-              </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-text-secondary">My Customers:</span>
+              <span className="font-semibold text-orange-600">
+                {customers.filter(customer => customer.created_by?.id === user?.id).length}
+              </span>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-            <DateRangeFilter
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
-              placeholder="Filter by date range"
-            />
-            {/* Sales users do not need Trash */}
-            <Button className="btn-primary w-full sm:w-auto" size="sm" onClick={() => setModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Add Customer</span>
-              <span className="sm:hidden">Add</span>
-            </Button>
-            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setExportModalOpen(true)}>
-              <Download className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Export CSV</span>
-              <span className="sm:hidden">Export</span>
+          {/* My Data Filter Button */}
+          <div className="mt-3">
+            <Button
+              variant={showMyDataOnly ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowMyDataOnly(!showMyDataOnly)}
+              className={showMyDataOnly ? "bg-orange-600 hover:bg-orange-700" : "border-orange-600 text-orange-600 hover:bg-orange-50"}
+            >
+              {showMyDataOnly ? "Show All Customers" : "My Data"}
             </Button>
           </div>
         </div>
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+          <DateRangeFilter
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            placeholder="Filter by date range"
+          />
+          {/* Sales users do not need Trash */}
+          <Button className="btn-primary w-full sm:w-auto" size="sm" onClick={() => setModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Add Customer</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
+          <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setExportModalOpen(true)}>
+            <Download className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">Export</span>
+          </Button>
+        </div>
+      </div>
 
       {/* Removed: Date Filter Indicator card */}
 
@@ -602,9 +611,8 @@ function SalesCustomersPageContent() {
                   return (
                     <Card
                       key={customer.id}
-                      className={`p-4 cursor-pointer transition-all hover:shadow-md ${
-                        isCurrentUserCustomer ? 'border-l-4 border-l-orange-500 bg-orange-50' : ''
-                      }`}
+                      className={`p-4 cursor-pointer transition-all hover:shadow-md ${isCurrentUserCustomer ? 'border-l-4 border-l-orange-500 bg-orange-50' : ''
+                        }`}
                       onClick={() => handleRowClick(customer)}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -676,8 +684,8 @@ function SalesCustomersPageContent() {
               ) : (
                 <div className="text-center py-8">
                   <div className="text-text-secondary text-lg font-medium">
-                    {customers.length === 0 
-                      ? 'No customers found' 
+                    {customers.length === 0
+                      ? 'No customers found'
                       : 'No customers match your filters'}
                   </div>
                 </div>
@@ -713,256 +721,255 @@ function SalesCustomersPageContent() {
           </>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-border bg-white mt-2">
-          {!isMobile && selectedIds.size > 0 && (
-            <div className="flex items-center justify-between p-3 border-b bg-gray-50">
-              <div className="text-sm text-text-secondary">Selected {selectedIds.size} customer(s)</div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setExportModalOpen(true)}
-                >
-                  <Download className="w-4 h-4 mr-1" /> Export CSV
-                </Button>
-                {canDeleteCustomers && (
+            {!isMobile && selectedIds.size > 0 && (
+              <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+                <div className="text-sm text-text-secondary">Selected {selectedIds.size} customer(s)</div>
+                <div className="flex items-center gap-2">
                   <Button
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
-                    onClick={async () => {
-                      if (!window.confirm(`Delete ${selectedIds.size} selected customer(s)? This cannot be undone.`)) return;
-                      for (const id of Array.from(selectedIds)) {
-                        await apiService.deleteClient(String(id));
-                      }
-                      setSelectedIds(new Set());
-                      fetchCustomers();
-                      // Success via push only (no toast)
-                    }}
+                    onClick={() => setExportModalOpen(true)}
                   >
-                    <Trash2 className="w-4 h-4 mr-1" /> Bulk Delete
+                    <Download className="w-4 h-4 mr-1" /> Export CSV
                   </Button>
-                )}
-              </div>
-            </div>
-          )}
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                {!isMobile && (
-                  <th className="px-4 py-3 text-left" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedIds.size > 0 && selectedIds.size === pagedCustomers.length}
-                      onCheckedChange={(val) => {
-                        if (val) {
-                          setSelectedIds(new Set(pagedCustomers.map(c => c.id as number)));
-                        } else {
-                          setSelectedIds(new Set());
+                  {canDeleteCustomers && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={async () => {
+                        if (!window.confirm(`Delete ${selectedIds.size} selected customer(s)? This cannot be undone.`)) return;
+                        for (const id of Array.from(selectedIds)) {
+                          await apiService.deleteClient(String(id));
                         }
+                        setSelectedIds(new Set());
+                        fetchCustomers();
+                        // Success via push only (no toast)
                       }}
-                      aria-label="Select all"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </th>
-                )}
-                <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Customer</th>
-                <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Phone</th>
-                <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Status</th>
-                {!isTablet && (
-                  <>
-                    <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Lead Source</th>
-                    <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Created By</th>
-                    <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Created</th>
-                  </>
-                )}
-                <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedCustomers.length > 0 ? (
-                pagedCustomers.map((customer) => {
-                  // Check if this customer belongs to the current user
-                  const isCurrentUserCustomer = customer.created_by?.id === user?.id;
-                  const checked = selectedIds.has((customer.id as number));
-
-                  return (
-                    <tr
-                      key={customer.id}
-                      onClick={() => handleRowClick(customer)}
-                      onDoubleClick={() => handleRowDoubleClick(customer)}
-                      className={`border-t border-border hover:bg-gray-50 cursor-pointer ${
-                        isCurrentUserCustomer ? 'bg-orange-50 border-l-4 border-l-orange-500' : ''
-                      }`}
                     >
-                      {!isMobile && (
-                        <td className="px-3 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(val) => {
-                              setSelectedIds(prev => {
-                                const copy = new Set(prev);
-                                if (val) copy.add(customer.id as number); else copy.delete(customer.id as number);
-                                return copy;
-                              });
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </td>
-                      )}
-                      <td className="px-3 sm:px-4 py-3 font-medium text-text-primary text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate">{formatCustomerName(customer)}</span>
-                          {isCurrentUserCustomer && (
-                            <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs flex-shrink-0">
-                              My Customer
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 sm:px-4 py-3 text-text-primary text-sm">{customer.phone || '-'}</td>
-                      <td className="px-3 sm:px-4 py-3">
-                        <Badge variant={getStatusBadgeVariant(customer.pipeline_stage || customer.status)} className="capitalize text-xs">
-                          {customer.pipeline_stage
-                            ? (SALES_STAGE_LABELS[customer.pipeline_stage as keyof typeof SALES_STAGE_LABELS] || formatPipelineStage(customer.pipeline_stage))
-                            : customer.status
-                              ? customer.status.charAt(0).toUpperCase() + customer.status.slice(1)
-                              : 'Unknown'
+                      <Trash2 className="w-4 h-4 mr-1" /> Bulk Delete
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  {!isMobile && (
+                    <th className="px-4 py-3 text-left" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.size > 0 && selectedIds.size === pagedCustomers.length}
+                        onCheckedChange={(val) => {
+                          if (val) {
+                            setSelectedIds(new Set(pagedCustomers.map(c => c.id as number)));
+                          } else {
+                            setSelectedIds(new Set());
                           }
-                        </Badge>
-                      </td>
-                      {!isTablet && (
-                        <>
-                          <td className="px-3 sm:px-4 py-3 text-text-secondary text-sm">
-                            {customer.lead_source || '-'}
+                        }}
+                        aria-label="Select all"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </th>
+                  )}
+                  <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Customer</th>
+                  <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Phone</th>
+                  <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Status</th>
+                  {!isTablet && (
+                    <>
+                      <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Lead Source</th>
+                      <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Created By</th>
+                      <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Created</th>
+                    </>
+                  )}
+                  <th className="px-3 sm:px-4 py-3 text-left font-semibold text-text-secondary text-xs sm:text-sm">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedCustomers.length > 0 ? (
+                  pagedCustomers.map((customer) => {
+                    // Check if this customer belongs to the current user
+                    const isCurrentUserCustomer = customer.created_by?.id === user?.id;
+                    const checked = selectedIds.has((customer.id as number));
+
+                    return (
+                      <tr
+                        key={customer.id}
+                        onClick={() => handleRowClick(customer)}
+                        onDoubleClick={() => handleRowDoubleClick(customer)}
+                        className={`border-t border-border hover:bg-gray-50 cursor-pointer ${isCurrentUserCustomer ? 'bg-orange-50 border-l-4 border-l-orange-500' : ''
+                          }`}
+                      >
+                        {!isMobile && (
+                          <td className="px-3 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(val) => {
+                                setSelectedIds(prev => {
+                                  const copy = new Set(prev);
+                                  if (val) copy.add(customer.id as number); else copy.delete(customer.id as number);
+                                  return copy;
+                                });
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
                           </td>
-                          <td className="px-3 sm:px-4 py-3 text-text-secondary text-sm">
-                            {customer.created_by ? (
-                              <span className={isCurrentUserCustomer ? 'font-semibold text-orange-600' : ''}>
-                                {`${customer.created_by.first_name || ''} ${customer.created_by.last_name || ''}`.trim() || customer.created_by.username || 'Unknown'}
-                              </span>
-                            ) : (
-                              '-'
+                        )}
+                        <td className="px-3 sm:px-4 py-3 font-medium text-text-primary text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">{formatCustomerName(customer)}</span>
+                            {isCurrentUserCustomer && (
+                              <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs flex-shrink-0">
+                                My Customer
+                              </Badge>
                             )}
-                          </td>
-                          <td className="px-3 sm:px-4 py-3 text-text-secondary text-sm">
-                            {customer.created_at ? formatDate(customer.created_at) : '-'}
-                          </td>
-                        </>
-                      )}
-                      <td className="px-3 sm:px-4 py-3">
-                        <div className="flex gap-1 sm:gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-800 h-8 w-8 p-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (customer.id) {
-                                handleViewCustomer(customer.id.toString());
-                              }
-                            }}
-                            title="View"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-green-600 hover:text-green-800 h-8 w-8 p-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditCustomer(customer);
-                            }}
-                            disabled={updatingCustomer === customer.id?.toString()}
-                            title="Edit"
-                          >
-                            {updatingCustomer === customer.id?.toString() ? (
-                              <Skeleton className="w-4 h-4 rounded" />
-                            ) : (
-                              <Edit className="w-4 h-4" />
-                            )}
-                          </Button>
-                          {canDeleteCustomers && (
+                          </div>
+                        </td>
+                        <td className="px-3 sm:px-4 py-3 text-text-primary text-sm">{customer.phone || '-'}</td>
+                        <td className="px-3 sm:px-4 py-3">
+                          <Badge variant={getStatusBadgeVariant(customer.pipeline_stage || customer.status)} className="capitalize text-xs">
+                            {customer.pipeline_stage
+                              ? (SALES_STAGE_LABELS[customer.pipeline_stage as keyof typeof SALES_STAGE_LABELS] || formatPipelineStage(customer.pipeline_stage))
+                              : customer.status
+                                ? customer.status.charAt(0).toUpperCase() + customer.status.slice(1)
+                                : 'Unknown'
+                            }
+                          </Badge>
+                        </td>
+                        {!isTablet && (
+                          <>
+                            <td className="px-3 sm:px-4 py-3 text-text-secondary text-sm">
+                              {customer.lead_source || '-'}
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 text-text-secondary text-sm">
+                              {customer.created_by ? (
+                                <span className={isCurrentUserCustomer ? 'font-semibold text-orange-600' : ''}>
+                                  {`${customer.created_by.first_name || ''} ${customer.created_by.last_name || ''}`.trim() || customer.created_by.username || 'Unknown'}
+                                </span>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 text-text-secondary text-sm">
+                              {customer.created_at ? formatDate(customer.created_at) : '-'}
+                            </td>
+                          </>
+                        )}
+                        <td className="px-3 sm:px-4 py-3">
+                          <div className="flex gap-1 sm:gap-2">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-600 hover:text-red-800 h-8 w-8 p-0"
+                              className="text-blue-600 hover:text-blue-800 h-8 w-8 p-0"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const customerIdStr = customer.id ? customer.id.toString() : null;
-                                if (customerIdStr && window.confirm(`Are you sure you want to move ${customer.first_name} ${customer.last_name} to trash? You can restore them later from the Trash section.`)) {
-                                  handleDeleteCustomer(customerIdStr);
+                                if (customer.id) {
+                                  handleViewCustomer(customer.id.toString());
                                 }
                               }}
-                              disabled={deletingCustomer === customer.id?.toString()}
-                              title="Delete"
+                              title="View"
                             >
-                              {deletingCustomer === customer.id?.toString() ? (
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-green-600 hover:text-green-800 h-8 w-8 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditCustomer(customer);
+                              }}
+                              disabled={updatingCustomer === customer.id?.toString()}
+                              title="Edit"
+                            >
+                              {updatingCustomer === customer.id?.toString() ? (
                                 <Skeleton className="w-4 h-4 rounded" />
                               ) : (
-                                <Trash2 className="w-4 h-4" />
+                                <Edit className="w-4 h-4" />
                               )}
                             </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={isTablet ? 5 : 8} className="px-4 py-8 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="text-text-secondary text-lg font-medium">
-                        {customers.length === 0 
-                          ? 'No customers found' 
-                          : 'No customers match your filters'}
-                      </div>
-                      {(searchTerm || statusFilter || showMyDataOnly || dateRange) && (
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <div>Active filters:</div>
-                          <div className="flex flex-wrap gap-2 justify-center">
-                            {searchTerm && (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                                Search: "{searchTerm}"
-                              </span>
-                            )}
-                            {statusFilter && (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                                Status: {statusFilter}
-                              </span>
-                            )}
-                            {showMyDataOnly && (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                                My Data Only
-                              </span>
-                            )}
-                            {dateRange && (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                                Date Range: {dateRange.from?.toLocaleDateString()} - {dateRange.to?.toLocaleDateString()}
-                              </span>
+                            {canDeleteCustomers && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-800 h-8 w-8 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const customerIdStr = customer.id ? customer.id.toString() : null;
+                                  if (customerIdStr && window.confirm(`Are you sure you want to move ${customer.first_name} ${customer.last_name} to trash? You can restore them later from the Trash section.`)) {
+                                    handleDeleteCustomer(customerIdStr);
+                                  }
+                                }}
+                                disabled={deletingCustomer === customer.id?.toString()}
+                                title="Delete"
+                              >
+                                {deletingCustomer === customer.id?.toString() ? (
+                                  <Skeleton className="w-4 h-4 rounded" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </Button>
                             )}
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSearchTerm('');
-                              setStatusFilter('');
-                              setShowMyDataOnly(false);
-                              // Clear date range if needed
-                            }}
-                            className="mt-2"
-                          >
-                            Clear All Filters
-                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={isTablet ? 5 : 8} className="px-4 py-8 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="text-text-secondary text-lg font-medium">
+                          {customers.length === 0
+                            ? 'No customers found'
+                            : 'No customers match your filters'}
                         </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                        {(searchTerm || statusFilter || showMyDataOnly || dateRange) && (
+                          <div className="text-sm text-muted-foreground space-y-1">
+                            <div>Active filters:</div>
+                            <div className="flex flex-wrap gap-2 justify-center">
+                              {searchTerm && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                  Search: "{searchTerm}"
+                                </span>
+                              )}
+                              {statusFilter && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                  Status: {statusFilter}
+                                </span>
+                              )}
+                              {showMyDataOnly && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                  My Data Only
+                                </span>
+                              )}
+                              {dateRange && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                  Date Range: {dateRange.from?.toLocaleDateString()} - {dateRange.to?.toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSearchTerm('');
+                                setStatusFilter('');
+                                setShowMyDataOnly(false);
+                                // Clear date range if needed
+                              }}
+                              className="mt-2"
+                            >
+                              Clear All Filters
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* Desktop/Tablet Pagination */}
@@ -979,7 +986,7 @@ function SalesCustomersPageContent() {
                   value={pageSize}
                   onChange={(e) => { setPageSize(parseInt(e.target.value) || 20); setPage(1); }}
                 >
-                  {[10,20,50,100].map(n => (
+                  {[10, 20, 50, 100].map(n => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>

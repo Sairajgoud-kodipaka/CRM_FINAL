@@ -4,6 +4,7 @@ from apps.tenants.models import Tenant
 from .models import Purchase
 from shared.validators import validate_international_phone_number, normalize_phone_number
 import re
+import logging
 
 
 class ClientSerializer(serializers.ModelSerializer):

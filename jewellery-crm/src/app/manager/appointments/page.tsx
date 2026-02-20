@@ -91,7 +91,7 @@ export default function ManagerAppointmentsPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => getCurrentMonthDateRange());
-  
+
   // Refs for single/double tap detection on mobile
   const clickTimeoutRef = useRef<number | null>(null);
   const lastTapRef = useRef<number>(0);
@@ -226,7 +226,7 @@ export default function ManagerAppointmentsPage() {
     const todayAppointments = appointments.filter(a => {
       const appointmentDate = new Date(a.date);
       return appointmentDate.toDateString() === today.toDateString() &&
-             a.status === 'scheduled' || a.status === 'confirmed';
+        a.status === 'scheduled' || a.status === 'confirmed';
     });
 
     if (todayAppointments.length > 0) {
@@ -278,8 +278,14 @@ export default function ManagerAppointmentsPage() {
 
 
 
-      // Ensure we have an array of appointments
-      const appointmentsData = Array.isArray(response.data) ? response.data : [];
+      // Ensure we have an array of appointments — handle both flat array and paginated { results: [] }
+      const raw = response.data as any;
+      let appointmentsData: Appointment[] = [];
+      if (Array.isArray(raw)) {
+        appointmentsData = raw;
+      } else if (raw && typeof raw === 'object' && Array.isArray(raw.results)) {
+        appointmentsData = raw.results;
+      }
 
 
       setAppointments(appointmentsData);
@@ -295,7 +301,13 @@ export default function ManagerAppointmentsPage() {
     try {
       const response = await apiService.getClients();
       if (response.success && response.data) {
-        const customersData = Array.isArray(response.data) ? response.data : [];
+        const raw = response.data as any;
+        let customersData: Customer[] = [];
+        if (Array.isArray(raw)) {
+          customersData = raw;
+        } else if (raw && typeof raw === 'object' && Array.isArray(raw.results)) {
+          customersData = raw.results;
+        }
         setCustomers(customersData);
       }
     } catch (error) {
@@ -387,7 +399,7 @@ export default function ManagerAppointmentsPage() {
     if (isMobile) {
       const now = Date.now();
       const timeSinceLastTap = now - lastTapRef.current;
-      
+
       if (timeSinceLastTap > 0 && timeSinceLastTap < 300) {
         // Double tap detected - cancel single tap and open edit
         lastTapRef.current = 0;
@@ -406,7 +418,7 @@ export default function ManagerAppointmentsPage() {
       lastTapRef.current = now;
       // Reset flag for new tap sequence
       shouldOpenEditRef.current = false;
-      
+
       if (clickTimeoutRef.current) {
         window.clearTimeout(clickTimeoutRef.current);
       }
@@ -592,7 +604,7 @@ export default function ManagerAppointmentsPage() {
         <Card className="flex flex-col gap-1 p-5">
           <div className="text-xl font-bold text-text-primary">{stats.overdueAppointments}</div>
           <div className="text-sm text-text-secondary font-medium">Overdue</div>
-          </Card>
+        </Card>
       </div>
 
       {/* Overdue Appointments Toggle */}
@@ -622,12 +634,12 @@ export default function ManagerAppointmentsPage() {
         <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Search by customer or type..."
+            <Input
+              placeholder="Search by customer or type..."
               className="pl-10 w-full md:w-80"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
           <select
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -666,11 +678,9 @@ export default function ManagerAppointmentsPage() {
                   return (
                     <tr
                       key={appointment.id}
-                      className={`border-t border-border hover:bg-gray-50 cursor-pointer ${
-                        isToday ? 'bg-blue-50' : ''
-                      } ${
-                        isOverdue ? 'bg-orange-50' : ''
-                      }`}
+                      className={`border-t border-border hover:bg-gray-50 cursor-pointer ${isToday ? 'bg-blue-50' : ''
+                        } ${isOverdue ? 'bg-orange-50' : ''
+                        }`}
                       onClick={() => handleRowClick(appointment)}
                       onDoubleClick={() => handleRowDoubleClick(appointment)}
                     >
@@ -693,12 +703,12 @@ export default function ManagerAppointmentsPage() {
                       </td>
                       <td className="px-4 py-3 text-text-primary">
                         {formatDateTime(appointment.date, appointment.time)}
-                  </td>
+                      </td>
                       <td className="px-4 py-3 text-text-primary">
                         <div className="max-w-xs truncate" title={appointment.client_sales_person_name || 'Not assigned'}>
                           {appointment.client_sales_person_name || 'Not assigned'}
                         </div>
-                  </td>
+                      </td>
                       <td className="px-4 py-3 text-text-primary">
                         <div className="max-w-xs">
                           {appointment.client_product_interests && appointment.client_product_interests.length > 0 ? (
@@ -718,7 +728,7 @@ export default function ManagerAppointmentsPage() {
                             <span className="text-gray-400 text-sm">No interests</span>
                           )}
                         </div>
-                  </td>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           {getStatusIcon(appointment.status)}
@@ -726,21 +736,21 @@ export default function ManagerAppointmentsPage() {
                             {appointment.status}
                           </Badge>
                         </div>
-                    </td>
+                      </td>
                       <td className="px-4 py-3 text-text-primary">
                         {appointment.duration} min
-                    </td>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
+                          <Button
+                            variant="ghost"
                             size="sm"
                             className="text-blue-600 hover:text-blue-800"
                             onClick={() => handleViewAppointment(appointment)}
-                        title="View appointment details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                            title="View appointment details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
                           {isOverdue && (
                             <Button
                               variant="outline"
@@ -761,8 +771,8 @@ export default function ManagerAppointmentsPage() {
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-text-secondary">
                     {appointments.length === 0 ? 'No appointments found' : 'No appointments match your search criteria'}
-                    </td>
-                  </tr>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

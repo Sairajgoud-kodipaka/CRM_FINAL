@@ -670,7 +670,7 @@ class ApiService {
           const q = JSON.parse(localStorage.getItem('offline-queue') || '[]');
           q.push({ endpoint, options });
           localStorage.setItem('offline-queue', JSON.stringify(q));
-        } catch {}
+        } catch { }
         return { data: null as any, success: true, message: 'Queued offline' };
       }
 
@@ -715,10 +715,10 @@ class ApiService {
               window.dispatchEvent(new CustomEvent('sessionExpired', {
                 detail: { message: 'Your session has expired. Please sign in again.' }
               }));
-            } catch {}
+            } catch { }
             localStorage.removeItem('auth-storage');
             setTimeout(() => {
-            window.location.href = '/';
+              window.location.href = '/';
             }, 1200);
           }
         }
@@ -805,20 +805,20 @@ class ApiService {
     } catch (error: any) {
       // End performance monitoring for failed requests
       performanceMonitor.endTiming(endpoint, false);
-      
+
       // Implement retry logic for network errors and 500/503 errors
-      const isRetryableError = 
+      const isRetryableError =
         error.message?.includes('timeout') ||
         error.message?.includes('network') ||
         error.message?.includes('fetch');
-      
+
       // Check if we should retry
       if (isRetryableError && retryCount < this.MAX_RETRIES) {
         const delay = this.RETRY_DELAY_BASE * Math.pow(2, retryCount); // Exponential backoff
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.requestWithRetry(endpoint, options, retryCount + 1);
       }
-      
+
       // Check for HTTP errors that should be retried
       if (error.status === 500 || error.status === 503) {
         if (retryCount < this.MAX_RETRIES) {
@@ -827,7 +827,7 @@ class ApiService {
           return this.requestWithRetry(endpoint, options, retryCount + 1);
         }
       }
-      
+
       throw error;
     }
   }
@@ -1106,16 +1106,16 @@ class ApiService {
     if (forceRefresh) {
       this.invalidateCache(`/clients/clients/${id}/`);
     }
-    
+
     // Use cross-store endpoint if needed (for fetching customers from different stores)
     if (crossStore) {
       const response = await this.request<{ success: boolean; data: Client }>(`/clients/clients/${id}/cross-store/`);
-      
+
       // The backend returns { success: True, data: serializer.data }
       // The request method wraps it, so we get { success: true, data: { success: true, data: Client } }
       if (response.success && response.data) {
         const responseData = response.data as any;
-        
+
         // Check if response.data itself has a nested structure
         if (responseData && typeof responseData === 'object') {
           // If responseData has 'data' property, it's nested: { success: true, data: { success: true, data: Client } }
@@ -1136,11 +1136,11 @@ class ApiService {
           }
         }
       }
-      
+
       console.error('❌ getClient (cross-store) - Unexpected response structure:', response);
       return response as any;
     }
-    
+
     return this.request(`/clients/clients/${id}/`);
   }
 
@@ -1212,22 +1212,22 @@ class ApiService {
     const cleaned: Record<string, any> = {};
     const preservedCreatedAt = clientData.created_at;
     const preservedInterests = clientData.customer_interests_input;
-    
+
     Object.entries(clientData || {}).forEach(([key, value]) => {
       // Special handling for customer_interests_input - always include it (even if empty array)
       if (key === 'customer_interests_input') {
         cleaned[key] = value !== undefined ? value : [];
         return;
       }
-      
+
       if (value === undefined || value === null) return;
-      
+
       // Don't filter out created_at - it's needed for historical date imports
       if (key === 'created_at') {
         cleaned[key] = value;
         return;
       }
-      
+
       if (typeof value === 'string' && value.trim() === '') return;
       cleaned[key] = value;
     });
@@ -1270,7 +1270,7 @@ class ApiService {
     } else {
       endpoint = `/clients/clients/${id}/`;
     }
-    
+
     const response = await this.request<Client>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(clientData),
@@ -1440,19 +1440,19 @@ class ApiService {
   }): Promise<ApiResponse<Client>> {
     // First, create or get the exhibition if provided
     let exhibitionId: number | undefined;
-    
+
     if (leadData.exhibition_name && leadData.exhibition_date) {
       try {
         // Try to find existing exhibition
         const exhibitionsResponse = await this.request('/exhibition/exhibitions/', {
           method: 'GET',
         });
-        
+
         if (exhibitionsResponse.success && Array.isArray(exhibitionsResponse.data)) {
           const existing = exhibitionsResponse.data.find(
             (ex: any) => ex.name === leadData.exhibition_name && ex.date === leadData.exhibition_date
           );
-          
+
           if (existing) {
             exhibitionId = existing.id;
           } else {
@@ -1466,7 +1466,7 @@ class ApiService {
                 is_active: true
               }),
             });
-            
+
             if (createExhibitionResponse.success && createExhibitionResponse.data) {
               exhibitionId = createExhibitionResponse.data.id;
             }
@@ -1476,13 +1476,13 @@ class ApiService {
         console.error('Error creating/finding exhibition:', error);
       }
     }
-    
+
     // Set lead_source to include exhibition name if provided
     let leadSource = 'exhibition';
     if (leadData.exhibition_name) {
       leadSource = leadData.exhibition_name;
     }
-    
+
     const requestBody = {
       ...leadData,
       status: 'exhibition',
@@ -1490,11 +1490,11 @@ class ApiService {
       customer_type: leadData.customer_type || 'individual',
       exhibition: exhibitionId || null,
       // Always ensure customer_interests_input is an array (never undefined)
-      customer_interests_input: Array.isArray(leadData.customer_interests_input) 
-        ? leadData.customer_interests_input 
+      customer_interests_input: Array.isArray(leadData.customer_interests_input)
+        ? leadData.customer_interests_input
         : (leadData.customer_interests_input ? [leadData.customer_interests_input] : [])
     };
-    
+
     return this.request('/clients/clients/', {
       method: 'POST',
       body: JSON.stringify(requestBody),
@@ -1503,7 +1503,7 @@ class ApiService {
 
   // Exhibition management
   async getExhibitions(date?: string): Promise<ApiResponse<any[]>> {
-    const url = date 
+    const url = date
       ? `/exhibition/exhibitions/?date=${date}`
       : '/exhibition/exhibitions/';
     return this.request(url, {
@@ -2436,7 +2436,7 @@ class ApiService {
         const j = JSON.parse(t);
         if (j?.error) msg = j.error;
         else if (j?.message) msg = j.message;
-      } catch {}
+      } catch { }
       throw new Error(msg);
     }
     const reader = response.body?.getReader();
@@ -2493,7 +2493,7 @@ class ApiService {
                 max_batch_size: payload.max_batch_size ?? 10000,
               };
             }
-          } catch (_) {}
+          } catch (_) { }
         }
       }
     }
@@ -2590,7 +2590,7 @@ class ApiService {
         const j = JSON.parse(t);
         if (j?.error) msg = j.error;
         else if (j?.message) msg = j.message;
-      } catch {}
+      } catch { }
       throw new Error(msg);
     }
 
@@ -2600,13 +2600,13 @@ class ApiService {
     let buffer = '';
     let finalSummary:
       | {
-          total_rows: number;
-          imported: number;
-          skipped: number;
-          visits_added?: number;
-          failed: number;
-          errors: string[];
-        }
+        total_rows: number;
+        imported: number;
+        skipped: number;
+        visits_added?: number;
+        failed: number;
+        errors: string[];
+      }
       | null = null;
 
     while (true) {
@@ -2730,11 +2730,11 @@ class ApiService {
     }
 
     const url = queryParams.toString() ? `${endpoint}?${queryParams}` : endpoint;
-    
+
     // For export, we need to handle blob response directly
     const token = this.getAuthToken();
     const apiUrl = getApiUrl(url);
-    
+
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {

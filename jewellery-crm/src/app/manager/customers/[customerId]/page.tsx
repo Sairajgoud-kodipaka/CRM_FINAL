@@ -21,12 +21,10 @@ export default function ManagerCustomerDetailPage() {
   const fetchCustomerDetails = async () => {
     try {
       setLoading(true);
-      // Note: This assumes there's a getClientById method in apiService
-      // If not available, you might need to implement it
-      const response = await apiService.getClients();
-      if (response.success && response.data && Array.isArray(response.data)) {
-        const foundCustomer = response.data.find(c => c.id.toString() === customerId);
-        setCustomer(foundCustomer || null);
+      // Use getClient(id) directly — no need to fetch all customers just to find one
+      const response = await apiService.getClient(customerId);
+      if (response.success && response.data) {
+        setCustomer(response.data);
       }
     } catch (error) {
 
