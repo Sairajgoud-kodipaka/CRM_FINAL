@@ -40,6 +40,9 @@ function SalesCustomersPageContent() {
   const [updatingCustomer, setUpdatingCustomer] = useState<string | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  // Phone search modal logic
+  const [phoneSearchLoading, setPhoneSearchLoading] = useState(false);
+  const [phoneSearchError, setPhoneSearchError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [showMyDataOnly, setShowMyDataOnly] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -455,6 +458,35 @@ function SalesCustomersPageContent() {
     handleEditCustomer(customer);
   }, [handleEditCustomer]);
 
+  // Debounce search term and handle phone search modal logic
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const phone = searchTerm.trim();
+      // If searchTerm looks like a phone number (at least 8 digits), check if it exists
+      if (/^\+?\d{8,}$/.test(phone)) {
+        setPhoneSearchLoading(true);
+        setPhoneSearchError(null);
+        try {
+          const response = await apiService.checkPhoneExists(phone);
+          if (response.success && response.data?.exists && response.data.customer?.id) {
+            // Open detail modal for found customer
+            setSelectedCustomerId(response.data.customer.id.toString());
+            setDetailModalOpen(true);
+          } else if (response.success && !response.data?.exists) {
+            // Open add modal, prefill phone
+            setModalOpen(true);
+            // Optionally, pass phone to AddCustomerModal via context or prop
+          }
+        } catch (err) {
+          setPhoneSearchError('Error searching phone.');
+        } finally {
+          setPhoneSearchLoading(false);
+        }
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-8">
@@ -484,6 +516,7 @@ function SalesCustomersPageContent() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onCustomerCreated={handleCustomerCreated}
+        phone={/^\+?\d{8,}$/.test(searchTerm.trim()) ? searchTerm.trim() : ''}
       />
       <CustomerDetailModal
         open={detailModalOpen}
@@ -579,12 +612,23 @@ function SalesCustomersPageContent() {
           <div className="flex flex-col sm:flex-row gap-2 flex-1">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search by name, email, or phone..."
-                className="pl-10 w-full text-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+              <div className="relative">
+                <Input
+                  placeholder="Search by name, email, or phone..."
+                  className="pl-10 w-full text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  type="text"
+                  inputMode="search"
+                  autoComplete="off"
+                />
+                {phoneSearchLoading && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-blue-600">Checking...</div>
+                )}
+                {phoneSearchError && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-red-600">{phoneSearchError}</div>
+                )}
+              </div>
             </div>
             <select
               className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
