@@ -36,6 +36,9 @@ function CustomersPageContent() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  // Phone search modal logic
+  const [phoneSearchLoading, setPhoneSearchLoading] = useState(false);
+  const [phoneSearchError, setPhoneSearchError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -89,11 +92,33 @@ function CustomersPageContent() {
 
   // Debounce search term
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       setDebouncedSearchTerm(searchTerm);
       setCurrentPage(1); // Reset to page 1 when search changes
-    }, 500);
 
+      // If searchTerm looks like a phone number (at least 8 digits), check if it exists
+      const phone = searchTerm.trim();
+      if (/^\+?\d{8,}$/.test(phone)) {
+        setPhoneSearchLoading(true);
+        setPhoneSearchError(null);
+        try {
+          const response = await apiService.checkPhoneExists(phone);
+          if (response.success && response.data?.exists && response.data.customer?.id) {
+            // Open detail modal for found customer
+            setSelectedCustomerId(response.data.customer.id.toString());
+            setShowDetailModal(true);
+          } else if (response.success && !response.data?.exists) {
+            // Open add modal, prefill phone
+            setShowAddModal(true);
+            // Optionally, you could pass phone to AddCustomerModal via context or prop
+          }
+        } catch (err) {
+          setPhoneSearchError('Error searching phone.');
+        } finally {
+          setPhoneSearchLoading(false);
+        }
+      }
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
@@ -993,7 +1018,17 @@ function CustomersPageContent() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 text-sm"
+                type="text"
+                inputMode="search"
+                autoComplete="off"
               />
+              {/* Show phone search loading/error */}
+              {phoneSearchLoading && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-blue-600">Checking...</div>
+              )}
+              {phoneSearchError && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-red-600">{phoneSearchError}</div>
+              )}
             </div>
             <Button
               variant={filterType === 'all_customers' ? 'default' : 'outline'}
@@ -1581,6 +1616,8 @@ function CustomersPageContent() {
             setShowAddModal(false);
             fetchClients(); // Refresh the list after customer creation
           }}
+          // Optionally, pass phone as prop if you want to prefill
+          // phone={searchTerm}
         />
       )}
 
