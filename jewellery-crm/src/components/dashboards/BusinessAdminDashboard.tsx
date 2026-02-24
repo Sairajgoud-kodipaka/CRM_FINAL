@@ -366,7 +366,8 @@ export function BusinessAdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Inventory Overview */}
-        <CardContainer>
+        {/* Inventory Overview - hidden as per client request */}
+        {/* <CardContainer>
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-xl font-semibold text-foreground">Inventory</h3>
@@ -392,7 +393,7 @@ export function BusinessAdminDashboard() {
               <Badge variant="destructive">{businessData.inventory.low_stock}</Badge>
             </div>
           </div>
-        </CardContainer>
+        </CardContainer> */}
 
         {/* E-commerce Metrics */}
         <CardContainer>

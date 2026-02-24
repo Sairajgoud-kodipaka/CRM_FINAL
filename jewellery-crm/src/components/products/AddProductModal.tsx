@@ -464,7 +464,8 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
             </div>
 
             {/* Inventory */}
-            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+            {/* Inventory section hidden as per client request */}
+            {/* <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory</h3>
 
               <div className="flex items-center justify-between mb-4">
@@ -516,7 +517,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }: AddProdu
                   </div>
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Image Upload */}
             <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">

@@ -12,7 +12,7 @@ import { CustomerDetailModal } from '@/components/customers/CustomerDetailModal'
 import { EditCustomerModal } from '@/components/customers/EditCustomerModal';
 import { ImportModal } from '@/components/customers/ImportModal';
 import { ExportModal } from '@/components/customers/ExportModal';
-import { apiService, Client } from '@/lib/api-service';
+import { apiService, Client, Store } from '@/lib/api-service';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { formatCustomerName } from '@/utils/name-utils';
@@ -96,6 +96,11 @@ function ManagerCustomersContent() {
   const [statusHeaderFilter, setStatusHeaderFilter] = useState('all');
   const [salespersonHeaderFilter, setSalespersonHeaderFilter] = useState('all');
   const [createdDateHeaderFilter, setCreatedDateHeaderFilter] = useState('all');
+  const [storeHeaderFilter, setStoreHeaderFilter] = useState('all');
+
+  // ── Store filter (top-bar) ─────────────────────────────────────────────────
+  const [storeFilter, setStoreFilter] = useState('all');
+  const [stores, setStores] = useState<Store[]>([]);
 
   // ── Real-time updates ──────────────────────────────────────────────────────
   useCustomerRealtimeUpdates(() => { fetchCustomers(); });
@@ -107,15 +112,25 @@ function ManagerCustomersContent() {
   }, [searchTerm]);
 
   // ── Reset page on filter changes ───────────────────────────────────────────
-  useEffect(() => { setCurrentPage(1); }, [filterType, dateRange]);
+  useEffect(() => { setCurrentPage(1); }, [filterType, dateRange, storeFilter]);
 
   // ── Fetch on dependency changes ────────────────────────────────────────────
-  useEffect(() => { fetchCustomers(); }, [currentPage, debouncedSearchTerm, filterType, dateRange]);
+  useEffect(() => { fetchCustomers(); }, [currentPage, debouncedSearchTerm, filterType, dateRange, storeFilter]);
+
+  // ── Load stores once ───────────────────────────────────────────────────────
+  useEffect(() => {
+    apiService.getStores().then(res => {
+      if (res.success) {
+        const d = res.data as any;
+        setStores(Array.isArray(d) ? d : d?.results || []);
+      }
+    });
+  }, []);
 
   // ── Reset mobile page ──────────────────────────────────────────────────────
   useEffect(() => {
     setMobilePage(1);
-  }, [searchTerm, filterType, dateRange, nameHeaderFilter, phoneHeaderFilter, statusHeaderFilter, salespersonHeaderFilter, createdDateHeaderFilter]);
+  }, [searchTerm, filterType, dateRange, storeFilter, nameHeaderFilter, phoneHeaderFilter, statusHeaderFilter, salespersonHeaderFilter, createdDateHeaderFilter, storeHeaderFilter]);
 
   // ── Open customer from ?open= param ───────────────────────────────────────
   useEffect(() => {
@@ -132,6 +147,9 @@ function ManagerCustomersContent() {
       if (filterType === 'all_customers') {
         const reqParams: any = {};
         if (debouncedSearchTerm.trim()) reqParams.search = debouncedSearchTerm.trim();
+        // In All Customers mode: no store filter → return entire business DB
+        // If a specific store is selected in the top bar, scope to that store
+        if (storeFilter !== 'all') reqParams.store = storeFilter;
 
         const response = await apiService.getClients(reqParams);
 
@@ -218,6 +236,7 @@ function ManagerCustomersContent() {
       } else {
         const reqParams: any = { page: currentPage };
         if (debouncedSearchTerm.trim()) reqParams.search = debouncedSearchTerm.trim();
+        if (storeFilter !== 'all') reqParams.store = storeFilter;
         if (dateRange?.from) reqParams.start_date = dateRange.from.toISOString();
         if (dateRange?.to) reqParams.end_date = dateRange.to.toISOString();
 
@@ -328,6 +347,12 @@ function ManagerCustomersContent() {
     return Array.from(s).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
   };
 
+  const getUniqueStoreNames = () => {
+    const s = new Set<string>();
+    customers.forEach(c => { const n = c.store_name || (c.store ? `Store #${c.store}` : null); if (n) s.add(n); });
+    return Array.from(s).sort();
+  };
+
   // ── Sorting ────────────────────────────────────────────────────────────────
   const handleSort = (col: string) => {
     if (sortColumn === col) setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
@@ -354,6 +379,9 @@ function ManagerCustomersContent() {
         return !isNaN(d.getTime()) && d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === createdDateHeaderFilter;
       });
     }
+    if (storeHeaderFilter !== 'all') {
+      list = list.filter(c => (c.store_name || (c.store ? `Store #${c.store}` : '')) === storeHeaderFilter);
+    }
 
     if (sortColumn) {
       list.sort((a, b) => {
@@ -364,6 +392,7 @@ function ManagerCustomersContent() {
           case 'status': av = (a.pipeline_stage || a.status || '').toLowerCase(); bv = (b.pipeline_stage || b.status || '').toLowerCase(); break;
           case 'salesperson': av = getSalespersonName(a).toLowerCase(); bv = getSalespersonName(b).toLowerCase(); break;
           case 'created': av = a.created_at ? new Date(a.created_at).getTime() : 0; bv = b.created_at ? new Date(b.created_at).getTime() : 0; break;
+          case 'store': av = (a.store_name || '').toLowerCase(); bv = (b.store_name || '').toLowerCase(); break;
           default: return 0;
         }
         if (av < bv) return sortDirection === 'asc' ? -1 : 1;
@@ -375,11 +404,12 @@ function ManagerCustomersContent() {
     return list;
   };
 
-  const hasActiveHeaderFilters = nameHeaderFilter !== 'all' || phoneHeaderFilter !== 'all' || statusHeaderFilter !== 'all' || salespersonHeaderFilter !== 'all' || createdDateHeaderFilter !== 'all';
+  const hasActiveHeaderFilters = nameHeaderFilter !== 'all' || phoneHeaderFilter !== 'all' || statusHeaderFilter !== 'all' || salespersonHeaderFilter !== 'all' || createdDateHeaderFilter !== 'all' || storeHeaderFilter !== 'all';
 
   const clearHeaderFilters = () => {
     setNameHeaderFilter('all'); setPhoneHeaderFilter('all');
-    setStatusHeaderFilter('all'); setSalespersonHeaderFilter('all'); setCreatedDateHeaderFilter('all');
+    setStatusHeaderFilter('all'); setSalespersonHeaderFilter('all');
+    setCreatedDateHeaderFilter('all'); setStoreHeaderFilter('all');
   };
 
   // ── Event handlers ─────────────────────────────────────────────────────────
@@ -558,6 +588,13 @@ function ManagerCustomersContent() {
             >
               All Customers
             </Button>
+            <Select value={storeFilter} onValueChange={(v) => { setStoreFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-full sm:w-44 text-sm"><SelectValue placeholder="All Stores" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stores</SelectItem>
+                {stores.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -613,6 +650,9 @@ function ManagerCustomersContent() {
                                 </Badge>
                               </div>
                               <div className="flex gap-2"><span className="text-text-secondary">Salesperson:</span><span>{getSalespersonName(c)}</span></div>
+                              {(c.store_name || c.store) && (
+                                <div className="flex gap-2"><span className="text-text-secondary">Store:</span><span>{c.store_name || `Store #${c.store}`}</span></div>
+                              )}
                             </div>
                           </div>
                           <div className="flex flex-col gap-1 flex-shrink-0">
@@ -713,12 +753,24 @@ function ManagerCustomersContent() {
                               </Select>
                             </div>
                           </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            <div className="flex flex-col gap-2">
+                              <button onClick={() => handleSort('store')} className="flex items-center hover:text-foreground transition-colors">STORE {getSortIcon('store')}</button>
+                              <Select value={storeHeaderFilter} onValueChange={setStoreHeaderFilter}>
+                                <SelectTrigger className="h-7 text-xs w-full"><SelectValue placeholder="All" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Stores</SelectItem>
+                                  {getUniqueStoreNames().map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </th>
                           <th className="w-10 px-4 py-3"><span className="sr-only">Actions</span></th>
                         </tr>
                       </thead>
                       <tbody className="bg-card divide-y divide-border">
                         {filteredCustomers.length === 0 ? (
-                          <tr><td colSpan={6} className="px-4 py-8 text-center text-text-secondary">No customers match your filters</td></tr>
+                          <tr><td colSpan={7} className="px-4 py-8 text-center text-text-secondary">No customers match your filters</td></tr>
                         ) : filteredCustomers.map(c => (
                           <tr key={c.id} onClick={() => handleViewCustomer(c.id.toString())} className="hover:bg-muted/50 cursor-pointer">
                             <td className="px-4 py-3 whitespace-nowrap font-medium text-text-primary">{formatCustomerName(c)}</td>
@@ -730,6 +782,7 @@ function ManagerCustomersContent() {
                               </Badge>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-text-secondary">{formatDate(c.created_at || '')}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-text-secondary">{c.store_name || (c.store ? `Store #${c.store}` : '-')}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-right" onClick={e => e.stopPropagation()}>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>

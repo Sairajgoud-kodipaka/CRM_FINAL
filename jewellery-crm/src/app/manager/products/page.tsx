@@ -364,12 +364,15 @@ export default function ManagerProductsPage() {
       sub: 'All products in inventory',
       icon: Package
     },
+    /* Low Stock stat card hidden */
+    /*
     {
       label: 'Low Stock',
       value: stats.low_stock || 0,
       sub: 'Products below minimum',
       icon: AlertTriangle
     },
+    */
     {
       label: 'Categories',
       value: categories.length,
@@ -400,18 +403,12 @@ export default function ManagerProductsPage() {
               <Tag className="w-4 h-4 mr-2" />
               Categories
             </Button>
-            <Button variant="outline" onClick={() => setIsInventoryModalOpen(true)}>
-              <Package className="w-4 h-4 mr-2" />
-              Inventory
-            </Button>
-            <Button variant="outline" onClick={() => setIsStockTransferModalOpen(true)}>
-              <Package className="w-4 h-4 mr-2" />
-              Transfers
-            </Button>
+            {/* Removed inventory and transfers buttons as per client request */}
             <Button
               variant="outline"
               onClick={exportStockTransfers}
               disabled={exporting}
+              className="hidden"
             >
               <Download className="w-4 h-4 mr-2" />
               {exporting ? 'Exporting...' : 'Export Transfers'}
@@ -529,13 +526,13 @@ export default function ManagerProductsPage() {
                     </Badge>
                   </div>
 
-                  {/* Stock Status */}
-                  <div className="absolute top-2 right-2">
+                  {/* Stock Status - hidden as per client request */}
+                  {/* <div className="absolute top-2 right-2">
                     <Badge variant={getStockStatus(product).variant}>
                       {getStockIcon(product)}
                       <span className="ml-1">{getStockStatus(product).status}</span>
                     </Badge>
-                  </div>
+                  </div> */}
                 </div>
 
                 <CardContent className="p-4">
@@ -563,12 +560,7 @@ export default function ManagerProductsPage() {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium">
-                          Stock: {product.quantity}
-                        </p>
-                        {product.is_low_stock && (
-                          <p className="text-xs text-yellow-600">Low Stock</p>
-                        )}
+                        {/* Stock count hidden */}
                       </div>
                     </div>
 
@@ -646,7 +638,8 @@ export default function ManagerProductsPage() {
             fetchData();
           }}
         />
-        <InventoryModal
+        {/* Modals hidden as per client request */}
+        {/* <InventoryModal
           isOpen={isInventoryModalOpen}
           onClose={() => setIsInventoryModalOpen(false)}
           onSuccess={() => {
@@ -661,7 +654,7 @@ export default function ManagerProductsPage() {
             setIsStockTransferModalOpen(false);
             fetchData();
           }}
-        />
+        /> */}
 
         {selectedProduct && (
           <ProductActionsModal

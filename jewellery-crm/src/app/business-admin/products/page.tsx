@@ -199,7 +199,7 @@ export default function ProductsPage() {
       case 'active': return 'default';
       case 'inactive': return 'secondary';
       case 'discontinued': return 'destructive';
-      case 'out_of_stock': return 'destructive';
+      // case 'out_of_stock': return 'destructive';
       default: return 'default';
     }
   };
@@ -486,10 +486,7 @@ export default function ProductsPage() {
 
                   <div className="flex items-center justify-end">
                     <div className="text-right">
-                      <p className="text-sm font-medium">Stock: {product.quantity}</p>
-                      {product.is_low_stock && (
-                        <p className="text-xs text-yellow-600">Low Stock</p>
-                      )}
+                      {/* Stock count hidden as per client request */}
                     </div>
                   </div>
 

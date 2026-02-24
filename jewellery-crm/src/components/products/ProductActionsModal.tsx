@@ -471,7 +471,8 @@ export default function ProductActionsModal({
               </div>
 
               {/* Inventory */}
-              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              {/* Inventory hidden as per client request */}
+              {/* <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -487,7 +488,7 @@ export default function ProductActionsModal({
                     <p className="text-gray-900 font-medium">{product.max_quantity || 0}</p>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Features */}
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
@@ -674,7 +675,8 @@ export default function ProductActionsModal({
               </div>
 
               {/* Inventory */}
-              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              {/* Inventory hidden */}
+              {/* <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory</h3>
 
                 <div className="flex items-center justify-between mb-4">
@@ -726,7 +728,7 @@ export default function ProductActionsModal({
                     </div>
                   </div>
                 )}
-              </div>
+              </div> */}
 
               {/* Image Upload */}
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">

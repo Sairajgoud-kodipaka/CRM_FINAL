@@ -238,7 +238,7 @@ export default function SalesProductsPage() {
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="discontinued">Discontinued</option>
-              <option value="out_of_stock">Out of Stock</option>
+              {/* <option value="out_of_stock">Out of Stock</option> */}
             </select>
           </div>
 
@@ -272,7 +272,7 @@ export default function SalesProductsPage() {
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Product</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">SKU</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Price</th>
-                <th className="px-4 py-3 text-left font-semibold text-text-secondary">Stock</th>
+                {/* <th className="px-4 py-3 text-left font-semibold text-text-secondary">Stock</th> */}
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Status</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Updated</th>
                 <th className="px-4 py-3 text-left font-semibold text-text-secondary">Actions</th>
@@ -302,10 +302,7 @@ export default function SalesProductsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-text-primary">
-                      <div className="font-medium">{product.quantity}</div>
-                      {product.is_low_stock && (
-                        <div className="text-xs text-orange-600">Low Stock</div>
-                      )}
+                      {/* Stock hidden */}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={getStatusBadgeVariant(product.status)} className="capitalize text-xs">

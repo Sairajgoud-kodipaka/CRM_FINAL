@@ -625,6 +625,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
           employee: authenticatedUser?.first_name || 'Staff',
           time: '4 hours ago'
         },
+        /* Inventory activity hidden
         {
           id: 3,
           type: 'inventory',
@@ -633,6 +634,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
           employee: 'System',
           time: '6 hours ago'
         }
+        */
       ];
       setStoreActivities(activities);
 
@@ -996,7 +998,8 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
         </CardContainer>
 
         {/* Inventory Status */}
-        <CardContainer>
+        {/* Inventory Status - hidden as per client request */}
+        {/* <CardContainer>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-foreground">Inventory Status</h3>
@@ -1037,7 +1040,7 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
               </div>
             )}
           </div>
-        </CardContainer>
+        </CardContainer> */}
 
         {/* Recent Activity */}
         <CardContainer>
@@ -1082,7 +1085,8 @@ export const StoreManagerDashboard = React.memo(function StoreManagerDashboard()
             <span className="text-xs">Book Appointment</span>
           </Button>
 
-          <Button variant="outline" className="h-20 flex-col space-y-2" onClick={navigateToInventory}>
+          {/* Check Inventory hidden */}
+          <Button variant="outline" className="h-20 flex-col space-y-2 hidden" onClick={navigateToInventory}>
             <Package className="w-5 h-5" />
             <span className="text-xs">Check Inventory</span>
           </Button>
