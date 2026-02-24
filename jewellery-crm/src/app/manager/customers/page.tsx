@@ -63,6 +63,7 @@ function ManagerCustomersContent() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Client | null>(null);
+  const [viewingCrossStore, setViewingCrossStore] = useState(false);
 
   // ── Data state ─────────────────────────────────────────────────────────────
   const [customers, setCustomers] = useState<Client[]>([]);
@@ -111,8 +112,11 @@ function ManagerCustomersContent() {
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  // ── Reset page on filter changes ───────────────────────────────────────────
-  useEffect(() => { setCurrentPage(1); }, [filterType, dateRange, storeFilter]);
+  // ── Reset page + column store filter on filter changes ────────────────────
+  useEffect(() => {
+    setCurrentPage(1);
+    setStoreHeaderFilter('all');
+  }, [filterType, dateRange, storeFilter]);
 
   // ── Fetch on dependency changes ────────────────────────────────────────────
   useEffect(() => { fetchCustomers(); }, [currentPage, debouncedSearchTerm, filterType, dateRange, storeFilter]);
@@ -228,6 +232,7 @@ function ManagerCustomersContent() {
             setCustomers([]); setTotalCount(0);
           }
         } else {
+          console.warn('[Manager Customers] API error for all_customers fetch:', response);
           setCustomers([]); setTotalCount(0);
         }
 
@@ -412,8 +417,17 @@ function ManagerCustomersContent() {
     setCreatedDateHeaderFilter('all'); setStoreHeaderFilter('all');
   };
 
+  // ── Cross-store read-only guard ────────────────────────────────────────────
+  const isCrossStore = (c: Client): boolean =>
+    user?.store !== undefined && c.store !== undefined && c.store !== user.store;
+
   // ── Event handlers ─────────────────────────────────────────────────────────
-  const handleViewCustomer = (id: string) => { setSelectedCustomerId(id); setDetailModalOpen(true); };
+  const handleViewCustomer = (id: string) => {
+    const c = customers.find(x => x.id.toString() === id);
+    setViewingCrossStore(c ? isCrossStore(c) : false);
+    setSelectedCustomerId(id);
+    setDetailModalOpen(true);
+  };
   const handleEditCustomer = (c: Client) => { setSelectedCustomer(c); setEditModalOpen(true); };
 
   const handleDeleteCustomer = async (id: string) => {
@@ -460,6 +474,7 @@ function ManagerCustomersContent() {
         onClose={() => {
           setDetailModalOpen(false);
           setSelectedCustomerId(null);
+          setViewingCrossStore(false);
           if (typeof window !== 'undefined') {
             const params = new URLSearchParams(searchParams?.toString() ?? '');
             if (params.has('open')) {
@@ -469,8 +484,8 @@ function ManagerCustomersContent() {
           }
         }}
         customerId={selectedCustomerId}
-        onEdit={handleEditCustomer}
-        onDelete={canDeleteCustomers ? handleDeleteCustomer : undefined}
+        onEdit={viewingCrossStore ? () => {} : handleEditCustomer}
+        onDelete={viewingCrossStore ? undefined : (canDeleteCustomers ? handleDeleteCustomer : undefined)}
       />
       <EditCustomerModal
         open={editModalOpen}
@@ -656,10 +671,18 @@ function ManagerCustomersContent() {
                             </div>
                           </div>
                           <div className="flex flex-col gap-1 flex-shrink-0">
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={e => { e.stopPropagation(); handleViewCustomer(c.id.toString()); }}><Eye className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-green-600" onClick={e => { e.stopPropagation(); handleEditCustomer(c); }}><Edit className="w-4 h-4" /></Button>
-                            {canDeleteCustomers && (
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600" onClick={e => { e.stopPropagation(); if (window.confirm(`Move ${c.first_name} ${c.last_name} to trash?`)) handleDeleteCustomer(c.id.toString()); }}><Trash2 className="w-4 h-4" /></Button>
+                            {isCrossStore(c) ? (
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={e => { e.stopPropagation(); handleViewCustomer(c.id.toString()); }} title="View only">
+                                <Eye className="w-4 h-4 text-muted-foreground" />
+                              </Button>
+                            ) : (
+                              <>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={e => { e.stopPropagation(); handleViewCustomer(c.id.toString()); }}><Eye className="w-4 h-4" /></Button>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-green-600" onClick={e => { e.stopPropagation(); handleEditCustomer(c); }}><Edit className="w-4 h-4" /></Button>
+                                {canDeleteCustomers && (
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600" onClick={e => { e.stopPropagation(); if (window.confirm(`Move ${c.first_name} ${c.last_name} to trash?`)) handleDeleteCustomer(c.id.toString()); }}><Trash2 className="w-4 h-4" /></Button>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
@@ -773,7 +796,9 @@ function ManagerCustomersContent() {
                           <tr><td colSpan={7} className="px-4 py-8 text-center text-text-secondary">No customers match your filters</td></tr>
                         ) : filteredCustomers.map(c => (
                           <tr key={c.id} onClick={() => handleViewCustomer(c.id.toString())} className="hover:bg-muted/50 cursor-pointer">
-                            <td className="px-4 py-3 whitespace-nowrap font-medium text-text-primary">{formatCustomerName(c)}</td>
+                            <td className="px-4 py-3 whitespace-nowrap font-medium text-text-primary">
+                              {formatCustomerName(c)}
+                            </td>
                             <td className="px-4 py-3 whitespace-nowrap text-text-primary">{c.phone || '-'}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-text-secondary">{getSalespersonName(c)}</td>
                             <td className="px-4 py-3 whitespace-nowrap">
@@ -784,6 +809,11 @@ function ManagerCustomersContent() {
                             <td className="px-4 py-3 whitespace-nowrap text-text-secondary">{formatDate(c.created_at || '')}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-text-secondary">{c.store_name || (c.store ? `Store #${c.store}` : '-')}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-right" onClick={e => e.stopPropagation()}>
+                              {isCrossStore(c) ? (
+                                <Button variant="ghost" size="sm" onClick={() => handleViewCustomer(c.id.toString())} title="View only">
+                                  <Eye className="w-4 h-4 text-muted-foreground" />
+                                </Button>
+                              ) : (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm"><MoreHorizontal className="w-4 h-4" /></Button>
@@ -798,6 +828,7 @@ function ManagerCustomersContent() {
                                   )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
+                              )}
                             </td>
                           </tr>
                         ))}

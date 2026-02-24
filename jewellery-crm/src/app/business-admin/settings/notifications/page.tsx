@@ -70,14 +70,14 @@ export default function NotificationSettingsPage() {
     { value: 'deal_update', label: 'Deal Updates', description: 'Receive updates when deals change stages' },
     { value: 'new_customer', label: 'New Customers', description: 'Notifications when new customers are added' },
     { value: 'order_status', label: 'Order Status', description: 'Updates on order processing and delivery' },
-    { value: 'inventory_alert', label: 'Inventory Alerts', description: 'Low stock and inventory warnings' },
+    // { value: 'inventory_alert', label: 'Inventory Alerts', description: 'Low stock and inventory warnings' },
     { value: 'task_due', label: 'Task Reminders', description: 'Reminders for due tasks and follow-ups' },
     { value: 'announcement', label: 'Announcements', description: 'Important announcements from management' },
     { value: 'escalation', label: 'Escalations', description: 'Urgent escalations requiring attention' },
     { value: 'marketing_campaign', label: 'Marketing Campaigns', description: 'Updates on marketing campaign performance' },
     { value: 'follow_up_reminder', label: 'Follow-up Reminders', description: 'Reminders for customer follow-ups' },
     { value: 'payment_received', label: 'Payment Notifications', description: 'Confirmations when payments are received' },
-    { value: 'low_stock', label: 'Low Stock Alerts', description: 'Warnings when products are running low' },
+    // { value: 'low_stock', label: 'Low Stock Alerts', description: 'Warnings when products are running low' },
     { value: 'high_demand', label: 'High Demand Alerts', description: 'Notifications for trending products' },
   ];
 
