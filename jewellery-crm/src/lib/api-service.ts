@@ -1082,6 +1082,7 @@ class ApiService {
   // Clients (Customers) API
   async getClients(params?: {
     page?: number;
+    page_size?: number;
     search?: string;
     status?: string;
     assigned_to?: string;
@@ -1091,6 +1092,7 @@ class ApiService {
   }): Promise<ApiResponse<Client[]>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
     if (params?.search) queryParams.append('search', params.search);
     if (params?.status) queryParams.append('status', params.status);
     if (params?.assigned_to) queryParams.append('assigned_to', params.assigned_to);
